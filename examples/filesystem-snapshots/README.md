@@ -7,7 +7,7 @@ Demonstrates how to create and manage filesystem snapshots within a sandbox envi
 1. Navigate to the example directory:
 
    ```bash
-   cd examples/sandbox-filesystem-snapshots
+   cd examples/filesystem-snapshots
    ```
 
 2. Install dependencies:
