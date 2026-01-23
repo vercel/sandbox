@@ -1,4 +1,4 @@
-import { Sandbox, APIError } from "@vercel/sandbox";
+import { Sandbox, APIError,Snapshot } from "@vercel/sandbox";
 import { version } from "./pkg";
 import chalk from "chalk";
 import { tmpdir } from "node:os";
@@ -18,6 +18,13 @@ export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
     withErrorHandling(
       Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
     ),
+};
+
+export const snapshotClient: Pick<typeof Snapshot, "get" | "list"> = {
+  list: (params) =>
+    withErrorHandling(Snapshot.list({ fetch: fetchWithUserAgent, ...params })),
+  get: (params) =>
+    withErrorHandling(Snapshot.get({ ...params })),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {

@@ -3,9 +3,10 @@ import { Sandbox } from "@vercel/sandbox";
 import { sandboxClient } from "../client";
 import { scope } from "../args/scope";
 import chalk, { ChalkInstance } from "chalk";
-import { formatDistance } from "date-fns/formatDistance";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
+import { table,
+timeAgo } from "../util/output";
 
 export const list = cmd.command({
   name: "list",
@@ -54,7 +55,7 @@ export const list = cmd.command({
           ID: { value: (s) => s.id },
           STATUS: {
             value: (s) => s.status,
-            color: (s) => StatusColor.get(s.status) ?? chalk.reset,
+            color: (s) => SandboxStatusColor.get(s.status) ?? chalk.reset,
           },
           CREATED: {
             value: (s) => timeAgo(s.createdAt),
@@ -65,56 +66,16 @@ export const list = cmd.command({
           TIMEOUT: {
             value: (s) => timeAgo(s.createdAt + s.timeout),
           },
+           SNAPSHOT: {
+            value: (s) => (s.sourceSnapshotId ?? '-'),
+          },
         },
       }),
     );
   },
 });
 
-function timeAgo(date: string | number | Date) {
-  return formatDistance(date, new Date(), {
-    addSuffix: true,
-  })
-    .replace("about ", "")
-    .replace("less than ", "");
-}
-
-function table<T extends object>(opts: {
-  rows: T[];
-  columns: Record<
-    string,
-    {
-      value: (row: T) => string | number;
-      color?: (row: T) => ChalkInstance;
-    }
-  >;
-}) {
-  const titles = Object.keys(opts.columns);
-  const maxWidths: number[] = titles.map((title) => title.length);
-  const data = opts.rows.map((row) => {
-    return titles.map((title, i) => {
-      let value = String(opts.columns[title].value(row));
-      if (value.length > maxWidths[i]) {
-        maxWidths[i] = value.length;
-      }
-      if (opts.columns[title].color) {
-        value = opts.columns[title].color(row)(value);
-      }
-      return value;
-    });
-  });
-
-  const padded = (t: string, i: number) => t.padEnd(maxWidths[i], " ");
-
-  const space = "   ";
-
-  return [
-    chalk.bold(titles.map(padded).join(space)),
-    ...data.map((row) => row.map(padded).join(space)),
-  ].join("\n");
-}
-
-export const StatusColor = new Map<Sandbox["status"], ChalkInstance>([
+const SandboxStatusColor = new Map<Sandbox["status"], ChalkInstance>([
   ["running", chalk.cyan],
   ["failed", chalk.red],
   ["stopped", chalk.gray.dim],
