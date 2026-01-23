@@ -1,4 +1,4 @@
-module github.com/vercel/sandbox-sdk/pty-tunnel-server
+module github.com/vercel/sandbox/pty-tunnel-server
 
 go 1.22.0
 

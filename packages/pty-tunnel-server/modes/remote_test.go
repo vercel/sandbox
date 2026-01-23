@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/modes"
+	"github.com/vercel/sandbox/pty-tunnel-server/modes"
 )
 
 func TestExternalProcessBootstrapper(t *testing.T) {

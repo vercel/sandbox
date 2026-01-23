@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/term"
+	"github.com/vercel/sandbox/pty-tunnel-server/term"
 )
 
 // Writer is a WebSocket-based implementation of term.TermTarget.

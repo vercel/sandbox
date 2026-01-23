@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/buffering"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/glue"
+	"github.com/vercel/sandbox/pty-tunnel-server/buffering"
+	"github.com/vercel/sandbox/pty-tunnel-server/glue"
 )
 
 type TermTarget interface {

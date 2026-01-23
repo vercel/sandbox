@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/config"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/modes"
+	"github.com/vercel/sandbox/pty-tunnel-server/config"
+	"github.com/vercel/sandbox/pty-tunnel-server/modes"
 
 	_ "embed"
 )

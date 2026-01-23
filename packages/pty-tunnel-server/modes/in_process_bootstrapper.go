@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/config"
+	"github.com/vercel/sandbox/pty-tunnel-server/config"
 )
 
 // InProcessBootstrapper is a Bootstrapper that runs the server in process.
