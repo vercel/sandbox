@@ -1,0 +1,17 @@
+{
+  "name": "dev-server-example",
+  "version": "0.1.4",
+  "private": true,
+  "description": "Example demonstrating how to start a development server from a Git repository",
+  "main": "dev-server.ts",
+  "scripts": {
+    "start": "node --env-file .env.local --experimental-strip-types dev-server.ts"
+  },
+  "dependencies": {
+    "@vercel/sandbox": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

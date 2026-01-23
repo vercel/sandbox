@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBOREPO_REMOTE_CACHING_TOKEN }}
+  TURBO_TEAM: vercel
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: "pnpm"
+          node-version-file: .node-version # node-version takes precedence if both are specified
+
+      - run: pnpm install
+        shell: bash
+
+      - name: Build Monorepo
+        run: pnpm run build
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Create Release Pull Request
+        uses: changesets/action@v1
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+        with:
+          version: pnpm version:prepare
+          publish: pnpm release

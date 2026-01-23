@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+ARCH="$(uname -m)"
+curl -o /usr/local/bin/vc-pty-tunnel-server "https://{{VERCEL_URL}}/linux-$ARCH"
+chmod +x /usr/local/bin/vc-pty-tunnel-server

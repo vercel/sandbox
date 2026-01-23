@@ -1,0 +1,16 @@
+{
+  "name": "private-repo-example",
+  "version": "0.1.4",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file .env.local --experimental-strip-types private-repo.ts",
+    "start": "node --env-file .env.local --experimental-strip-types private-repo.ts"
+  },
+  "dependencies": {
+    "@vercel/sandbox": "workspace:*",
+    "ms": "^2.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20"
+  }
+}

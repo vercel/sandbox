@@ -1,0 +1,17 @@
+{
+  "name": "charts-python-example",
+  "version": "0.1.4",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file .env.local --experimental-strip-types charts-python.ts",
+    "start": "node --env-file .env.local --experimental-strip-types charts-python.ts"
+  },
+  "dependencies": {
+    "@vercel/sandbox": "workspace:*",
+    "@ai-sdk/gateway": "1.0.0-beta.4",
+    "ai": "5.0.0-beta.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20"
+  }
+}

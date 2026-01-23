@@ -1,0 +1,16 @@
+{
+  "name": "sandbox-basics-example",
+  "version": "0.1.4",
+  "private": true,
+  "description": "Example demonstrating basic sandbox environment features",
+  "main": "sandbox-basics.ts",
+  "scripts": {
+    "start": "node --env-file .env.local --experimental-strip-types sandbox-basics.ts"
+  },
+  "dependencies": {
+    "@vercel/sandbox": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
