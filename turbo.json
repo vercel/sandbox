@@ -1,0 +1,51 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "globalEnv": ["RUNNER_OS", "NODE_VERSION"],
+  "tasks": {
+    "version:bump": {
+      "outputs": []
+    },
+    "clean": {
+      "outputs": [],
+      "cache": false
+    },
+    "typecheck": {
+      "dependsOn": ["build", "^build"],
+      "inputs": ["tsconfig.json", "src/**", "node_modules/**"],
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": ["^typecheck"],
+      "inputs": ["tsconfig.json", "node_modules/**", "src/**"],
+      "outputs": [
+        "dist/**",
+        "build/**",
+        ".next/**",
+        ".vercel/**",
+        "!.next/cache/**"
+      ],
+
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "test/**"],
+      "outputs": []
+    },
+    "@vercel/sandbox#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env.development.local",
+        ".env.local",
+        ".env.development",
+        ".env"
+      ],
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

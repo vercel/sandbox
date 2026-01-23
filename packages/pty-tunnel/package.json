@@ -1,0 +1,30 @@
+{
+  "name": "@vercel/pty-tunnel",
+  "private": true,
+  "type": "module",
+  "version": "2.0.3",
+  "description": "",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "debug": "^4.4.1",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.12",
+    "@types/jsonlines": "0.1.5",
+    "@types/ws": "^8.18.1",
+    "@vercel/pty-tunnel-server": "workspace:*",
+    "jsonlines": "0.1.1",
+    "prompts": "^2.4.2",
+    "tsdown": "catalog:",
+    "vitest": "3.2.1"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "out": "dist/doc",
+  "sort": ["source-order"],
+  "navigationLinks": {
+    "GitHub": "https://github.com/vercel/sandbox-sdk"
+  },
+  "compilerOptions": {
+    "stripInternal": true
+  },
+  "excludeInternal": false,
+  "excludePrivate": true,
+  "entryPoints": ["src/index.ts"]
+}

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "isolatedDeclarations": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "target": "ES2020",
+    "declaration": true,
+    "module": "nodenext"
+  },
+  "include": ["src/**/*"]
+}

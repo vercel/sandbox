@@ -1,0 +1,20 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build:binaries": {
+      "inputs": ["go.mod", "go.sum", "*.go", "**/*.go", "scripts"],
+      "outputs": ["public", "pty-tunnel-server"]
+    },
+    "build:install-script": {
+      "dependsOn": ["build:binaries"],
+      "env": ["VERCEL_URL"],
+      "inputs": ["templates", "scripts"],
+      "outputs": ["public", "pty-tunnel-server"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "inputs": ["**/*.go", "pty-tunnel-server"],
+      "outputs": []
+    }
+  }
+}

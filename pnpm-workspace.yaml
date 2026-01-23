@@ -1,0 +1,7 @@
+packages:
+  - examples/*
+  - packages/*
+
+catalog:
+  tsdown: 0.16.6
+  vitest: 3.2.1

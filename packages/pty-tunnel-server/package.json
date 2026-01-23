@@ -1,0 +1,13 @@
+{
+  "name": "@vercel/pty-tunnel-server",
+  "version": "0.0.2",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "vercel-build": "./scripts/build-binaries.sh && ./scripts/build.sh",
+    "build": "turbo run build:install-script",
+    "test": "go test ./...",
+    "build:binaries": "scripts/build-binaries.sh",
+    "build:install-script": "scripts/build.sh"
+  }
+}

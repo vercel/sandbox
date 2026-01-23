@@ -1,0 +1,9 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "version:bump": {
+      "inputs": ["package.json"],
+      "outputs": ["src/version.ts"]
+    }
+  }
+}

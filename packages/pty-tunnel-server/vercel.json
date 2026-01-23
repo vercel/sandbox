@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "headers": [
+    {
+      "source": "/install",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        },
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}

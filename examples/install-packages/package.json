@@ -1,0 +1,15 @@
+{
+  "name": "install-packages-example",
+  "version": "0.1.4",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file .env.local --experimental-strip-types install-packages.ts",
+    "start": "node --env-file .env.local --experimental-strip-types install-packages.ts"
+  },
+  "dependencies": {
+    "@vercel/sandbox": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20"
+  }
+}
