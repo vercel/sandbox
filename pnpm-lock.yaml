@@ -189,6 +189,16 @@ importers:
         specifier: ^5.0.0
         version: 5.8.3
 
+  examples/filesystem-snapshots:
+    dependencies:
+      '@vercel/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/vercel-sandbox
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.3
+
   examples/install-packages:
     dependencies:
       '@vercel/sandbox':
