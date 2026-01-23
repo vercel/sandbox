@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/term"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/ws"
+	"github.com/vercel/sandbox/pty-tunnel-server/term"
+	"github.com/vercel/sandbox/pty-tunnel-server/ws"
 )
 
 // ClientMode represents the client mode of the PTY tunnel server.

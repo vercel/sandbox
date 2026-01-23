@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/ws"
+	"github.com/vercel/sandbox/pty-tunnel-server/ws"
 )
 
 type MultiplexerMode struct {

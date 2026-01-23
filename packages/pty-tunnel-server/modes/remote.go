@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/config"
+	"github.com/vercel/sandbox/pty-tunnel-server/config"
 )
 
 // ExternalProcessBootstrapper is a Bootstrapper that spawns a new process for the server.

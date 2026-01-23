@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/creack/pty"
-	"github.com/vercel/sandbox-sdk/pty-tunnel-server/protocol"
+	"github.com/vercel/sandbox/pty-tunnel-server/protocol"
 )
 
 type MessageHandler struct {
