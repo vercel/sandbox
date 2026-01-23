@@ -1,23 +1,13 @@
-# Sandbox Basics Example
+# Sandbox Filesystem Snapshots Example
 
-This example demonstrates fundamental sandbox environment features and capabilities. It provides a comprehensive overview of what's available in a sandbox environment and how to interact with it programmatically.
-
-## Features
-
-- **Environment Exploration**: Check current directory, PATH, and available tools
-- **System Information**: Get details about the operating system and user context
-- **Environment Variables**: Set and use custom environment variables
-- **File Operations**: Create, write, and manage files and directories
-- **Script Execution**: Create and run bash scripts with arguments
-- **Process Management**: Start processes and send signals (SIGTERM, SIGINT)
-- **Resource Monitoring**: Check disk and memory usage
+Demonstrates how to create and manage filesystem snapshots within a sandbox environment.
 
 ## How to Run
 
 1. Navigate to the example directory:
 
    ```bash
-   cd examples/sandbox-basics
+   cd examples/sandbox-filesystem-snapshots
    ```
 
 2. Install dependencies:
@@ -42,13 +32,6 @@ This example demonstrates fundamental sandbox environment features and capabilit
 
 ## What This Example Shows
 
-This example demonstrates the powerful capabilities of the sandbox environment:
-
-- **Environment Discovery**: Shows the current working directory (`/vercel/sandbox`), PATH environment, and available tools
-- **System Information**: Displays OS details, user context, and system resources
-- **Environment Variables**: How to set and use custom environment variables with `export`
-- **File and Script Operations**: Creating files with `writeFiles()`, executable bash scripts, and directory management
-- **Process Management**: Starting background processes, sending signals (SIGTERM/SIGINT), and proper cleanup
-- **Resource Monitoring**: Checking disk usage, memory consumption, and system limits
-
-The example creates scripts, manages processes, handles signals, and demonstrates the full lifecycle of sandbox operations. It serves as a comprehensive introduction to sandbox capabilities and is perfect for understanding the environment before building more complex applications.
+- How to create new filesystem snapshots from a sandbox
+- How to listing existing snapshots
+- How to create a new sandbox from an existing snapshot
