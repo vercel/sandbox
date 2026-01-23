@@ -60,6 +60,14 @@ Shows how to create a sandbox from a Git repository and start a development serv
 - Development server startup with live log streaming
 - Access your application through a public URL
 
+### 📦 [Filesystem Snapshots Example](./filesystem-snapshots)
+
+Demonstrates how to create and manage filesystem snapshots within a sandbox environment. Features include:
+
+- Creating a new filesystem snapshot
+- Listing existing snapshots
+- Creating a new sandbox from a snapshot
+
 ## Getting Started
 
 Each example is self-contained and can be run independently. To get started:
@@ -122,4 +130,4 @@ When adding new examples:
 ## Learn More
 
 - [Vercel Sandbox SDK Documentation](https://vercel.com/docs/vercel-sandbox)
-- [SDK Reference](https://vercel.com/docs/vercel-sandbox/reference/readme)
+- [SDK Reference](https://vercel.com/docs/vercel-sandbox/sdk-reference)
