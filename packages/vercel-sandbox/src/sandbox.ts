@@ -18,6 +18,7 @@ import {
   type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -115,6 +116,15 @@ interface GetSandboxParams {
   signal?: AbortSignal;
 }
 
+/**
+ * Serialized representation of a Sandbox for @workflow/serde.
+ */
+export interface SerializedSandbox {
+  sandboxId: string;
+  metadata: SandboxMetaData;
+  routes: SandboxRouteData[];
+}
+
 /** @inline */
 interface RunCommandParams {
   /**
@@ -155,6 +165,37 @@ interface RunCommandParams {
   signal?: AbortSignal;
 }
 
+// ============================================================================
+// Global credentials storage
+// ============================================================================
+
+let globalCredentials: Partial<Credentials> = {};
+
+/**
+ * Set global credentials for Sandbox and Command instances.
+ * These credentials are used when lazily creating API clients for deserialized instances.
+ *
+ * If not called, deserialized instances will use OIDC authentication by default.
+ *
+ * @param credentials - The credentials to use globally
+ */
+export function setGlobalCredentials(credentials: Credentials): void {
+  globalCredentials = credentials;
+}
+
+/**
+ * Get the global credentials.
+ * Returns empty object by default (for OIDC authentication).
+ * @internal
+ */
+export function getGlobalCredentials(): Partial<Credentials> {
+  return globalCredentials;
+}
+
+// ============================================================================
+// Sandbox class
+// ============================================================================
+
 /**
  * A Sandbox is an isolated Linux MicroVM to run commands in.
  *
@@ -162,7 +203,22 @@ interface RunCommandParams {
  * @hideconstructor
  */
 export class Sandbox {
-  private readonly client: APIClient;
+  private _client: APIClient | null = null;
+
+  /**
+   * Lazily get or create the API client.
+   * If no client was provided during construction, creates one using global credentials.
+   */
+  get client(): APIClient {
+    if (!this._client) {
+      const credentials = getGlobalCredentials();
+      this._client = new APIClient({
+        teamId: credentials.teamId!,
+        token: credentials.token!,
+      });
+    }
+    return this._client;
+  }
 
   /**
    * Routes from ports to subdomains.
@@ -236,6 +292,30 @@ export class Sandbox {
   private sandbox: ConvertedSandbox;
 
   /**
+   * Set global credentials for Sandbox and Command instances.
+   * These credentials are used when lazily creating API clients for deserialized instances.
+   *
+   * If not called, deserialized instances will use OIDC authentication by default.
+   *
+   * @param credentials - The credentials to use globally
+   *
+   * @example
+   * // Set credentials once at application startup
+   * Sandbox.setCredentials({
+   *   teamId: 'team_xxx',
+   *   token: 'token_xxx',
+   *   projectId: 'prj_xxx'
+   * });
+   *
+   * // Now deserialized sandboxes can make API calls
+   * const sandbox = Sandbox[WORKFLOW_DESERIALIZE](serializedData);
+   * await sandbox.runCommand('echo', ['hello']);
+   */
+  static setCredentials(credentials: Credentials): void {
+    setGlobalCredentials(credentials);
+  }
+
+  /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.
    * It returns both the sandboxes and the pagination metadata to allow getting
    * the next page of results.
@@ -243,7 +323,7 @@ export class Sandbox {
   static async list(
     params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
       Partial<Credentials> &
-      WithFetchOptions,
+      WithFetchOptions
   ) {
     const credentials = await getCredentials(params);
     const client = new APIClient({
@@ -254,6 +334,36 @@ export class Sandbox {
     return client.listSandboxes({
       ...credentials,
       ...params,
+    });
+  }
+
+  /**
+   * Serialize a Sandbox instance to plain data for @workflow/serde.
+   *
+   * @param instance - The Sandbox instance to serialize
+   * @returns A plain object containing the sandbox ID, metadata, and routes
+   */
+  static [WORKFLOW_SERIALIZE](instance: Sandbox): SerializedSandbox {
+    return {
+      sandboxId: instance.sandboxId,
+      metadata: instance.sandbox,
+      routes: instance.routes,
+    };
+  }
+
+  /**
+   * Deserialize plain data back into a Sandbox instance for @workflow/serde.
+   *
+   * The deserialized instance will lazily create an API client using global credentials
+   * when needed. Call {@link Sandbox.setCredentials} before using the deserialized instance.
+   *
+   * @param data - The serialized sandbox data
+   * @returns The reconstructed Sandbox instance
+   */
+  static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Sandbox {
+    return new Sandbox({
+      sandbox: data.metadata,
+      routes: data.routes,
     });
   }
 
@@ -273,7 +383,7 @@ export class Sandbox {
     params?: WithPrivate<
       CreateSandboxParams | (CreateSandboxParams & Credentials)
     > &
-      WithFetchOptions,
+      WithFetchOptions
   ): Promise<Sandbox & AsyncDisposable> {
     const credentials = await getCredentials(params);
     const client = new APIClient({
@@ -311,7 +421,7 @@ export class Sandbox {
    */
   static async get(
     params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
-      WithFetchOptions,
+      WithFetchOptions
   ): Promise<Sandbox> {
     const credentials = await getCredentials(params);
     const client = new APIClient({
@@ -334,16 +444,23 @@ export class Sandbox {
     });
   }
 
+  /**
+   * Create a new Sandbox instance.
+   *
+   * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
+   * @param params.routes - Port-to-subdomain mappings for exposed ports
+   * @param params.sandbox - Sandbox metadata
+   */
   constructor({
     client,
     routes,
     sandbox,
   }: {
-    client: APIClient;
+    client?: APIClient;
     routes: SandboxRouteData[];
     sandbox: SandboxMetaData;
   }) {
-    this.client = client;
+    this._client = client ?? null;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
   }
@@ -358,7 +475,7 @@ export class Sandbox {
    */
   async getCommand(
     cmdId: string,
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ): Promise<Command> {
     const command = await this.client.getCommand({
       sandboxId: this.sandbox.id,
@@ -385,7 +502,7 @@ export class Sandbox {
   async runCommand(
     command: string,
     args?: string[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ): Promise<CommandFinished>;
 
   /**
@@ -395,7 +512,7 @@ export class Sandbox {
    * @returns A {@link Command} instance for the running command.
    */
   async runCommand(
-    params: RunCommandParams & { detached: true },
+    params: RunCommandParams & { detached: true }
   ): Promise<Command>;
 
   /**
@@ -409,21 +526,13 @@ export class Sandbox {
   async runCommand(
     commandOrParams: string | RunCommandParams,
     args?: string[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ): Promise<Command | CommandFinished> {
-    return typeof commandOrParams === "string"
-      ? this._runCommand({ cmd: commandOrParams, args, signal: opts?.signal })
-      : this._runCommand(commandOrParams);
-  }
+    const params: RunCommandParams =
+      typeof commandOrParams === "string"
+        ? { cmd: commandOrParams, args, signal: opts?.signal }
+        : commandOrParams;
 
-  /**
-   * Internal helper to start a command in the sandbox.
-   *
-   * @param params - Command execution parameters.
-   * @returns A {@link Command} or {@link CommandFinished}, depending on `detached`.
-   * @internal
-   */
-  async _runCommand(params: RunCommandParams) {
     const wait = params.detached ? false : true;
     const getLogs = (command: Command) => {
       if (params.stdout || params.stderr) {
@@ -444,7 +553,7 @@ export class Sandbox {
           }
         })();
       }
-    }
+    };
 
     if (wait) {
       const commandStream = await this.client.runCommand({
@@ -464,7 +573,7 @@ export class Sandbox {
         cmd: commandStream.command,
       });
 
-      getLogs(command); 
+      getLogs(command);
 
       const finished = await commandStream.finished;
       return new CommandFinished({
@@ -521,7 +630,7 @@ export class Sandbox {
    */
   async readFile(
     file: { path: string; cwd?: string },
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ): Promise<NodeJS.ReadableStream | null> {
     return this.client.readFile({
       sandboxId: this.sandbox.id,
@@ -541,7 +650,7 @@ export class Sandbox {
    */
   async readFileToBuffer(
     file: { path: string; cwd?: string },
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ): Promise<Buffer | null> {
     const stream = await this.client.readFile({
       sandboxId: this.sandbox.id,
@@ -570,7 +679,7 @@ export class Sandbox {
   async downloadFile(
     src: { path: string; cwd?: string },
     dst: { path: string; cwd?: string },
-    opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
+    opts?: { mkdirRecursive?: boolean; signal?: AbortSignal }
   ): Promise<string | null> {
     if (!src?.path) {
       throw new Error("downloadFile: source path is required");
@@ -601,7 +710,7 @@ export class Sandbox {
       });
       return dstPath;
     } finally {
-      stream.destroy()
+      stream.destroy();
     }
   }
 
@@ -617,7 +726,7 @@ export class Sandbox {
    */
   async writeFiles(
     files: { path: string; content: Buffer }[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ) {
     return this.client.writeFiles({
       sandboxId: this.sandbox.id,
@@ -726,7 +835,7 @@ export class Sandbox {
    */
   async extendTimeout(
     duration: number,
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal }
   ): Promise<void> {
     const response = await this.client.extendTimeout({
       sandboxId: this.sandbox.id,
