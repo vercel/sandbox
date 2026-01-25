@@ -5,6 +5,8 @@ import { timeout } from "../args/timeout";
 import chalk from "chalk";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
+import { snapshotId } from "../args/snapshot-id";
+import ora from "ora";
 
 export const args = {
   scope,
@@ -36,22 +38,40 @@ export const args = {
     long: "silent",
     description: "Don't write sandbox ID to stdout",
   }),
+  snapshot: cmd.option({
+    long: "snapshot",
+    short: "s",
+    description: "Start the sandbox from a snapshot ID",
+    type: cmd.optional(snapshotId),
+  }),
 } as const;
 
 export const create = cmd.command({
   name: "create",
   description: "Create a sandbox in the specified account and project.",
   args,
-  async handler({ ports, scope, runtime, timeout, silent }) {
-    const sandbox = await sandboxClient.create({
-      teamId: scope.team,
-      projectId: scope.project,
-      token: scope.token,
-      ports,
-      runtime,
-      timeout: ms(timeout),
-      __interactive: true,
-    });
+  async handler({ ports, scope, runtime, timeout, silent, snapshot }) {
+    const spinner = silent ? undefined : ora("Creating sandbox...").start();
+    const sandbox = snapshot
+      ? await sandboxClient.create({
+          source: { type: "snapshot", snapshotId: snapshot },
+          teamId: scope.team,
+          projectId: scope.project,
+          token: scope.token,
+          ports,
+          timeout: ms(timeout),
+          __interactive: true,
+        })
+      : await sandboxClient.create({
+          teamId: scope.team,
+          projectId: scope.project,
+          token: scope.token,
+          ports,
+          runtime,
+          timeout: ms(timeout),
+          __interactive: true,
+        });
+    spinner?.stop();
 
     if (!silent) {
       process.stderr.write("✅ Sandbox ");
