@@ -67,12 +67,6 @@ export const snapshot = cmd.command({
 
     const spinner = silent ? undefined : ora("Creating snapshot...").start();
     const snapshot = await sandbox.snapshot();
-    spinner?.stop();
-
-    if (!silent) {
-      process.stderr.write("✅ Snapshot ");
-      process.stdout.write(chalk.cyan(snapshot.snapshotId));
-      process.stderr.write(" created.\n");
-    }
+    spinner?.succeed(`Snapshot ${snapshot.snapshotId} created.`);
   },
 });
