@@ -14,6 +14,8 @@ where <subcommand> can be one of:
 - stop - Stop one or more running sandboxes [aliases: rm, remove]
 - run - Create and run a command in a sandbox
 - sh - Create a sandbox and run an interactive shell. [alias: shell]
+- snapshot - Take a snapshot of the filesystem of a sandbox
+- snapshots - Manage sandbox snapshots
 - login - Log in to the Sandbox CLI
 - logout - Log out of the Sandbox CLI
 
@@ -49,6 +51,7 @@ OPTIONS:
   --runtime <runtime>               - One of 'node22', 'node24', 'python3.13' [default: node24]
   --timeout <num UNIT>              - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
   --publish-port <PORT>, -p=<PORT>  - Publish sandbox port(s) to DOMAIN.vercel.run
+  --snapshot, -s <snapshot_id>      - Start the sandbox from a snapshot ID [optional]
   --workdir, -w <str>               - The working directory to run the command in [optional]
   --env <key=value>, -e=<key=value> - Environment variables to set for the command
 
@@ -78,6 +81,7 @@ OPTIONS:
   --runtime <runtime>              - One of 'node22', 'node24', 'python3.13' [default: node24]
   --timeout <num UNIT>             - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
   --publish-port <PORT>, -p=<PORT> - Publish sandbox port(s) to DOMAIN.vercel.run
+  --snapshot, -s <snapshot_id>     - Start the sandbox from a snapshot ID [optional]
 
 FLAGS:
   --silent   - Don't write sandbox ID to stdout [optional]

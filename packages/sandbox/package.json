@@ -1,7 +1,7 @@
 {
   "name": "sandbox",
   "description": "Command line interface for Vercel Sandbox",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "scripts": {
     "clean": "rm -rf node_modules dist",
     "sandbox": "ts-node ./src/sandbox.ts",
