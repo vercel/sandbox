@@ -84,7 +84,7 @@ export const create = cmd.command({
         [
           `Sandbox created but interactive port is missing.`,
           `${chalk.bold("hint:")} This is an internal error. Please try again.`,
-          "╰▶ Report this issue: https://github.com/vercel/sandbox-sdk/issues",
+          "╰▶ Report this issue: https://github.com/vercel/sandbox/issues",
         ].join("\n"),
       );
     }
