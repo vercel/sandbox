@@ -2,7 +2,7 @@
   "out": "dist/doc",
   "sort": ["source-order"],
   "navigationLinks": {
-    "GitHub": "https://github.com/vercel/sandbox-sdk"
+    "GitHub": "https://github.com/vercel/sandbox"
   },
   "compilerOptions": {
     "exclude": ["src/command.test.ts"],
