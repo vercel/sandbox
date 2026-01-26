@@ -216,4 +216,4 @@ available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-pack
 
 ## Authors
 
-This library is created by [Vercel](https://vercel.com) team members, with contributions from the [Open Source Community](https://github.com/vercel/sandbox/graphs/contributors) are welcome and highly appreciated.
+This library is created by [Vercel](https://vercel.com) team members, with contributions from the [Open Source Community](https://github.com/vercel/sandbox/graphs/contributors) welcome and highly appreciated.
