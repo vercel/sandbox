@@ -5,7 +5,7 @@ VMs. View the documentation [here](https://vercel.com/docs/vercel-sandbox).
 
 ## Packages
 
-- [`@vercel/sandbox`](https://www.npmjs.com/package/@vercel/sandbox) - The SDK for programmatic access to Vercel Sandbox. [Source](https://github.com/vercel/sandbox/tree/main/packages/vercel-sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/sdk-reference)
+- [`@vercel/sandbox`](https://www.npmjs.com/package/@vercel/sandbox) (this package) - The SDK for programmatic access to Vercel Sandbox. [Source](https://github.com/vercel/sandbox/tree/main/packages/vercel-sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/sdk-reference)
 - [`sandbox`](https://www.npmjs.com/package/sandbox) - The CLI for interacting with Vercel Sandbox from the command line. [Source](https://github.com/vercel/sandbox/tree/main/packages/sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/cli-reference)
 
 ## What is a sandbox?
