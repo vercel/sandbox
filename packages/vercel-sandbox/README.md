@@ -1,10 +1,12 @@
+# Vercel Sandbox
+
 Vercel Sandbox allows you to run arbitrary code in isolated, ephemeral Linux
-VMs. This product is in [beta](https://vercel.com/docs/release-phases#beta).
+VMs. View the documentation [here](https://vercel.com/docs/vercel-sandbox).
 
 ## Packages
 
-- [`@vercel/sandbox`](https://www.npmjs.com/package/@vercel/sandbox) (this package) - The SDK for programmatic access to Vercel Sandbox.
-- [`sandbox`](https://www.npmjs.com/package/sandbox) - The CLI for interacting with Vercel Sandbox from the command line.
+- [`@vercel/sandbox`](https://www.npmjs.com/package/@vercel/sandbox) - The SDK for programmatic access to Vercel Sandbox. [Source](https://github.com/vercel/sandbox/tree/main/packages/vercel-sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/sdk-reference)
+- [`sandbox`](https://www.npmjs.com/package/sandbox) - The CLI for interacting with Vercel Sandbox from the command line. [Source](https://github.com/vercel/sandbox/tree/main/packages/sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/cli-reference)
 
 ## What is a sandbox?
 
@@ -13,8 +15,6 @@ Internally, it is a Firecracker MicroVM that is powered by [the same
 infrastructure][hive] that powers 1M+ builds a day at Vercel.
 
 ## Getting started
-
-Vercel Sandbox is in [beta](https://vercel.com/docs/release-phases#beta).
 
 To get started, create a new project:
 
@@ -204,7 +204,7 @@ Sandbox runs sudo in the following configuration:
 - `HOME` is set to `/root` – Executed commands will source root's configuration
   files (e.g. `.gitconfig`, `.bashrc`, etc).
 - Environment variables are not reset before executing the command.
-- `PATH` is left unchanged – sudo won’t change the value of PATH, so local or
+- `PATH` is left unchanged – sudo won't change the value of PATH, so local or
   project-specific binaries will still be found.
 
 Both these images are based on Amazon Linux 2023. The full package list is
@@ -213,3 +213,7 @@ available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-pack
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
 [al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
+
+## Authors
+
+This library is created by [Vercel](https://vercel.com) team members, with contributions from the [Open Source Community](https://github.com/vercel/sandbox/graphs/contributors) welcome and highly appreciated.
