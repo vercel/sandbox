@@ -8,13 +8,12 @@ const debug = createDebugger("sandbox:scope");
 export async function inferScope({
   token,
   team,
-  oidc,
 }: {
   token: string;
   team?: string;
-  oidc?: string;
 }): Promise<{ projectId: string; ownerId: string }> {
-  const jwt = z.jwt().safeParse(oidc);
+  // If the token is a JWT (OIDC token), extract scope from its claims
+  const jwt = z.jwt().safeParse(token);
   if (jwt.success) {
     debug("trying to infer scope from OIDC JWT");
     const data = await inferFromJwt(jwt.data);
