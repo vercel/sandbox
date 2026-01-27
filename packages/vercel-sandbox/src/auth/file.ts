@@ -27,8 +27,17 @@ const isDirectory = (path: string): boolean => {
   }
 };
 
-// Returns in which directory the config should be present
+/**
+ * Returns in which directory the config should be present.
+ *
+ * @internal The `VERCEL_AUTH_CONFIG_DIR` env var is for testing purposes only
+ * and is not part of the public API.
+ */
 const getGlobalPathConfig = (): string => {
+  if (process.env.VERCEL_AUTH_CONFIG_DIR) {
+    return process.env.VERCEL_AUTH_CONFIG_DIR;
+  }
+
   const vercelDirectories = XDGAppPaths("com.vercel.cli").dataDirs();
 
   const possibleConfigPaths = [
