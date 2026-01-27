@@ -54,6 +54,7 @@
     "ora": "^8.2.0",
     "tsdown": "catalog:",
     "vitest": "catalog:",
+    "wrap-ansi": "^9.0.2",
     "xdg-app-paths": "5.1.0"
   }
 }

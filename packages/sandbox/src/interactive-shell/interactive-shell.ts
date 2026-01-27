@@ -19,6 +19,7 @@ import { createWriteStream } from "node:fs";
 import chalk from "chalk";
 import assert from "node:assert";
 import { extendSandboxTimeoutPeriodically } from "./extend-sandbox-timeout";
+import { createOraWrap } from "../util/ora-wrap";
 
 const debug = createDebugger("sandbox:interactive-shell");
 const debugPty = createDebugger("sandbox:interactive-shell:pty");
@@ -40,7 +41,7 @@ const neverResolvedPromise = new Promise<void>(() => {});
  */
 async function setupSandboxEnvironment(
   sandbox: Sandbox,
-  ora: Ora,
+  progress: Ora,
 ): Promise<void> {
   using installed = createAbortController(`Finished installation`);
 
@@ -55,7 +56,7 @@ async function setupSandboxEnvironment(
   );
 
   await Promise.race([
-    installServerBinary(sandbox, ora, installed.signal),
+    installServerBinary(sandbox, progress, installed.signal),
     waitUntilInstalled.then(() => debug("Server binary already installed")),
   ]).catch(installed.ignoreInterruptions);
 }
@@ -71,7 +72,7 @@ async function checkIfServerInstalled(sandbox: Sandbox, signal: AbortSignal) {
 
 async function installServerBinary(
   sandbox: Sandbox,
-  ora: Ora,
+  progress: Ora,
   signal: AbortSignal,
 ) {
   let firstSent = false;
@@ -80,9 +81,9 @@ async function installServerBinary(
     passthrough.on("data", (chunk) => {
       if (!firstSent) {
         firstSent = true;
-        ora.text += `\n`;
+        progress.text += `\n`;
       }
-      ora.text += chunk.toString();
+      progress.text += chunk.toString();
     });
     return passthrough;
   };
@@ -190,10 +191,11 @@ export async function startInteractiveShell(options: {
   process.once("beforeExit", cleanup);
   using _cleanup = defer(cleanup);
 
-  using progress = acquireRelease(
+  using oraInstance = acquireRelease(
     () => ora({ discardStdin: false }).start(),
     (s) => s.clear(),
   );
+  using progress = createOraWrap(oraInstance);
 
   progress.text = "Setting up sandbox environment";
   await setupSandboxEnvironment(options.sandbox, progress);
