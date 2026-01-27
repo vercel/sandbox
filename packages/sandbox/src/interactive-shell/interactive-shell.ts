@@ -6,7 +6,7 @@ import {
 } from "@vercel/pty-tunnel";
 import createDebugger from "debug";
 import { printCommand } from "../util/print-command";
-import ora, { Ora, spinners } from "ora";
+import ora, { Ora } from "ora";
 import { PassThrough } from "node:stream";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -190,12 +190,8 @@ export async function startInteractiveShell(options: {
   process.once("beforeExit", cleanup);
   using _cleanup = defer(cleanup);
 
-  const spinner = { ...spinners.dots };
-  spinner.frames = spinner.frames.map(
-    (frame) => chalk.gray.dim(`${options.sandbox.sandboxId} `) + frame,
-  );
   using progress = acquireRelease(
-    () => ora({ discardStdin: false, spinner }).start(),
+    () => ora({ discardStdin: false }).start(),
     (s) => s.clear(),
   );
 
