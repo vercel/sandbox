@@ -99,7 +99,6 @@ export const scope: ArgParser<{
         const scope = await inferScope({
           token: t.value,
           team: teamId.value,
-          oidc: process.env.VERCEL_OIDC_TOKEN,
         });
         projectId.value ??= scope.projectId;
         teamId.value ??= scope.ownerId;
