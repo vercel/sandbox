@@ -337,6 +337,11 @@ export class APIClient extends BaseClient {
      * @example 1540095775951
      */
     until?: number | Date;
+    /**
+     * Filter sandboxes by status. Comma-separated list of statuses.
+     * @example "running,pending"
+     */
+    status?: string;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -353,6 +358,7 @@ export class APIClient extends BaseClient {
             typeof params.until === "number"
               ? params.until
               : params.until?.getTime(),
+          status: params.status,
         },
         method: "GET",
         signal: params.signal,

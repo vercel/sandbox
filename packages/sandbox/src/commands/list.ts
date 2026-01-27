@@ -7,6 +7,17 @@ import ora from "ora";
 import { acquireRelease } from "../util/disposables";
 import { table, timeAgo } from "../util/output";
 
+const VALID_STATUSES = [
+  "pending",
+  "running",
+  "stopping",
+  "stopped",
+  "failed",
+  "snapshotting",
+] as const;
+
+const DEFAULT_STATUSES = ["pending", "running", "snapshotting", "stopping"];
+
 export const list = cmd.command({
   name: "list",
   aliases: ["ls"],
@@ -16,10 +27,36 @@ export const list = cmd.command({
     all: cmd.flag({
       long: "all",
       short: "a",
-      description: "Show all sandboxes (default shows just running)",
+      description: "Show all sandboxes including stopped and failed",
+    }),
+    status: cmd.multioption({
+      long: "status",
+      short: "s",
+      type: cmd.array(cmd.string),
+      description: `Filter by status: ${VALID_STATUSES.join(", ")}`,
     }),
   },
-  async handler({ scope: { token, team, project }, all }) {
+  async handler({ scope: { token, team, project }, all, status }) {
+    const statusFilter = (() => {
+      if (status.length > 0) {
+        const statuses = status
+          .flatMap((s) => s.split(","))
+          .map((s) => s.trim().toLowerCase());
+        const invalid = statuses.filter(
+          (s) => !VALID_STATUSES.includes(s as (typeof VALID_STATUSES)[number]),
+        );
+        if (invalid.length > 0) {
+          console.error(
+            `Invalid status: ${invalid.join(", ")}. Valid values: ${VALID_STATUSES.join(", ")}`,
+          );
+          process.exit(1);
+        }
+        return statuses.join(",");
+      }
+      if (all) return undefined;
+      return DEFAULT_STATUSES.join(",");
+    })();
+
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
@@ -31,15 +68,10 @@ export const list = cmd.command({
         teamId: team,
         projectId: project,
         limit: 100,
+        status: statusFilter,
       });
 
-      let sandboxes = json.sandboxes;
-
-      if (!all) {
-        sandboxes = sandboxes.filter((x) => x.status === "running");
-      }
-
-      return sandboxes;
+      return json.sandboxes;
     })();
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
