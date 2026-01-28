@@ -16,7 +16,7 @@ export const list = cmd.command({
     all: cmd.flag({
       long: "all",
       short: "a",
-      description: "Show all sandboxes (default shows just running)",
+      description: "Show all sandboxes (default shows running and pending)",
     }),
   },
   async handler({ scope: { token, team, project }, all }) {
@@ -36,11 +36,21 @@ export const list = cmd.command({
       let sandboxes = json.sandboxes;
 
       if (!all) {
-        sandboxes = sandboxes.filter((x) => x.status === "running");
+        sandboxes = sandboxes.filter(
+          (x) => x.status === "running" || x.status === "pending",
+        );
       }
 
       return sandboxes;
     })();
+
+    if (sandboxes.length === 0 && !all) {
+      console.log("No running or pending sandboxes found.");
+      console.log(
+        `${chalk.bold("hint:")} Try \`sandbox list --all\` to include stopped sandboxes.`,
+      );
+      return;
+    }
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
       style: "unit",
