@@ -5,13 +5,20 @@ import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 
 const debug = createDebugger("sandbox:scope");
 
+export type InferredScope = {
+  projectId: string;
+  ownerId: string;
+  projectSlug?: string;
+  ownerSlug?: string;
+};
+
 export async function inferScope({
   token,
   team,
 }: {
   token: string;
   team?: string;
-}): Promise<{ projectId: string; ownerId: string }> {
+}): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
   const jwt = z.jwt().safeParse(token);
   if (jwt.success) {
@@ -40,9 +47,16 @@ const JwtSchema = z
   .object({
     project_id: z.string(),
     owner_id: z.string(),
+    project: z.string().optional(),
+    owner: z.string().optional(),
   })
   .transform((data) => {
-    return { projectId: data.project_id, ownerId: data.owner_id };
+    return {
+      projectId: data.project_id,
+      ownerId: data.owner_id,
+      projectSlug: data.project,
+      ownerSlug: data.owner,
+    };
   });
 
 async function inferFromJwt(jwt: string) {
@@ -55,5 +69,11 @@ async function inferFromToken(token: string, requestedTeam?: string) {
     token,
     teamId: requestedTeam,
   });
-  return { ownerId: teamId, projectId };
+  // Auth.inferScope returns team slug (not ID) and project name
+  return {
+    ownerId: teamId,
+    projectId,
+    ownerSlug: teamId,
+    projectSlug: projectId,
+  };
 }

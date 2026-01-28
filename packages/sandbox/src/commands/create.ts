@@ -73,12 +73,6 @@ export const create = cmd.command({
         });
     spinner?.stop();
 
-    if (!silent) {
-      process.stderr.write("✅ Sandbox ");
-      process.stdout.write(chalk.cyan(sandbox.sandboxId));
-      process.stderr.write(" created.\n");
-    }
-
     if (!sandbox.interactivePort) {
       throw new Error(
         [
@@ -93,11 +87,35 @@ export const create = cmd.command({
       (x) => x.port !== sandbox.interactivePort,
     );
 
-    if (routes.length) {
-      console.log();
-      console.log(chalk.bold("Mapped ports:"));
-      for (const route of routes) {
-        console.log(`  • ${route.port} -> ${route.url}`);
+    if (!silent) {
+      const teamDisplay = scope.teamSlug ?? scope.team;
+      const projectDisplay = scope.projectSlug ?? scope.project;
+      const hasPorts = routes.length > 0;
+
+      process.stderr.write("✅ Sandbox ");
+      process.stdout.write(chalk.cyan(sandbox.sandboxId));
+      process.stderr.write(" created.\n");
+      process.stderr.write(
+        chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",
+      );
+
+      if (hasPorts) {
+        process.stderr.write(
+          chalk.dim("   │ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
+        );
+        process.stderr.write(chalk.dim("   │ ") + "ports:\n");
+        for (let i = 0; i < routes.length; i++) {
+          const route = routes[i];
+          const isLast = i === routes.length - 1;
+          const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
+          process.stderr.write(
+            prefix + "• " + route.port + " -> " + chalk.cyan(route.url) + "\n",
+          );
+        }
+      } else {
+        process.stderr.write(
+          chalk.dim("   ╰ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
+        );
       }
     }
 

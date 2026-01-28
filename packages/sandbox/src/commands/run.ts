@@ -5,7 +5,7 @@ import { omit } from "../util/omit";
 import ora from "ora";
 
 const args = {
-  ...omit(Create.args, "silent"),
+  ...Create.args,
   ...omit(Exec.args, "sandbox"),
   removeAfterUse: cmd.flag({
     long: "rm",
@@ -18,9 +18,7 @@ export const run = cmd.command({
   description: "Create and run a command in a sandbox",
   args,
   async handler({ removeAfterUse, ...rest }) {
-    const spinner = ora("Creating sandbox...").start();
-    const sandbox = await Create.create.handler({ ...rest, silent: true });
-    spinner.stop();
+    const sandbox = await Create.create.handler({ ...rest });
     try {
       await Exec.exec.handler({ ...rest, sandbox });
     } finally {
