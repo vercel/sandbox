@@ -69,7 +69,7 @@ This is a full update, fully overriding the pre-existing configuration.`,
 
       process.stderr.write(
         "✅ Network policy updated for sandbox " +
-          chalk.cyan(sandboxId) +
+          chalk.cyan(sandbox.sandboxId) +
           "\n",
       );
       process.stderr.write(
