@@ -52,9 +52,52 @@ export const deniedCIDRs = cmd.multioption({
   long: "denied-cidr",
   description:
     `CIDR to deny traffic to (requires --network-policy=restricted)
-    
+
 Takes precedence over allowed domains/CIDRs.`,
   type: cmd.array(cmd.string),
+});
+
+export type InjectionRule = {
+  domain: string;
+  headers: Record<string, string>;
+};
+
+const injectionRuleType = cmd.extendType(cmd.string, {
+  displayName: "JSON",
+  async from(value) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        typeof (parsed as InjectionRule).domain !== "string" ||
+        typeof (parsed as InjectionRule).headers !== "object" ||
+        (parsed as InjectionRule).headers === null
+      ) {
+        throw new Error("Invalid structure");
+      }
+      return parsed as InjectionRule;
+    } catch {
+      throw new Error(
+        [
+          `Invalid injection rule JSON: ${value}`,
+          `${chalk.bold("hint:")} Format: '{"domain": "*.example.com", "headers": {"Header-Name": "value"}}'`,
+        ].join("\n"),
+      );
+    }
+  },
+});
+
+export const injectionRules = cmd.multioption({
+  long: "injection-rule",
+  description:
+    `Rule to inject HTTP headers for requests matching a domain (requires --network-policy=restricted)
+
+Format: JSON object with "domain" and "headers" fields.
+Example: '{"domain": "*.example.com", "headers": {"Authorization": "Bearer token"}}'
+
+Supports wildcards like *.example.com for domain matching.`,
+  type: cmd.array(injectionRuleType),
 });
 
 export const networkPolicyArgs = {
@@ -62,4 +105,5 @@ export const networkPolicyArgs = {
   allowedDomains,
   allowedCIDRs,
   deniedCIDRs,
+  injectionRules,
 } as const;

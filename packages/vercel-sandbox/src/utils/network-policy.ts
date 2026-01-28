@@ -1,4 +1,9 @@
-import type { APINetworkPolicy } from "../api-client/api-client";
+import type {
+  APINetworkPolicy,
+  InjectionRule,
+} from "../api-client/api-client";
+
+export type { InjectionRule };
 
 /**
  * Network policy to define network restrictions for the sandbox.
@@ -24,10 +29,33 @@ import type { APINetworkPolicy } from "../api-client/api-client";
  *   allowedCIDRs: ["10.0.0.0/8"],
  *   deniedCIDRs: ["10.1.0.0/16"]
  * }
+ *
+ * @example
+ * // Internet access with header injection
+ * {
+ *   type: "internet-access",
+ *   injectionRules: [
+ *     { domain: "api.example.com", headers: { "Authorization": "Bearer token" } }
+ *   ]
+ * }
  */
 export type NetworkPolicy =
-  | { type: "internet-access" }
-  | { type: "no-access" }
+  | {
+      type: "internet-access";
+      /**
+       * Rules to inject HTTP headers for requests matching specific domains.
+       * Supports wildcards like *.example.com for domain matching.
+       */
+      injectionRules?: InjectionRule[];
+    }
+  | {
+      type: "no-access";
+      /**
+       * Rules to inject HTTP headers for requests matching specific domains.
+       * Supports wildcards like *.example.com for domain matching.
+       */
+      injectionRules?: InjectionRule[];
+    }
   | {
       type: "restricted";
       /**
@@ -45,6 +73,11 @@ export type NetworkPolicy =
        * These take precedence over allowed domains and CIDRs.
        */
       deniedCIDRs?: string[];
+      /**
+       * Rules to inject HTTP headers for requests matching specific domains.
+       * Supports wildcards like *.example.com for domain matching.
+       */
+      injectionRules?: InjectionRule[];
     };
 
 /**
@@ -59,15 +92,22 @@ export function toAPINetworkPolicy(
 
   switch (policy.type) {
     case "internet-access":
-      return { mode: "default-allow" };
+      return {
+        mode: "default-allow",
+        injectionRules: policy.injectionRules,
+      };
     case "no-access":
-      return { mode: "default-deny" };
+      return {
+        mode: "default-deny",
+        injectionRules: policy.injectionRules,
+      };
     case "restricted":
       return {
         mode: "default-deny",
         allowedDomains: policy.allowedDomains,
         allowedCIDRs: policy.allowedCIDRs,
         deniedCIDRs: policy.deniedCIDRs,
+        injectionRules: policy.injectionRules,
       };
   }
 }

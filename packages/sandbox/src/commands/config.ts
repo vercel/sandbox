@@ -27,6 +27,7 @@ This is a full update, fully overriding the pre-existing configuration.`,
     allowedDomains,
     allowedCIDRs,
     deniedCIDRs,
+    injectionRules,
   }) {
     if (networkPolicyMode === undefined) {
       throw new Error(`Network policy mode must be set.`);
@@ -37,6 +38,7 @@ This is a full update, fully overriding the pre-existing configuration.`,
       allowedDomains,
       allowedCIDRs,
       deniedCIDRs,
+      injectionRules,
     });
 
     const sandbox =

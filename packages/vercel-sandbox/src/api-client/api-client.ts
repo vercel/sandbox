@@ -38,11 +38,28 @@ export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
 }
 
+/**
+ * InjectionRule defines a rule to inject HTTP headers for requests matching a specific domain.
+ */
+export interface InjectionRule {
+  /**
+   * The domain (or pattern) of requests to add headers for.
+   * Supports wildcards like *.example.com.
+   */
+  domain: string;
+  /**
+   * HTTP headers to inject into requests for this domain.
+   * Existing headers with the same name will be overridden.
+   */
+  headers: Record<string, string>;
+}
+
 export interface APINetworkPolicy {
   mode: "default-allow" | "default-deny";
   allowedDomains?: string[];
   allowedCIDRs?: string[];
   deniedCIDRs?: string[];
+  injectionRules?: InjectionRule[];
 }
 
 export class APIClient extends BaseClient {

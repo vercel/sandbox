@@ -1,4 +1,4 @@
-export { Sandbox, type NetworkPolicy } from "./sandbox";
+export { Sandbox, type NetworkPolicy, type InjectionRule } from "./sandbox";
 export { Snapshot } from "./snapshot";
 export { Command, CommandFinished } from "./command";
 export { StreamError } from "./api-client/api-error";

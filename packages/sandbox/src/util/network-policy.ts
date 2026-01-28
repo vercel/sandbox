@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { NetworkPolicy } from "@vercel/sandbox";
+import type { NetworkPolicy, InjectionRule } from "@vercel/sandbox";
 
 type NetworkPolicyMode = "internet-access" | "no-access" | "restricted";
 
@@ -11,11 +11,19 @@ export function buildNetworkPolicy(args: {
   allowedDomains: string[];
   allowedCIDRs: string[];
   deniedCIDRs: string[];
+  injectionRules: InjectionRule[];
 }): NetworkPolicy {
-  const { networkPolicy, allowedDomains, allowedCIDRs, deniedCIDRs } = args;
+  const {
+    networkPolicy,
+    allowedDomains,
+    allowedCIDRs,
+    deniedCIDRs,
+    injectionRules,
+  } = args;
 
   if (!networkPolicy || networkPolicy !== "restricted") {
-    // If any of the list options are provided without restricted mode, throw an error
+    // If any of the allow/deny list options are provided without restricted mode, throw an error
+    // Note: injectionRules are allowed with any mode
     if (
       allowedDomains.length > 0 ||
       allowedCIDRs.length > 0 ||
@@ -30,13 +38,15 @@ export function buildNetworkPolicy(args: {
     }
   }
 
+  const rules = injectionRules.length > 0 ? injectionRules : undefined;
+
   switch (networkPolicy) {
     // If no network policy mode specified, return undefined (use default)
     case undefined:
     case "internet-access":
-      return { type: "internet-access" };
+      return { type: "internet-access", injectionRules: rules };
     case "no-access":
-      return { type: "no-access" };
+      return { type: "no-access", injectionRules: rules };
     case "restricted":
       return {
         type: "restricted",
@@ -44,6 +54,7 @@ export function buildNetworkPolicy(args: {
           allowedDomains.length > 0 ? allowedDomains : undefined,
         allowedCIDRs: allowedCIDRs.length > 0 ? allowedCIDRs : undefined,
         deniedCIDRs: deniedCIDRs.length > 0 ? deniedCIDRs : undefined,
+        injectionRules: rules,
       };
   }
 }

@@ -64,12 +64,14 @@ export const create = cmd.command({
     allowedDomains,
     allowedCIDRs,
     deniedCIDRs,
+    injectionRules,
   }) {
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
       allowedCIDRs,
       deniedCIDRs,
+      injectionRules,
     });
 
     const spinner = silent ? undefined : ora("Creating sandbox...").start();

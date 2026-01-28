@@ -15,9 +15,10 @@ import { consumeReadable } from "./utils/consume-readable";
 import {
   toAPINetworkPolicy,
   type NetworkPolicy,
+  type InjectionRule,
 } from "./utils/network-policy";
 
-export type { NetworkPolicy };
+export type { NetworkPolicy, InjectionRule };
 
 /** @inline */
 export interface BaseCreateSandboxParams {
