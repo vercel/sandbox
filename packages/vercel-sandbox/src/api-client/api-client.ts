@@ -38,6 +38,13 @@ export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
 }
 
+export interface APINetworkPolicy {
+  mode: "default-allow" | "default-deny";
+  allowedDomains?: string[];
+  allowedCIDRs?: string[];
+  deniedCIDRs?: string[];
+}
+
 export class APIClient extends BaseClient {
   private teamId: string;
   private tokenExpiry: JwtExpiry | null;
@@ -122,6 +129,7 @@ export class APIClient extends BaseClient {
       timeout?: number;
       resources?: { vcpus: number };
       runtime?: RUNTIMES | (string & {});
+      networkPolicy?: APINetworkPolicy;
       signal?: AbortSignal;
     }>,
   ) {
@@ -137,6 +145,7 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
+          networkPolicy: params.networkPolicy,
           ...privateParams,
         }),
         signal: params.signal,
@@ -552,6 +561,22 @@ export class APIClient extends BaseClient {
     return parseOrThrow(
       SandboxResponse,
       await this.request(url, { method: "POST", signal: params.signal }),
+    );
+  }
+
+  async updateNetworkPolicy(params: {
+    sandboxId: string;
+    networkPolicy: APINetworkPolicy;
+    signal?: AbortSignal;
+  }): Promise<Parsed<z.infer<typeof EmptyResponse>>> {
+    const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
+    return parseOrThrow(
+      EmptyResponse,
+      await this.request(url, {
+        method: "POST",
+        body: JSON.stringify(params.networkPolicy),
+        signal: params.signal,
+      }),
     );
   }
 

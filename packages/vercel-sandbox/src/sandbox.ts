@@ -12,6 +12,12 @@ import { WithFetchOptions } from "./api-client/api-client";
 import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
+import {
+  toAPINetworkPolicy,
+  type NetworkPolicy,
+} from "./utils/network-policy";
+
+export type { NetworkPolicy };
 
 /** @inline */
 export interface BaseCreateSandboxParams {
@@ -62,6 +68,12 @@ export interface BaseCreateSandboxParams {
    * If not specified, the default runtime `node24` will be used.
    */
   runtime?: RUNTIMES | (string & {});
+
+  /**
+   * Network policy to define network restrictions for the sandbox.
+   * Defaults to full internet access if not specified.
+   */
+  networkPolicy?: NetworkPolicy;
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -241,6 +253,7 @@ export class Sandbox {
       timeout: params?.timeout,
       resources: params?.resources,
       runtime: params && "runtime" in params ? params?.runtime : undefined,
+      networkPolicy: toAPINetworkPolicy(params?.networkPolicy),
       signal: params?.signal,
       ...privateParams,
     });
@@ -602,6 +615,40 @@ export class Sandbox {
   async stop(opts?: { signal?: AbortSignal }) {
     await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
+      signal: opts?.signal,
+    });
+  }
+
+  /**
+   * Update the network policy for this sandbox.
+   *
+   * @param networkPolicy - The new network policy to apply.
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves when the network policy is updated.
+   *
+   * @example
+   * // Restrict to specific domains
+   * await sandbox.updateNetworkPolicy({
+   *   type: "restricted",
+   *   allowedDomains: ["*.npmjs.org", "github.com"],
+   * });
+   *
+   * @example
+   * // Deny all network access
+   * await sandbox.updateNetworkPolicy({ type: "no-access" });
+   */
+  async updateNetworkPolicy(
+    networkPolicy: NetworkPolicy,
+    opts?: { signal?: AbortSignal },
+  ): Promise<void> {
+    const apiNetworkPolicy = toAPINetworkPolicy(networkPolicy);
+    if (!apiNetworkPolicy) {
+      throw new Error("Invalid network policy");
+    }
+    await this.client.updateNetworkPolicy({
+      sandboxId: this.sandbox.id,
+      networkPolicy: apiNetworkPolicy,
       signal: opts?.signal,
     });
   }

@@ -11,6 +11,7 @@ import { logout } from "./commands/logout";
 import { version } from "./pkg";
 import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
+import { config } from "./commands/config";
 
 export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
   subcommands({
@@ -20,6 +21,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
     cmds: {
       list,
       create,
+      config,
       copy: cp,
       exec,
       ssh,

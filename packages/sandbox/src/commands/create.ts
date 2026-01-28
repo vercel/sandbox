@@ -7,6 +7,8 @@ import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
 import ora from "ora";
+import { networkPolicyArgs } from "../args/network-policy";
+import { buildNetworkPolicy } from "../util/network-policy";
 
 export const args = {
   scope,
@@ -44,13 +46,32 @@ export const args = {
     description: "Start the sandbox from a snapshot ID",
     type: cmd.optional(snapshotId),
   }),
+  ...networkPolicyArgs,
 } as const;
 
 export const create = cmd.command({
   name: "create",
   description: "Create a sandbox in the specified account and project.",
   args,
-  async handler({ ports, scope, runtime, timeout, silent, snapshot }) {
+  async handler({
+    ports,
+    scope,
+    runtime,
+    timeout,
+    silent,
+    snapshot,
+    networkPolicy: networkPolicyMode,
+    allowedDomains,
+    allowedCIDRs,
+    deniedCIDRs,
+  }) {
+    const networkPolicy = buildNetworkPolicy({
+      networkPolicy: networkPolicyMode,
+      allowedDomains,
+      allowedCIDRs,
+      deniedCIDRs,
+    });
+
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -60,6 +81,7 @@ export const create = cmd.command({
           token: scope.token,
           ports,
           timeout: ms(timeout),
+          networkPolicy,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -69,6 +91,7 @@ export const create = cmd.command({
           ports,
           runtime,
           timeout: ms(timeout),
+          networkPolicy,
           __interactive: true,
         });
     spinner?.stop();
