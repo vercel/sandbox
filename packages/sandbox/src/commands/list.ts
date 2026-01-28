@@ -6,6 +6,7 @@ import chalk, { ChalkInstance } from "chalk";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
 import { table, timeAgo } from "../util/output";
+import createDebugger from "debug";
 
 const VALID_STATUSES = [
   "pending",
@@ -16,7 +17,13 @@ const VALID_STATUSES = [
   "snapshotting",
 ] as const;
 
-const DEFAULT_STATUSES = ["pending", "running", "snapshotting", "stopping"];
+const ValidStatus = cmd.oneOf(VALID_STATUSES);
+
+type NotReadonly<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+
+const debug = createDebugger("sandbox:list");
 
 export const list = cmd.command({
   name: "list",
@@ -29,46 +36,32 @@ export const list = cmd.command({
       short: "a",
       description: "Show all sandboxes including stopped and failed",
     }),
-    status: cmd.multioption({
+    statuses: cmd.multioption({
       long: "status",
       short: "s",
-      type: cmd.array(cmd.string),
+      type: cmd.array(ValidStatus),
+      defaultValue(): NotReadonly<(typeof VALID_STATUSES)[number][]> {
+        return ["pending", "running", "snapshotting", "stopping"];
+      },
       description: `Filter by status: ${VALID_STATUSES.join(", ")}`,
     }),
   },
-  async handler({ scope: { token, team, project }, all, status }) {
-    const statusFilter = (() => {
-      if (status.length > 0) {
-        const statuses = status
-          .flatMap((s) => s.split(","))
-          .map((s) => s.trim().toLowerCase());
-        const invalid = statuses.filter(
-          (s) => !VALID_STATUSES.includes(s as (typeof VALID_STATUSES)[number]),
-        );
-        if (invalid.length > 0) {
-          console.error(
-            `Invalid status: ${invalid.join(", ")}. Valid values: ${VALID_STATUSES.join(", ")}`,
-          );
-          process.exit(1);
-        }
-        return statuses.join(",");
-      }
-      if (all) return undefined;
-      return DEFAULT_STATUSES.join(",");
-    })();
-
+  async handler({ scope: { token, team, project }, all, statuses }) {
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
         (s) => s.stop(),
       );
 
+      const status = all ? undefined : statuses.join(",");
+      debug("Fetching sandboxes with status:", status ?? "all");
+
       const { json } = await sandboxClient.list({
         token,
         teamId: team,
         projectId: project,
         limit: 100,
-        status: statusFilter,
+        status,
       });
 
       return json.sandboxes;
