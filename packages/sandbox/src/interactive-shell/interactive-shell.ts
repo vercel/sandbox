@@ -190,12 +190,8 @@ export async function startInteractiveShell(options: {
   process.once("beforeExit", cleanup);
   using _cleanup = defer(cleanup);
 
-  const spinner = { ...spinners.dots };
-  spinner.frames = spinner.frames.map(
-    (frame) => chalk.gray.dim(`${options.sandbox.sandboxId} `) + frame,
-  );
   using progress = acquireRelease(
-    () => ora({ discardStdin: false, spinner }).start(),
+    () => ora({ discardStdin: false }).start(),
     (s) => s.clear(),
   );
 
@@ -231,11 +227,7 @@ export async function startInteractiveShell(options: {
       skipExtendingTimeout: options.skipExtendingTimeout,
       printCommand: () =>
         console.error(
-          printCommand(
-            options.sandbox.sandboxId,
-            options.execution[0],
-            options.execution.slice(1),
-          ),
+          printCommand(options.execution[0], options.execution.slice(1)),
         ),
     }),
   ]).catch(waitForProcess.ignoreInterruptions);

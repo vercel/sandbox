@@ -59,6 +59,8 @@ export const scope: ArgParser<{
   token: string;
   project: string;
   team: string;
+  projectSlug?: string;
+  teamSlug?: string;
 }> &
   ProvidesHelp = {
   register(ctx) {
@@ -91,6 +93,9 @@ export const scope: ArgParser<{
       return teamId;
     }
 
+    let projectSlug: string | undefined;
+    let teamSlug: string | undefined;
+
     if (
       typeof projectId.value === "undefined" ||
       typeof teamId.value === "undefined"
@@ -102,6 +107,8 @@ export const scope: ArgParser<{
         });
         projectId.value ??= scope.projectId;
         teamId.value ??= scope.ownerId;
+        projectSlug = scope.projectSlug;
+        teamSlug = scope.ownerSlug;
       } catch (err) {
         return {
           _tag: "error",
@@ -127,6 +134,8 @@ export const scope: ArgParser<{
         token: t.value,
         project: projectId.value,
         team: teamId.value,
+        projectSlug,
+        teamSlug,
       },
     };
   },

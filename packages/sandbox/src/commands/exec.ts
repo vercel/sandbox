@@ -114,7 +114,7 @@ export const exec = cmd.command({
     }
 
     if (!interactive) {
-      console.error(printCommand(sandbox.sandboxId, command, args));
+      console.error(printCommand(command, args));
       const result = await sandbox.runCommand({
         cmd: command,
         args,

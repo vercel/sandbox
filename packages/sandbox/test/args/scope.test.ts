@@ -41,11 +41,15 @@ describe("scope", () => {
       team: string;
       project: string;
       token: string;
+      projectSlug?: string;
+      teamSlug?: string;
     }>();
     expect(result.scope).toEqual({
       team: "team",
       project: "proj",
       token: "123",
+      projectSlug: undefined,
+      teamSlug: undefined,
     });
   });
 
@@ -56,11 +60,15 @@ describe("scope", () => {
       team: string;
       project: string;
       token: string;
+      projectSlug?: string;
+      teamSlug?: string;
     }>();
     expect(result.scope).toEqual({
       team: "team",
       project: "proj",
       token: "from-env",
+      projectSlug: undefined,
+      teamSlug: undefined,
     });
   });
 
@@ -70,7 +78,12 @@ describe("scope", () => {
     // Create two different OIDC tokens with different project/team claims.
     // Note: We use a fake signature because inferScope only parses the JWT
     // payload for claims extraction - it doesn't validate the signature.
-    const createOidcToken = (projectId: string, ownerId: string) => {
+    const createOidcToken = (
+      projectId: string,
+      ownerId: string,
+      project: string,
+      owner: string,
+    ) => {
       const header = Buffer.from(JSON.stringify({ alg: "RS256" })).toString(
         "base64url",
       );
@@ -78,6 +91,8 @@ describe("scope", () => {
         JSON.stringify({
           project_id: projectId,
           owner_id: ownerId,
+          project,
+          owner,
           exp: Math.floor(Date.now() / 1000) + 3600,
         }),
       ).toString("base64url");
@@ -85,8 +100,18 @@ describe("scope", () => {
       return `${header}.${payload}.${signature}`;
     };
 
-    const oldToken = createOidcToken("old-project", "old-team");
-    const newToken = createOidcToken("new-project", "new-team");
+    const oldToken = createOidcToken(
+      "old-project",
+      "old-team",
+      "old-project-slug",
+      "old-team-slug",
+    );
+    const newToken = createOidcToken(
+      "new-project",
+      "new-team",
+      "new-project-slug",
+      "new-team-slug",
+    );
 
     // Env var has OLD token
     process.env.VERCEL_OIDC_TOKEN = oldToken;
