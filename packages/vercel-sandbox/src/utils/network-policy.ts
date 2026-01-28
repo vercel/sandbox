@@ -26,8 +26,8 @@ import type { APINetworkPolicy } from "../api-client/api-client";
  * }
  */
 export type NetworkPolicy =
-  | { type: "internet-access" }
-  | { type: "no-access" }
+  | { type: "internet-access" } & Record<string, unknown>
+  | { type: "no-access" } & Record<string, unknown>
   | ({
       type: "restricted";
       /**
@@ -57,13 +57,13 @@ export function toAPINetworkPolicy(
     return undefined;
   }
 
+  const { type, ...rest } = policy;
   switch (policy.type) {
     case "internet-access":
-      return { mode: "default-allow" };
+      return { ...rest, mode: "default-allow" };
     case "no-access":
-      return { mode: "default-deny" };
+      return { ...rest, mode: "default-deny" };
     case "restricted": {
-      const { type, ...rest } = policy;
       return { ...rest, mode: "default-deny" };
     }
   }
