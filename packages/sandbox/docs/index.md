@@ -56,6 +56,7 @@ OPTIONS:
   --env <key=value>, -e=<key=value> - Environment variables to set for the command
 
 FLAGS:
+  --silent            - Don't write sandbox ID to stdout [optional]
   --sudo              - Give extended privileges to the command. [optional]
   --interactive, -i   - Run the command in a secure interactive shell [optional]
   --no-extend-timeout - Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]

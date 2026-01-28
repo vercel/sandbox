@@ -1,5 +1,11 @@
 # sandbox
 
+## 2.0.4
+
+### Patch Changes
+
+- Display team and project info in a framed format after sandbox creation ([#18](https://github.com/vercel/sandbox/pull/18))
+
 ## 2.0.3
 
 ### Patch Changes
