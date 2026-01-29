@@ -1,5 +1,16 @@
 # sandbox
 
+## 2.1.0
+
+### Minor Changes
+
+- Add support for network policies ([#22](https://github.com/vercel/sandbox/pull/22))
+
+### Patch Changes
+
+- Updated dependencies [[`a29131ecd3c7479b6eac5e2f2f0225523d41011b`](https://github.com/vercel/sandbox/commit/a29131ecd3c7479b6eac5e2f2f0225523d41011b)]:
+  - @vercel/sandbox@1.4.0
+
 ## 2.0.4
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.4.0
+
+### Minor Changes
+
+- Add support for network policies ([#22](https://github.com/vercel/sandbox/pull/22))
+
 ## 1.3.2
 
 ### Patch Changes
