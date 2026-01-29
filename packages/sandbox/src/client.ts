@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import Path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { StyledError } from "./error";
+import { z } from "zod";
 
 /**
  * A {@link Sandbox} wrapper that adds user-agent headers and error handling.
@@ -59,17 +60,22 @@ async function withErrorHandling<T>(promise: Promise<T>) {
 async function handleApiError(error: APIError<unknown>): Promise<never> {
   const tmpPath = await writeResponseToTemp(error);
   const status = error.response.status;
-  const message = getErrorMessage(status);
-  throw new StyledError(
-    [
-      message,
-      `├▶ requested url: ${error.response.url}`,
-      `├▶ status code: ${status} ${error.response.statusText}`,
-      `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
-    ].join("\n"),
-    error,
-  );
+  const parsedError = ApiErrorResponse.safeParse(error.json);
+  const message = parsedError.data?.error.message ?? getErrorMessage(status);
+  const lines = [
+    message,
+    `├▶ requested url: ${error.response.url}`,
+    `├▶ status code: ${status} ${error.response.statusText}`,
+    `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
+  ];
+  throw new StyledError(lines.join("\n"), error);
 }
+
+const ApiErrorResponse = z.object({
+  error: z.object({
+    message: z.string(),
+  }),
+});
 
 function getErrorMessage(status: number): string {
   if (status === 401 || status === 403) {

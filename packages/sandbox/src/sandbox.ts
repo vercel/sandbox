@@ -12,6 +12,7 @@ async function main() {
     await run(app(), process.argv.slice(2));
   } catch (e) {
     if (e instanceof StyledError) {
+      console.error();
       console.error(e.message);
       process.exit(1);
     }
