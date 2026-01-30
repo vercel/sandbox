@@ -46,6 +46,27 @@ export class Snapshot {
   }
 
   /**
+   * The size of the snapshot in bytes, or null if not available.
+   */
+  public get sizeBytes(): number {
+    return this.snapshot.sizeBytes;
+  }
+
+  /**
+   * The creation date of this snapshot.
+   */
+  public get createdAt(): Date {
+    return new Date(this.snapshot.createdAt);
+  }
+
+  /**
+   * The expiration date of this snapshot.
+   */
+  public get expiresAt(): Date {
+    return new Date(this.snapshot.expiresAt);
+  }
+
+  /**
    * Internal metadata about this snapshot.
    */
   private snapshot: SnapshotMetadata;
