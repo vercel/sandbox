@@ -12,7 +12,7 @@ VMs. View the documentation [here](https://vercel.com/docs/vercel-sandbox).
 
 A sandbox is an isolated Linux system for your experimentation and use.
 Internally, it is a Firecracker MicroVM that is powered by [the same
-infrastructure][hive] that powers 1M+ builds a day at Vercel.
+infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 

@@ -16,32 +16,29 @@ infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 
-To get started, create a new project:
+To get started using Node.js 22+, create a new project:
 
 ```sh
-mkdir sandbox-test
-cd sandbox-test
-pnpm init
-pnpm add @vercel/sandbox ms
-pnpm add -D @types/ms @types/node
-```
-
-Link it to Vercel:
-
-```sh
+mkdir my-sandbox-app && cd my-sandbox-app
+npm init -y
 vercel link
 ```
 
-Pull its environment variables:
+Pull your authentication token:
 
 ```sh
 vercel env pull
 ```
 
-Now create `next-dev.ts`:
+Install the Sandbox SDK:
+
+```sh
+pnpm i @vercel/sandbox
+```
+
+Create a `index.mts` file:
 
 ```ts
-import ms from "ms";
 import { Sandbox } from "@vercel/sandbox";
 import { setTimeout } from "timers/promises";
 import { spawn } from "child_process";
@@ -53,7 +50,6 @@ async function main() {
       type: "git",
     },
     resources: { vcpus: 4 },
-    timeout: ms("5m"),
     ports: [3000],
     runtime: "node24",
   });
@@ -87,10 +83,10 @@ async function main() {
 main().catch(console.error);
 ```
 
-Run it like this:
+Run it:
 
 ```sh
-node --env-file .env.local --experimental-strip-types ./next-dev.ts
+node --experimental-strip-types --env-file .env.local index.mts
 ```
 
 This will:
