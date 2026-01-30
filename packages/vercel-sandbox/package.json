@@ -1,7 +1,7 @@
 {
   "name": "@vercel/sandbox",
   "version": "1.4.0",
-  "description": "",
+  "description": "Software Development Kit for Vercel Sandbox",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -9,7 +9,6 @@
     "README.md",
     "LICENSE"
   ],
-  "private": false,
   "scripts": {
     "clean": "rm -rf node_modules dist",
     "build": "tsc",
@@ -18,9 +17,18 @@
     "typecheck": "tsc --noEmit",
     "version:bump": "ts-node scripts/inject-version.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
+  "keywords": [
+    "vercel",
+    "sandbox",
+    "sdk"
+  ],
+  "homepage": "https://vercel.com/docs/vercel-sandbox/cli-reference",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/sandbox.git",
+    "directory": "packages/sandbox"
+  },
+  "license": "Apache-2.0",
   "dependencies": {
     "@vercel/oidc": "^3.1.0",
     "async-retry": "1.3.3",

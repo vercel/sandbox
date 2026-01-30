@@ -30,7 +30,13 @@
     "README.md",
     "dist"
   ],
-  "license": "MIT",
+  "homepage": "https://vercel.com/docs/vercel-sandbox/cli-reference",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/sandbox.git",
+    "directory": "packages/sandbox"
+  },
+  "license": "Apache-2.0",
   "dependencies": {
     "@vercel/sandbox": "workspace:*",
     "debug": "^4.4.1",

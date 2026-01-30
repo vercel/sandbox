@@ -1,8 +1,7 @@
 # Vercel Sandbox CLI
 
-Command line interface for Vercel Sandbox.
-
-Read the full documentation at [vercel.com/docs/vercel-sandbox/cli-reference](https://vercel.com/docs/vercel-sandbox/cli-reference).
+Vercel Sandbox allows you to run arbitrary code in isolated, ephemeral Linux
+VMs. View the documentation [here](https://vercel.com/docs/vercel-sandbox).
 
 ## Packages
 
@@ -18,7 +17,10 @@ pnpm i -g sandbox
 ## Usage
 
 ```bash
-sandbox create # Create a new sandbox
+sandbox login # If you are not already logged in with the Vercel CLI
+sandbox create --connect # Create a new sandbox and open an interactive shell
 sandbox ls # List your sandboxes
 sandbox --help # View all commands
 ```
+
+Learn more about the CLI in the [documentation](https://vercel.com/docs/vercel-sandbox/cli-reference).

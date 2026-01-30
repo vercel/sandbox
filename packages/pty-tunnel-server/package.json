@@ -2,7 +2,7 @@
   "name": "@vercel/pty-tunnel-server",
   "version": "0.0.2",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "vercel-build": "./scripts/build-binaries.sh && ./scripts/build.sh",
     "build": "turbo run build:install-script",

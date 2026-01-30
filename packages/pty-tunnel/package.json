@@ -3,16 +3,13 @@
   "private": true,
   "type": "module",
   "version": "2.0.3",
-  "description": "",
   "main": "dist/index.mjs",
   "types": "dist/index.d.mts",
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "debug": "^4.4.1",
     "ws": "^8.18.3"
