@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.4.1
+
+### Patch Changes
+
+- Add sizeBytes, createdAt and expiresAt getters on the Snapshot class ([#26](https://github.com/vercel/sandbox/pull/26))
+
 ## 1.4.0
 
 ### Minor Changes

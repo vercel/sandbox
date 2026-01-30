@@ -1,6 +1,6 @@
 {
   "name": "sandbox-filesystem-snapshots",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "description": "Example demonstrating filesystem snapshotting",
   "main": "filesystem-snapshots.ts",

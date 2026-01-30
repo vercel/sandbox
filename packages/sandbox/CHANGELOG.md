@@ -1,5 +1,21 @@
 # sandbox
 
+## 2.2.0
+
+### Minor Changes
+
+- - `sandbox ssh <sandbox_id>` is now `sandbox connect <sandbox_id>`. Aliases are: `shell`, `ssh` for backward compact ([#27](https://github.com/vercel/sandbox/pull/27))
+  - `sandbox sh` is now `sandbox create --connect`
+
+  If the user runs `sandbox sh ...`, we also try to remap automatically to `sandbox create --connect` and print a warning
+
+### Patch Changes
+
+- parse API error response message from JSON body ([#24](https://github.com/vercel/sandbox/pull/24))
+
+- Updated dependencies [[`c666c245aa1af3bd1e1b516dc6d4620b04576c35`](https://github.com/vercel/sandbox/commit/c666c245aa1af3bd1e1b516dc6d4620b04576c35)]:
+  - @vercel/sandbox@1.4.1
+
 ## 2.1.0
 
 ### Minor Changes

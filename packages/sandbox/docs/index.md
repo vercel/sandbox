@@ -11,10 +11,9 @@ where <subcommand> can be one of:
 - config - Update a sandbox configuration
 - copy - Copy files between your local filesystem and a remote sandbox [alias: cp]
 - exec - Execute a command in an existing sandbox
-- ssh - Start an interactive shell in an existing sandbox
+- connect - Start an interactive shell in an existing sandbox [aliases: ssh, shell]
 - stop - Stop one or more running sandboxes [aliases: rm, remove]
 - run - Create and run a command in a sandbox
-- sh - Create a sandbox and run an interactive shell. [alias: shell]
 - snapshot - Take a snapshot of the filesystem of a sandbox
 - snapshots - Manage sandbox snapshots
 - login - Log in to the Sandbox CLI
@@ -74,6 +73,7 @@ Takes precedence over allowed domains/CIDRs.
 
 FLAGS:
   --silent            - Don't write sandbox ID to stdout [optional]
+  --connect           - Start an interactive shell session after creating the sandbox [optional]
   --sudo              - Give extended privileges to the command. [optional]
   --interactive, -i   - Run the command in a secure interactive shell [optional]
   --no-extend-timeout - Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
@@ -119,6 +119,7 @@ Takes precedence over allowed domains/CIDRs.
 
 FLAGS:
   --silent   - Don't write sandbox ID to stdout [optional]
+  --connect  - Start an interactive shell session after creating the sandbox [optional]
   --help, -h - show help [optional]
 ```
 
