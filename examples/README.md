@@ -95,7 +95,7 @@ Each example is self-contained and can be run independently. To get started:
 
    This creates a `.env.local` file with your OIDC token.
 
-   > **Alternative:** You can also use personal access tokens. Learn more at: https://vercel.com/docs/vercel-sandbox#using-access-tokens
+   > **Alternative:** You can also use personal access tokens. Learn more at: https://vercel.com/docs/vercel-sandbox/concepts/authentication#access-tokens
 
 4. **Follow the specific example's README** for any additional setup requirements
 

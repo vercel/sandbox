@@ -31,7 +31,7 @@ This example demonstrates how to use Vercel's AI Gateway with OpenAI GPT-4 to ge
    vercel env pull
    ```
 
-   > **Alternative:** You can also use personal access tokens. Learn more: https://vercel.com/docs/vercel-sandbox#using-access-tokens
+   > **Alternative:** You can also use personal access tokens. Learn more: https://vercel.com/docs/vercel-sandbox/concepts/authentication#access-tokens
 
    > **Note:** No AI provider API keys are needed! This example uses Vercel's AI Gateway which provides access to OpenAI GPT-4 without requiring your own API keys.
 

@@ -69,7 +69,7 @@ export const token = cmd.option({
           [
             `Failed to retrieve authentication token.`,
             `${chalk.bold("hint:")} Try logging in again with \`sandbox login\`.`,
-            "╰▶ Docs: https://vercel.com/docs/sandbox",
+            "╰▶ Docs: https://vercel.com/docs/vercel-sandbox/cli-reference#authentication",
           ].join("\n"),
         );
       }
