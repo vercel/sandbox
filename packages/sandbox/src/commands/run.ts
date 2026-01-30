@@ -2,7 +2,6 @@ import * as cmd from "cmd-ts";
 import * as Create from "./create";
 import * as Exec from "./exec";
 import { omit } from "../util/omit";
-import ora from "ora";
 
 const args = {
   ...Create.args,
@@ -26,20 +25,5 @@ export const run = cmd.command({
         await sandbox.stop();
       }
     }
-  },
-});
-
-export const sh = cmd.command({
-  name: "sh",
-  description: "Create a sandbox and run an interactive shell.",
-  aliases: ["shell"],
-  args: omit(args, "command", "interactive", "tty"),
-  async handler(args) {
-    return run.handler({
-      command: "sh",
-      interactive: true,
-      tty: true,
-      ...args,
-    });
   },
 });

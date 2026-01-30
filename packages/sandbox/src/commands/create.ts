@@ -7,6 +7,7 @@ import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
 import ora from "ora";
+import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 
@@ -46,6 +47,10 @@ export const args = {
     description: "Start the sandbox from a snapshot ID",
     type: cmd.optional(snapshotId),
   }),
+  connect: cmd.flag({
+    long: "connect",
+    description: "Start an interactive shell session after creating the sandbox",
+  }),
   ...networkPolicyArgs,
 } as const;
 
@@ -60,6 +65,7 @@ export const create = cmd.command({
     timeout,
     silent,
     snapshot,
+    connect,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -140,6 +146,21 @@ export const create = cmd.command({
           chalk.dim("   ╰ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
         );
       }
+    }
+
+    if (connect) {
+      await Exec.exec.handler({
+        scope,
+        asSudo: false,
+        args: [],
+        cwd: undefined,
+        skipExtendingTimeout: false,
+        envVars: {},
+        command: "sh",
+        interactive: true,
+        tty: true,
+        sandbox
+      });
     }
 
     return sandbox;

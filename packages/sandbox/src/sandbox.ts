@@ -9,7 +9,16 @@ dotenv.config({
 
 async function main() {
   try {
-    await run(app(), process.argv.slice(2));
+    // We've renamed `sandbox sh` to `sandbox create --connect`. cmd-ts doesn't support aliases for commands
+    // with different arguments. Best effort deprecation warning, remap to the new command if the user just
+    // runs `sandbox sh ...`
+    let args = process.argv.slice(2);
+    if (args.length >= 1 && args[0] === "sh") {
+      args = ["create", "--connect", ...args.slice(1)];
+      process.stderr.write('Warning: `sandbox sh` is deprecated. Please use `sandbox create --connect` instead.\n');
+    }
+
+    await run(app(), args);
   } catch (e) {
     if (e instanceof StyledError) {
       console.error();

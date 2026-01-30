@@ -1,9 +1,9 @@
 import { subcommands } from "cmd-ts";
 import { create } from "./commands/create";
-import * as Run from "./commands/run";
+import { run } from "./commands/run";
 import { list } from "./commands/list";
 import { exec } from "./commands/exec";
-import { ssh } from "./commands/ssh";
+import { connect } from "./commands/connect";
 import { stop } from "./commands/stop";
 import { cp } from "./commands/cp";
 import { login } from "./commands/login";
@@ -24,10 +24,9 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
       config,
       copy: cp,
       exec,
-      ssh,
+      connect,
       stop,
-      run: Run.run,
-      sh: Run.sh,
+      run,
       snapshot,
       snapshots,
       ...(!opts?.withoutAuth && {
