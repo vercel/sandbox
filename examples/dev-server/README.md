@@ -30,7 +30,7 @@ This example demonstrates how to create a sandbox from a Git repository and star
    vercel env pull
    ```
 
-   > **Alternative:** You can also use personal access tokens. Learn more: https://vercel.com/docs/vercel-sandbox#using-access-tokens
+   > **Alternative:** You can also use personal access tokens. Learn more: https://vercel.com/docs/vercel-sandbox/concepts/authentication#access-tokens
 
 4. Run the example:
    ```bash

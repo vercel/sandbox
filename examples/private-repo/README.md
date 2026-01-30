@@ -30,7 +30,7 @@ This example demonstrates how to create an isolated environment from a private G
    vercel env pull
    ```
 
-   > **Alternative:** You can also use personal access tokens. Learn more: https://vercel.com/docs/vercel-sandbox#using-access-tokens
+   > **Alternative:** You can also use personal access tokens. Learn more: https://vercel.com/docs/vercel-sandbox/concepts/authentication#access-tokens
 
 4. Set up your GitHub access token in `.env.local`:
 

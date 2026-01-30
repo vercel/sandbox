@@ -94,7 +94,7 @@ export async function generateCredentials(opts: {
       [
         `Failed to retrieve authentication token.`,
         `${pico.bold("hint:")} Set VERCEL_OIDC_TOKEN or provide a Vercel API token.`,
-        "├▶ Sandbox docs: https://vercel.com/docs/sandbox",
+        "├▶ Sandbox docs: https://vercel.com/docs/vercel-sandbox",
         "╰▶ Access tokens: https://vercel.com/kb/guide/how-do-i-use-a-vercel-api-access-token",
       ].join("\n"),
     );
