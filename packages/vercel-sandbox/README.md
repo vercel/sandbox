@@ -86,7 +86,7 @@ main().catch(console.error);
 Run it:
 
 ```sh
-node --experimental-strip-types --env-file .env.local index.ts
+node --experimental-strip-types --env-file .env.local index.mts
 ```
 
 This will:
