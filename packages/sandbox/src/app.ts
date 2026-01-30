@@ -1,6 +1,6 @@
 import { subcommands } from "cmd-ts";
 import { create } from "./commands/create";
-import * as Run from "./commands/run";
+import { run } from "./commands/run";
 import { list } from "./commands/list";
 import { exec } from "./commands/exec";
 import { connect } from "./commands/connect";
@@ -26,7 +26,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
       exec,
       connect,
       stop,
-      run: Run.run,
+      run,
       snapshot,
       snapshots,
       ...(!opts?.withoutAuth && {
