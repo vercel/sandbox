@@ -57,8 +57,8 @@ export function toAPINetworkPolicy(
     return undefined;
   }
 
-  const { type, ...rest } = policy;
-  switch (policy.mode) {
+  const { mode, ...rest } = policy;
+  switch (mode) {
     case "allow-all":
       return { ...rest, mode: "default-allow" };
     case "deny-all":
