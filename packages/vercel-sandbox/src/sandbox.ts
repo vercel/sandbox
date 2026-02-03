@@ -630,13 +630,13 @@ export class Sandbox {
    * @example
    * // Restrict to specific domains
    * await sandbox.updateNetworkPolicy({
-   *   type: "restricted",
+   *   mode: "custom",
    *   allowedDomains: ["*.npmjs.org", "github.com"],
    * });
    *
    * @example
    * // Deny all network access
-   * await sandbox.updateNetworkPolicy({ type: "no-access" });
+   * await sandbox.updateNetworkPolicy({ mode: "deny-all" });
    */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,

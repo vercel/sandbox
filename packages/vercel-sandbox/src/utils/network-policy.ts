@@ -3,33 +3,33 @@ import type { APINetworkPolicy } from "../api-client/api-client";
 /**
  * Network policy to define network restrictions for the sandbox.
  *
- * - `internet-access`: Full internet access (default). All traffic is allowed.
- * - `no-access`: No internet access. All traffic is denied.
- * - `restricted`: Restricted access with explicit allow/deny lists.
+ * - `allow-all`: Full internet access (default). All traffic is allowed.
+ * - `deny-all`: No internet access. All traffic is denied.
+ * - `custom`: custom access with explicit allow/deny lists.
  *
  * @example
  * // Full internet access (default)
- * { type: "internet-access" }
+ * { mode: "allow-all" }
  *
  * @example
- * // No internet access
- * { type: "no-access" }
+ * // No external access
+ * { mode: "deny-all" }
  *
  * @example
- * // Restricted access with specific domains
+ * // custom access with specific domains
  * // All traffic not explicitly allowed is denied.
  * {
- *   type: "restricted",
+ *   mode: "custom",
  *   allowedDomains: ["*.npmjs.org", "github.com"],
  *   allowedCIDRs: ["10.0.0.0/8"],
  *   deniedCIDRs: ["10.1.0.0/16"]
  * }
  */
 export type NetworkPolicy =
-  | { type: "internet-access" } & Record<string, unknown>
-  | { type: "no-access" } & Record<string, unknown>
+  | { mode: "allow-all" } & Record<string, unknown>
+  | { mode: "deny-all" } & Record<string, unknown>
   | ({
-      type: "restricted";
+      mode: "custom";
       /**
        * List of domains to allow traffic to.
        * Use "*" prefix for wildcard matching (e.g., "*.npmjs.org").
@@ -58,12 +58,12 @@ export function toAPINetworkPolicy(
   }
 
   const { type, ...rest } = policy;
-  switch (policy.type) {
-    case "internet-access":
+  switch (policy.mode) {
+    case "allow-all":
       return { ...rest, mode: "default-allow" };
-    case "no-access":
+    case "deny-all":
       return { ...rest, mode: "default-deny" };
-    case "restricted": {
+    case "custom": {
       return { ...rest, mode: "default-deny" };
     }
   }
