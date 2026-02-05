@@ -61,7 +61,14 @@ async function getVercelToken(opts: {
   projectId?: string;
 }): Promise<Credentials> {
   try {
-    return getCredentialsFromOIDCToken(await getVercelOidcToken());
+    // Pass teamId and projectId to getVercelOidcToken to enable token refresh
+    // without needing to read from .vercel/project.json. This is useful when
+    // these values are already known from previous calls or user input.
+    const token = await getVercelOidcToken({
+      teamId: opts.teamId,
+      projectId: opts.projectId,
+    });
+    return getCredentialsFromOIDCToken(token);
   } catch (error) {
     if (!shouldPromptForCredentials()) {
       if (process.env.VERCEL_URL) {

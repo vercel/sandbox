@@ -73,7 +73,14 @@ export class JwtExpiry {
    */
   async refresh(): Promise<JwtExpiry> {
     try {
-      const freshToken = await getVercelOidcToken();
+      // Pass the teamId and projectId from the current token to enable
+      // token refresh without needing to read from .vercel/project.json.
+      // This is especially useful when the token was obtained without
+      // a local project configuration.
+      const freshToken = await getVercelOidcToken({
+        teamId: this.payload?.owner_id,
+        projectId: this.payload?.project_id,
+      });
       return new JwtExpiry(freshToken);
     } catch (cause) {
       throw new OidcRefreshError("Failed to refresh OIDC token", {
