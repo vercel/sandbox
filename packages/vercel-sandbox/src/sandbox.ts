@@ -12,10 +12,7 @@ import { WithFetchOptions } from "./api-client/api-client";
 import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
-import {
-  toAPINetworkPolicy,
-  type NetworkPolicy,
-} from "./utils/network-policy";
+import { toAPINetworkPolicy, type NetworkPolicy } from "./utils/network-policy";
 
 export type { NetworkPolicy };
 
@@ -323,15 +320,23 @@ export class Sandbox {
    * @param cmdId - ID of the command to retrieve
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
+   * @param opts.wait - If false, will not wait for the command to complete.
    * @returns A {@link Command} instance representing the command
    */
   async getCommand(
     cmdId: string,
-    opts?: { signal?: AbortSignal },
+    opts?: {
+      signal?: AbortSignal;
+      /**
+       * If false, will not wait for the command to complete.
+       */
+      wait?: boolean;
+    },
   ): Promise<Command> {
     const command = await this.client.getCommand({
       sandboxId: this.sandbox.id,
       cmdId,
+      wait: opts?.wait,
       signal: opts?.signal,
     });
 
@@ -413,7 +418,7 @@ export class Sandbox {
           }
         })();
       }
-    }
+    };
 
     if (wait) {
       const commandStream = await this.client.runCommand({
@@ -433,7 +438,7 @@ export class Sandbox {
         cmd: commandStream.command,
       });
 
-      getLogs(command); 
+      getLogs(command);
 
       const finished = await commandStream.finished;
       return new CommandFinished({
@@ -562,7 +567,7 @@ export class Sandbox {
       });
       return dstPath;
     } finally {
-      stream.destroy()
+      stream.destroy();
     }
   }
 
