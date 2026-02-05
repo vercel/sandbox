@@ -91,7 +91,7 @@ export class APIClient extends BaseClient {
 
     try {
       const freshToken = await getVercelOidcToken({
-        bufferMs: ms("5m"),
+        expirationBufferMs: ms("5m"),
         teamId: this.teamId,
         projectId: this.projectId,
       });
