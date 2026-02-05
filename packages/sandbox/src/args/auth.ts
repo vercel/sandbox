@@ -5,7 +5,7 @@ import chalk from "chalk";
 import {
   getVercelOidcToken,
   getVercelCliToken,
-  NoAuthConfigError,
+  NoAuthError,
   TokenExpiredError,
   RefreshFailedError,
 } from "@vercel/oidc";
@@ -44,7 +44,7 @@ export const token = cmd.option({
       } catch (error) {
         // Handle specific auth errors by triggering login
         if (
-          error instanceof NoAuthConfigError ||
+          error instanceof NoAuthError ||
           error instanceof TokenExpiredError ||
           error instanceof RefreshFailedError
         ) {
