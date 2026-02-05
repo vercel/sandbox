@@ -4,9 +4,15 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-vi.mock("@vercel/oidc", () => ({
-  getVercelOidcToken: vi.fn(),
-}));
+vi.mock("@vercel/oidc", async () => {
+  const actual = await vi.importActual<typeof import("@vercel/oidc")>(
+    "@vercel/oidc",
+  );
+  return {
+    ...actual,
+    getVercelOidcToken: vi.fn(),
+  };
+});
 
 vi.mock("../../src/commands/login", () => ({
   login: { handler: vi.fn() },
