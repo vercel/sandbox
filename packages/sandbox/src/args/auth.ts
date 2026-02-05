@@ -6,7 +6,7 @@ import {
   getVercelOidcToken,
   getVercelCliToken,
   AccessTokenMissingError,
-  RefreshFailedError,
+  RefreshAccessTokenFailedError,
 } from "@vercel/oidc";
 
 const debug = createDebugger("sandbox:args:auth");
@@ -44,7 +44,7 @@ export const token = cmd.option({
         // Handle specific auth errors by triggering login
         if (
           error instanceof AccessTokenMissingError ||
-          error instanceof RefreshFailedError
+          error instanceof RefreshAccessTokenFailedError
         ) {
           debug(
             `CLI token unavailable (${error.name}), prompting for login...`,
