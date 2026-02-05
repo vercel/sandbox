@@ -30,7 +30,8 @@ import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
-import { JwtExpiry } from "../utils/jwt-expiry";
+import { getVercelOidcToken } from "@vercel/oidc";
+import ms from "ms";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
 
@@ -47,7 +48,8 @@ export interface APINetworkPolicy {
 
 export class APIClient extends BaseClient {
   private teamId: string;
-  private tokenExpiry: JwtExpiry | null;
+  private projectId: string | undefined;
+  private isJwtToken: boolean;
 
   constructor(params: {
     baseUrl?: string;
@@ -63,23 +65,55 @@ export class APIClient extends BaseClient {
     });
 
     this.teamId = params.teamId;
-    this.tokenExpiry = JwtExpiry.fromToken(params.token);
+    this.isJwtToken = params.token.split(".").length === 3;
+
+    // Extract projectId from JWT token if available
+    if (this.isJwtToken) {
+      try {
+        const payload = JSON.parse(
+          Buffer.from(params.token.split(".")[1], "base64url").toString("utf8")
+        );
+        this.projectId = payload.project_id;
+        // Update teamId from token if available
+        if (payload.owner_id) {
+          this.teamId = payload.owner_id;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
   }
 
   private async ensureValidToken(): Promise<void> {
-    if (!this.tokenExpiry) {
+    if (!this.isJwtToken) {
       return;
     }
 
-    const newExpiry = await this.tokenExpiry.tryRefresh();
-    if (!newExpiry) {
-      return;
-    }
+    try {
+      const freshToken = await getVercelOidcToken({
+        bufferMs: ms("5m"),
+        teamId: this.teamId,
+        projectId: this.projectId,
+      });
 
-    this.tokenExpiry = newExpiry;
-    this.token = this.tokenExpiry.token;
-    if (this.tokenExpiry.payload) {
-      this.teamId = this.tokenExpiry.payload?.owner_id;
+      // Update token if it changed
+      if (freshToken !== this.token) {
+        this.token = freshToken;
+
+        // Update teamId from refreshed token
+        try {
+          const payload = JSON.parse(
+            Buffer.from(freshToken.split(".")[1], "base64url").toString("utf8")
+          );
+          if (payload.owner_id) {
+            this.teamId = payload.owner_id;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    } catch {
+      // Ignore refresh errors and continue with current token
     }
   }
 
