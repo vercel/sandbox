@@ -30,7 +30,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@vercel/oidc": "^3.1.0",
+    "@vercel/oidc": "file:../../../vercel/packages/oidc",
     "async-retry": "1.3.3",
     "jsonlines": "0.1.1",
     "ms": "2.1.3",
