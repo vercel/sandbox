@@ -6,7 +6,6 @@ import {
   getVercelOidcToken,
   getVercelCliToken,
   NoAuthError,
-  TokenExpiredError,
   RefreshFailedError,
 } from "@vercel/oidc";
 
@@ -45,7 +44,6 @@ export const token = cmd.option({
         // Handle specific auth errors by triggering login
         if (
           error instanceof NoAuthError ||
-          error instanceof TokenExpiredError ||
           error instanceof RefreshFailedError
         ) {
           debug(
