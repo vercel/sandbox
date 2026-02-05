@@ -1,8 +1,16 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import * as cmd from "cmd-ts";
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
+import {
+  AccessTokenMissingError,
+  RefreshAccessTokenFailedError,
+} from "@vercel/oidc";
+
+const { mockGetVercelCliToken, mockGetVercelOidcToken, mockLogin } =
+  vi.hoisted(() => ({
+    mockGetVercelCliToken: vi.fn(),
+    mockGetVercelOidcToken: vi.fn(),
+    mockLogin: vi.fn(),
+  }));
 
 vi.mock("@vercel/oidc", async () => {
   const actual = await vi.importActual<typeof import("@vercel/oidc")>(
@@ -10,84 +18,28 @@ vi.mock("@vercel/oidc", async () => {
   );
   return {
     ...actual,
-    getVercelOidcToken: vi.fn(),
+    getVercelCliToken: mockGetVercelCliToken,
+    getVercelOidcToken: mockGetVercelOidcToken,
   };
 });
 
 vi.mock("../../src/commands/login", () => ({
-  login: { handler: vi.fn() },
+  login: { handler: mockLogin },
 }));
 
 describe("token", () => {
-  let tmpDir: string;
-  let fetchMock: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.resetModules();
+    vi.clearAllMocks();
 
     // Clear relevant env vars
     delete process.env.VERCEL_AUTH_TOKEN;
     delete process.env.VERCEL_OIDC_TOKEN;
-
-    // Create temp dir for auth config BEFORE any imports
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sandbox-auth-test-"));
-    process.env.VERCEL_AUTH_CONFIG_DIR = tmpDir;
-
-    // Mock fetch for OAuth calls
-    fetchMock = vi.fn().mockImplementation(async (url: URL | string) => {
-      const urlStr = url.toString();
-
-      // OIDC discovery endpoint
-      if (urlStr.includes(".well-known/openid-configuration")) {
-        return Response.json({
-          issuer: "https://vercel.com",
-          device_authorization_endpoint: "https://vercel.com/oauth/device",
-          token_endpoint: "https://vercel.com/oauth/token",
-          revocation_endpoint: "https://vercel.com/oauth/revoke",
-          jwks_uri: "https://vercel.com/.well-known/jwks.json",
-          introspection_endpoint: "https://vercel.com/oauth/introspect",
-        });
-      }
-
-      // Token refresh endpoint
-      if (urlStr.includes("/oauth/token")) {
-        return Response.json({
-          access_token: "new-refreshed-token",
-          token_type: "Bearer",
-          expires_in: 3600,
-          refresh_token: "new-refresh-token",
-        });
-      }
-
-      throw new Error(`Unexpected fetch: ${urlStr}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
   });
 
-  afterEach(() => {
-    delete process.env.VERCEL_AUTH_TOKEN;
-    delete process.env.VERCEL_OIDC_TOKEN;
-    delete process.env.VERCEL_AUTH_CONFIG_DIR;
-    vi.unstubAllGlobals();
-
-    // Clean up temp dir
-    if (tmpDir) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  describe("refreshToken behavior", () => {
-    test("refreshes expired token and returns the new one", async () => {
-      // Token that is ALREADY expired
-      const authFile = {
-        token: "expired-old-token",
-        expiresAt: Math.floor((Date.now() - 60000) / 1000), // expired 1 minute ago
-        refreshToken: "valid-refresh-token",
-      };
-      fs.writeFileSync(
-        path.join(tmpDir, "auth.json"),
-        JSON.stringify(authFile) + "\n",
-      );
+  describe("environment variable fallbacks", () => {
+    test("uses VERCEL_AUTH_TOKEN when set", async () => {
+      process.env.VERCEL_AUTH_TOKEN = "env-auth-token";
 
       const { token } = await import("../../src/args/auth.ts");
 
@@ -99,8 +51,88 @@ describe("token", () => {
 
       const result = await cmd.run(command, []);
 
-      // Should return the refreshed token, not the expired one
-      expect(result.token).toBe("new-refreshed-token");
+      expect(result.token).toBe("env-auth-token");
+      expect(mockGetVercelCliToken).not.toHaveBeenCalled();
+    });
+
+    test("uses VERCEL_OIDC_TOKEN and calls getVercelOidcToken when set", async () => {
+      process.env.VERCEL_OIDC_TOKEN = "existing-oidc-token";
+      mockGetVercelOidcToken.mockResolvedValue("refreshed-oidc-token");
+
+      const { token } = await import("../../src/args/auth.ts");
+
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.run(command, []);
+
+      expect(result.token).toBe("refreshed-oidc-token");
+      expect(mockGetVercelOidcToken).toHaveBeenCalled();
+      expect(mockGetVercelCliToken).not.toHaveBeenCalled();
+    });
+
+    test("falls back to getVercelCliToken when no env vars set", async () => {
+      mockGetVercelCliToken.mockResolvedValue("cli-token");
+
+      const { token } = await import("../../src/args/auth.ts");
+
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.run(command, []);
+
+      expect(result.token).toBe("cli-token");
+      expect(mockGetVercelCliToken).toHaveBeenCalled();
+    });
+  });
+
+  describe("error handling", () => {
+    test("triggers login when getVercelCliToken throws AccessTokenMissingError", async () => {
+      mockGetVercelCliToken
+        .mockRejectedValueOnce(new AccessTokenMissingError())
+        .mockResolvedValueOnce("token-after-login");
+      mockLogin.mockResolvedValue(undefined);
+
+      const { token } = await import("../../src/args/auth.ts");
+
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.run(command, []);
+
+      expect(mockLogin).toHaveBeenCalled();
+      expect(mockGetVercelCliToken).toHaveBeenCalledTimes(2);
+      expect(result.token).toBe("token-after-login");
+    });
+
+    test("triggers login when getVercelCliToken throws RefreshAccessTokenFailedError", async () => {
+      mockGetVercelCliToken
+        .mockRejectedValueOnce(new RefreshAccessTokenFailedError())
+        .mockResolvedValueOnce("token-after-login");
+      mockLogin.mockResolvedValue(undefined);
+
+      const { token } = await import("../../src/args/auth.ts");
+
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.run(command, []);
+
+      expect(mockLogin).toHaveBeenCalled();
+      expect(mockGetVercelCliToken).toHaveBeenCalledTimes(2);
+      expect(result.token).toBe("token-after-login");
     });
   });
 });
