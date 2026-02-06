@@ -23,7 +23,11 @@ export function formatBytes(bytes: number) {
   return `${formatter.format(value)} ${units[unitIndex]}`;
 }
 
-export function timeAgo(date: string | number | Date) {
+export function timeAgo(date: string | number | Date | undefined) {
+  if (date === undefined) {
+    return '-';
+  }
+
   return formatDistance(date, new Date(), {
     addSuffix: true,
   })

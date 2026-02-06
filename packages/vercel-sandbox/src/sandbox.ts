@@ -690,12 +690,17 @@ export class Sandbox {
    * Note: this sandbox will be stopped as part of the snapshot creation process.
    *
    * @param opts - Optional parameters.
+   * @param opts.expiration - Optional expiration time in milliseconds. Use 0 for no expiration at all.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves to the Snapshot instance
    */
-  async snapshot(opts?: { signal?: AbortSignal }): Promise<Snapshot> {
+  async snapshot(opts?: {
+    expiration?: number;
+    signal?: AbortSignal;
+  }): Promise<Snapshot> {
     const response = await this.client.createSnapshot({
       sandboxId: this.sandbox.id,
+      expiration: opts?.expiration,
       signal: opts?.signal,
     });
 
