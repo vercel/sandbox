@@ -7,6 +7,52 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 import ms from "ms";
 
+describe("downloadFile validation", () => {
+  it("throws when src is undefined", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile(undefined as any, { path: "/tmp/out" }),
+    ).rejects.toThrow("downloadFile: source path is required");
+  });
+
+  it("throws when src.path is empty", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile({ path: "" }, { path: "/tmp/out" }),
+    ).rejects.toThrow("downloadFile: source path is required");
+  });
+
+  it("throws when dst is undefined", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile({ path: "file.txt" }, undefined as any),
+    ).rejects.toThrow("downloadFile: destination path is required");
+  });
+
+  it("throws when dst.path is empty", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile({ path: "file.txt" }, { path: "" }),
+    ).rejects.toThrow("downloadFile: destination path is required");
+  });
+});
+
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   const PORTS = [3000, 4000];
   let sandbox: Sandbox;

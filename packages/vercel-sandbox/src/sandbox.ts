@@ -541,6 +541,14 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    if (!src?.path) {
+      throw new Error("downloadFile: source path is required");
+    }
+
+    if (!dst?.path) {
+      throw new Error("downloadFile: destination path is required");
+    }
+
     const stream = await this.client.readFile({
       sandboxId: this.sandbox.id,
       path: src.path,
