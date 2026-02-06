@@ -141,6 +141,24 @@ export const ExtendTimeoutResponse = z.object({
   sandbox: Sandbox,
 });
 
+export const NetworkPolicyValidator = z.union([
+  z.object({ mode: z.literal("allow-all") }).passthrough(),
+  z.object({ mode: z.literal("deny-all") }).passthrough(),
+  z
+    .object({
+      mode: z.literal("custom"),
+      allowedDomains: z.array(z.string()).optional(),
+      allowedCIDRs: z.array(z.string()).optional(),
+      deniedCIDRs: z.array(z.string()).optional(),
+    })
+    .passthrough(),
+]);
+
+export const UpdateNetworkPolicyResponse = z.object({
+  sandbox: Sandbox,
+  networkPolicy: NetworkPolicyValidator,
+});
+
 export const CreateSnapshotResponse = z.object({
   snapshot: Snapshot,
   sandbox: Sandbox,

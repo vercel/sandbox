@@ -37,8 +37,7 @@ export const allowedDomains = cmd.multioption({
 export const allowedCIDRs = cmd.multioption({
   long: "allowed-cidr",
   description:
-    `CIDR to allow traffic to (requires --network-policy=custom). Takes precedence over 'allowed-domain'.
-`,
+    `CIDR to allow traffic to (requires --network-policy=custom). Takes precedence over 'allowed-domain'.`,
   type: cmd.array(cmd.string),
 });
 

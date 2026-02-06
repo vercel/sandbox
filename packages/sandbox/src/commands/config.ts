@@ -64,7 +64,7 @@ This is a full update, fully overriding the pre-existing configuration.`,
 
     const spinner = ora("Updating network policy...").start();
     try {
-      await sandbox.updateNetworkPolicy(networkPolicy);
+      const response = await sandbox.updateNetworkPolicy(networkPolicy);
       spinner.stop();
 
       process.stderr.write(
@@ -73,7 +73,7 @@ This is a full update, fully overriding the pre-existing configuration.`,
           "\n",
       );
       process.stderr.write(
-        chalk.dim("   ╰ ") + "mode: " + chalk.cyan(networkPolicy.type) + "\n",
+        chalk.dim("   ╰ ") + "mode: " + chalk.cyan(response.mode) + "\n",
       );
     } catch (error) {
       spinner.stop();

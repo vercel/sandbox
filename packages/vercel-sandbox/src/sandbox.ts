@@ -13,9 +13,8 @@ import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import {
-  toAPINetworkPolicy,
   type NetworkPolicy,
-} from "./utils/network-policy";
+} from "./network-policy";
 
 export type { NetworkPolicy };
 
@@ -253,7 +252,7 @@ export class Sandbox {
       timeout: params?.timeout,
       resources: params?.resources,
       runtime: params && "runtime" in params ? params?.runtime : undefined,
-      networkPolicy: toAPINetworkPolicy(params?.networkPolicy),
+      networkPolicy: params?.networkPolicy,
       signal: params?.signal,
       ...privateParams,
     });
@@ -641,16 +640,14 @@ export class Sandbox {
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
-  ): Promise<void> {
-    const apiNetworkPolicy = toAPINetworkPolicy(networkPolicy);
-    if (!apiNetworkPolicy) {
-      throw new Error("Invalid network policy");
-    }
-    await this.client.updateNetworkPolicy({
-      sandboxId: this.sandbox.id,
-      networkPolicy: apiNetworkPolicy,
-      signal: opts?.signal,
-    });
+  ): Promise<NetworkPolicy> {
+    return this.client
+      .updateNetworkPolicy({
+        sandboxId: this.sandbox.id,
+        networkPolicy: networkPolicy,
+        signal: opts?.signal,
+      })
+      .then((response) => response.json.networkPolicy);
   }
 
   /**

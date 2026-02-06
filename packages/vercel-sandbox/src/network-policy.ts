@@ -1,5 +1,3 @@
-import type { APINetworkPolicy } from "../api-client/api-client";
-
 /**
  * Network policy to define network restrictions for the sandbox.
  *
@@ -46,25 +44,3 @@ export type NetworkPolicy =
        */
       deniedCIDRs?: string[];
     } & Record<string, unknown>);
-
-/**
- * Converts the SDK NetworkPolicy to the API format.
- */
-export function toAPINetworkPolicy(
-  policy: NetworkPolicy | undefined,
-): APINetworkPolicy | undefined {
-  if (!policy) {
-    return undefined;
-  }
-
-  const { mode, ...rest } = policy;
-  switch (mode) {
-    case "allow-all":
-      return { ...rest, mode: "default-allow" };
-    case "deny-all":
-      return { ...rest, mode: "default-deny" };
-    case "custom": {
-      return { ...rest, mode: "default-deny" };
-    }
-  }
-}
