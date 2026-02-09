@@ -1,10 +1,29 @@
 import chalk from "chalk";
 import type { NetworkPolicy } from "@vercel/sandbox";
 
-type NetworkPolicyMode = "allow-all" | "deny-all" | "custom";
+type NetworkPolicyMode = "allow-all" | "deny-all";
 
 /**
- * Builds a NetworkPolicy from CLI arguments (optional mode for create).
+ * Resolves the network policy mode from --network-policy and --mode flags.
+ * Errors if both are provided with conflicting values.
+ */
+export function resolveMode(
+  networkPolicy?: NetworkPolicyMode,
+  mode?: NetworkPolicyMode,
+): NetworkPolicyMode | undefined {
+  if (networkPolicy && mode && networkPolicy !== mode) {
+    throw new Error(
+      [
+        `Conflicting network policy modes: --network-policy=${networkPolicy} and --mode=${mode}.`,
+        `${chalk.bold("hint:")} Use only one of --network-policy or --mode.`,
+      ].join("\n"),
+    );
+  }
+  return networkPolicy ?? mode;
+}
+
+/**
+ * Builds a NetworkPolicy from CLI arguments.
  */
 export function buildNetworkPolicy(args: {
   networkPolicy?: NetworkPolicyMode;
@@ -14,36 +33,31 @@ export function buildNetworkPolicy(args: {
 }): NetworkPolicy {
   const { networkPolicy, allowedDomains, allowedCIDRs, deniedCIDRs } = args;
 
-  if (!networkPolicy || networkPolicy !== "custom") {
-    // If any of the list options are provided without custom mode, throw an error
-    if (
-      allowedDomains.length > 0 ||
-      allowedCIDRs.length > 0 ||
-      deniedCIDRs.length > 0
-    ) {
-      throw new Error(
-        [
-          "Network policy options require --network-policy to be set to custom.",
-          `${chalk.bold("hint:")} Use --network-policy=custom to allow/deny specific domains or CIDRs.`,
-        ].join("\n"),
-      );
-    }
+  const hasListOptions =
+    allowedDomains.length > 0 ||
+    allowedCIDRs.length > 0 ||
+    deniedCIDRs.length > 0;
+
+  if (networkPolicy && hasListOptions) {
+    throw new Error(
+      [
+        `Cannot combine --network-policy=${networkPolicy} with --allowed-domain, --allowed-cidr, or --denied-cidr.`,
+        `${chalk.bold("hint:")} Use --allowed-domain / --allowed-cidr / --denied-cidr without --network-policy for custom policies.`,
+      ].join("\n"),
+    );
   }
 
-  switch (networkPolicy) {
-    // If no network policy mode specified, return undefined (use default)
-    case undefined:
-    case "allow-all":
-      return { mode: "allow-all" };
-    case "deny-all":
-      return { mode: "deny-all" };
-    case "custom":
-      return {
-        mode: "custom",
-        allowedDomains:
-          allowedDomains.length > 0 ? allowedDomains : undefined,
-        allowedCIDRs: allowedCIDRs.length > 0 ? allowedCIDRs : undefined,
-        deniedCIDRs: deniedCIDRs.length > 0 ? deniedCIDRs : undefined,
-      };
+  if (hasListOptions) {
+    return {
+      ...(allowedDomains.length > 0 && { allow: allowedDomains }),
+      ...((allowedCIDRs.length > 0 || deniedCIDRs.length > 0) && {
+        subnets: {
+          ...(allowedCIDRs.length > 0 && { allow: allowedCIDRs }),
+          ...(deniedCIDRs.length > 0 && { deny: deniedCIDRs }),
+        },
+      }),
+    };
   }
+
+  return networkPolicy ?? "allow-all";
 }

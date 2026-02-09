@@ -629,25 +629,22 @@ export class Sandbox {
    * @example
    * // Restrict to specific domains
    * await sandbox.updateNetworkPolicy({
-   *   mode: "custom",
-   *   allowedDomains: ["*.npmjs.org", "github.com"],
+   *   allow: ["*.npmjs.org", "github.com"],
    * });
    *
    * @example
    * // Deny all network access
-   * await sandbox.updateNetworkPolicy({ mode: "deny-all" });
+   * await sandbox.updateNetworkPolicy("deny-all");
    */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-    return this.client
-      .updateNetworkPolicy({
-        sandboxId: this.sandbox.id,
-        networkPolicy: networkPolicy,
-        signal: opts?.signal,
-      })
-      .then((response) => response.json.networkPolicy);
+    return this.client.updateNetworkPolicy({
+      sandboxId: this.sandbox.id,
+      networkPolicy: networkPolicy,
+      signal: opts?.signal,
+    });
   }
 
   /**

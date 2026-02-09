@@ -33,6 +33,7 @@ import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
 import { JwtExpiry } from "../utils/jwt-expiry";
 import { NetworkPolicy } from "../network-policy";
+import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
 
@@ -140,7 +141,9 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
-          networkPolicy: params.networkPolicy,
+          networkPolicy: params.networkPolicy
+            ? toAPINetworkPolicy(params.networkPolicy)
+            : undefined,
           ...privateParams,
         }),
         signal: params.signal,
@@ -563,16 +566,17 @@ export class APIClient extends BaseClient {
     sandboxId: string;
     networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
+  }): Promise<NetworkPolicy> {
     const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
-    return parseOrThrow(
+    const response = await parseOrThrow(
       UpdateNetworkPolicyResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify(params.networkPolicy),
+        body: JSON.stringify(toAPINetworkPolicy(params.networkPolicy)),
         signal: params.signal,
       }),
     );
+    return fromAPINetworkPolicy(response.json.networkPolicy);
   }
 
   async extendTimeout(params: {
