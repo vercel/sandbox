@@ -18,7 +18,7 @@ vi.mock("@vercel/oidc", async () => {
   );
   return {
     ...actual,
-    getVercelCliToken: mockGetVercelCliToken,
+    getVercelToken: mockGetVercelCliToken,
     getVercelOidcToken: mockGetVercelOidcToken,
   };
 });
@@ -74,7 +74,7 @@ describe("token", () => {
       expect(mockGetVercelCliToken).not.toHaveBeenCalled();
     });
 
-    test("falls back to getVercelCliToken when no env vars set", async () => {
+    test("falls back to getVercelToken when no env vars set", async () => {
       mockGetVercelCliToken.mockResolvedValue("cli-token");
 
       const { token } = await import("../../src/args/auth.ts");
@@ -93,7 +93,7 @@ describe("token", () => {
   });
 
   describe("error handling", () => {
-    test("triggers login when getVercelCliToken throws AccessTokenMissingError", async () => {
+    test("triggers login when getVercelToken throws AccessTokenMissingError", async () => {
       mockGetVercelCliToken
         .mockRejectedValueOnce(new AccessTokenMissingError())
         .mockResolvedValueOnce("token-after-login");
@@ -114,7 +114,7 @@ describe("token", () => {
       expect(result.token).toBe("token-after-login");
     });
 
-    test("triggers login when getVercelCliToken throws RefreshAccessTokenFailedError", async () => {
+    test("triggers login when getVercelToken throws RefreshAccessTokenFailedError", async () => {
       mockGetVercelCliToken
         .mockRejectedValueOnce(new RefreshAccessTokenFailedError())
         .mockResolvedValueOnce("token-after-login");

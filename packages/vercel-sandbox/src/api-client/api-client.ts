@@ -90,7 +90,7 @@ export class APIClient extends BaseClient {
     }
 
     try {
-      // Use new API that accepts both IDs and slugs for team/project
+      // Use getVercelOidcToken to refresh the token with team/project scope
       const freshToken = await getVercelOidcToken({
         expirationBufferMs: ms("5m"),
         team: this.teamId,

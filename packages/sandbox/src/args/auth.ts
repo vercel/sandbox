@@ -4,7 +4,7 @@ import createDebugger from "debug";
 import chalk from "chalk";
 import {
   getVercelOidcToken,
-  getVercelCliToken,
+  getVercelToken,
   AccessTokenMissingError,
   RefreshAccessTokenFailedError,
 } from "@vercel/oidc";
@@ -27,7 +27,8 @@ export const token = cmd.option({
       if (process.env.VERCEL_OIDC_TOKEN) {
         try {
           // Note: getVercelOidcToken() can optionally accept { project, team } parameters
-          // (as IDs or slugs) to explicitly specify the scope. If not provided, it will
+          // to explicitly specify the scope. `project` must be a project ID (prj_*),
+          // `team` accepts both IDs (team_*) and slugs. If not provided, it will
           // read from .vercel/project.json automatically.
           return await getVercelOidcToken();
         } catch (cause) {
@@ -42,7 +43,7 @@ export const token = cmd.option({
 
       // Try to get CLI token, which handles auth.json reading and refresh
       try {
-        return await getVercelCliToken();
+        return await getVercelToken();
       } catch (error) {
         // Handle specific auth errors by triggering login
         if (
@@ -61,7 +62,7 @@ export const token = cmd.option({
 
           // Try again after login
           try {
-            return await getVercelCliToken();
+            return await getVercelToken();
           } catch (retryError) {
             throw new Error(
               [
