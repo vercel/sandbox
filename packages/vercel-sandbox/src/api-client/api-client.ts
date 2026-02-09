@@ -576,7 +576,7 @@ export class APIClient extends BaseClient {
         signal: params.signal,
       }),
     );
-    return fromAPINetworkPolicy(response.json.networkPolicy);
+    return fromAPINetworkPolicy(response.json.sandbox.networkPolicy!);
   }
 
   async extendTimeout(params: {

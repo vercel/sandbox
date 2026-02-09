@@ -2,6 +2,19 @@ import { z } from "zod";
 
 export type SandboxMetaData = z.infer<typeof Sandbox>;
 
+export const NetworkPolicyValidator = z.union([
+  z.object({ mode: z.literal("allow-all") }).passthrough(),
+  z.object({ mode: z.literal("deny-all") }).passthrough(),
+  z
+    .object({
+      mode: z.literal("custom"),
+      allowedDomains: z.array(z.string()).optional(),
+      allowedCIDRs: z.array(z.string()).optional(),
+      deniedCIDRs: z.array(z.string()).optional(),
+    })
+    .passthrough(),
+]);
+
 export const Sandbox = z.object({
   id: z.string(),
   memory: z.number(),
@@ -28,6 +41,7 @@ export const Sandbox = z.object({
   cwd: z.string(),
   updatedAt: z.number(),
   interactivePort: z.number().optional(),
+  networkPolicy: NetworkPolicyValidator.optional(),
 });
 
 export type SandboxRouteData = z.infer<typeof SandboxRoute>;
@@ -141,22 +155,8 @@ export const ExtendTimeoutResponse = z.object({
   sandbox: Sandbox,
 });
 
-export const NetworkPolicyValidator = z.union([
-  z.object({ mode: z.literal("allow-all") }).passthrough(),
-  z.object({ mode: z.literal("deny-all") }).passthrough(),
-  z
-    .object({
-      mode: z.literal("custom"),
-      allowedDomains: z.array(z.string()).optional(),
-      allowedCIDRs: z.array(z.string()).optional(),
-      deniedCIDRs: z.array(z.string()).optional(),
-    })
-    .passthrough(),
-]);
-
 export const UpdateNetworkPolicyResponse = z.object({
   sandbox: Sandbox,
-  networkPolicy: NetworkPolicyValidator,
 });
 
 export const CreateSnapshotResponse = z.object({
