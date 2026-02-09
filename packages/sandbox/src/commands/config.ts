@@ -10,8 +10,8 @@ import chalk from "chalk";
 
 const networkPolicyCommand = cmd.command({
   name: "network-policy",
-  description: `Update the network policy of a sandbox
-  This is a full update, fully overriding the pre-existing configuration.`,
+  description: `Update the network policy of a sandbox.
+  This will fully override the previous configuration.`,
   args: {
     scope,
     sandbox: cmd.positional({

@@ -3,4 +3,4 @@
 "sandbox": minor
 ---
 
-Use new model for network-polices
+Use new model for network-policies

@@ -52,20 +52,13 @@ OPTIONS:
   --timeout <num UNIT>              - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
   --publish-port <PORT>, -p=<PORT>  - Publish sandbox port(s) to DOMAIN.vercel.run
   --snapshot, -s <snapshot_id>      - Start the sandbox from a snapshot ID [optional]
-  --network-policy <MODE>           - Network policy mode: "allow-all", "deny-all", or "custom"
-    
-allow-all: sandbox can access any website/domain
-deny-all: sandbox has no network access
-custom: sandbox can only access websites and domains explicitly allowed [optional]
-  --allowed-domain <str>            - Domain to allow traffic to (requires --network-policy=custom)
-
-Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com')
-If used as the first segment, will match any subdomain.
-  --allowed-cidr <str>              - CIDR to allow traffic to (requires --network-policy=custom)
-
-Takes precedence over 'allowed-domain'.
-
-  --denied-cidr <str>               - CIDR to deny traffic to (requires --network-policy=custom)
+  --network-policy <MODE>          - Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+  --allowed-domain <str>           - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+  --allowed-cidr <str>             - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+  --denied-cidr <str>              - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     
 Takes precedence over allowed domains/CIDRs.
   --workdir, -w <str>               - The working directory to run the command in [optional]
@@ -100,22 +93,13 @@ OPTIONS:
   --timeout <num UNIT>             - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
   --publish-port <PORT>, -p=<PORT> - Publish sandbox port(s) to DOMAIN.vercel.run
   --snapshot, -s <snapshot_id>     - Start the sandbox from a snapshot ID [optional]
-  --network-policy <MODE>          - Network policy mode: "allow-all", "deny-all", or "custom"
-    
-allow-all: sandbox can access any website/domain
-deny-all: sandbox has no network access
-custom: sandbox can only access websites and domains explicitly allowed [optional]
-  --allowed-domain <str>           - Domain to allow traffic to (requires --network-policy=custom)
-
-Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com')
-If used as the first segment, will match any subdomain.
-  --allowed-cidr <str>             - CIDR to allow traffic to (requires --network-policy=custom)
-
-Takes precedence over 'allowed-domain'.
-
-  --denied-cidr <str>              - CIDR to deny traffic to (requires --network-policy=custom)
-    
-Takes precedence over allowed domains/CIDRs.
+  --network-policy <MODE>          - Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+  --allowed-domain <str>           - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+  --allowed-cidr <str>             - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+  --denied-cidr <str>              - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
 
 FLAGS:
   --silent   - Don't write sandbox ID to stdout [optional]
@@ -182,6 +166,33 @@ OPTIONS:
 ARGUMENTS:
   <SANDBOX_ID:PATH> - The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox
   <SANDBOX_ID:PATH> - The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox
+
+FLAGS:
+  --help, -h - show help [optional]
+```
+
+## `sandbox config`
+
+```
+sandbox config network-policy
+> Update the network policy of a sandbox.
+  This will fully override the previous configuration.
+
+OPTIONS:
+  --token <pat_or_oidc>   - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+  --project <my-project>  - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+  --scope <my-team>       - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+  --network-policy <MODE> - Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+  --allowed-domain <str>  - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+  --allowed-cidr <str>    - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+  --denied-cidr <str>     - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+  --mode <MODE>           - Alias for --network-policy. [optional]
+
+ARGUMENTS:
+  <sandbox_id> - The ID of the sandbox to execute the command in
 
 FLAGS:
   --help, -h - show help [optional]
