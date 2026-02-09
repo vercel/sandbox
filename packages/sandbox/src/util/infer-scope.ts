@@ -5,10 +5,19 @@ import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 
 const debug = createDebugger("sandbox:scope");
 
+/**
+ * Inferred scope information for a sandbox session.
+ * Note: With @vercel/oidc v3.1+, both IDs and slugs work interchangeably
+ * in most Vercel APIs, so projectId/ownerId may contain slugs.
+ */
 export type InferredScope = {
+  /** Project ID (prj_*) or slug - both work with @vercel/oidc */
   projectId: string;
+  /** Team/owner ID (team_*) or slug - both work with @vercel/oidc */
   ownerId: string;
+  /** Human-readable project slug for display */
   projectSlug?: string;
+  /** Human-readable team slug for display */
   ownerSlug?: string;
 };
 
@@ -69,7 +78,8 @@ async function inferFromToken(token: string, requestedTeam?: string) {
     token,
     teamId: requestedTeam,
   });
-  // Auth.inferScope returns team slug (not ID) and project name
+  // Auth.inferScope returns team slug and project name (not IDs).
+  // This is fine since @vercel/oidc v3.1+ accepts both IDs and slugs.
   return {
     ownerId: teamId,
     projectId,

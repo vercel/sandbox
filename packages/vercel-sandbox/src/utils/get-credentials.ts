@@ -61,12 +61,12 @@ async function getVercelToken(opts: {
   projectId?: string;
 }): Promise<Credentials> {
   try {
-    // Pass teamId and projectId to getVercelOidcToken to enable token refresh
-    // without needing to read from .vercel/project.json. This is useful when
-    // these values are already known from previous calls or user input.
+    // Pass team and project to getVercelOidcToken to enable token refresh
+    // without needing to read from .vercel/project.json. The new API accepts
+    // both IDs (prj_*, team_*) and slugs, making it more flexible.
     const token = await getVercelOidcToken({
-      teamId: opts.teamId,
-      projectId: opts.projectId,
+      team: opts.teamId,
+      project: opts.projectId,
     });
     return getCredentialsFromOIDCToken(token);
   } catch (error) {
