@@ -1,5 +1,18 @@
 # sandbox
 
+## 2.3.0
+
+### Minor Changes
+
+- Use new model for network-policies ([#33](https://github.com/vercel/sandbox/pull/33))
+
+### Patch Changes
+
+- Add aborted status to sandboxes ([`863637edae310f867c224cbd60958edda51f51a5`](https://github.com/vercel/sandbox/commit/863637edae310f867c224cbd60958edda51f51a5))
+
+- Updated dependencies [[`d36a202fbfa227d1b31b3bab83de510caad9afc9`](https://github.com/vercel/sandbox/commit/d36a202fbfa227d1b31b3bab83de510caad9afc9), [`8a2d58d5a87a7a53bae1fad705538bbbbc1cffef`](https://github.com/vercel/sandbox/commit/8a2d58d5a87a7a53bae1fad705538bbbbc1cffef), [`be9a26007aa51c735f6513f9bd78acceec6aec1c`](https://github.com/vercel/sandbox/commit/be9a26007aa51c735f6513f9bd78acceec6aec1c), [`863637edae310f867c224cbd60958edda51f51a5`](https://github.com/vercel/sandbox/commit/863637edae310f867c224cbd60958edda51f51a5)]:
+  - @vercel/sandbox@1.5.0
+
 ## 2.2.0
 
 ### Minor Changes
