@@ -68,6 +68,9 @@ export const list = cmd.command({
           SNAPSHOT: {
             value: (s) => s.sourceSnapshotId ?? "-",
           },
+          NETWORK: {
+            value: (s) => formatNetwork(s.networkPolicy),
+          },
         },
       }),
     );
@@ -83,3 +86,23 @@ const SandboxStatusColor: Record<Sandbox["status"], ChalkInstance> = {
   "snapshotting": chalk.blue,
   "aborted": chalk.gray.dim,
 };
+
+type ListedSandbox = Awaited<
+  ReturnType<typeof Sandbox.list>
+>["json"]["sandboxes"][number];
+
+export const formatNetwork = (policy: ListedSandbox["networkPolicy"]) => {
+  if (!policy) {
+    return "allow-all";
+  }
+
+  switch (policy.mode) {
+    case "allow-all":
+    case "deny-all":
+      return policy.mode;
+    default: {
+      const rules = (policy.allowedDomains ?? []).length + (policy.allowedCIDRs ?? []).length + (policy.deniedCIDRs ?? []).length;
+      return `${rules} rule${rules !== 1 ? "s" : ""}`;
+    }
+  }
+}
