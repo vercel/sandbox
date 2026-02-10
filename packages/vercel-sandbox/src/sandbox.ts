@@ -15,7 +15,7 @@ import { consumeReadable } from "./utils/consume-readable";
 import {
   type NetworkPolicy,
 } from "./network-policy";
-import { fromAPINetworkPolicy } from "./utils/network-policy";
+import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
 
 export type { NetworkPolicy };
 
@@ -203,9 +203,7 @@ export class Sandbox {
   /**
    * Internal metadata about this sandbox.
    */
-  private sandbox: Omit<SandboxMetaData, "networkPolicy"> & {
-    networkPolicy?: NetworkPolicy;
-  };
+  private sandbox: ConvertedSandbox;
 
   /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.
@@ -305,23 +303,6 @@ export class Sandbox {
     });
   }
 
-  /**
-   * Create a new Sandbox instance.
-   *
-   * @param client - API client used to communicate with the backend
-   * @param routes - Port-to-subdomain mappings for exposed ports
-   * @param sandboxId - Unique identifier for the sandbox
-   */
-  private static convertSandbox(sandbox: SandboxMetaData): Sandbox["sandbox"] {
-    const { networkPolicy, ...rest } = sandbox;
-    return {
-      ...rest,
-      networkPolicy: networkPolicy
-        ? fromAPINetworkPolicy(networkPolicy)
-        : undefined,
-    };
-  }
-
   constructor({
     client,
     routes,
@@ -333,7 +314,7 @@ export class Sandbox {
   }) {
     this.client = client;
     this.routes = routes;
-    this.sandbox = Sandbox.convertSandbox(sandbox);
+    this.sandbox = convertSandbox(sandbox);
   }
 
   /**
@@ -668,13 +649,15 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-    const result = await this.client.updateNetworkPolicy({
+    const response = await this.client.updateNetworkPolicy({
       sandboxId: this.sandbox.id,
       networkPolicy: networkPolicy,
       signal: opts?.signal,
     });
-    this.sandbox.networkPolicy = result;
-    return result;
+
+    // Update the internal sandbox metadata with the new timeout value
+    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.sandbox.networkPolicy!;
   }
 
   /**
@@ -704,7 +687,7 @@ export class Sandbox {
     });
 
     // Update the internal sandbox metadata with the new timeout value
-    this.sandbox.timeout = response.json.sandbox.timeout;
+    this.sandbox = convertSandbox(response.json.sandbox);
   }
 
   /**
@@ -723,7 +706,7 @@ export class Sandbox {
       signal: opts?.signal,
     });
 
-    this.sandbox = Sandbox.convertSandbox(response.json.sandbox);
+    this.sandbox = convertSandbox(response.json.sandbox);
 
     return new Snapshot({
       client: this.client,
