@@ -566,9 +566,9 @@ export class APIClient extends BaseClient {
     sandboxId: string;
     networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }): Promise<NetworkPolicy> {
+  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
-    const response = await parseOrThrow(
+    return parseOrThrow(
       UpdateNetworkPolicyResponse,
       await this.request(url, {
         method: "POST",
@@ -576,7 +576,6 @@ export class APIClient extends BaseClient {
         signal: params.signal,
       }),
     );
-    return fromAPINetworkPolicy(response.json.sandbox.networkPolicy!);
   }
 
   async extendTimeout(params: {
