@@ -23,7 +23,7 @@ ${cmd("rm | stop", "[id...]", "Stop one or more running sandboxes")}
 
     ${chalk.dim("Interaction")}
 
-${cmd("ssh | connect", "[id]", "Start an interactive shell in a sandbox")}
+${cmd("connect", "[id]", "Start an interactive shell in a sandbox")}
 ${cmd("exec", "[id] [cmd]", "Execute a command in a sandbox")}
 ${cmd("cp | copy", "[src] [dst]", "Copy files between local and remote")}
 
