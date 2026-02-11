@@ -14,27 +14,16 @@ export function printHelp() {
 
   ${chalk.dim("Commands:")}
 
-    ${chalk.dim("Sandbox")}
-
 ${cmd("create", "", "Create a new sandbox")}
 ${cmd("ls | list", "", "List sandboxes for the current project")}
 ${cmd("run", "[cmd]", "Create and run a command in a sandbox")}
 ${cmd("rm | stop", "[id...]", "Stop one or more running sandboxes")}
-
-    ${chalk.dim("Interaction")}
-
 ${cmd("ssh | connect", "[id]", "Start an interactive shell in a sandbox")}
 ${cmd("exec", "[id] [cmd]", "Execute a command in a sandbox")}
 ${cmd("cp | copy", "[src] [dst]", "Copy files between local and remote")}
-
-    ${chalk.dim("Snapshots & Config")}
-
 ${cmd("snapshot", "[id]", "Take a filesystem snapshot of a sandbox")}
 ${cmd("snapshots", "[cmd]", "Manage sandbox snapshots")}
 ${cmd("config", "[cmd]", "Update sandbox configuration")}
-
-    ${chalk.dim("Auth")}
-
 ${cmd("login", "", "Log in to the Sandbox CLI")}
 ${cmd("logout", "", "Log out of the Sandbox CLI")}
 
