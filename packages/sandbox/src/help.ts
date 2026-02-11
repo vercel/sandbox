@@ -42,3 +42,18 @@ ${cmd("logout", "", "Log out of the Sandbox CLI")}
 
   ${chalk.gray("–")} Create a sandbox and start a shell
 
+    ${chalk.cyan(`$ ${packageName} create --connect`)}
+
+  ${chalk.gray("–")} Run a command in a new sandbox
+
+    ${chalk.cyan(`$ ${packageName} run -- node -e "console.log('hello')"`)}
+
+  ${chalk.gray("–")} Execute a command in an existing sandbox
+
+    ${chalk.cyan(`$ ${packageName} exec <sandbox-id> -- npm install`)}
+
+  ${chalk.gray("–")} Connect to an existing sandbox
+
+    ${chalk.cyan(`$ ${packageName} connect <sandbox-id>`)}
+`);
+}
