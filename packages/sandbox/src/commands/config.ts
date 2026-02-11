@@ -3,33 +3,45 @@ import { Sandbox } from "@vercel/sandbox";
 import { sandboxId } from "../args/sandbox-id";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
-import { networkPolicyArgs } from "../args/network-policy";
-import { buildNetworkPolicy } from "../util/network-policy";
+import { networkPolicyArgs, networkPolicyMode as networkPolicyModeType } from "../args/network-policy";
+import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import ora from "ora";
 import chalk from "chalk";
 
 const networkPolicyCommand = cmd.command({
   name: "network-policy",
-  description: `Update the network policy of a sandbox
-  
-This is a full update, fully overriding the pre-existing configuration.`,
+  description: `Update the network policy of a sandbox.
+  This will fully override the previous configuration.`,
   args: {
     scope,
     sandbox: cmd.positional({
       type: sandboxId as cmd.Type<string, string | Sandbox>,
     }),
     ...networkPolicyArgs,
+    mode: cmd.option({
+      long: "mode",
+      description: `Alias for --network-policy.`,
+      type: cmd.optional(networkPolicyModeType),
+    }),
   },
   async handler({
     scope: { token, team, project },
     sandbox: sandboxId,
-    networkPolicy: networkPolicyMode,
+    networkPolicy: networkPolicyFlag,
+    mode: modeFlag,
     allowedDomains,
     allowedCIDRs,
     deniedCIDRs,
   }) {
-    if (networkPolicyMode === undefined) {
-      throw new Error(`Network policy mode must be set.`);
+    const networkPolicyMode = resolveMode(networkPolicyFlag, modeFlag);
+
+    if (
+      networkPolicyMode === undefined &&
+      allowedDomains.length === 0 &&
+      allowedCIDRs.length === 0 &&
+      deniedCIDRs.length === 0
+    ) {
+      throw new Error(`Network policy mode or custom rules must be set.`);
     }
 
     const networkPolicy = buildNetworkPolicy({
@@ -64,7 +76,7 @@ This is a full update, fully overriding the pre-existing configuration.`,
 
     const spinner = ora("Updating network policy...").start();
     try {
-      await sandbox.updateNetworkPolicy(networkPolicy);
+      const response = await sandbox.updateNetworkPolicy(networkPolicy);
       spinner.stop();
 
       process.stderr.write(
@@ -72,8 +84,10 @@ This is a full update, fully overriding the pre-existing configuration.`,
           chalk.cyan(sandbox.sandboxId) +
           "\n",
       );
+      const mode =
+        typeof response === "string" ? response : "restricted";
       process.stderr.write(
-        chalk.dim("   ╰ ") + "mode: " + chalk.cyan(networkPolicy.type) + "\n",
+        chalk.dim("   ╰ ") + "mode: " + chalk.cyan(mode) + "\n",
       );
     } catch (error) {
       spinner.stop();

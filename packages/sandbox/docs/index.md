@@ -52,22 +52,13 @@ OPTIONS:
   --timeout <num UNIT>              - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
   --publish-port <PORT>, -p=<PORT>  - Publish sandbox port(s) to DOMAIN.vercel.run
   --snapshot, -s <snapshot_id>      - Start the sandbox from a snapshot ID [optional]
-  --network-policy <MODE>           - Network policy mode: "internet-access", "no-access", or "restricted"
-    
-internet-access: sandbox can access any website/domain
-no-access: sandbox has no network access
-restricted: sandbox can only access websites and domains explicitly allowed [optional]
-  --allowed-domain <str>            - Domain to allow traffic to (requires --network-policy=restricted)
-
-Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com')
-If used as the first segment, will match any subdomain.
-  --allowed-cidr <str>              - CIDR to allow traffic to (requires --network-policy=restricted)
-
-Takes precedence over 'allowed-domain'.
-
-  --denied-cidr <str>               - CIDR to deny traffic to (requires --network-policy=restricted)
-    
-Takes precedence over allowed domains/CIDRs.
+  --network-policy <MODE>           - Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+  --allowed-domain <str>            - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+  --allowed-cidr <str>              - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+  --denied-cidr <str>               - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
   --workdir, -w <str>               - The working directory to run the command in [optional]
   --env <key=value>, -e=<key=value> - Environment variables to set for the command
 
@@ -100,22 +91,13 @@ OPTIONS:
   --timeout <num UNIT>             - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
   --publish-port <PORT>, -p=<PORT> - Publish sandbox port(s) to DOMAIN.vercel.run
   --snapshot, -s <snapshot_id>     - Start the sandbox from a snapshot ID [optional]
-  --network-policy <MODE>          - Network policy mode: "internet-access", "no-access", or "restricted"
-    
-internet-access: sandbox can access any website/domain
-no-access: sandbox has no network access
-restricted: sandbox can only access websites and domains explicitly allowed [optional]
-  --allowed-domain <str>           - Domain to allow traffic to (requires --network-policy=restricted)
-
-Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com')
-If used as the first segment, will match any subdomain.
-  --allowed-cidr <str>             - CIDR to allow traffic to (requires --network-policy=restricted)
-
-Takes precedence over 'allowed-domain'.
-
-  --denied-cidr <str>              - CIDR to deny traffic to (requires --network-policy=restricted)
-    
-Takes precedence over allowed domains/CIDRs.
+  --network-policy <MODE>          - Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+  --allowed-domain <str>           - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+  --allowed-cidr <str>             - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+  --denied-cidr <str>              - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
 
 FLAGS:
   --silent   - Don't write sandbox ID to stdout [optional]
