@@ -17,6 +17,7 @@ CommandFinishedData,
   SandboxesResponse,
   SnapshotsResponse,
   ExtendTimeoutResponse,
+  UpdateNetworkPolicyResponse,
   SnapshotResponse,
   CreateSnapshotResponse,
   type CommandData,
@@ -31,18 +32,13 @@ import os from "os";
 import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
 import { JwtExpiry } from "../utils/jwt-expiry";
+import { NetworkPolicy } from "../network-policy";
+import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
 
 export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
-}
-
-export interface APINetworkPolicy {
-  mode: "default-allow" | "default-deny";
-  allowedDomains?: string[];
-  allowedCIDRs?: string[];
-  deniedCIDRs?: string[];
 }
 
 export class APIClient extends BaseClient {
@@ -129,7 +125,7 @@ export class APIClient extends BaseClient {
       timeout?: number;
       resources?: { vcpus: number };
       runtime?: RUNTIMES | (string & {});
-      networkPolicy?: APINetworkPolicy;
+      networkPolicy?: NetworkPolicy;
       signal?: AbortSignal;
     }>,
   ) {
@@ -145,7 +141,9 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
-          networkPolicy: params.networkPolicy,
+          networkPolicy: params.networkPolicy
+            ? toAPINetworkPolicy(params.networkPolicy)
+            : undefined,
           ...privateParams,
         }),
         signal: params.signal,
@@ -566,15 +564,15 @@ export class APIClient extends BaseClient {
 
   async updateNetworkPolicy(params: {
     sandboxId: string;
-    networkPolicy: APINetworkPolicy;
+    networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof EmptyResponse>>> {
+  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
     return parseOrThrow(
-      EmptyResponse,
+      UpdateNetworkPolicyResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify(params.networkPolicy),
+        body: JSON.stringify(toAPINetworkPolicy(params.networkPolicy)),
         signal: params.signal,
       }),
     );

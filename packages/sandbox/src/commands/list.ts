@@ -54,7 +54,7 @@ export const list = cmd.command({
           ID: { value: (s) => s.id },
           STATUS: {
             value: (s) => s.status,
-            color: (s) => SandboxStatusColor.get(s.status) ?? chalk.reset,
+            color: (s) => SandboxStatusColor[s.status] ?? chalk.reset,
           },
           CREATED: {
             value: (s) => timeAgo(s.createdAt),
@@ -74,10 +74,12 @@ export const list = cmd.command({
   },
 });
 
-const SandboxStatusColor = new Map<Sandbox["status"], ChalkInstance>([
-  ["running", chalk.cyan],
-  ["failed", chalk.red],
-  ["stopped", chalk.gray.dim],
-  ["stopping", chalk.gray],
-  ["pending", chalk.magenta],
-]);
+const SandboxStatusColor: Record<Sandbox["status"], ChalkInstance> = {
+  "running": chalk.cyan,
+  "failed": chalk.red,
+  "stopped": chalk.gray.dim,
+  "stopping": chalk.gray,
+  "pending": chalk.magenta,
+  "snapshotting": chalk.blue,
+  "aborted": chalk.gray.dim,
+};

@@ -13,9 +13,9 @@ import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import {
-  toAPINetworkPolicy,
   type NetworkPolicy,
-} from "./utils/network-policy";
+} from "./network-policy";
+import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
 
 export type { NetworkPolicy };
 
@@ -187,6 +187,13 @@ export class Sandbox {
   }
 
   /**
+   * The network policy of the sandbox.
+   */
+  public get networkPolicy(): NetworkPolicy | undefined {
+    return this.sandbox.networkPolicy;
+  }
+
+  /**
    * If the sandbox was created from a snapshot, the ID of that snapshot.
    */
   public get sourceSnapshotId(): string | undefined {
@@ -196,7 +203,7 @@ export class Sandbox {
   /**
    * Internal metadata about this sandbox.
    */
-  private sandbox: SandboxMetaData;
+  private sandbox: ConvertedSandbox;
 
   /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.
@@ -253,7 +260,7 @@ export class Sandbox {
       timeout: params?.timeout,
       resources: params?.resources,
       runtime: params && "runtime" in params ? params?.runtime : undefined,
-      networkPolicy: toAPINetworkPolicy(params?.networkPolicy),
+      networkPolicy: params?.networkPolicy,
       signal: params?.signal,
       ...privateParams,
     });
@@ -296,13 +303,6 @@ export class Sandbox {
     });
   }
 
-  /**
-   * Create a new Sandbox instance.
-   *
-   * @param client - API client used to communicate with the backend
-   * @param routes - Port-to-subdomain mappings for exposed ports
-   * @param sandboxId - Unique identifier for the sandbox
-   */
   constructor({
     client,
     routes,
@@ -314,7 +314,7 @@ export class Sandbox {
   }) {
     this.client = client;
     this.routes = routes;
-    this.sandbox = sandbox;
+    this.sandbox = convertSandbox(sandbox);
   }
 
   /**
@@ -541,6 +541,14 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    if (!src?.path) {
+      throw new Error("downloadFile: source path is required");
+    }
+
+    if (!dst?.path) {
+      throw new Error("downloadFile: destination path is required");
+    }
+
     const stream = await this.client.readFile({
       sandboxId: this.sandbox.id,
       path: src.path,
@@ -630,27 +638,26 @@ export class Sandbox {
    * @example
    * // Restrict to specific domains
    * await sandbox.updateNetworkPolicy({
-   *   type: "restricted",
-   *   allowedDomains: ["*.npmjs.org", "github.com"],
+   *   allow: ["*.npmjs.org", "github.com"],
    * });
    *
    * @example
    * // Deny all network access
-   * await sandbox.updateNetworkPolicy({ type: "no-access" });
+   * await sandbox.updateNetworkPolicy("deny-all");
    */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
-  ): Promise<void> {
-    const apiNetworkPolicy = toAPINetworkPolicy(networkPolicy);
-    if (!apiNetworkPolicy) {
-      throw new Error("Invalid network policy");
-    }
-    await this.client.updateNetworkPolicy({
+  ): Promise<NetworkPolicy> {
+    const response = await this.client.updateNetworkPolicy({
       sandboxId: this.sandbox.id,
-      networkPolicy: apiNetworkPolicy,
+      networkPolicy: networkPolicy,
       signal: opts?.signal,
     });
+
+    // Update the internal sandbox metadata with the new timeout value
+    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.sandbox.networkPolicy!;
   }
 
   /**
@@ -680,7 +687,7 @@ export class Sandbox {
     });
 
     // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = response.json.sandbox;
+    this.sandbox = convertSandbox(response.json.sandbox);
   }
 
   /**
@@ -704,7 +711,7 @@ export class Sandbox {
       signal: opts?.signal,
     });
 
-    this.sandbox = response.json.sandbox;
+    this.sandbox = convertSandbox(response.json.sandbox);
 
     return new Snapshot({
       client: this.client,
