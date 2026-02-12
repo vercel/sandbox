@@ -26,10 +26,6 @@ export const token = cmd.option({
 
       if (process.env.VERCEL_OIDC_TOKEN) {
         try {
-          // Note: getVercelOidcToken() can optionally accept { project, team } parameters
-          // to explicitly specify the scope. `project` must be a project ID (prj_*),
-          // `team` accepts both IDs (team_*) and slugs. If not provided, it will
-          // read from .vercel/project.json automatically.
           return await getVercelOidcToken();
         } catch (cause) {
           debug(`Failed to get or refresh OIDC token: ${getMessage(cause)}`);
