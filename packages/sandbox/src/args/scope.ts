@@ -144,6 +144,9 @@ export const scope: ArgParser<{
       ...token.helpTopics(),
       ...project.helpTopics(),
       ...team.helpTopics(),
-    ];
+    ].map((x) => ({
+      ...x,
+      category: "Auth & Scope",
+    }));
   },
 };

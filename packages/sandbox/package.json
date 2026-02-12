@@ -51,7 +51,7 @@
     "@vercel/pty-tunnel-server": "workspace:*",
     "@vercel/sandbox": "workspace:*",
     "chalk": "^5.6.0",
-    "cmd-ts": "0.14.3",
+    "cmd-ts": "0.15.0",
     "date-fns": "^4.1.0",
     "dotenv-flow": "^4.1.0",
     "listr2": "^9.0.2",

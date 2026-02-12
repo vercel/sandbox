@@ -1,13 +1,16 @@
-import { run } from "cmd-ts";
+import { run, setDefaultHelpFormatter } from "cmd-ts";
 import { app } from "./app";
 import dotenv from "dotenv-flow";
 import { StyledError } from "./error";
+import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 
 dotenv.config({
   silent: true,
 });
 
 async function main() {
+  setDefaultHelpFormatter(vercelFormatter);
+
   try {
     // We've renamed `sandbox sh` to `sandbox create --connect`. cmd-ts doesn't support aliases for commands
     // with different arguments. Best effort deprecation warning, remap to the new command if the user just
@@ -15,7 +18,9 @@ async function main() {
     let args = process.argv.slice(2);
     if (args.length >= 1 && args[0] === "sh") {
       args = ["create", "--connect", ...args.slice(1)];
-      process.stderr.write('Warning: `sandbox sh` is deprecated. Please use `sandbox create --connect` instead.\n');
+      process.stderr.write(
+        "Warning: `sandbox sh` is deprecated. Please use `sandbox create --connect` instead.\n",
+      );
     }
 
     await run(app(), args);

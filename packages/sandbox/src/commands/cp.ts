@@ -40,12 +40,12 @@ export const cp = cmd.command({
   args: {
     scope,
     source: cmd.positional({
-      displayName: `SANDBOX_ID:PATH`,
+      displayName: `src`,
       description: `The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox`,
       type: localOrRemote,
     }),
     dest: cmd.positional({
-      displayName: `SANDBOX_ID:PATH`,
+      displayName: `dst`,
       description: `The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox`,
       type: localOrRemote,
     }),

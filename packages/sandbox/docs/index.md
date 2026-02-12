@@ -1,190 +1,262 @@
 ## `sandbox --help`
 
 ```
-sandbox <subcommand>
-> Interfacing with Vercel Sandbox
+sandbox 2.3.0
 
-where <subcommand> can be one of:
+▲ sandbox [options] <command>
 
-- list - List all sandboxes for the specified account and project. [alias: ls]
-- create - Create a sandbox in the specified account and project.
-- config - Update a sandbox configuration
-- copy - Copy files between your local filesystem and a remote sandbox [alias: cp]
-- exec - Execute a command in an existing sandbox
-- connect - Start an interactive shell in an existing sandbox [aliases: ssh, shell]
-- stop - Stop one or more running sandboxes [aliases: rm, remove]
-- run - Create and run a command in a sandbox
-- snapshot - Take a snapshot of the filesystem of a sandbox
-- snapshots - Manage sandbox snapshots
-- login - Log in to the Sandbox CLI
-- logout - Log out of the Sandbox CLI
+For command help, run `sandbox <command> --help`
 
-For more help, try running `sandbox <subcommand> --help`
+Commands:
+
+    ls | list                                        List all sandboxes for the specified account and project.
+    create                                           Create a sandbox in the specified account and project.
+    config                                           Update a sandbox configuration
+    cp | copy      <src> <dst>                       Copy files between your local filesystem and a remote sandbox
+    exec           <sandbox_id> <command> [...args]  Execute a command in an existing sandbox
+    ssh | connect  <sandbox_id>                      Start an interactive shell in an existing sandbox
+    rm | stop      <sandbox_id> [...sandbox_id]      Stop one or more running sandboxes
+    run            <command> [...args]               Create and run a command in a sandbox
+    snapshot       <sandbox_id>                      Take a snapshot of the filesystem of a sandbox
+    snapshots                                        Manage sandbox snapshots
+    login                                            Log in to the Sandbox CLI
+    logout                                           Log out of the Sandbox CLI
+
+Examples:
+
+– Create a sandbox and start a shell
+
+  $ sandbox create --connect
+
+– Run a command in a new sandbox
+
+  $ sandbox run -- node -e "console.log('hello')"
+
+– Execute command in an existing sandbox
+
+  $ sandbox exec <sandbox-id> -- npm test
 ```
 
 ## `sandbox list`
 
 ```
-sandbox list
-> List all sandboxes for the specified account and project.
+list
 
-OPTIONS:
-  --token <pat_or_oidc>  - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-  --project <my-project> - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-  --scope <my-team>      - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+▲ sandbox list [options]
 
-FLAGS:
-  --all, -a  - Show all sandboxes (default shows just running) [optional]
-  --help, -h - show help [optional]
+List all sandboxes for the specified account and project.
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --all, -a   Show all sandboxes (default shows just running) [optional]
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox run`
 
 ```
-sandbox run
-> Create and run a command in a sandbox
+run
 
-OPTIONS:
-  --token <pat_or_oidc>             - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-  --project <my-project>            - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-  --scope <my-team>                 - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-  --runtime <runtime>               - One of 'node22', 'node24', 'python3.13' [default: node24]
-  --timeout <num UNIT>              - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
-  --publish-port <PORT>, -p=<PORT>  - Publish sandbox port(s) to DOMAIN.vercel.run
-  --snapshot, -s <snapshot_id>      - Start the sandbox from a snapshot ID [optional]
-  --network-policy <MODE>           - Network policy mode: "allow-all" or "deny-all"
+▲ sandbox run [options]
+
+Create and run a command in a sandbox
+
+Options:
+
+    --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
+    --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
+    --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-  --allowed-domain <str>            - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-  --allowed-cidr <str>              - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-  --denied-cidr <str>               - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-  --workdir, -w <str>               - The working directory to run the command in [optional]
-  --env <key=value>, -e=<key=value> - Environment variables to set for the command
+    --allowed-domain <str>             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --workdir, -w <str>                The working directory to run the command in [optional]
+    --env <key=value>, -e=<key=value>  Environment variables to set for the command
 
-FLAGS:
-  --silent            - Don't write sandbox ID to stdout [optional]
-  --connect           - Start an interactive shell session after creating the sandbox [optional]
-  --sudo              - Give extended privileges to the command. [optional]
-  --interactive, -i   - Run the command in a secure interactive shell [optional]
-  --no-extend-timeout - Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
-  --tty, -t           - Allocate a tty for an interactive command. This is a no-op. [optional]
-  --rm                - Automatically remove the sandbox when the command exits. [optional]
-  --help, -h          - show help [optional]
+Flags:
 
-ARGUMENTS:
-  <command> - The executable to invoke
-  [...args] - arguments to pass to the command
+    --silent             Don't write sandbox ID to stdout [optional]
+    --connect            Start an interactive shell session after creating the sandbox [optional]
+    --sudo               Give extended privileges to the command. [optional]
+    --interactive, -i    Run the command in a secure interactive shell [optional]
+    --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
+    --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
+    --rm                 Automatically remove the sandbox when the command exits. [optional]
+    --help, -h           show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Arguments:
+
+    <command>  The executable to invoke
+    [...args]  arguments to pass to the command
 ```
 
 ## `sandbox create`
 
 ```
-sandbox create
-> Create a sandbox in the specified account and project.
+create
 
-OPTIONS:
-  --token <pat_or_oidc>            - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-  --project <my-project>           - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-  --scope <my-team>                - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-  --runtime <runtime>              - One of 'node22', 'node24', 'python3.13' [default: node24]
-  --timeout <num UNIT>             - The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
-  --publish-port <PORT>, -p=<PORT> - Publish sandbox port(s) to DOMAIN.vercel.run
-  --snapshot, -s <snapshot_id>     - Start the sandbox from a snapshot ID [optional]
-  --network-policy <MODE>          - Network policy mode: "allow-all" or "deny-all"
+▲ sandbox create [options]
+
+Create a sandbox in the specified account and project.
+
+Options:
+
+    --runtime <runtime>               One of 'node22', 'node24', 'python3.13' [default: node24]
+    --timeout <num UNIT>              The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --publish-port <PORT>, -p=<PORT>  Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>      Start the sandbox from a snapshot ID [optional]
+    --network-policy <MODE>           Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-  --allowed-domain <str>           - Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-  --allowed-cidr <str>             - CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-  --denied-cidr <str>              - CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --allowed-domain <str>            Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>              CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>               CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
 
-FLAGS:
-  --silent   - Don't write sandbox ID to stdout [optional]
-  --connect  - Start an interactive shell session after creating the sandbox [optional]
-  --help, -h - show help [optional]
+Flags:
+
+    --silent    Don't write sandbox ID to stdout [optional]
+    --connect   Start an interactive shell session after creating the sandbox [optional]
+    --help, -h  show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Examples:
+
+– Create and connect to a sandbox without a network access
+
+  $ sandbox run --network-policy=none --connect
 ```
 
 ## `sandbox exec`
 
 ```
-sandbox exec
-> Execute a command in an existing sandbox
+exec
 
-OPTIONS:
-  --token <pat_or_oidc>             - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-  --project <my-project>            - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-  --scope <my-team>                 - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-  --workdir, -w <str>               - The working directory to run the command in [optional]
-  --env <key=value>, -e=<key=value> - Environment variables to set for the command
+▲ sandbox exec [options]
 
-ARGUMENTS:
-  <sandbox_id> - The ID of the sandbox to execute the command in
-  <command>    - The executable to invoke
-  [...args]    - arguments to pass to the command
+Execute a command in an existing sandbox
 
-FLAGS:
-  --sudo              - Give extended privileges to the command. [optional]
-  --interactive, -i   - Run the command in a secure interactive shell [optional]
-  --no-extend-timeout - Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
-  --tty, -t           - Allocate a tty for an interactive command. This is a no-op. [optional]
-  --help, -h          - show help [optional]
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Arguments:
+
+    <sandbox_id>  The ID of the sandbox to execute the command in
+    <command>     The executable to invoke
+    [...args]     arguments to pass to the command
+
+Flags:
+
+    --sudo               Give extended privileges to the command. [optional]
+    --interactive, -i    Run the command in a secure interactive shell [optional]
+    --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
+    --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
+    --help, -h           show help [optional]
+
+Options:
+
+    --workdir, -w <str>                The working directory to run the command in [optional]
+    --env <key=value>, -e=<key=value>  Environment variables to set for the command
 ```
 
 ## `sandbox stop`
 
 ```
-sandbox stop
-> Stop one or more running sandboxes
+stop
 
-OPTIONS:
-  --token <pat_or_oidc>  - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-  --project <my-project> - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-  --scope <my-team>      - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+▲ sandbox stop [options]
 
-ARGUMENTS:
-  <sandbox_id>    - a sandbox ID to stop
-  [...sandbox_id] - more sandboxes to stop
+Stop one or more running sandboxes
 
-FLAGS:
-  --help, -h - show help [optional]
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Arguments:
+
+    <sandbox_id>     a sandbox ID to stop
+    [...sandbox_id]  more sandboxes to stop
+
+Flags:
+
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox copy`
 
 ```
-sandbox copy
-> Copy files between your local filesystem and a remote sandbox
+copy
 
-OPTIONS:
-  --token <pat_or_oidc>  - A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-  --project <my-project> - The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-  --scope <my-team>      - The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+▲ sandbox copy [options]
 
-ARGUMENTS:
-  <SANDBOX_ID:PATH> - The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox
-  <SANDBOX_ID:PATH> - The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox
+Copy files between your local filesystem and a remote sandbox
 
-FLAGS:
-  --help, -h - show help [optional]
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Arguments:
+
+    <src>  The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox
+    <dst>  The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox
+
+Flags:
+
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox login`
 
 ```
-sandbox login
-> Log in to the Sandbox CLI
+login
 
-FLAGS:
-  --help, -h - show help [optional]
+▲ sandbox login [options]
+
+Log in to the Sandbox CLI
+
+Flags:
+
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox logout`
 
 ```
-sandbox logout
-> Log out of the Sandbox CLI
+logout
 
-FLAGS:
-  --help, -h - show help [optional]
+▲ sandbox logout [options]
+
+Log out of the Sandbox CLI
+
+Flags:
+
+    --help, -h  show help [optional]
 ```

@@ -12,7 +12,6 @@ import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 
 export const args = {
-  scope,
   runtime,
   timeout,
   ports: cmd.multioption({
@@ -49,15 +48,23 @@ export const args = {
   }),
   connect: cmd.flag({
     long: "connect",
-    description: "Start an interactive shell session after creating the sandbox",
+    description:
+      "Start an interactive shell session after creating the sandbox",
   }),
   ...networkPolicyArgs,
+  scope,
 } as const;
 
 export const create = cmd.command({
   name: "create",
   description: "Create a sandbox in the specified account and project.",
   args,
+  examples: [
+    {
+      description: "Create and connect to a sandbox without a network access",
+      command: `sandbox run --network-policy=none --connect`,
+    },
+  ],
   async handler({
     ports,
     scope,
@@ -159,7 +166,7 @@ export const create = cmd.command({
         command: "sh",
         interactive: true,
         tty: true,
-        sandbox
+        sandbox,
       });
     }
 
