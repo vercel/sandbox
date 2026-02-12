@@ -3,7 +3,10 @@ import { Sandbox } from "@vercel/sandbox";
 import { sandboxId } from "../args/sandbox-id";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
-import { networkPolicyArgs, networkPolicyMode as networkPolicyModeType } from "../args/network-policy";
+import {
+  networkPolicyArgs,
+  networkPolicyMode as networkPolicyModeType,
+} from "../args/network-policy";
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import ora from "ora";
 import chalk from "chalk";
@@ -13,7 +16,6 @@ const networkPolicyCommand = cmd.command({
   description: `Update the network policy of a sandbox.
   This will fully override the previous configuration.`,
   args: {
-    scope,
     sandbox: cmd.positional({
       type: sandboxId as cmd.Type<string, string | Sandbox>,
     }),
@@ -23,6 +25,7 @@ const networkPolicyCommand = cmd.command({
       description: `Alias for --network-policy.`,
       type: cmd.optional(networkPolicyModeType),
     }),
+    scope,
   },
   async handler({
     scope: { token, team, project },
@@ -84,8 +87,7 @@ const networkPolicyCommand = cmd.command({
           chalk.cyan(sandbox.sandboxId) +
           "\n",
       );
-      const mode =
-        typeof response === "string" ? response : "restricted";
+      const mode = typeof response === "string" ? response : "restricted";
       process.stderr.write(
         chalk.dim("   ╰ ") + "mode: " + chalk.cyan(mode) + "\n",
       );

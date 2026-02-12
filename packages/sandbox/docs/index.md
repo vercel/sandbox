@@ -46,16 +46,16 @@ list
 
 List all sandboxes for the specified account and project.
 
+Flags:
+
+    --all, -a   Show all sandboxes (default shows just running) [optional]
+    --help, -h  show help [optional]
+
 Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
-Flags:
-
-    --all, -a   Show all sandboxes (default shows just running) [optional]
-    --help, -h  show help [optional]
 ```
 
 ## `sandbox run`
@@ -157,12 +157,6 @@ exec
 
 Execute a command in an existing sandbox
 
-Auth & Scope:
-
-    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
 Arguments:
 
     <sandbox_id>  The ID of the sandbox to execute the command in
@@ -181,6 +175,12 @@ Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 ```
 
 ## `sandbox stop`
@@ -192,16 +192,16 @@ stop
 
 Stop one or more running sandboxes
 
+Arguments:
+
+    <sandbox_id>     a sandbox ID to stop
+    [...sandbox_id]  more sandboxes to stop
+
 Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
-Arguments:
-
-    <sandbox_id>     a sandbox ID to stop
-    [...sandbox_id]  more sandboxes to stop
 
 Flags:
 
@@ -217,16 +217,16 @@ copy
 
 Copy files between your local filesystem and a remote sandbox
 
+Arguments:
+
+    <src>  The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox
+    <dst>  The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox
+
 Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
-Arguments:
-
-    <src>  The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox
-    <dst>  The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox
 
 Flags:
 
@@ -242,12 +242,6 @@ connect
 
 Start an interactive shell in an existing sandbox
 
-Auth & Scope:
-
-    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
 Arguments:
 
     <sandbox_id>  The ID of the sandbox to execute the command in
@@ -262,6 +256,12 @@ Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 ```
 
 ## `sandbox snapshot`
@@ -273,12 +273,6 @@ snapshot
 
 Take a snapshot of the filesystem of a sandbox
 
-Auth & Scope:
-
-    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
 Flags:
 
     --stop      Confirm that the sandbox will be stopped when snapshotting [optional]
@@ -288,6 +282,12 @@ Flags:
 Arguments:
 
     <sandbox_id>  The ID of the sandbox to execute the command in
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 ```
 
 ## `sandbox snapshots`
@@ -305,19 +305,40 @@ Commands:
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
 ```
 
-## `sandbox config`
+## `sandbox config network-policy`
 
 ```
-sandbox config
+network-policy
 
-▲ sandbox config [options] <command>
+▲ sandbox config network-policy [options]
 
-For command help, run `sandbox config <command> --help`
-
-Commands:
-
-    network-policy  <sandbox_id>  Update the network policy of a sandbox.
+Update the network policy of a sandbox.
   This will fully override the previous configuration.
+
+Arguments:
+
+    <sandbox_id>  The ID of the sandbox to execute the command in
+
+Options:
+
+    --network-policy <MODE>  Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+    --allowed-domain <str>   Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>     CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>      CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --mode <MODE>            Alias for --network-policy. [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox login`

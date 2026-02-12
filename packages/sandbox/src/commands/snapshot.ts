@@ -7,7 +7,6 @@ import chalk from "chalk";
 import ora from "ora";
 
 export const args = {
-  scope,
   stop: cmd.flag({
     long: "stop",
     description: "Confirm that the sandbox will be stopped when snapshotting",
@@ -19,6 +18,7 @@ export const args = {
   sandbox: cmd.positional({
     type: sandboxId as cmd.Type<string, string | Sandbox>,
   }),
+  scope,
 } as const;
 
 export const snapshot = cmd.command({

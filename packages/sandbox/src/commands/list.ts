@@ -12,12 +12,12 @@ export const list = cmd.command({
   aliases: ["ls"],
   description: "List all sandboxes for the specified account and project.",
   args: {
-    scope,
     all: cmd.flag({
       long: "all",
       short: "a",
       description: "Show all sandboxes (default shows just running)",
     }),
+    scope,
   },
   async handler({ scope: { token, team, project }, all }) {
     const sandboxes = await (async () => {
@@ -75,11 +75,11 @@ export const list = cmd.command({
 });
 
 const SandboxStatusColor: Record<Sandbox["status"], ChalkInstance> = {
-  "running": chalk.cyan,
-  "failed": chalk.red,
-  "stopped": chalk.gray.dim,
-  "stopping": chalk.gray,
-  "pending": chalk.magenta,
-  "snapshotting": chalk.blue,
-  "aborted": chalk.gray.dim,
+  running: chalk.cyan,
+  failed: chalk.red,
+  stopped: chalk.gray.dim,
+  stopping: chalk.gray,
+  pending: chalk.magenta,
+  snapshotting: chalk.blue,
+  aborted: chalk.gray.dim,
 };

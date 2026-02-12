@@ -9,7 +9,6 @@ export const stop = cmd.command({
   aliases: ["rm", "remove"],
   description: "Stop one or more running sandboxes",
   args: {
-    scope,
     sandboxId: cmd.positional({
       type: sandboxId,
       description: "a sandbox ID to stop",
@@ -18,6 +17,7 @@ export const stop = cmd.command({
       type: sandboxId,
       description: "more sandboxes to stop",
     }),
+    scope,
   },
   async handler({ scope: { token, team, project }, sandboxId, sandboxIds }) {
     const tasks = Array.from(
