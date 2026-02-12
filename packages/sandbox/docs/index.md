@@ -233,6 +233,93 @@ Flags:
     --help, -h  show help [optional]
 ```
 
+## `sandbox connect`
+
+```
+connect
+
+▲ sandbox connect [options]
+
+Start an interactive shell in an existing sandbox
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Arguments:
+
+    <sandbox_id>  The ID of the sandbox to execute the command in
+
+Flags:
+
+    --sudo               Give extended privileges to the command. [optional]
+    --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
+    --help, -h           show help [optional]
+
+Options:
+
+    --workdir, -w <str>                The working directory to run the command in [optional]
+    --env <key=value>, -e=<key=value>  Environment variables to set for the command
+```
+
+## `sandbox snapshot`
+
+```
+snapshot
+
+▲ sandbox snapshot [options]
+
+Take a snapshot of the filesystem of a sandbox
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --stop      Confirm that the sandbox will be stopped when snapshotting [optional]
+    --silent    Don't write snapshot ID to stdout [optional]
+    --help, -h  show help [optional]
+
+Arguments:
+
+    <sandbox_id>  The ID of the sandbox to execute the command in
+```
+
+## `sandbox snapshots`
+
+```
+sandbox snapshots
+
+▲ sandbox snapshots [options] <command>
+
+For command help, run `sandbox snapshots <command> --help`
+
+Commands:
+
+    ls | list                                    List snapshots for the specified account and project.
+    rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
+```
+
+## `sandbox config`
+
+```
+sandbox config
+
+▲ sandbox config [options] <command>
+
+For command help, run `sandbox config <command> --help`
+
+Commands:
+
+    network-policy  <sandbox_id>  Update the network policy of a sandbox.
+  This will fully override the previous configuration.
+```
+
 ## `sandbox login`
 
 ```
