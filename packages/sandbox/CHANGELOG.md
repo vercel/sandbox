@@ -1,5 +1,17 @@
 # sandbox
 
+## 2.4.0
+
+### Minor Changes
+
+- Add `sandbox snapshots get <snapshot_id>` command to retrieve details of a specific snapshot ([#44](https://github.com/vercel/sandbox/pull/44))
+
+### Patch Changes
+
+- Fix table output not using the same width for each row ([#45](https://github.com/vercel/sandbox/pull/45))
+
+- change help format to match Vercel CLI h/t @allenzhou101 ([#47](https://github.com/vercel/sandbox/pull/47))
+
 ## 2.3.0
 
 ### Minor Changes

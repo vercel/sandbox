@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 2.3.0
+sandbox 2.4.0
 
 ▲ sandbox [options] <command>
 
@@ -302,6 +302,7 @@ For command help, run `sandbox snapshots <command> --help`
 Commands:
 
     ls | list                                    List snapshots for the specified account and project.
+    get          <snapshot_id>                   Get details of a snapshot.
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
 ```
 
