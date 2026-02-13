@@ -60,21 +60,22 @@ export class APIClient extends BaseClient {
     });
 
     this.teamId = params.teamId;
-    this.isJwtToken = params.token.split(".").length === 3;
+    this.isJwtToken = false;
 
-    // Extract projectId from JWT token if available
-    if (this.isJwtToken) {
+    // Try to parse as a Vercel OIDC token by checking for confirming claims
+    if (params.token.split(".").length === 3) {
       try {
         const payload = JSON.parse(
           Buffer.from(params.token.split(".")[1], "base64url").toString("utf8")
         );
-        this.projectId = payload.project_id;
-        // Update teamId from token if available
+        // Verify this is actually a Vercel OIDC token by checking for owner_id claim
         if (payload.owner_id) {
+          this.isJwtToken = true;
+          this.projectId = payload.project_id;
           this.teamId = payload.owner_id;
         }
       } catch {
-        // Ignore parse errors
+        // Not a valid OIDC token, keep isJwtToken as false
       }
     }
   }
