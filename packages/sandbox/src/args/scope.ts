@@ -105,8 +105,8 @@ export const scope: ArgParser<{
           token: t.value,
           team: teamId.value,
         });
-        projectId.value ??= scope.projectId;
-        teamId.value ??= scope.ownerId;
+        projectId.value ??= scope.project;
+        teamId.value ??= scope.owner;
         projectSlug = scope.projectSlug;
         teamSlug = scope.ownerSlug;
       } catch (err) {

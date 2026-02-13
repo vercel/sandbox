@@ -61,7 +61,11 @@ async function getVercelToken(opts: {
   projectId?: string;
 }): Promise<Credentials> {
   try {
-    return getCredentialsFromOIDCToken(await getVercelOidcToken());
+    const token = await getVercelOidcToken({
+      team: opts.teamId,
+      project: opts.projectId,
+    });
+    return getCredentialsFromOIDCToken(token);
   } catch (error) {
     if (!shouldPromptForCredentials()) {
       if (process.env.VERCEL_URL) {

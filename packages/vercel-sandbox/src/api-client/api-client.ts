@@ -31,7 +31,7 @@ import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
-import { JwtExpiry } from "../utils/jwt-expiry";
+import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy";
 import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
@@ -43,7 +43,8 @@ export interface WithFetchOptions {
 
 export class APIClient extends BaseClient {
   private teamId: string;
-  private tokenExpiry: JwtExpiry | null;
+  private projectId: string | undefined;
+  private isJwtToken: boolean;
 
   constructor(params: {
     baseUrl?: string;
@@ -59,23 +60,57 @@ export class APIClient extends BaseClient {
     });
 
     this.teamId = params.teamId;
-    this.tokenExpiry = JwtExpiry.fromToken(params.token);
+    this.isJwtToken = false;
+
+    // Try to parse as a Vercel OIDC token by checking for confirming claims
+    if (params.token.split(".").length === 3) {
+      try {
+        const payload = JSON.parse(
+          Buffer.from(params.token.split(".")[1], "base64url").toString("utf8")
+        );
+        // Verify this is actually a Vercel OIDC token by checking for owner_id claim
+        if (payload.owner_id) {
+          this.isJwtToken = true;
+          this.projectId = payload.project_id;
+          this.teamId = payload.owner_id;
+        }
+      } catch {
+        // Not a valid OIDC token, keep isJwtToken as false
+      }
+    }
   }
 
   private async ensureValidToken(): Promise<void> {
-    if (!this.tokenExpiry) {
+    if (!this.isJwtToken) {
       return;
     }
 
-    const newExpiry = await this.tokenExpiry.tryRefresh();
-    if (!newExpiry) {
-      return;
-    }
+    try {
+      // Use getVercelOidcToken to refresh the token with team/project scope
+      const freshToken = await getVercelOidcToken({
+        expirationBufferMs: 5 * 60 * 1000, // 5 minutes
+        team: this.teamId,
+        project: this.projectId,
+      });
 
-    this.tokenExpiry = newExpiry;
-    this.token = this.tokenExpiry.token;
-    if (this.tokenExpiry.payload) {
-      this.teamId = this.tokenExpiry.payload?.owner_id;
+      // Update token if it changed
+      if (freshToken !== this.token) {
+        this.token = freshToken;
+
+        // Update teamId from refreshed token
+        try {
+          const payload = JSON.parse(
+            Buffer.from(freshToken.split(".")[1], "base64url").toString("utf8")
+          );
+          if (payload.owner_id) {
+            this.teamId = payload.owner_id;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    } catch {
+      // Ignore refresh errors and continue with current token
     }
   }
 
