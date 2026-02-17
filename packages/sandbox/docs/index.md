@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 2.3.0
+sandbox 2.4.0
 
 ▲ sandbox [options] <command>
 
@@ -279,6 +279,10 @@ Flags:
     --silent    Don't write snapshot ID to stdout [optional]
     --help, -h  show help [optional]
 
+Options:
+
+    --expiration <num UNIT>  The expiration time of the snapshot. Use 0 for no expiration. [optional]
+
 Arguments:
 
     <sandbox_id>  The ID of the sandbox to execute the command in
@@ -302,6 +306,7 @@ For command help, run `sandbox snapshots <command> --help`
 Commands:
 
     ls | list                                    List snapshots for the specified account and project.
+    get          <snapshot_id>                   Get details of a snapshot.
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
 ```
 
