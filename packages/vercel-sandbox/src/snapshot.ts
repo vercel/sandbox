@@ -60,9 +60,13 @@ export class Snapshot {
   }
 
   /**
-   * The expiration date of this snapshot.
+   * The expiration date of this snapshot, or undefined if it does not expire.
    */
-  public get expiresAt(): Date {
+  public get expiresAt(): Date | undefined {
+    if (this.snapshot.expiresAt === undefined) {
+      return undefined;
+    }
+
     return new Date(this.snapshot.expiresAt);
   }
 

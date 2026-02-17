@@ -279,4 +279,60 @@ describe("APIClient", () => {
       }
     });
   });
+
+  describe("createSnapshot", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("sends zero expiration for no expiration", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            sandbox: {
+              id: "sbx_123",
+              memory: 2048,
+              vcpus: 1,
+              region: "iad1",
+              runtime: "node24",
+              timeout: 300000,
+              status: "running",
+              requestedAt: Date.now(),
+              createdAt: Date.now(),
+              cwd: "/",
+              updatedAt: Date.now(),
+            },
+            snapshot: {
+              id: "snap_123",
+              sourceSandboxId: "sbx_123",
+              region: "iad1",
+              status: "created",
+              sizeBytes: 1024,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+
+      await client.createSnapshot({
+        sandboxId: "sbx_123",
+        expiration: 0,
+      });
+
+      expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({ expiration: 0 }),
+      );
+    });
+
+  });
 });

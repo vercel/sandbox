@@ -62,7 +62,7 @@ export const Snapshot = z.object({
   region: z.string(),
   status: z.enum(["created", "deleted", "failed"]),
   sizeBytes: z.number(),
-  expiresAt: z.number(),
+  expiresAt: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
