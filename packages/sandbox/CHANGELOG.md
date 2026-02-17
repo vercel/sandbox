@@ -1,5 +1,22 @@
 # sandbox
 
+## 2.4.0
+
+### Minor Changes
+
+- Add `sandbox snapshots get <snapshot_id>` command to retrieve details of a specific snapshot ([#44](https://github.com/vercel/sandbox/pull/44))
+
+- Add support for custom/infinite snapshots expiration ([#36](https://github.com/vercel/sandbox/pull/36))
+
+### Patch Changes
+
+- Fix table output not using the same width for each row ([#45](https://github.com/vercel/sandbox/pull/45))
+
+- change help format to match Vercel CLI h/t @allenzhou101 ([#47](https://github.com/vercel/sandbox/pull/47))
+
+- Updated dependencies [[`5b5f488db3fe7b8a7dad5d784617c5787e9ac1c0`](https://github.com/vercel/sandbox/commit/5b5f488db3fe7b8a7dad5d784617c5787e9ac1c0)]:
+  - @vercel/sandbox@1.6.0
+
 ## 2.3.0
 
 ### Minor Changes
