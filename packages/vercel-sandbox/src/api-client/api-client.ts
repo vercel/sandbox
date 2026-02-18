@@ -37,6 +37,28 @@ import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-polic
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
 
+interface Claims {
+  owner_id: string;
+  project_id?: string;
+}
+
+function decodeUnverifiedToken(token: string): Claims | null {
+  if (token.split(".").length !== 3) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
+    );
+    if (payload.owner_id) {
+      return { owner_id: payload.owner_id, project_id: payload.project_id };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
 }
@@ -62,21 +84,11 @@ export class APIClient extends BaseClient {
     this.teamId = params.teamId;
     this.isJwtToken = false;
 
-    // Try to parse as a Vercel OIDC token by checking for confirming claims
-    if (params.token.split(".").length === 3) {
-      try {
-        const payload = JSON.parse(
-          Buffer.from(params.token.split(".")[1], "base64url").toString("utf8")
-        );
-        // Verify this is actually a Vercel OIDC token by checking for owner_id claim
-        if (payload.owner_id) {
-          this.isJwtToken = true;
-          this.projectId = payload.project_id;
-          this.teamId = payload.owner_id;
-        }
-      } catch {
-        // Not a valid OIDC token, keep isJwtToken as false
-      }
+    const claims = decodeUnverifiedToken(params.token);
+    if (claims) {
+      this.isJwtToken = true;
+      this.projectId = claims.project_id;
+      this.teamId = claims.owner_id;
     }
   }
 
@@ -97,16 +109,9 @@ export class APIClient extends BaseClient {
       if (freshToken !== this.token) {
         this.token = freshToken;
 
-        // Update teamId from refreshed token
-        try {
-          const payload = JSON.parse(
-            Buffer.from(freshToken.split(".")[1], "base64url").toString("utf8")
-          );
-          if (payload.owner_id) {
-            this.teamId = payload.owner_id;
-          }
-        } catch {
-          // Ignore parse errors
+        const claims = decodeUnverifiedToken(freshToken);
+        if (claims) {
+          this.teamId = claims.owner_id;
         }
       }
     } catch {
