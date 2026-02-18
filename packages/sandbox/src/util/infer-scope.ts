@@ -5,10 +5,17 @@ import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 
 const debug = createDebugger("sandbox:scope");
 
+/**
+ * Inferred scope information for a sandbox session.
+ */
 export type InferredScope = {
-  projectId: string;
-  ownerId: string;
+  /** Project identifier — may be an ID (prj_*) or a slug */
+  project: string;
+  /** Team/owner identifier — may be an ID (team_*) or a slug */
+  owner: string;
+  /** Human-readable project slug for display */
   projectSlug?: string;
+  /** Human-readable team slug for display */
   ownerSlug?: string;
 };
 
@@ -31,10 +38,10 @@ export async function inferScope({
   const projectJson = readProjectConfiguration(process.cwd());
   if (projectJson) {
     debug("Using scope from project configuration", {
-      ownerId: projectJson.orgId,
-      projectId: projectJson.projectId,
+      owner: projectJson.orgId,
+      project: projectJson.projectId,
     });
-    return { ownerId: projectJson.orgId, projectId: projectJson.projectId };
+    return { owner: projectJson.orgId, project: projectJson.projectId };
   }
 
   debug("trying to infer scope from API token", { token, team });
@@ -52,8 +59,8 @@ const JwtSchema = z
   })
   .transform((data) => {
     return {
-      projectId: data.project_id,
-      ownerId: data.owner_id,
+      project: data.project_id,
+      owner: data.owner_id,
       projectSlug: data.project,
       ownerSlug: data.owner,
     };
@@ -69,10 +76,10 @@ async function inferFromToken(token: string, requestedTeam?: string) {
     token,
     teamId: requestedTeam,
   });
-  // Auth.inferScope returns team slug (not ID) and project name
+  // Auth.inferScope returns team slug and project name (not IDs).
   return {
-    ownerId: teamId,
-    projectId,
+    owner: teamId,
+    project: projectId,
     ownerSlug: teamId,
     projectSlug: projectId,
   };

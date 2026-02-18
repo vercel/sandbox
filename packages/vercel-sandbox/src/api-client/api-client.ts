@@ -31,11 +31,33 @@ import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
-import { JwtExpiry } from "../utils/jwt-expiry";
+import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy";
 import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
+
+interface Claims {
+  owner_id: string;
+  project_id?: string;
+}
+
+function decodeUnverifiedToken(token: string): Claims | null {
+  if (token.split(".").length !== 3) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
+    );
+    if (payload.owner_id) {
+      return { owner_id: payload.owner_id, project_id: payload.project_id };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
@@ -43,7 +65,8 @@ export interface WithFetchOptions {
 
 export class APIClient extends BaseClient {
   private teamId: string;
-  private tokenExpiry: JwtExpiry | null;
+  private projectId: string | undefined;
+  private isJwtToken: boolean;
 
   constructor(params: {
     baseUrl?: string;
@@ -59,23 +82,40 @@ export class APIClient extends BaseClient {
     });
 
     this.teamId = params.teamId;
-    this.tokenExpiry = JwtExpiry.fromToken(params.token);
+    this.isJwtToken = false;
+
+    const claims = decodeUnverifiedToken(params.token);
+    if (claims) {
+      this.isJwtToken = true;
+      this.projectId = claims.project_id;
+      this.teamId = claims.owner_id;
+    }
   }
 
   private async ensureValidToken(): Promise<void> {
-    if (!this.tokenExpiry) {
+    if (!this.isJwtToken) {
       return;
     }
 
-    const newExpiry = await this.tokenExpiry.tryRefresh();
-    if (!newExpiry) {
-      return;
-    }
+    try {
+      // Use getVercelOidcToken to refresh the token with team/project scope
+      const freshToken = await getVercelOidcToken({
+        expirationBufferMs: 5 * 60 * 1000, // 5 minutes
+        team: this.teamId,
+        project: this.projectId,
+      });
 
-    this.tokenExpiry = newExpiry;
-    this.token = this.tokenExpiry.token;
-    if (this.tokenExpiry.payload) {
-      this.teamId = this.tokenExpiry.payload?.owner_id;
+      // Update token if it changed
+      if (freshToken !== this.token) {
+        this.token = freshToken;
+
+        const claims = decodeUnverifiedToken(freshToken);
+        if (claims) {
+          this.teamId = claims.owner_id;
+        }
+      }
+    } catch {
+      // Ignore refresh errors and continue with current token
     }
   }
 

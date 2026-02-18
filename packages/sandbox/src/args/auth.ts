@@ -3,12 +3,11 @@ import { login } from "../commands/login";
 import createDebugger from "debug";
 import chalk from "chalk";
 import {
-  getAuth,
-  updateAuthConfig,
-  isOAuthError,
-  OAuth,
-} from "@vercel/sandbox/dist/auth/index.js";
-import { getVercelOidcToken } from "@vercel/oidc";
+  getVercelOidcToken,
+  getVercelToken,
+  AccessTokenMissingError,
+  RefreshAccessTokenFailedError,
+} from "@vercel/oidc";
 
 const debug = createDebugger("sandbox:args:auth");
 
@@ -38,78 +37,45 @@ export const token = cmd.option({
         }
       }
 
-      let auth = getAuth();
-
-      // If there's no auth token, run the login command
-      if (!auth) {
-        await login.handler({});
-        auth = getAuth();
-      }
-
-      if (auth) {
-        const refreshed = await refreshToken(auth);
-        if (typeof refreshed === "object") {
-          auth = refreshed;
-        } else if (
-          refreshed === "missing refresh token" ||
-          refreshed === "invalid refresh token"
+      // Try to get CLI token, which handles auth.json reading and refresh
+      try {
+        return await getVercelToken();
+      } catch (error) {
+        // Handle specific auth errors by triggering login
+        if (
+          error instanceof AccessTokenMissingError ||
+          error instanceof RefreshAccessTokenFailedError
         ) {
+          debug(
+            `CLI token unavailable (${error.name}), prompting for login...`,
+          );
           console.warn(
             chalk.yellow(
               `${chalk.bold("notice:")} Your session has expired. Please log in again.`,
             ),
           );
           await login.handler({});
-          auth = getAuth();
+
+          // Try again after login
+          try {
+            return await getVercelToken();
+          } catch (retryError) {
+            throw new Error(
+              [
+                `Failed to retrieve authentication token.`,
+                `${chalk.bold("hint:")} Try logging in again with \`sandbox login\`.`,
+                "╰▶ Docs: https://vercel.com/docs/vercel-sandbox/cli-reference#authentication",
+              ].join("\n"),
+            );
+          }
         }
-      }
 
-      if (!auth || !auth.token) {
-        throw new Error(
-          [
-            `Failed to retrieve authentication token.`,
-            `${chalk.bold("hint:")} Try logging in again with \`sandbox login\`.`,
-            "╰▶ Docs: https://vercel.com/docs/vercel-sandbox/cli-reference#authentication",
-          ].join("\n"),
-        );
+        // Re-throw unexpected errors
+        throw error;
       }
-
-      return auth.token;
     },
   },
 });
-
-async function refreshToken(file: NonNullable<ReturnType<typeof getAuth>>) {
-  if (!file.expiresAt) return;
-  if (file.expiresAt.getTime() > Date.now()) {
-    return "not expired" as const;
-  }
-
-  if (!file.refreshToken) {
-    debug(`Token expired, yet refresh token unavailable.`);
-    return "missing refresh token" as const;
-  }
-
-  debug(`Refreshing token (expired at ${file.expiresAt.toISOString()})`);
-  const oauth = await OAuth();
-  const newToken = await oauth.refreshToken(file.refreshToken).catch((err) => {
-    if (isOAuthError(err)) {
-      return null;
-    }
-    throw err;
-  });
-  if (!newToken) {
-    return "invalid refresh token" as const;
-  }
-  updateAuthConfig({
-    expiresAt: new Date(Date.now() + newToken.expires_in * 1000),
-    token: newToken.access_token,
-    refreshToken: newToken.refresh_token || file.refreshToken,
-  });
-  const updated = getAuth();
-  debug(`Token stored. expires at ${updated?.expiresAt?.toISOString()})`);
-  return updated;
-}
 
 function getMessage(error: unknown): string {
   if (!(error instanceof Error)) {
