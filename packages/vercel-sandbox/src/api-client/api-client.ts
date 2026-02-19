@@ -636,12 +636,21 @@ export class APIClient extends BaseClient {
 
   async createSnapshot(params: {
     sandboxId: string;
+    expiration?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/snapshot`;
+    const body =
+      params.expiration === undefined
+        ? undefined
+        : JSON.stringify({ expiration: params.expiration });
     return parseOrThrow(
       CreateSnapshotResponse,
-      await this.request(url, { method: "POST", signal: params.signal }),
+      await this.request(url, {
+        method: "POST",
+        body,
+        signal: params.signal,
+      }),
     );
   }
 

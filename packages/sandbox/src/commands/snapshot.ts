@@ -5,9 +5,10 @@ import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import chalk from "chalk";
 import ora from "ora";
+import { Duration } from "../types/duration";
+import ms from "ms";
 
 export const args = {
-  scope,
   stop: cmd.flag({
     long: "stop",
     description: "Confirm that the sandbox will be stopped when snapshotting",
@@ -16,9 +17,15 @@ export const args = {
     long: "silent",
     description: "Don't write snapshot ID to stdout",
   }),
+  expiration: cmd.option({
+    long: "expiration",
+    type: cmd.optional(Duration),
+    description: "The expiration time of the snapshot. Use 0 for no expiration.",
+  }),
   sandbox: cmd.positional({
     type: sandboxId as cmd.Type<string, string | Sandbox>,
   }),
+  scope,
 } as const;
 
 export const snapshot = cmd.command({
@@ -30,6 +37,7 @@ export const snapshot = cmd.command({
     stop,
     scope: { token, team, project },
     silent,
+    expiration,
   }) {
     if (!stop) {
       console.error(
@@ -66,7 +74,9 @@ export const snapshot = cmd.command({
     }
 
     const spinner = silent ? undefined : ora("Creating snapshot...").start();
-    const snapshot = await sandbox.snapshot();
+    const snapshot = await sandbox.snapshot({
+      expiration: expiration === undefined ? undefined : ms(expiration),
+    });
     spinner?.succeed(`Snapshot ${snapshot.snapshotId} created.`);
   },
 });

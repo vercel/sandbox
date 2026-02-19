@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.6.0
+
+### Minor Changes
+
+- Add support for custom/infinite snapshots expiration ([#36](https://github.com/vercel/sandbox/pull/36))
+
 ## 1.5.0
 
 ### Minor Changes

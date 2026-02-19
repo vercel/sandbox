@@ -12,6 +12,10 @@ const docs = {
   "sandbox exec": "exec --help",
   "sandbox stop": "stop --help",
   "sandbox copy": "copy --help",
+  "sandbox connect": "connect --help",
+  "sandbox snapshot": "snapshot --help",
+  "sandbox snapshots": "snapshots --help",
+  "sandbox config network-policy": "config network-policy --help",
   "sandbox login": "login --help",
   "sandbox logout": "logout --help",
 };

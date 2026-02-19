@@ -38,17 +38,17 @@ export const cp = cmd.command({
   description: "Copy files between your local filesystem and a remote sandbox",
   aliases: ["cp"],
   args: {
-    scope,
     source: cmd.positional({
-      displayName: `SANDBOX_ID:PATH`,
+      displayName: `src`,
       description: `The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox`,
       type: localOrRemote,
     }),
     dest: cmd.positional({
-      displayName: `SANDBOX_ID:PATH`,
+      displayName: `dst`,
       description: `The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox`,
       type: localOrRemote,
     }),
+    scope,
   },
   async handler({ scope, source, dest }) {
     const spinner = ora({ text: "reading file..." }).start();

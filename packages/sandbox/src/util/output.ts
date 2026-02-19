@@ -1,5 +1,6 @@
 import { formatDistance } from "date-fns/formatDistance";
 import chalk, { ChalkInstance } from "chalk";
+import { stripVTControlCharacters } from "node:util";
 
 export const output = {
   print: console.log,
@@ -23,7 +24,11 @@ export function formatBytes(bytes: number) {
   return `${formatter.format(value)} ${units[unitIndex]}`;
 }
 
-export function timeAgo(date: string | number | Date) {
+export function timeAgo(date: string | number | Date | undefined) {
+  if (date === undefined) {
+    return '-';
+  }
+
   return formatDistance(date, new Date(), {
     addSuffix: true,
   })
@@ -42,12 +47,15 @@ export function table<T extends object>(opts: {
   >;
 }) {
   const titles = Object.keys(opts.columns);
-  const maxWidths: number[] = titles.map((title) => title.length);
+  const visibleLength = (value: string) =>
+    stripVTControlCharacters(value).length;
+  const maxWidths: number[] = titles.map((title) => visibleLength(title));
   const data = opts.rows.map((row) => {
     return titles.map((title, i) => {
       let value = String(opts.columns[title].value(row));
-      if (value.length > maxWidths[i]) {
-        maxWidths[i] = value.length;
+      const width = visibleLength(value);
+      if (width > maxWidths[i]) {
+        maxWidths[i] = width;
       }
       if (opts.columns[title].color) {
         value = opts.columns[title].color(row)(value);
@@ -55,7 +63,10 @@ export function table<T extends object>(opts: {
       return value;
     });
   });
-  const padded = (t: string, i: number) => t.padEnd(maxWidths[i], " ");
+  const padded = (value: string, i: number) => {
+    const padding = maxWidths[i] - visibleLength(value);
+    return padding > 0 ? `${value}${" ".repeat(padding)}` : value;
+  };
   const space = "   ";
   return [
     chalk.bold(titles.map(padded).join(space)),
