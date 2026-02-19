@@ -31,6 +31,11 @@ export class Command {
    */
   private cmd: CommandData;
 
+  /**
+   * Private parameters (e.g., dev hive params) to pass to API calls.
+   */
+  protected privateParams: Record<string, unknown>;
+
   public exitCode: number | null;
 
   private outputCache: Promise<{
@@ -59,20 +64,24 @@ export class Command {
    * @param params.client - API client used to interact with the backend.
    * @param params.sandboxId - The ID of the sandbox where the command is running.
    * @param params.cmdId - The ID of the command execution.
+   * @param params.privateParams - Private parameters to pass to API calls.
    */
   constructor({
     client,
     sandboxId,
     cmd,
+    privateParams,
   }: {
     client: APIClient;
     sandboxId: string;
     cmd: CommandData;
+    privateParams?: Record<string, unknown>;
   }) {
     this.client = client;
     this.sandboxId = sandboxId;
     this.cmd = cmd;
     this.exitCode = cmd.exitCode ?? null;
+    this.privateParams = privateParams ?? {};
   }
 
   /**
@@ -100,6 +109,7 @@ export class Command {
       sandboxId: this.sandboxId,
       cmdId: this.cmd.id,
       signal: opts?.signal,
+      ...this.privateParams,
     });
   }
 
@@ -130,6 +140,7 @@ export class Command {
       cmdId: this.cmd.id,
       wait: true,
       signal: params?.signal,
+      ...this.privateParams,
     });
 
     return new CommandFinished({
@@ -137,6 +148,7 @@ export class Command {
       sandboxId: this.sandboxId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
+      privateParams: this.privateParams,
     });
   }
 
@@ -236,6 +248,7 @@ export class Command {
       commandId: this.cmd.id,
       signal: resolveSignal(signal ?? "SIGTERM"),
       abortSignal: opts?.abortSignal,
+      ...this.privateParams,
     });
   }
 }
@@ -262,12 +275,14 @@ export class CommandFinished extends Command {
    * @param params.sandboxId - The ID of the sandbox where the command ran.
    * @param params.cmdId - The ID of the command execution.
    * @param params.exitCode - The exit code of the completed command.
+   * @param params.privateParams - Private parameters to pass to API calls.
    */
   constructor(params: {
     client: APIClient;
     sandboxId: string;
     cmd: CommandData;
     exitCode: number;
+    privateParams?: Record<string, unknown>;
   }) {
     super({ ...params });
     this.exitCode = params.exitCode;
