@@ -137,12 +137,11 @@ export class APIClient extends BaseClient {
     params: WithPrivate<{ sandboxId: string; signal?: AbortSignal }>,
   ) {
     const privateParams = getPrivateParams(params);
-    let querystring = new URLSearchParams(privateParams).toString();
-    querystring = querystring ? `?${querystring}` : "";
     return parseOrThrow(
       SandboxAndRoutesResponse,
-      await this.request(`/v1/sandboxes/${params.sandboxId}${querystring}`, {
+      await this.request(`/v1/sandboxes/${params.sandboxId}`, {
         signal: params.signal,
+        query: { ...privateParams },
       }),
     );
   }
@@ -355,12 +354,11 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }>) {
     const privateParams = getPrivateParams(params);
-    const querystring = new URLSearchParams(privateParams).toString();
-    const query = querystring ? `?${querystring}` : "";
     const writer = new FileWriter();
     return {
       response: (async () => {
-        return this.request(`/v1/sandboxes/${params.sandboxId}/fs/write${query}`, {
+        return this.request(`/v1/sandboxes/${params.sandboxId}/fs/write`, {
+          query: { ...privateParams },
           method: "POST",
           headers: {
             "content-type": "application/gzip",
@@ -555,14 +553,13 @@ export class APIClient extends BaseClient {
       ? disposer.signal
       : mergeSignals(params.signal, disposer.signal);
     const privateParams = getPrivateParams(params);
-    const querystring = new URLSearchParams(privateParams).toString();
-    const query = querystring ? `?${querystring}` : "";
 
     const generator = (async function* () {
-      const url = `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}/logs${query}`;
+      const url = `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}/logs`;
       const response = await self.request(url, {
         method: "GET",
         signal,
+        query: { ...privateParams },
       });
 
       if (!response.ok) {
@@ -614,12 +611,13 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }>): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
     const privateParams = getPrivateParams(params);
+    const hasPrivateParams = Object.keys(privateParams).length > 0;
     const url = `/v1/sandboxes/${params.sandboxId}/stop`;
     return parseOrThrow(
       SandboxResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify({ ...privateParams }),
+        ...(hasPrivateParams && { body: JSON.stringify(privateParams) }),
         signal: params.signal,
       }),
     );
@@ -665,11 +663,18 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }>): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
     const privateParams = getPrivateParams(params);
+    const bodyObj: Record<string, unknown> = {
+      ...privateParams,
+    };
+
+    if (params.expiration !== undefined) {
+      bodyObj.expiration = params.expiration;
+    }
+
     const url = `/v1/sandboxes/${params.sandboxId}/snapshot`;
     const body =
-      params.expiration === undefined
-        ? JSON.stringify({ ...privateParams })
-        : JSON.stringify({ expiration: params.expiration, ...privateParams });
+      Object.keys(bodyObj).length > 0 ? JSON.stringify(bodyObj) : undefined;
+
     return parseOrThrow(
       CreateSnapshotResponse,
       await this.request(url, {
