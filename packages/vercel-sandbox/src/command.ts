@@ -32,7 +32,7 @@ export class Command {
   private cmd: CommandData;
 
   /**
-   * Private parameters (e.g., dev hive params) to pass to API calls.
+   * Private parameters to pass to API calls.
    */
   protected privateParams: Record<string, unknown>;
 
