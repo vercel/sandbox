@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { NetworkPolicy } from "../network-policy";
 import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy";
 
 describe("toAPINetworkPolicy", () => {
@@ -49,63 +48,58 @@ describe("toAPINetworkPolicy", () => {
   it("converts record-form domains to allowedDomains list", () => {
     expect(
       toAPINetworkPolicy({
-        allow: { "api.openai.com": [], "github.com": [] },
+        allow: { "api.github.com": [], "github.com": [] },
       }),
     ).toEqual({
       mode: "custom",
-      allowedDomains: ["api.openai.com", "github.com"],
+      allowedDomains: ["api.github.com", "github.com"],
     });
   });
 
-  it("converts record-form with transforms to injectionRules", () => {
+  it("converts record-form with multiple domains and transforms to injectionRules", () => {
     expect(
       toAPINetworkPolicy({
         allow: {
-          "api.openai.com": [
+          "api.github.com": [
             {
               transform: [
-                { headers: { authorization: "Bearer sk-test" } },
+                { headers: { authorization: "Bearer sk-openai", "x-org-id": "org-123" } },
               ],
             },
           ],
+          "ai-gateway.vercel.sh": [
+            {
+              transform: [
+                { headers: { "x-api-key": "sk-ant-test" } },
+                { headers: { "anthropic-version": "2024-01-01" } },
+              ],
+            },
+          ],
+          "registry.npmjs.org": [],
           "*": [],
         },
+        subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
       }),
     ).toEqual({
       mode: "custom",
-      allowedDomains: ["api.openai.com", "*"],
+      allowedDomains: [
+        "api.github.com",
+        "ai-gateway.vercel.sh",
+        "registry.npmjs.org",
+        "*",
+      ],
       injectionRules: [
         {
-          domain: "api.openai.com",
-          headers: { authorization: "Bearer sk-test" },
+          domain: "api.github.com",
+          headers: { authorization: "Bearer sk-openai", "x-org-id": "org-123" },
         },
-      ],
-    });
-  });
-
-  it("merges headers from multiple transforms into one injection rule", () => {
-    expect(
-      toAPINetworkPolicy({
-        allow: {
-          "api.openai.com": [
-            {
-              transform: [
-                { headers: { authorization: "Bearer sk-test" } },
-                { headers: { "x-custom": "value" } },
-              ],
-            },
-          ],
-        },
-      }),
-    ).toEqual({
-      mode: "custom",
-      allowedDomains: ["api.openai.com"],
-      injectionRules: [
         {
-          domain: "api.openai.com",
-          headers: { authorization: "Bearer sk-test", "x-custom": "value" },
+          domain: "ai-gateway.vercel.sh",
+          headers: { "x-api-key": "sk-ant-test", "anthropic-version": "2024-01-01" },
         },
       ],
+      allowedCIDRs: ["10.0.0.0/8"],
+      deniedCIDRs: ["10.1.0.0/16"],
     });
   });
 
@@ -188,19 +182,49 @@ describe("fromAPINetworkPolicy", () => {
     }
   });
 
-  it("normalizes record-form to string-form (injectionRules are never in responses)", () => {
-    const policy: NetworkPolicy = {
-      allow: {
-        "api.openai.com": [
-          { transform: [{ headers: { authorization: "Bearer sk-test" } }] },
+  it("converts injectionRules with multiple domains, headers, and subnets", () => {
+    expect(
+      fromAPINetworkPolicy({
+        mode: "custom",
+        allowedDomains: [
+          "api.github.com",
+          "ai-gateway.vercel.sh",
+          "registry.npmjs.org",
+          "*",
         ],
+        injectionRules: [
+          {
+            domain: "api.github.com",
+            headerNames: ["authorization", "x-foo"],
+          },
+          {
+            domain: "ai-gateway.vercel.sh",
+            headerNames: ["authorization", "x-bar"],
+          },
+        ],
+        allowedCIDRs: ["10.0.0.0/8"],
+        deniedCIDRs: ["10.1.0.0/16"],
+      }),
+    ).toEqual({
+      allow: {
+        "api.github.com": [
+          {
+            transform: [
+              { headers: { authorization: "", "x-foo": "" } },
+            ],
+          },
+        ],
+        "ai-gateway.vercel.sh": [
+          {
+            transform: [
+              { headers: { authorization: "", "x-bar": "" } },
+            ],
+          },
+        ],
+        "registry.npmjs.org": [],
         "*": [],
       },
-    };
-    // toAPI splits into allowedDomains + injectionRules,
-    // but fromAPI only sees allowedDomains (injectionRules are omitted)
-    expect(fromAPINetworkPolicy(toAPINetworkPolicy(policy))).toEqual({
-      allow: ["api.openai.com", "*"],
+      subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
     });
   });
 });

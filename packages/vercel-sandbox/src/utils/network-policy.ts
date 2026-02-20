@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NetworkPolicy } from "../network-policy";
+import { NetworkPolicy, NetworkPolicyRule } from "../network-policy";
 import { NetworkPolicyValidator } from "../api-client/validators";
 
 type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
@@ -47,14 +47,49 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
 export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
   if (api.mode === "allow-all") return "allow-all";
   if (api.mode === "deny-all") return "deny-all";
-  
+
+  const subnets = (api.allowedCIDRs || api.deniedCIDRs)
+    ? {
+        subnets: {
+          ...(api.allowedCIDRs && { allow: api.allowedCIDRs }),
+          ...(api.deniedCIDRs && { deny: api.deniedCIDRs }),
+        },
+      }
+    : undefined;
+
+  // If injectionRules are present, reconstruct the record form.
+  // The API returns headerNames (secret values are stripped), so we
+  // populate each header with an empty string.
+  if (api.injectionRules && api.injectionRules.length > 0) {
+    const rulesByDomain = new Map(
+      api.injectionRules.map((r) => [r.domain, r.headerNames ?? []]),
+    );
+
+    const allow: Record<string, NetworkPolicyRule[]> = {};
+    for (const domain of api.allowedDomains ?? []) {
+      const headerNames = rulesByDomain.get(domain);
+      if (headerNames && headerNames.length > 0) {
+        const headers = Object.fromEntries(headerNames.map((n) => [n, ""]));
+        allow[domain] = [{ transform: [{ headers }] }];
+      } else {
+        allow[domain] = [];
+      }
+    }
+    // Include injection rules for domains not in allowedDomains
+    for (const rule of api.injectionRules) {
+      if (!(rule.domain in allow)) {
+        const headers = Object.fromEntries(
+          (rule.headerNames ?? []).map((n) => [n, ""]),
+        );
+        allow[rule.domain] = [{ transform: [{ headers }] }];
+      }
+    }
+
+    return { allow, ...subnets };
+  }
+
   return {
     ...(api.allowedDomains && { allow: api.allowedDomains }),
-    ...((api.allowedCIDRs || api.deniedCIDRs) && {
-      subnets: {
-        ...(api.allowedCIDRs && { allow: api.allowedCIDRs }),
-        ...(api.deniedCIDRs && { deny: api.deniedCIDRs }),
-      },
-    }),
+    ...subnets,
   };
 }

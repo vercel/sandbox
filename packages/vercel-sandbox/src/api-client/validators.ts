@@ -4,7 +4,10 @@ export type SandboxMetaData = z.infer<typeof Sandbox>;
 
 const InjectionRuleValidator = z.object({
   domain: z.string(),
+  // headers are only sent in requests
   headers: z.record(z.string()).optional(),
+  // headerNames are returned in responses
+  headerNames: z.array(z.string()).optional(),
 });
 
 export const NetworkPolicyValidator = z.union([
