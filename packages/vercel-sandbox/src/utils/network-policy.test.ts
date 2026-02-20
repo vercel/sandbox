@@ -210,14 +210,14 @@ describe("fromAPINetworkPolicy", () => {
         "api.github.com": [
           {
             transform: [
-              { headers: { authorization: "", "x-foo": "" } },
+              { headers: { authorization: "<redacted>", "x-foo": "<redacted>" } },
             ],
           },
         ],
         "ai-gateway.vercel.sh": [
           {
             transform: [
-              { headers: { authorization: "", "x-bar": "" } },
+              { headers: { authorization: "<redacted>", "x-bar": "<redacted>" } },
             ],
           },
         ],

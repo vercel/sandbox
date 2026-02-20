@@ -56,7 +56,7 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
 
   // If injectionRules are present, reconstruct the record form.
   // The API returns headerNames (secret values are stripped), so we
-  // populate each header with an empty string.
+  // populate each header value with "<redacted>".
   if (api.injectionRules && api.injectionRules.length > 0) {
     const rulesByDomain = new Map(
       api.injectionRules.map((r) => [r.domain, r.headerNames ?? []]),
@@ -66,7 +66,7 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
     for (const domain of api.allowedDomains ?? []) {
       const headerNames = rulesByDomain.get(domain);
       if (headerNames && headerNames.length > 0) {
-        const headers = Object.fromEntries(headerNames.map((n) => [n, ""]));
+        const headers = Object.fromEntries(headerNames.map((n) => [n, "<redacted>"]));
         allow[domain] = [{ transform: [{ headers }] }];
       } else {
         allow[domain] = [];
@@ -76,7 +76,7 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
     for (const rule of api.injectionRules) {
       if (!(rule.domain in allow)) {
         const headers = Object.fromEntries(
-          (rule.headerNames ?? []).map((n) => [n, ""]),
+          (rule.headerNames ?? []).map((n) => [n, "<redacted>"]),
         );
         allow[rule.domain] = [{ transform: [{ headers }] }];
       }
