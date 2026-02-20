@@ -53,6 +53,11 @@ export const Sandbox = z.object({
   updatedAt: z.number(),
   interactivePort: z.number().optional(),
   networkPolicy: NetworkPolicyValidator.optional(),
+  activeCpuDurationMs: z.number().optional(),
+  networkTransfer: z.object({
+    ingress: z.number(),
+    egress: z.number(),
+  }).optional(),
 });
 
 export type SandboxRouteData = z.infer<typeof SandboxRoute>;

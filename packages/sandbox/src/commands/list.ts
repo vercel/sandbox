@@ -5,7 +5,7 @@ import { scope } from "../args/scope";
 import chalk, { ChalkInstance } from "chalk";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
-import { table, timeAgo } from "../util/output";
+import { table, timeAgo, formatBytes, formatRunDuration } from "../util/output";
 
 export const list = cmd.command({
   name: "list",
@@ -47,30 +47,35 @@ export const list = cmd.command({
       unit: "megabyte",
     });
 
-    console.log(
-      table({
-        rows: sandboxes,
-        columns: {
-          ID: { value: (s) => s.id },
-          STATUS: {
-            value: (s) => s.status,
-            color: (s) => SandboxStatusColor[s.status] ?? chalk.reset,
-          },
-          CREATED: {
-            value: (s) => timeAgo(s.createdAt),
-          },
-          MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
-          VCPUS: { value: (s) => s.vcpus },
-          RUNTIME: { value: (s) => s.runtime },
-          TIMEOUT: {
-            value: (s) => timeAgo(s.createdAt + s.timeout),
-          },
-          SNAPSHOT: {
-            value: (s) => s.sourceSnapshotId ?? "-",
-          },
-        },
-      }),
-    );
+    type SandboxRow = (typeof sandboxes)[number];
+    type Column = { value: (s: SandboxRow) => string | number; color?: (s: SandboxRow) => ChalkInstance };
+
+    const columns: Record<string, Column> = {
+      ID: { value: (s) => s.id },
+      STATUS: {
+        value: (s) => s.status,
+        color: (s) => SandboxStatusColor[s.status] ?? chalk.reset,
+      },
+      CREATED: {
+        value: (s) => timeAgo(s.createdAt),
+      },
+      MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
+      VCPUS: { value: (s) => s.vcpus },
+      RUNTIME: { value: (s) => s.runtime },
+      TIMEOUT: {
+        value: (s) => timeAgo(s.createdAt + s.timeout),
+      },
+      SNAPSHOT: { value: (s) => s.sourceSnapshotId ?? "-" }
+    };
+    if (all) {
+      columns.CPU = { value: (s) => s.activeCpuDurationMs ? formatRunDuration(s.activeCpuDurationMs) : "-" };
+      columns["NETWORK (OUT/IN)"] = {
+        value: (s) => s.networkTransfer ?
+          `${formatBytes(s.networkTransfer.egress)} / ${formatBytes(s.networkTransfer.ingress)}` : "- / -",
+      };
+    }
+
+    console.log(table({ rows: sandboxes, columns }));
   },
 });
 
