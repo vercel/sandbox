@@ -14,10 +14,12 @@ import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import {
   type NetworkPolicy,
+  type NetworkPolicyRule,
+  type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
 
-export type { NetworkPolicy };
+export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
 /** @inline */
 export interface BaseCreateSandboxParams {
@@ -639,6 +641,19 @@ export class Sandbox {
    * // Restrict to specific domains
    * await sandbox.updateNetworkPolicy({
    *   allow: ["*.npmjs.org", "github.com"],
+   * });
+   *
+   * @example
+   * // Inject credentials with per-domain transformers
+   * await sandbox.updateNetworkPolicy({
+   *   allow: {
+   *     "ai-gateway.vercel.sh": [{
+   *       transform: [{
+   *         headers: { authorization: "Bearer ..." }
+   *       }]
+   *     }],
+   *     "*": []
+   *   }
    * });
    *
    * @example

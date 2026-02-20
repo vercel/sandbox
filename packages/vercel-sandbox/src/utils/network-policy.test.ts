@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { toAPINetworkPolicy, fromAPINetworkPolicy } from "./network-policy";
+import type { NetworkPolicy } from "../network-policy";
+import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy";
 
 describe("toAPINetworkPolicy", () => {
   it("converts allow-all", () => {
@@ -42,6 +43,69 @@ describe("toAPINetworkPolicy", () => {
       allowedDomains: ["github.com"],
       allowedCIDRs: ["10.0.0.0/8"],
       deniedCIDRs: ["10.1.0.0/16"],
+    });
+  });
+
+  it("converts record-form domains to allowedDomains list", () => {
+    expect(
+      toAPINetworkPolicy({
+        allow: { "api.openai.com": [], "github.com": [] },
+      }),
+    ).toEqual({
+      mode: "custom",
+      allowedDomains: ["api.openai.com", "github.com"],
+    });
+  });
+
+  it("converts record-form with transforms to injectionRules", () => {
+    expect(
+      toAPINetworkPolicy({
+        allow: {
+          "api.openai.com": [
+            {
+              transform: [
+                { headers: { authorization: "Bearer sk-test" } },
+              ],
+            },
+          ],
+          "*": [],
+        },
+      }),
+    ).toEqual({
+      mode: "custom",
+      allowedDomains: ["api.openai.com", "*"],
+      injectionRules: [
+        {
+          domain: "api.openai.com",
+          headers: { authorization: "Bearer sk-test" },
+        },
+      ],
+    });
+  });
+
+  it("merges headers from multiple transforms into one injection rule", () => {
+    expect(
+      toAPINetworkPolicy({
+        allow: {
+          "api.openai.com": [
+            {
+              transform: [
+                { headers: { authorization: "Bearer sk-test" } },
+                { headers: { "x-custom": "value" } },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      mode: "custom",
+      allowedDomains: ["api.openai.com"],
+      injectionRules: [
+        {
+          domain: "api.openai.com",
+          headers: { authorization: "Bearer sk-test", "x-custom": "value" },
+        },
+      ],
     });
   });
 
@@ -107,7 +171,7 @@ describe("fromAPINetworkPolicy", () => {
     expect(fromAPINetworkPolicy({ mode: "custom" })).toEqual({});
   });
 
-  it("roundtrips through both conversions", () => {
+  it("roundtrips string-form policies through both conversions", () => {
     const policies = [
       "allow-all" as const,
       "deny-all" as const,
@@ -122,5 +186,21 @@ describe("fromAPINetworkPolicy", () => {
     for (const policy of policies) {
       expect(fromAPINetworkPolicy(toAPINetworkPolicy(policy))).toEqual(policy);
     }
+  });
+
+  it("normalizes record-form to string-form (injectionRules are never in responses)", () => {
+    const policy: NetworkPolicy = {
+      allow: {
+        "api.openai.com": [
+          { transform: [{ headers: { authorization: "Bearer sk-test" } }] },
+        ],
+        "*": [],
+      },
+    };
+    // toAPI splits into allowedDomains + injectionRules,
+    // but fromAPI only sees allowedDomains (injectionRules are omitted)
+    expect(fromAPINetworkPolicy(toAPINetworkPolicy(policy))).toEqual({
+      allow: ["api.openai.com", "*"],
+    });
   });
 });
