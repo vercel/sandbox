@@ -4,7 +4,7 @@ export type SandboxMetaData = z.infer<typeof Sandbox>;
 
 const InjectionRuleValidator = z.object({
   domain: z.string(),
-  headers: z.record(z.string()),
+  headers: z.record(z.string()).optional(),
 });
 
 export const NetworkPolicyValidator = z.union([

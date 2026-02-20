@@ -47,8 +47,7 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
 export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
   if (api.mode === "allow-all") return "allow-all";
   if (api.mode === "deny-all") return "deny-all";
-  // Note: injectionRules are never present in API responses (they contain
-  // secrets), so fromAPI always returns the string[] form for allow.
+  
   return {
     ...(api.allowedDomains && { allow: api.allowedDomains }),
     ...((api.allowedCIDRs || api.deniedCIDRs) && {
