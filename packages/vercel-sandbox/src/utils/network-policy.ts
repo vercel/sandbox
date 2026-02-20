@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { NetworkPolicy, NetworkPolicyRule } from "../network-policy";
-import { NetworkPolicyValidator } from "../api-client/validators";
+import { NetworkPolicyValidator, InjectionRuleValidator } from "../api-client/validators";
 
 type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
 
@@ -10,10 +10,7 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
 
   if (policy.allow && !Array.isArray(policy.allow)) {
     const allowedDomains = Object.keys(policy.allow);
-    const injectionRules: Array<{
-      domain: string;
-      headers: Record<string, string>;
-    }> = [];
+    const injectionRules: z.infer<typeof InjectionRuleValidator>[] = [];
 
     for (const [domain, rules] of Object.entries(policy.allow)) {
       const merged: Record<string, string> = {};
