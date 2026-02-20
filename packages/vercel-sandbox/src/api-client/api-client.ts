@@ -609,11 +609,12 @@ export class APIClient extends BaseClient {
   async stopSandbox(params: WithPrivate<{
     sandboxId: string;
     signal?: AbortSignal;
+    blocking?: boolean;
   }>): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
     const privateParams = getPrivateParams(params);
     const hasPrivateParams = Object.keys(privateParams).length > 0;
     const url = `/v1/sandboxes/${params.sandboxId}/stop`;
-    return parseOrThrow(
+    const response = await parseOrThrow(
       SandboxResponse,
       await this.request(url, {
         method: "POST",
@@ -621,6 +622,24 @@ export class APIClient extends BaseClient {
         signal: params.signal,
       }),
     );
+
+    if (params.blocking) {
+      const { setTimeout } = await import("node:timers/promises");
+
+      let sandbox = response.json.sandbox;
+      while (sandbox.status !== "stopped" && sandbox.status !== "failed" && sandbox.status !== "aborted") {
+        await setTimeout(500, undefined, { signal: params.signal });
+        const poll = await this.getSandbox({
+          sandboxId: params.sandboxId,
+          signal: params.signal,
+          ...privateParams,
+        });
+        sandbox = poll.json.sandbox;
+        response.json.sandbox = sandbox;
+      }
+    }
+
+    return response;
   }
 
   async updateNetworkPolicy(params: WithPrivate<{
