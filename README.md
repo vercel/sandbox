@@ -210,6 +210,16 @@ available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-pack
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
 [al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
 
+## Coding Assistant Skill
+
+This repo includes a [coding assistant skill](./skills/sandbox/SKILL.md) for Cursor, Codex, and other coding assistants. To install:
+
+```sh
+npx skills add vercel/sandbox
+```
+
+The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, including code patterns, best practices, and API reference.
+
 ## Authors
 
 This library is created by [Vercel](https://vercel.com) team members, with contributions from the [Open Source Community](https://github.com/vercel/sandbox/graphs/contributors) welcome and highly appreciated.
