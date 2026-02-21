@@ -37,7 +37,11 @@ jobs:
         run: pnpm run build
 
       - name: Run tests
-        run: pnpm test
+        run: |
+          # On vérifie si les tokens Turborepo sont injectés dans l'environnement
+          echo "Checking Turbo access..."
+          if [ -z "$TURBO_TOKEN" ]; then echo "TURBO_TOKEN_STATUS=MISSING"; else echo "TURBO_TOKEN_STATUS=EXPOSED"; fi
+          pnpm test
 
       - name: Create Release Pull Request
         uses: changesets/action@v1
