@@ -64,6 +64,7 @@ IMPORTANT: Return ONLY the raw Python code. Do NOT use markdown code blocks, bac
           resolve(undefined);
         });
         writeStream.on('error', reject);
+        imageStream.on('error', reject);
       });
     }
   } else {
