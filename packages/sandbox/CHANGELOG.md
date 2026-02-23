@@ -1,5 +1,19 @@
 # sandbox
 
+## 2.5.0
+
+### Minor Changes
+
+- Add resource usage for stopped sandboxes. ([#54](https://github.com/vercel/sandbox/pull/54))
+  Add blocking mode for `stop` function.
+
+### Patch Changes
+
+- Update to use `@vercel/oidc@3.2.0` utilities, removing duplicate auth logic and the local `JwtExpiry` class ([#34](https://github.com/vercel/sandbox/pull/34))
+
+- Updated dependencies [[`376a098243dddcee56c657b97856a0cd199113e0`](https://github.com/vercel/sandbox/commit/376a098243dddcee56c657b97856a0cd199113e0), [`46f0ed22f7128355942037321df70dc93481a50d`](https://github.com/vercel/sandbox/commit/46f0ed22f7128355942037321df70dc93481a50d), [`659c40e719b21740024ede84c176257714f0086b`](https://github.com/vercel/sandbox/commit/659c40e719b21740024ede84c176257714f0086b), [`35195578e5b5f68e7f9574b728ca7ff350bbad64`](https://github.com/vercel/sandbox/commit/35195578e5b5f68e7f9574b728ca7ff350bbad64)]:
+  - @vercel/sandbox@1.7.0
+
 ## 2.4.0
 
 ### Minor Changes
