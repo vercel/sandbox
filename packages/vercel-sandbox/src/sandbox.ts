@@ -109,6 +109,15 @@ interface GetSandboxParams {
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
+
+  /**
+ * Environment configuration. Use `secretsFrom1Password` to provide
+ * 1Password secret references; they are resolved when getting the sandbox
+ * and merged into the environment for every command run with this instance.
+ */
+  env?: {
+    secretsFrom1Password?: Record<string, string>;
+  };
 }
 
 /** @inline */
@@ -318,12 +327,17 @@ export class Sandbox {
       ...privateParams,
     });
 
+    let defaultEnv: Record<string, string> = {};
+    if (params?.env?.secretsFrom1Password) {
+      defaultEnv = await resolveOpSecretsInEnv(params.env.secretsFrom1Password);
+    }
+
     return new Sandbox({
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
       privateParams,
-      defaultEnv: {},
+      defaultEnv,
     });
   }
 
