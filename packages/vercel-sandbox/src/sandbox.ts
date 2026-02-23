@@ -18,6 +18,7 @@ import {
   type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -148,8 +149,25 @@ interface RunCommandParams {
  * @hideconstructor
  */
 export class Sandbox {
-  private readonly client: APIClient;
+  private _client: APIClient | null;
   private readonly privateParams: Record<string, unknown>;
+
+  /**
+   * Lazily resolve credentials and construct an API client.
+   * This is used in step contexts where the Sandbox was deserialized
+   * without a client (e.g. when crossing workflow/step boundaries).
+   * @internal
+   */
+  private async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
 
   /**
    * Routes from ports to subdomains.
@@ -209,6 +227,42 @@ export class Sandbox {
   private sandbox: ConvertedSandbox;
 
   /**
+   * Serialize a Sandbox instance for Workflow DevKit.
+   * The serialized data includes the sandbox metadata, routes, and private params.
+   * The API client is NOT serialized — it is lazily reconstructed from
+   * environment credentials when needed in step execution contexts.
+   */
+  static [WORKFLOW_SERIALIZE](instance: Sandbox) {
+    return {
+      sandbox: instance.sandbox,
+      routes: instance.routes,
+      privateParams: instance.privateParams,
+    };
+  }
+
+  /**
+   * Deserialize a Sandbox instance for Workflow DevKit.
+   * Reconstructs the Sandbox from serialized metadata without an API client.
+   * The client will be lazily created via `ensureClient()` when step methods
+   * are invoked.
+   */
+  static [WORKFLOW_DESERIALIZE](data: {
+    sandbox: ConvertedSandbox;
+    routes: SandboxRouteData[];
+    privateParams: Record<string, unknown>;
+  }): Sandbox {
+    // Use Object.create() to bypass the constructor, since the constructor
+    // expects raw SandboxMetaData and runs convertSandbox(). The serialized
+    // data already has the converted format.
+    const instance = Object.create(Sandbox.prototype);
+    instance._client = null;
+    instance.sandbox = data.sandbox;
+    instance.routes = data.routes;
+    instance.privateParams = data.privateParams;
+    return instance;
+  }
+
+  /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.
    * It returns both the sandboxes and the pagination metadata to allow getting
    * the next page of results.
@@ -218,6 +272,7 @@ export class Sandbox {
       Partial<Credentials> &
       WithFetchOptions,
   ) {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -248,6 +303,7 @@ export class Sandbox {
     > &
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -286,6 +342,7 @@ export class Sandbox {
     params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
       WithFetchOptions,
   ): Promise<Sandbox> {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -314,12 +371,12 @@ export class Sandbox {
     sandbox,
     privateParams,
   }: {
-    client: APIClient;
+    client: APIClient | null;
     routes: SandboxRouteData[];
     sandbox: SandboxMetaData;
     privateParams?: Record<string, unknown>;
   }) {
-    this.client = client;
+    this._client = client;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
     this.privateParams = privateParams ?? {};
@@ -337,7 +394,9 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
-    const command = await this.client.getCommand({
+    "use step";
+    const client = await this.ensureClient();
+    const command = await client.getCommand({
       sandboxId: this.sandbox.id,
       cmdId,
       signal: opts?.signal,
@@ -345,7 +404,7 @@ export class Sandbox {
     });
 
     return new Command({
-      client: this.client,
+      client,
       sandboxId: this.sandbox.id,
       cmd: command.json.command,
       privateParams: this.privateParams,
@@ -403,6 +462,8 @@ export class Sandbox {
    * @internal
    */
   async _runCommand(params: RunCommandParams) {
+    "use step";
+    const client = await this.ensureClient();
     const wait = params.detached ? false : true;
     const getLogs = (command: Command) => {
       if (params.stdout || params.stderr) {
@@ -423,10 +484,10 @@ export class Sandbox {
           }
         })();
       }
-    }
+    };
 
     if (wait) {
-      const commandStream = await this.client.runCommand({
+      const commandStream = await client.runCommand({
         sandboxId: this.sandbox.id,
         command: params.cmd,
         args: params.args ?? [],
@@ -439,7 +500,7 @@ export class Sandbox {
       });
 
       const command = new Command({
-        client: this.client,
+        client,
         sandboxId: this.sandbox.id,
         cmd: commandStream.command,
         privateParams: this.privateParams,
@@ -449,7 +510,7 @@ export class Sandbox {
 
       const finished = await commandStream.finished;
       return new CommandFinished({
-        client: this.client,
+        client,
         sandboxId: this.sandbox.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
@@ -457,7 +518,7 @@ export class Sandbox {
       });
     }
 
-    const commandResponse = await this.client.runCommand({
+    const commandResponse = await client.runCommand({
       sandboxId: this.sandbox.id,
       command: params.cmd,
       args: params.args ?? [],
@@ -469,7 +530,7 @@ export class Sandbox {
     });
 
     const command = new Command({
-      client: this.client,
+      client,
       sandboxId: this.sandbox.id,
       cmd: commandResponse.json.command,
       privateParams: this.privateParams,
@@ -488,7 +549,9 @@ export class Sandbox {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-    await this.client.mkDir({
+    "use step";
+    const client = await this.ensureClient();
+    await client.mkDir({
       sandboxId: this.sandbox.id,
       path: path,
       signal: opts?.signal,
@@ -508,7 +571,9 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-    return this.client.readFile({
+    "use step";
+    const client = await this.ensureClient();
+    return client.readFile({
       sandboxId: this.sandbox.id,
       path: file.path,
       cwd: file.cwd,
@@ -529,7 +594,9 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-    const stream = await this.client.readFile({
+    "use step";
+    const client = await this.ensureClient();
+    const stream = await client.readFile({
       sandboxId: this.sandbox.id,
       path: file.path,
       cwd: file.cwd,
@@ -559,6 +626,8 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    "use step";
+    const client = await this.ensureClient();
     if (!src?.path) {
       throw new Error("downloadFile: source path is required");
     }
@@ -567,7 +636,7 @@ export class Sandbox {
       throw new Error("downloadFile: destination path is required");
     }
 
-    const stream = await this.client.readFile({
+    const stream = await client.readFile({
       sandboxId: this.sandbox.id,
       path: src.path,
       cwd: src.cwd,
@@ -589,7 +658,7 @@ export class Sandbox {
       });
       return dstPath;
     } finally {
-      stream.destroy()
+      stream.destroy();
     }
   }
 
@@ -607,7 +676,9 @@ export class Sandbox {
     files: { path: string; content: Buffer }[],
     opts?: { signal?: AbortSignal },
   ) {
-    return this.client.writeFiles({
+    "use step";
+    const client = await this.ensureClient();
+    return client.writeFiles({
       sandboxId: this.sandbox.id,
       cwd: this.sandbox.cwd,
       extractDir: "/",
@@ -641,7 +712,9 @@ export class Sandbox {
    * @returns A promise that resolves when the sandbox is stopped
    */
   async stop(opts?: { signal?: AbortSignal }) {
-    await this.client.stopSandbox({
+    "use step";
+    const client = await this.ensureClient();
+    await client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
       ...this.privateParams,
@@ -683,14 +756,18 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-    const response = await this.client.updateNetworkPolicy({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.updateNetworkPolicy({
       sandboxId: this.sandbox.id,
       networkPolicy: networkPolicy,
       signal: opts?.signal,
       ...this.privateParams,
     });
 
-    // Update the internal sandbox metadata with the new timeout value
+    // Update the internal sandbox metadata with the new timeout value.
+    // Note: In workflow contexts, this mutation only affects the step copy
+    // due to pass-by-value semantics.
     this.sandbox = convertSandbox(response.json.sandbox);
     return this.sandbox.networkPolicy!;
   }
@@ -715,14 +792,18 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-    const response = await this.client.extendTimeout({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.extendTimeout({
       sandboxId: this.sandbox.id,
       duration,
       signal: opts?.signal,
       ...this.privateParams,
     });
 
-    // Update the internal sandbox metadata with the new timeout value
+    // Update the internal sandbox metadata with the new timeout value.
+    // Note: In workflow contexts, this mutation only affects the step copy
+    // due to pass-by-value semantics.
     this.sandbox = convertSandbox(response.json.sandbox);
   }
 
@@ -741,17 +822,21 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-    const response = await this.client.createSnapshot({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.createSnapshot({
       sandboxId: this.sandbox.id,
       expiration: opts?.expiration,
       signal: opts?.signal,
       ...this.privateParams,
     });
 
+    // Note: In workflow contexts, this mutation only affects the step copy
+    // due to pass-by-value semantics.
     this.sandbox = convertSandbox(response.json.sandbox);
 
     return new Snapshot({
-      client: this.client,
+      client,
       snapshot: response.json.snapshot,
     });
   }
@@ -767,6 +852,23 @@ export class Sandbox {
  * // Sandbox is automatically stopped here
  */
 class DisposableSandbox extends Sandbox implements AsyncDisposable {
+  static [WORKFLOW_SERIALIZE](instance: DisposableSandbox) {
+    return Sandbox[WORKFLOW_SERIALIZE](instance);
+  }
+
+  static [WORKFLOW_DESERIALIZE](data: {
+    sandbox: ConvertedSandbox;
+    routes: SandboxRouteData[];
+    privateParams: Record<string, unknown>;
+  }): DisposableSandbox {
+    const instance = Object.create(DisposableSandbox.prototype);
+    instance._client = null;
+    instance.sandbox = data.sandbox;
+    instance.routes = data.routes;
+    instance.privateParams = data.privateParams;
+    return instance;
+  }
+
   async [Symbol.asyncDispose]() {
     await this.stop();
   }

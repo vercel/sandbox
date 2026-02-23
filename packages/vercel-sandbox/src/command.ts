@@ -1,5 +1,7 @@
 import { APIClient, type CommandData } from "./api-client";
 import { Signal, resolveSignal } from "./utils/resolveSignal";
+import { getCredentials } from "./utils/get-credentials";
+import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 /**
  * A command executed in a Sandbox.
@@ -19,7 +21,7 @@ export class Command {
    * @internal
    * @private
    */
-  protected client: APIClient;
+  protected _client: APIClient | null;
 
   /**
    * ID of the sandbox this command is running in.
@@ -43,6 +45,52 @@ export class Command {
     stderr: string;
     both: string;
   }> | null = null;
+
+  /**
+   * Lazily resolve credentials and construct an API client.
+   * @internal
+   */
+  protected async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
+
+  /**
+   * Serialize a Command instance for Workflow DevKit.
+   */
+  static [WORKFLOW_SERIALIZE](instance: Command) {
+    return {
+      sandboxId: instance.sandboxId,
+      cmd: instance.cmd,
+      exitCode: instance.exitCode,
+      privateParams: instance.privateParams,
+    };
+  }
+
+  /**
+   * Deserialize a Command instance for Workflow DevKit.
+   */
+  static [WORKFLOW_DESERIALIZE](data: {
+    sandboxId: string;
+    cmd: CommandData;
+    exitCode: number | null;
+    privateParams: Record<string, unknown>;
+  }): Command {
+    const instance = Object.create(Command.prototype);
+    instance._client = null;
+    instance.sandboxId = data.sandboxId;
+    instance.cmd = data.cmd;
+    instance.exitCode = data.exitCode;
+    instance.privateParams = data.privateParams;
+    instance.outputCache = null;
+    return instance;
+  }
 
   /**
    * ID of the command execution.
@@ -72,12 +120,12 @@ export class Command {
     cmd,
     privateParams,
   }: {
-    client: APIClient;
+    client: APIClient | null;
     sandboxId: string;
     cmd: CommandData;
     privateParams?: Record<string, unknown>;
   }) {
-    this.client = client;
+    this._client = client;
     this.sandboxId = sandboxId;
     this.cmd = cmd;
     this.exitCode = cmd.exitCode ?? null;
@@ -105,7 +153,13 @@ export class Command {
    * to access output as a string.
    */
   logs(opts?: { signal?: AbortSignal }) {
-    return this.client.getLogs({
+    if (!this._client) {
+      throw new Error(
+        "Cannot call logs() on a deserialized Command without an API client. " +
+          "Use output(), stdout(), or stderr() instead, which are step-compatible.",
+      );
+    }
+    return this._client.getLogs({
       sandboxId: this.sandboxId,
       cmdId: this.cmd.id,
       signal: opts?.signal,
@@ -133,9 +187,11 @@ export class Command {
    * @returns A {@link CommandFinished} instance with populated exit code.
    */
   async wait(params?: { signal?: AbortSignal }) {
+    "use step";
+    const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
-    const command = await this.client.getCommand({
+    const command = await client.getCommand({
       sandboxId: this.sandboxId,
       cmdId: this.cmd.id,
       wait: true,
@@ -144,7 +200,7 @@ export class Command {
     });
 
     return new CommandFinished({
-      client: this.client,
+      client,
       sandboxId: this.sandboxId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
@@ -164,10 +220,16 @@ export class Command {
     if (!this.outputCache) {
       this.outputCache = (async () => {
         try {
+          const client = await this.ensureClient();
           let stdout = "";
           let stderr = "";
           let both = "";
-          for await (const log of this.logs({ signal: opts?.signal })) {
+          for await (const log of client.getLogs({
+            sandboxId: this.sandboxId,
+            cmdId: this.cmd.id,
+            signal: opts?.signal,
+            ...this.privateParams,
+          })) {
             both += log.data;
             if (log.stream === "stdout") {
               stdout += log.data;
@@ -202,6 +264,7 @@ export class Command {
     stream: "stdout" | "stderr" | "both" = "both",
     opts?: { signal?: AbortSignal },
   ) {
+    "use step";
     const cached = await this.getCachedOutput(opts);
     return cached[stream];
   }
@@ -217,7 +280,9 @@ export class Command {
    * @returns The standard output of the command.
    */
   async stdout(opts?: { signal?: AbortSignal }) {
-    return this.output("stdout", opts);
+    "use step";
+    const cached = await this.getCachedOutput(opts);
+    return cached.stdout;
   }
 
   /**
@@ -231,7 +296,9 @@ export class Command {
    * @returns The standard error output of the command.
    */
   async stderr(opts?: { signal?: AbortSignal }) {
-    return this.output("stderr", opts);
+    "use step";
+    const cached = await this.getCachedOutput(opts);
+    return cached.stderr;
   }
 
   /**
@@ -243,7 +310,9 @@ export class Command {
    * @returns Promise<void>.
    */
   async kill(signal?: Signal, opts?: { abortSignal?: AbortSignal }) {
-    await this.client.killCommand({
+    "use step";
+    const client = await this.ensureClient();
+    await client.killCommand({
       sandboxId: this.sandboxId,
       commandId: this.cmd.id,
       signal: resolveSignal(signal ?? "SIGTERM"),
@@ -270,6 +339,37 @@ export class CommandFinished extends Command {
   public exitCode: number;
 
   /**
+   * Serialize a CommandFinished instance for Workflow DevKit.
+   */
+  static [WORKFLOW_SERIALIZE](instance: CommandFinished) {
+    return {
+      sandboxId: (instance as any).sandboxId,
+      cmd: (instance as any).cmd,
+      exitCode: instance.exitCode,
+      privateParams: instance.privateParams,
+    };
+  }
+
+  /**
+   * Deserialize a CommandFinished instance for Workflow DevKit.
+   */
+  static [WORKFLOW_DESERIALIZE](data: {
+    sandboxId: string;
+    cmd: CommandData;
+    exitCode: number;
+    privateParams: Record<string, unknown>;
+  }): CommandFinished {
+    const instance = Object.create(CommandFinished.prototype);
+    instance._client = null;
+    instance.sandboxId = data.sandboxId;
+    instance.cmd = data.cmd;
+    instance.exitCode = data.exitCode;
+    instance.privateParams = data.privateParams;
+    instance.outputCache = null;
+    return instance;
+  }
+
+  /**
    * @param params - Object containing client, sandbox ID, command ID, and exit code.
    * @param params.client - API client used to interact with the backend.
    * @param params.sandboxId - The ID of the sandbox where the command ran.
@@ -278,7 +378,7 @@ export class CommandFinished extends Command {
    * @param params.privateParams - Private parameters to pass to API calls.
    */
   constructor(params: {
-    client: APIClient;
+    client: APIClient | null;
     sandboxId: string;
     cmd: CommandData;
     exitCode: number;

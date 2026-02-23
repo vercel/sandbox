@@ -2,6 +2,7 @@ import type { SnapshotMetadata } from "./api-client";
 import { APIClient } from "./api-client";
 import { WithFetchOptions } from "./api-client/api-client";
 import { Credentials, getCredentials } from "./utils/get-credentials";
+import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 /** @inline */
 interface GetSnapshotParams {
@@ -22,7 +23,22 @@ interface GetSnapshotParams {
  * @hideconstructor
  */
 export class Snapshot {
-  private readonly client: APIClient;
+  private _client: APIClient | null;
+
+  /**
+   * Lazily resolve credentials and construct an API client.
+   * @internal
+   */
+  private async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
 
   /**
    * Unique ID of this snapshot.
@@ -76,6 +92,27 @@ export class Snapshot {
   private snapshot: SnapshotMetadata;
 
   /**
+   * Serialize a Snapshot instance for Workflow DevKit.
+   */
+  static [WORKFLOW_SERIALIZE](instance: Snapshot) {
+    return {
+      snapshot: instance.snapshot,
+    };
+  }
+
+  /**
+   * Deserialize a Snapshot instance for Workflow DevKit.
+   */
+  static [WORKFLOW_DESERIALIZE](data: {
+    snapshot: SnapshotMetadata;
+  }): Snapshot {
+    const instance = Object.create(Snapshot.prototype);
+    instance._client = null;
+    instance.snapshot = data.snapshot;
+    return instance;
+  }
+
+  /**
    * Create a new Snapshot instance.
    *
    * @param client - API client used to communicate with the backend
@@ -85,10 +122,10 @@ export class Snapshot {
     client,
     snapshot,
   }: {
-    client: APIClient;
+    client: APIClient | null;
     snapshot: SnapshotMetadata;
   }) {
-    this.client = client;
+    this._client = client;
     this.snapshot = snapshot;
   }
 
@@ -102,6 +139,7 @@ export class Snapshot {
       Partial<Credentials> &
       WithFetchOptions,
   ) {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -123,6 +161,7 @@ export class Snapshot {
   static async get(
     params: GetSnapshotParams | (GetSnapshotParams & Credentials),
   ): Promise<Snapshot> {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -148,11 +187,15 @@ export class Snapshot {
    * @returns A promise that resolves once the snapshot has been deleted.
    */
   async delete(opts?: { signal?: AbortSignal }): Promise<void> {
-    const response = await this.client.deleteSnapshot({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.deleteSnapshot({
       snapshotId: this.snapshot.id,
       signal: opts?.signal,
     });
 
+    // Note: In workflow contexts, this mutation only affects the step copy
+    // due to pass-by-value semantics.
     this.snapshot = response.json.snapshot;
   }
 }
