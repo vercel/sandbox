@@ -204,6 +204,20 @@ export class Sandbox {
   }
 
   /**
+   * The amount of CPU used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get activeCpuUsageMs(): number | undefined {
+    return this.sandbox.activeCpuDurationMs;
+  }
+
+  /**
+   * The amount of network data used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+    return this.sandbox.networkTransfer;
+  }
+
+  /**
    * Internal metadata about this sandbox.
    */
   private sandbox: ConvertedSandbox;
