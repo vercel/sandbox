@@ -36,6 +36,7 @@ import { NetworkPolicy } from "../network-policy";
 import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
+import { setTimeout } from "node:timers/promises";
 
 interface Claims {
   owner_id: string;
@@ -609,11 +610,12 @@ export class APIClient extends BaseClient {
   async stopSandbox(params: WithPrivate<{
     sandboxId: string;
     signal?: AbortSignal;
+    blocking?: boolean;
   }>): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
     const privateParams = getPrivateParams(params);
     const hasPrivateParams = Object.keys(privateParams).length > 0;
     const url = `/v1/sandboxes/${params.sandboxId}/stop`;
-    return parseOrThrow(
+    const response = await parseOrThrow(
       SandboxResponse,
       await this.request(url, {
         method: "POST",
@@ -621,6 +623,22 @@ export class APIClient extends BaseClient {
         signal: params.signal,
       }),
     );
+
+    if (params.blocking) {
+      let sandbox = response.json.sandbox;
+      while (sandbox.status !== "stopped" && sandbox.status !== "failed" && sandbox.status !== "aborted") {
+        await setTimeout(500, undefined, { signal: params.signal });
+        const poll = await this.getSandbox({
+          sandboxId: params.sandboxId,
+          signal: params.signal,
+          ...privateParams,
+        });
+        sandbox = poll.json.sandbox;
+        response.json.sandbox = sandbox;
+      }
+    }
+
+    return response;
   }
 
   async updateNetworkPolicy(params: WithPrivate<{

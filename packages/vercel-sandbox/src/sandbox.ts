@@ -204,6 +204,20 @@ export class Sandbox {
   }
 
   /**
+   * The amount of CPU used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get activeCpuUsageMs(): number | undefined {
+    return this.sandbox.activeCpuDurationMs;
+  }
+
+  /**
+   * The amount of network data used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+    return this.sandbox.networkTransfer;
+  }
+
+  /**
    * Internal metadata about this sandbox.
    */
   private sandbox: ConvertedSandbox;
@@ -638,14 +652,18 @@ export class Sandbox {
    *
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the sandbox is stopped
+   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
+   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal }) {
-    await this.client.stopSandbox({
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+    const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
+      blocking: opts?.blocking,
       ...this.privateParams,
     });
+    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.sandbox;
   }
 
   /**

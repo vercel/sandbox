@@ -73,3 +73,10 @@ export function table<T extends object>(opts: {
     ...data.map((row) => row.map(padded).join(space)),
   ].join("\n");
 }
+
+export function formatRunDuration(d: number): string {
+  if (d < 1000) {
+    return `${d}ms`;
+  }
+  return `${d/1000}s`
+}
