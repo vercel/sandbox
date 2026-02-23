@@ -1,0 +1,17 @@
+{
+    "name": "onepassword-secrets-example",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Example: inject 1Password secrets into a sandbox via secret references",
+    "main": "onepassword-secrets.ts",
+    "scripts": {
+      "start": "node --env-file .env.local --experimental-strip-types onepassword-secrets.ts"
+    },
+    "dependencies": {
+      "@vercel/sandbox": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "^5.0.0"
+    }
+}

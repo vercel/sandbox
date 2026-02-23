@@ -18,6 +18,7 @@ import {
   type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { resolveOpSecretsInEnv } from "./utils/resolve-op-secrets";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -76,6 +77,15 @@ export interface BaseCreateSandboxParams {
    * Defaults to full internet access if not specified.
    */
   networkPolicy?: NetworkPolicy;
+
+  /**
+   * Environment configuration. Use `secretsFrom1Password` to provide
+   * 1Password secret references (op://vault/item/field); they are resolved
+   * at creation time and merged into the environment for every command.
+   */
+  env?: {
+    secretsFrom1Password?: Record<string, string>;
+  };
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -150,6 +160,7 @@ interface RunCommandParams {
 export class Sandbox {
   private readonly client: APIClient;
   private readonly privateParams: Record<string, unknown>;
+  private readonly defaultEnv: Record<string, string>;
 
   /**
    * Routes from ports to subdomains.
@@ -256,6 +267,12 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
+
+    let defaultEnv: Record<string, string> = {};
+    if (params?.env?.secretsFrom1Password) {
+      defaultEnv = await resolveOpSecretsInEnv(params.env.secretsFrom1Password);
+    }
+
     const sandbox = await client.createSandbox({
       source: params?.source,
       projectId: credentials.projectId,
@@ -273,6 +290,7 @@ export class Sandbox {
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
       privateParams,
+      defaultEnv,
     });
   }
 
@@ -305,6 +323,7 @@ export class Sandbox {
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
       privateParams,
+      defaultEnv: {},
     });
   }
 
@@ -313,16 +332,19 @@ export class Sandbox {
     routes,
     sandbox,
     privateParams,
+    defaultEnv,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
     sandbox: SandboxMetaData;
     privateParams?: Record<string, unknown>;
+    defaultEnv?: Record<string, string>;
   }) {
     this.client = client;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
     this.privateParams = privateParams ?? {};
+    this.defaultEnv = defaultEnv ?? {};
   }
 
   /**
@@ -431,7 +453,7 @@ export class Sandbox {
         command: params.cmd,
         args: params.args ?? [],
         cwd: params.cwd,
-        env: params.env ?? {},
+        env: { ...this.defaultEnv, ...(params.env ?? {}) },
         sudo: params.sudo ?? false,
         wait: true,
         signal: params.signal,
@@ -462,7 +484,7 @@ export class Sandbox {
       command: params.cmd,
       args: params.args ?? [],
       cwd: params.cwd,
-      env: params.env ?? {},
+      env: { ...this.defaultEnv, ...(params.env ?? {}) },
       sudo: params.sudo ?? false,
       signal: params.signal,
       ...this.privateParams,

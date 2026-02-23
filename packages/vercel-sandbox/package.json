@@ -51,5 +51,8 @@
     "typedoc": "0.28.5",
     "typescript": "5.8.3",
     "vitest": "catalog:"
+  },
+  "optionalDependencies": {
+    "@1password/sdk": "^0.4.0"
   }
 }
