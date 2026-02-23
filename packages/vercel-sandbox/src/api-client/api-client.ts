@@ -36,6 +36,7 @@ import { NetworkPolicy } from "../network-policy";
 import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
+import { setTimeout } from "node:timers/promises";
 
 interface Claims {
   owner_id: string;
@@ -624,8 +625,6 @@ export class APIClient extends BaseClient {
     );
 
     if (params.blocking) {
-      const { setTimeout } = await import("node:timers/promises");
-
       let sandbox = response.json.sandbox;
       while (sandbox.status !== "stopped" && sandbox.status !== "failed" && sandbox.status !== "aborted") {
         await setTimeout(500, undefined, { signal: params.signal });
