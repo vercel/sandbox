@@ -94,7 +94,6 @@ export const exec = cmd.command({
             projectId: project,
             teamId: team,
             token,
-            __includeSystemRoutes: true,
           });
 
     if (!["pending", "running"].includes(sandbox.status)) {
