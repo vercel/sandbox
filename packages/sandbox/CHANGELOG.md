@@ -1,5 +1,14 @@
 # sandbox
 
+## 2.5.2
+
+### Patch Changes
+
+- Fix 400 errors on interactions (connect, run-command, etc) ([#62](https://github.com/vercel/sandbox/pull/62))
+
+- Updated dependencies [[`b35a70030c0c58da49410aa599e1b2eecaad0438`](https://github.com/vercel/sandbox/commit/b35a70030c0c58da49410aa599e1b2eecaad0438)]:
+  - @vercel/sandbox@1.7.1
+
 ## 2.5.1
 
 ### Patch Changes

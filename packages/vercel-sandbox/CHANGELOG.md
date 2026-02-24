@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.7.1
+
+### Patch Changes
+
+- Fix 400 errors on interactions (connect, run-command, etc) ([#62](https://github.com/vercel/sandbox/pull/62))
+
 ## 1.7.0
 
 ### Minor Changes
