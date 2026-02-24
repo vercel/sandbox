@@ -149,7 +149,6 @@ interface RunCommandParams {
  */
 export class Sandbox {
   private readonly client: APIClient;
-  private readonly privateParams: Record<string, unknown>;
 
   /**
    * Routes from ports to subdomains.
@@ -286,7 +285,6 @@ export class Sandbox {
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
-      privateParams,
     });
   }
 
@@ -318,7 +316,6 @@ export class Sandbox {
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
-      privateParams,
     });
   }
 
@@ -326,17 +323,14 @@ export class Sandbox {
     client,
     routes,
     sandbox,
-    privateParams,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
     sandbox: SandboxMetaData;
-    privateParams?: Record<string, unknown>;
   }) {
     this.client = client;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
-    this.privateParams = privateParams ?? {};
   }
 
   /**
@@ -355,14 +349,12 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       cmdId,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     return new Command({
       client: this.client,
       sandboxId: this.sandbox.id,
       cmd: command.json.command,
-      privateParams: this.privateParams,
     });
   }
 
@@ -449,17 +441,15 @@ export class Sandbox {
         sudo: params.sudo ?? false,
         wait: true,
         signal: params.signal,
-        ...this.privateParams,
       });
 
       const command = new Command({
         client: this.client,
         sandboxId: this.sandbox.id,
         cmd: commandStream.command,
-        privateParams: this.privateParams,
       });
 
-      getLogs(command);
+      getLogs(command); 
 
       const finished = await commandStream.finished;
       return new CommandFinished({
@@ -467,7 +457,6 @@ export class Sandbox {
         sandboxId: this.sandbox.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
-        privateParams: this.privateParams,
       });
     }
 
@@ -479,14 +468,12 @@ export class Sandbox {
       env: params.env ?? {},
       sudo: params.sudo ?? false,
       signal: params.signal,
-      ...this.privateParams,
     });
 
     const command = new Command({
       client: this.client,
       sandboxId: this.sandbox.id,
       cmd: commandResponse.json.command,
-      privateParams: this.privateParams,
     });
 
     getLogs(command);
@@ -506,7 +493,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       path: path,
       signal: opts?.signal,
-      ...this.privateParams,
     });
   }
 
@@ -527,7 +513,6 @@ export class Sandbox {
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
-      ...this.privateParams,
     });
   }
 
@@ -548,7 +533,6 @@ export class Sandbox {
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     if (stream === null) {
@@ -586,7 +570,6 @@ export class Sandbox {
       path: src.path,
       cwd: src.cwd,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     if (stream === null) {
@@ -627,7 +610,6 @@ export class Sandbox {
       extractDir: "/",
       files: files,
       signal: opts?.signal,
-      ...this.privateParams,
     });
   }
 
@@ -660,7 +642,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
-      ...this.privateParams,
     });
     this.sandbox = convertSandbox(response.json.sandbox);
     return this.sandbox;
@@ -705,7 +686,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       networkPolicy: networkPolicy,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     // Update the internal sandbox metadata with the new timeout value
@@ -737,7 +717,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       duration,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     // Update the internal sandbox metadata with the new timeout value
@@ -763,7 +742,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       expiration: opts?.expiration,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     this.sandbox = convertSandbox(response.json.sandbox);
