@@ -2,6 +2,7 @@ import * as cmd from "cmd-ts";
 import { runtime } from "../args/runtime";
 import ms from "ms";
 import { timeout } from "../args/timeout";
+import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
@@ -14,6 +15,7 @@ import { buildNetworkPolicy } from "../util/network-policy";
 export const args = {
   runtime,
   timeout,
+  vcpus,
   ports: cmd.multioption({
     long: "publish-port",
     short: "p",
@@ -70,6 +72,7 @@ export const create = cmd.command({
     scope,
     runtime,
     timeout,
+    vcpus,
     silent,
     snapshot,
     connect,
@@ -85,6 +88,7 @@ export const create = cmd.command({
       deniedCIDRs,
     });
 
+    const resources = vcpus ? { vcpus } : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -94,6 +98,7 @@ export const create = cmd.command({
           token: scope.token,
           ports,
           timeout: ms(timeout),
+          resources,
           networkPolicy,
           __interactive: true,
         })
@@ -104,6 +109,7 @@ export const create = cmd.command({
           ports,
           runtime,
           timeout: ms(timeout),
+          resources,
           networkPolicy,
           __interactive: true,
         });
