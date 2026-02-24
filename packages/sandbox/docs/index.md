@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 2.5.2
+sandbox 2.5.3
 
 ▲ sandbox [options] <command>
 
@@ -71,6 +71,7 @@ Options:
 
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
     --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
@@ -119,6 +120,7 @@ Options:
 
     --runtime <runtime>               One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>              The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --vcpus <COUNT>                   Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>  Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>      Start the sandbox from a snapshot ID [optional]
     --network-policy <MODE>           Network policy mode: "allow-all" or "deny-all"
