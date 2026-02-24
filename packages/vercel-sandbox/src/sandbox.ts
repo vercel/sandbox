@@ -13,9 +13,9 @@ import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import {
-  type NetworkPolicy,
-  type NetworkPolicyRule,
-  type NetworkTransformer,
+    type NetworkPolicy,
+    type NetworkPolicyRule,
+    type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
 
@@ -23,6 +23,10 @@ export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
 /** @inline */
 export interface BaseCreateSandboxParams {
+  /**
+   * The name of the sandbox. If omitted, a random name will be generated.
+   */
+  name?: string;
   /**
    * The source of the sandbox.
    *
@@ -81,6 +85,11 @@ export interface BaseCreateSandboxParams {
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
+
+  /**
+   * Whether to enable snapshots on shutdown. Defaults to true.
+   */
+  snapshotOnShutdown?: boolean;
 }
 
 export type CreateSandboxParams =
@@ -265,6 +274,8 @@ export class Sandbox {
       runtime: params && "runtime" in params ? params?.runtime : undefined,
       networkPolicy: params?.networkPolicy,
       signal: params?.signal,
+      name: params?.name,
+      snapshotOnShutdown: params?.snapshotOnShutdown,
       ...privateParams,
     });
 
@@ -423,7 +434,7 @@ export class Sandbox {
           }
         })();
       }
-    }
+    };
 
     if (wait) {
       const commandStream = await this.client.runCommand({
@@ -589,7 +600,7 @@ export class Sandbox {
       });
       return dstPath;
     } finally {
-      stream.destroy()
+      stream.destroy();
     }
   }
 
