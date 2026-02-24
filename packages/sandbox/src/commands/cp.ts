@@ -23,7 +23,7 @@ export const parseLocalOrRemotePath = async (input: string) => {
         ].join("\n"),
       );
     }
-    return { type: "remote", id: await sandboxId.from(id), path } as const;
+    return { type: "remote", sandboxId: await sandboxId.from(id), path } as const;
   }
 
   return { type: "local", path: input } as const;
@@ -63,7 +63,7 @@ export const cp = cmd.command({
       })
     } else {
       const sandbox = await sandboxClient.get({
-        sandboxId: source.id,
+        sandboxId: source.sandboxId,
         teamId: scope.team,
         token: scope.token,
         projectId: scope.project,
@@ -79,8 +79,8 @@ export const cp = cmd.command({
         const dir = path.dirname(source.path);
         spinner.fail(
           [
-            `File not found: ${source.path} in sandbox ${source.id}.`,
-            `${chalk.bold("hint:")} Verify the file path exists using \`sandbox exec ${source.id} ls ${dir}\`.`,
+            `File not found: ${source.path} in sandbox ${source.sandboxId}.`,
+            `${chalk.bold("hint:")} Verify the file path exists using \`sandbox exec ${source.sandboxId} ls ${dir}\`.`,
           ].join("\n"),
         );
       } else {
@@ -95,7 +95,7 @@ export const cp = cmd.command({
       await fs.writeFile(dest.path, sourceFile);
     } else {
       const sandbox = await sandboxClient.get({
-        sandboxId: dest.id,
+        sandboxId: dest.sandboxId,
         teamId: scope.team,
         projectId: scope.project,
         token: scope.token,
