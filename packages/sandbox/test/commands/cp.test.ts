@@ -16,7 +16,7 @@ describe("copy path parsing", () => {
       parseLocalOrRemotePath("sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik:/etc/os-release"),
     ).resolves.toEqual({
       type: "remote",
-      id: "sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik",
+      sandboxId: "sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik",
       path: "/etc/os-release",
     });
   });
