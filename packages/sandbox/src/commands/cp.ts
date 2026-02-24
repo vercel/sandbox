@@ -51,7 +51,7 @@ export const cp = cmd.command({
     scope,
   },
   async handler({ scope, source, dest }) {
-    const spinner = ora({ text: "Reading source file..." }).start();
+    const spinner = ora({ text: `Reading source file (${source.path})...` }).start();
     let sourceFile: Buffer<ArrayBufferLike> | null = null;
 
     if (source.type === "local") {
@@ -89,7 +89,7 @@ export const cp = cmd.command({
       return;
     }
 
-    spinner.text = "Writing to destination file...";
+    spinner.text = `Writing to destination file (${dest.path})...`;
 
     if (dest.type === "local") {
       await fs.writeFile(dest.path, sourceFile);
@@ -103,6 +103,6 @@ export const cp = cmd.command({
       await sandbox.writeFiles([{ path: dest.path, content: sourceFile }]);
     }
 
-    spinner.succeed("Copied successfully!");
+    spinner.succeed(`Copied ${source.path} to ${dest.path} successfully!`);
   },
 });
