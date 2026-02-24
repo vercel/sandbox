@@ -1,7 +1,6 @@
 import { sandboxClient } from "../client";
 import * as cmd from "cmd-ts";
 import { sandboxId } from "../args/sandbox-id";
-import * as Fs from "cmd-ts/batteries/fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { scope } from "../args/scope";
@@ -11,26 +10,27 @@ import chalk from "chalk";
 
 export const args = {} as const;
 
-const localOrRemote = cmd.extendType(cmd.string, {
-  async from(input) {
-    const parts = input.split(":");
-    if (parts.length === 2) {
-      const [id, path] = parts;
-      if (!id || !path) {
-        throw new Error(
-          [
-            `Invalid copy path format: "${input}".`,
-            `${chalk.bold("hint:")} Expected format: SANDBOX_ID:PATH (e.g., sbx_abc123:/home/user/file.txt).`,
-            "╰▶ Local paths should not contain colons.",
-          ].join("\n"),
-        );
-      }
-      return { type: "remote", id: await sandboxId.from(id), path } as const;
+export const parseLocalOrRemotePath = async (input: string) => {
+  const parts = input.split(":");
+  if (parts.length === 2) {
+    const [id, path] = parts;
+    if (!id || !path) {
+      throw new Error(
+        [
+          `Invalid copy path format: "${input}".`,
+          `${chalk.bold("hint:")} Expected format: SANDBOX_ID:PATH (e.g., sbx_abc123:/home/user/file.txt).`,
+          "╰▶ Local paths should not contain colons.",
+        ].join("\n"),
+      );
     }
+    return { type: "remote", id: await sandboxId.from(id), path } as const;
+  }
 
-    const file = await Fs.File.from(input);
-    return { type: "local", file } as const;
-  },
+  return { type: "local", path: input } as const;
+};
+
+const localOrRemote = cmd.extendType(cmd.string, {
+  from: parseLocalOrRemotePath,
 });
 
 export const cp = cmd.command({
@@ -51,23 +51,28 @@ export const cp = cmd.command({
     scope,
   },
   async handler({ scope, source, dest }) {
-    const spinner = ora({ text: "reading file..." }).start();
-    const sourceFile =
-      source.type === "local"
-        ? await fs.readFile(source.file)
-        : await (async (src) => {
-            const sandbox = await sandboxClient.get({
-              sandboxId: src.id,
-              teamId: scope.team,
-              token: scope.token,
-              projectId: scope.project,
-            });
-            const file = await sandbox.readFile({ path: src.path });
-            if (!file) {
-              return null;
-            }
-            return consume.buffer(file);
-          })(source);
+    const spinner = ora({ text: "Reading source file..." }).start();
+    let sourceFile: Buffer<ArrayBufferLike> | null = null;
+
+    if (source.type === "local") {
+      sourceFile = await fs.readFile(source.path).catch((err) => {
+        if (err.code === "ENOENT") {
+          return null;
+        }
+        throw err;
+      })
+    } else {
+      const sandbox = await sandboxClient.get({
+        sandboxId: source.id,
+        teamId: scope.team,
+        token: scope.token,
+        projectId: scope.project,
+      });
+      const file = await sandbox.readFile({ path: source.path });
+      if (file) {
+        sourceFile = await consume.buffer(file);
+      }
+    }
 
     if (!sourceFile) {
       if (source.type === "remote") {
@@ -79,15 +84,15 @@ export const cp = cmd.command({
           ].join("\n"),
         );
       } else {
-        spinner.fail("file not found");
+        spinner.fail(`Source file (${source.path}) not found.`);
       }
       return;
     }
 
-    spinner.text = "writing file...";
+    spinner.text = "Writing to destination file...";
 
     if (dest.type === "local") {
-      await fs.writeFile(dest.file, sourceFile);
+      await fs.writeFile(dest.path, sourceFile);
     } else {
       const sandbox = await sandboxClient.get({
         sandboxId: dest.id,
@@ -98,6 +103,6 @@ export const cp = cmd.command({
       await sandbox.writeFiles([{ path: dest.path, content: sourceFile }]);
     }
 
-    spinner.succeed("copied successfully!");
+    spinner.succeed("Copied successfully!");
   },
 });
