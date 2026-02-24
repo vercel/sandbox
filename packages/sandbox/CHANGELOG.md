@@ -1,5 +1,13 @@
 # sandbox
 
+## 2.5.3
+
+### Patch Changes
+
+- Add `--vcpus` flag to `create` and `run` commands for configuring sandbox resources. ([#65](https://github.com/vercel/sandbox/pull/65))
+
+- Fix copying files to local path when not already present ([#64](https://github.com/vercel/sandbox/pull/64))
+
 ## 2.5.2
 
 ### Patch Changes
