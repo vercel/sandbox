@@ -36,6 +36,7 @@ import { NetworkPolicy } from "../network-policy";
 import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
+import { setTimeout } from "node:timers/promises";
 
 interface Claims {
   owner_id: string;
@@ -137,11 +138,12 @@ export class APIClient extends BaseClient {
     params: WithPrivate<{ sandboxId: string; signal?: AbortSignal }>,
   ) {
     const privateParams = getPrivateParams(params);
+    let querystring = new URLSearchParams(privateParams).toString();
+    querystring = querystring ? `?${querystring}` : "";
     return parseOrThrow(
       SandboxAndRoutesResponse,
-      await this.request(`/v1/sandboxes/${params.sandboxId}`, {
+      await this.request(`/v1/sandboxes/${params.sandboxId}${querystring}`, {
         signal: params.signal,
-        query: { ...privateParams },
       }),
     );
   }
@@ -190,7 +192,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async runCommand(params: WithPrivate<{
+  async runCommand(params: {
     sandboxId: string;
     cwd?: string;
     command: string;
@@ -199,8 +201,8 @@ export class APIClient extends BaseClient {
     sudo: boolean;
     wait: true;
     signal?: AbortSignal;
-  }>): Promise<{ command: CommandData; finished: Promise<CommandFinishedData> }>;
-  async runCommand(params: WithPrivate<{
+  }): Promise<{ command: CommandData; finished: Promise<CommandFinishedData> }>;
+  async runCommand(params: {
     sandboxId: string;
     cwd?: string;
     command: string;
@@ -209,8 +211,8 @@ export class APIClient extends BaseClient {
     sudo: boolean;
     wait?: false;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof CommandResponse>>>;
-  async runCommand(params: WithPrivate<{
+  }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
+  async runCommand(params: {
     sandboxId: string;
     cwd?: string;
     command: string;
@@ -219,8 +221,7 @@ export class APIClient extends BaseClient {
     sudo: boolean;
     wait?: boolean;
     signal?: AbortSignal;
-  }>) {
-    const privateParams = getPrivateParams(params);
+  }) {
     if (params.wait) {
       const response = await this.request(
         `/v1/sandboxes/${params.sandboxId}/cmd`,
@@ -233,7 +234,6 @@ export class APIClient extends BaseClient {
             env: params.env,
             sudo: params.sudo,
             wait: true,
-            ...privateParams,
           }),
           signal: params.signal,
         },
@@ -285,80 +285,72 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
           env: params.env,
           sudo: params.sudo,
-          ...privateParams,
         }),
         signal: params.signal,
       }),
     );
   }
 
-  async getCommand(params: WithPrivate<{
+  async getCommand(params: {
     sandboxId: string;
     cmdId: string;
     wait: true;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof CommandFinishedResponse>>>;
-  async getCommand(params: WithPrivate<{
+  }): Promise<Parsed<z.infer<typeof CommandFinishedResponse>>>;
+  async getCommand(params: {
     sandboxId: string;
     cmdId: string;
     wait?: boolean;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof CommandResponse>>>;
-  async getCommand(params: WithPrivate<{
+  }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
+  async getCommand(params: {
     sandboxId: string;
     cmdId: string;
     wait?: boolean;
     signal?: AbortSignal;
-  }>) {
-    const privateParams = getPrivateParams(params);
-    const query = params.wait
-      ? { wait: "true", ...privateParams }
-      : { ...privateParams };
+  }) {
     return params.wait
       ? parseOrThrow(
           CommandFinishedResponse,
           await this.request(
             `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}`,
-            { signal: params.signal, query },
+            { signal: params.signal, query: { wait: "true" } },
           ),
         )
       : parseOrThrow(
           CommandResponse,
           await this.request(
             `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}`,
-            { signal: params.signal, query },
+            { signal: params.signal },
           ),
         );
   }
 
-  async mkDir(params: WithPrivate<{
+  async mkDir(params: {
     sandboxId: string;
     path: string;
     cwd?: string;
     signal?: AbortSignal;
-  }>) {
-    const privateParams = getPrivateParams(params);
+  }) {
     return parseOrThrow(
       EmptyResponse,
       await this.request(`/v1/sandboxes/${params.sandboxId}/fs/mkdir`, {
         method: "POST",
-        body: JSON.stringify({ path: params.path, cwd: params.cwd, ...privateParams }),
+        body: JSON.stringify({ path: params.path, cwd: params.cwd }),
         signal: params.signal,
       }),
     );
   }
 
-  getFileWriter(params: WithPrivate<{
+  getFileWriter(params: {
     sandboxId: string;
     extractDir: string;
     signal?: AbortSignal;
-  }>) {
-    const privateParams = getPrivateParams(params);
+  }) {
     const writer = new FileWriter();
     return {
       response: (async () => {
         return this.request(`/v1/sandboxes/${params.sandboxId}/fs/write`, {
-          query: { ...privateParams },
           method: "POST",
           headers: {
             "content-type": "application/gzip",
@@ -460,19 +452,17 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async writeFiles(params: WithPrivate<{
+  async writeFiles(params: {
     sandboxId: string;
     cwd: string;
     files: { path: string; content: Buffer }[];
     extractDir: string;
     signal?: AbortSignal;
-  }>) {
-    const privateParams = getPrivateParams(params);
+  }) {
     const { writer, response } = this.getFileWriter({
       sandboxId: params.sandboxId,
       extractDir: params.extractDir,
       signal: params.signal,
-      ...privateParams,
     });
 
     for (const file of params.files) {
@@ -490,18 +480,17 @@ export class APIClient extends BaseClient {
     await parseOrThrow(EmptyResponse, await response);
   }
 
-  async readFile(params: WithPrivate<{
+  async readFile(params: {
     sandboxId: string;
     path: string;
     cwd?: string;
     signal?: AbortSignal;
-  }>): Promise<Readable | null> {
-    const privateParams = getPrivateParams(params);
+  }): Promise<Readable | null> {
     const response = await this.request(
       `/v1/sandboxes/${params.sandboxId}/fs/read`,
       {
         method: "POST",
-        body: JSON.stringify({ path: params.path, cwd: params.cwd, ...privateParams }),
+        body: JSON.stringify({ path: params.path, cwd: params.cwd }),
         signal: params.signal,
       },
     );
@@ -517,31 +506,30 @@ export class APIClient extends BaseClient {
     return Readable.fromWeb(response.body);
   }
 
-  async killCommand(params: WithPrivate<{
+  async killCommand(params: {
     sandboxId: string;
     commandId: string;
     signal: number;
     abortSignal?: AbortSignal;
-  }>) {
-    const privateParams = getPrivateParams(params);
+  }) {
     return parseOrThrow(
       CommandResponse,
       await this.request(
         `/v1/sandboxes/${params.sandboxId}/${params.commandId}/kill`,
         {
           method: "POST",
-          body: JSON.stringify({ signal: params.signal, ...privateParams }),
+          body: JSON.stringify({ signal: params.signal }),
           signal: params.abortSignal,
         },
       ),
     );
   }
 
-  getLogs(params: WithPrivate<{
+  getLogs(params: {
     sandboxId: string;
     cmdId: string;
     signal?: AbortSignal;
-  }>): AsyncGenerator<
+  }): AsyncGenerator<
     z.infer<typeof LogLineStdout> | z.infer<typeof LogLineStderr>,
     void,
     void
@@ -552,14 +540,12 @@ export class APIClient extends BaseClient {
     const signal = !params.signal
       ? disposer.signal
       : mergeSignals(params.signal, disposer.signal);
-    const privateParams = getPrivateParams(params);
 
     const generator = (async function* () {
       const url = `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}/logs`;
       const response = await self.request(url, {
         method: "GET",
         signal,
-        query: { ...privateParams },
       });
 
       if (!response.ok) {
@@ -606,75 +592,75 @@ export class APIClient extends BaseClient {
     });
   }
 
-  async stopSandbox(params: WithPrivate<{
+  async stopSandbox(params: {
     sandboxId: string;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
-    const privateParams = getPrivateParams(params);
-    const hasPrivateParams = Object.keys(privateParams).length > 0;
+    blocking?: boolean;
+  }): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/stop`;
-    return parseOrThrow(
+    const response = await parseOrThrow(
       SandboxResponse,
-      await this.request(url, {
-        method: "POST",
-        ...(hasPrivateParams && { body: JSON.stringify(privateParams) }),
-        signal: params.signal,
-      }),
+      await this.request(url, { method: "POST", signal: params.signal }),
     );
+
+    if (params.blocking) {
+      let sandbox = response.json.sandbox;
+      while (sandbox.status !== "stopped" && sandbox.status !== "failed" && sandbox.status !== "aborted") {
+        await setTimeout(500, undefined, { signal: params.signal });
+        const poll = await this.getSandbox({
+          sandboxId: params.sandboxId,
+          signal: params.signal,
+        });
+        sandbox = poll.json.sandbox;
+        response.json.sandbox = sandbox;
+      }
+    }
+
+    return response;
   }
 
-  async updateNetworkPolicy(params: WithPrivate<{
+  async updateNetworkPolicy(params: {
     sandboxId: string;
     networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
-    const privateParams = getPrivateParams(params);
+  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
     return parseOrThrow(
       UpdateNetworkPolicyResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify({ ...toAPINetworkPolicy(params.networkPolicy), ...privateParams }),
+        body: JSON.stringify(toAPINetworkPolicy(params.networkPolicy)),
         signal: params.signal,
       }),
     );
   }
 
-  async extendTimeout(params: WithPrivate<{
+  async extendTimeout(params: {
     sandboxId: string;
     duration: number;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof ExtendTimeoutResponse>>> {
-    const privateParams = getPrivateParams(params);
+  }): Promise<Parsed<z.infer<typeof ExtendTimeoutResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/extend-timeout`;
     return parseOrThrow(
       ExtendTimeoutResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify({ duration: params.duration, ...privateParams }),
+        body: JSON.stringify({ duration: params.duration }),
         signal: params.signal,
       }),
     );
   }
 
-  async createSnapshot(params: WithPrivate<{
+  async createSnapshot(params: {
     sandboxId: string;
     expiration?: number;
     signal?: AbortSignal;
-  }>): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
-    const privateParams = getPrivateParams(params);
-    const bodyObj: Record<string, unknown> = {
-      ...privateParams,
-    };
-
-    if (params.expiration !== undefined) {
-      bodyObj.expiration = params.expiration;
-    }
-
+  }): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/snapshot`;
     const body =
-      Object.keys(bodyObj).length > 0 ? JSON.stringify(bodyObj) : undefined;
-
+      params.expiration === undefined
+        ? undefined
+        : JSON.stringify({ expiration: params.expiration });
     return parseOrThrow(
       CreateSnapshotResponse,
       await this.request(url, {

@@ -1,5 +1,19 @@
 # sandbox-filesystem-snapshots
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [[`b35a70030c0c58da49410aa599e1b2eecaad0438`](https://github.com/vercel/sandbox/commit/b35a70030c0c58da49410aa599e1b2eecaad0438)]:
+  - @vercel/sandbox@1.7.1
+
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [[`376a098243dddcee56c657b97856a0cd199113e0`](https://github.com/vercel/sandbox/commit/376a098243dddcee56c657b97856a0cd199113e0), [`46f0ed22f7128355942037321df70dc93481a50d`](https://github.com/vercel/sandbox/commit/46f0ed22f7128355942037321df70dc93481a50d), [`659c40e719b21740024ede84c176257714f0086b`](https://github.com/vercel/sandbox/commit/659c40e719b21740024ede84c176257714f0086b), [`35195578e5b5f68e7f9574b728ca7ff350bbad64`](https://github.com/vercel/sandbox/commit/35195578e5b5f68e7f9574b728ca7ff350bbad64)]:
+  - @vercel/sandbox@1.7.0
+
 ## 0.0.6
 
 ### Patch Changes

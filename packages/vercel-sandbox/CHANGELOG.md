@@ -1,5 +1,26 @@
 # @vercel/sandbox
 
+## 1.7.1
+
+### Patch Changes
+
+- Fix 400 errors on interactions (connect, run-command, etc) ([#62](https://github.com/vercel/sandbox/pull/62))
+
+## 1.7.0
+
+### Minor Changes
+
+- Support passing private params in all API calls ([#52](https://github.com/vercel/sandbox/pull/52))
+
+- Add resource usage for stopped sandboxes. ([#54](https://github.com/vercel/sandbox/pull/54))
+  Add blocking mode for `stop` function.
+
+- Adds transformers to network policy and support for header injections. ([#53](https://github.com/vercel/sandbox/pull/53))
+
+### Patch Changes
+
+- Update to use `@vercel/oidc@3.2.0` utilities, removing duplicate auth logic and the local `JwtExpiry` class ([#34](https://github.com/vercel/sandbox/pull/34))
+
 ## 1.6.0
 
 ### Minor Changes

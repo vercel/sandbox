@@ -174,7 +174,6 @@ interface RunCommandParams {
  */
 export class Sandbox {
   private readonly client: APIClient;
-  private readonly privateParams: Record<string, unknown>;
   private readonly defaultEnv: Record<string, string>;
 
   /**
@@ -227,6 +226,20 @@ export class Sandbox {
    */
   public get sourceSnapshotId(): string | undefined {
     return this.sandbox.sourceSnapshotId;
+  }
+
+  /**
+   * The amount of CPU used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get activeCpuUsageMs(): number | undefined {
+    return this.sandbox.activeCpuDurationMs;
+  }
+
+  /**
+   * The amount of network data used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+    return this.sandbox.networkTransfer;
   }
 
   /**
@@ -306,7 +319,6 @@ export class Sandbox {
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
-      privateParams,
       defaultEnv,
     });
   }
@@ -346,7 +358,6 @@ export class Sandbox {
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
-      privateParams,
       defaultEnv,
     });
   }
@@ -355,19 +366,16 @@ export class Sandbox {
     client,
     routes,
     sandbox,
-    privateParams,
     defaultEnv,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
     sandbox: SandboxMetaData;
-    privateParams?: Record<string, unknown>;
     defaultEnv?: Record<string, string>;
   }) {
     this.client = client;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
-    this.privateParams = privateParams ?? {};
     this.defaultEnv = defaultEnv ?? {};
   }
 
@@ -387,14 +395,12 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       cmdId,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     return new Command({
       client: this.client,
       sandboxId: this.sandbox.id,
       cmd: command.json.command,
-      privateParams: this.privateParams,
     });
   }
 
@@ -481,14 +487,12 @@ export class Sandbox {
         sudo: params.sudo ?? false,
         wait: true,
         signal: params.signal,
-        ...this.privateParams,
       });
 
       const command = new Command({
         client: this.client,
         sandboxId: this.sandbox.id,
         cmd: commandStream.command,
-        privateParams: this.privateParams,
       });
 
       getLogs(command);
@@ -499,7 +503,6 @@ export class Sandbox {
         sandboxId: this.sandbox.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
-        privateParams: this.privateParams,
       });
     }
 
@@ -511,14 +514,12 @@ export class Sandbox {
       env: { ...this.defaultEnv, ...(params.env ?? {}) },
       sudo: params.sudo ?? false,
       signal: params.signal,
-      ...this.privateParams,
     });
 
     const command = new Command({
       client: this.client,
       sandboxId: this.sandbox.id,
       cmd: commandResponse.json.command,
-      privateParams: this.privateParams,
     });
 
     getLogs(command);
@@ -538,7 +539,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       path: path,
       signal: opts?.signal,
-      ...this.privateParams,
     });
   }
 
@@ -559,7 +559,6 @@ export class Sandbox {
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
-      ...this.privateParams,
     });
   }
 
@@ -580,7 +579,6 @@ export class Sandbox {
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     if (stream === null) {
@@ -618,7 +616,6 @@ export class Sandbox {
       path: src.path,
       cwd: src.cwd,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     if (stream === null) {
@@ -659,7 +656,6 @@ export class Sandbox {
       extractDir: "/",
       files: files,
       signal: opts?.signal,
-      ...this.privateParams,
     });
   }
 
@@ -684,14 +680,17 @@ export class Sandbox {
    *
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the sandbox is stopped
+   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
+   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal }) {
-    await this.client.stopSandbox({
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+    const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
-      ...this.privateParams,
+      blocking: opts?.blocking,
     });
+    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.sandbox;
   }
 
   /**
@@ -733,7 +732,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       networkPolicy: networkPolicy,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     // Update the internal sandbox metadata with the new timeout value
@@ -765,7 +763,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       duration,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     // Update the internal sandbox metadata with the new timeout value
@@ -791,7 +788,6 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       expiration: opts?.expiration,
       signal: opts?.signal,
-      ...this.privateParams,
     });
 
     this.sandbox = convertSandbox(response.json.sandbox);
