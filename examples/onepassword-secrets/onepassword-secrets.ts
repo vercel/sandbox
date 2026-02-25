@@ -5,11 +5,13 @@ async function main() {
 
   const sandbox = await Sandbox.create({
     timeout: 30000,
-    env: {
-        secretsFrom1Password: {
+    integrations: {
+      onePassword: {
+        secrets: {
           MY_SECRET: process.env.OP_REF,
         },
       },
+    },
   });
 
   console.log("Sandbox created. Running command that uses the secret...\n");

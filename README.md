@@ -144,14 +144,16 @@ const sandbox = await Sandbox.create({
 
 ## 1Password secrets
 
-Inject 1Password secrets into the sandbox using [secret references][op-secret-refs] (`op://vault/item/field`). Pass them in `env.secretsFrom1Password` when creating a sandbox. They are resolved at creation and available to every command.
+Inject 1Password secrets into the sandbox using [secret references][op-secret-refs] (`op://vault/item/field`). Pass them in `integrations.onePassword.secrets` when creating a sandbox. They are resolved at creation and available to every command.
 
 ```ts
 const sandbox = await Sandbox.create({
   source: { url: "https://github.com/you/your-repo.git", type: "git" },
-  env: {
-    secretsFrom1Password: {
-      SOME_PRIVATE_KEY: "op://My Vault/My Item/private key",
+  integrations: {
+    onePassword: {
+      secrets: {
+        SOME_PRIVATE_KEY: "op://My Vault/My Item/private key",
+      },
     },
   },
 });

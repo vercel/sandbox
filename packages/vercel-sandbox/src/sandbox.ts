@@ -79,12 +79,15 @@ export interface BaseCreateSandboxParams {
   networkPolicy?: NetworkPolicy;
 
   /**
-   * Environment configuration. Use `secretsFrom1Password` to provide
-   * 1Password secret references (op://vault/item/field); they are resolved
-   * at creation time and merged into the environment for every command.
+   * Integrations for injecting secrets into the sandbox. Use
+   * `integrations.onePassword.secrets` to provide 1Password secret references
+   * (op://vault/item/field); they are resolved at creation time and merged
+   * into the environment for every command.
    */
-  env?: {
-    secretsFrom1Password?: Record<string, string>;
+  integrations?: {
+    onePassword?: {
+      secrets: Record<string, string>;
+    };
   };
 
   /**
@@ -111,12 +114,15 @@ interface GetSandboxParams {
   signal?: AbortSignal;
 
   /**
- * Environment configuration. Use `secretsFrom1Password` to provide
- * 1Password secret references; they are resolved when getting the sandbox
- * and merged into the environment for every command run with this instance.
- */
-  env?: {
-    secretsFrom1Password?: Record<string, string>;
+   * Integrations for injecting secrets. Use `integrations.onePassword.secrets`
+   * to provide 1Password secret references; they are resolved when getting the
+   * sandbox and merged into the environment for every command run with this
+   * instance.
+   */
+  integrations?: {
+    onePassword?: {
+      secrets: Record<string, string>;
+    };
   };
 }
 
@@ -278,8 +284,10 @@ export class Sandbox {
     const privateParams = getPrivateParams(params);
 
     let defaultEnv: Record<string, string> = {};
-    if (params?.env?.secretsFrom1Password) {
-      defaultEnv = await resolveOpSecretsInEnv(params.env.secretsFrom1Password);
+    if (params?.integrations?.onePassword?.secrets) {
+      defaultEnv = await resolveOpSecretsInEnv(
+        params.integrations.onePassword.secrets,
+      );
     }
 
     const sandbox = await client.createSandbox({
@@ -328,8 +336,10 @@ export class Sandbox {
     });
 
     let defaultEnv: Record<string, string> = {};
-    if (params?.env?.secretsFrom1Password) {
-      defaultEnv = await resolveOpSecretsInEnv(params.env.secretsFrom1Password);
+    if (params?.integrations?.onePassword?.secrets) {
+      defaultEnv = await resolveOpSecretsInEnv(
+        params.integrations.onePassword.secrets,
+      );
     }
 
     return new Sandbox({

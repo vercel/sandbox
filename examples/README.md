@@ -35,7 +35,7 @@ Demonstrates how to install system packages using the `dnf` package manager with
 
 Shows how to inject 1Password secrets into a sandbox using secret references. Features include:
 
-- 1Password secret references (`op://vault/item/field`) in `env.secretsFrom1Password`
+- 1Password secret references (`op://vault/item/field`) in `integrations.onePassword.secrets`
 - Service account or desktop app authentication
 - Resolved secrets available to every command in the sandbox
 

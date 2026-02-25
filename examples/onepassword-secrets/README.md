@@ -4,7 +4,7 @@ This example demonstrates how to inject 1Password secrets into a sandbox using s
 
 ## Features
 
-- **Secret References**: Pass 1Password secret references (`op://vault/item/field`) in `env.secretsFrom1Password` when creating a sandbox
+- **Secret References**: Pass 1Password secret references (`op://vault/item/field`) in `integrations.onePassword.secrets` when creating a sandbox
 - **Environment Injection**: Resolved secrets are merged into the environment for every command run in the sandbox
 - **Optional Env Var**: Read the reference from `OP_REF` in `.env.local` so you don't hardcode it in code
 - **Authentication**: Uses `OP_SERVICE_ACCOUNT_TOKEN` for 1Password
