@@ -1,4 +1,4 @@
-import { Sandbox } from "@vercel/sandbox";
+import { Sandbox, resolveOpSecretsInEnv } from "@vercel/sandbox";
 import * as cmd from "cmd-ts";
 import { sandboxId } from "../args/sandbox-id";
 import { isatty } from "node:tty";
@@ -7,6 +7,7 @@ import { printCommand } from "../util/print-command";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
+import { version } from "../pkg";
 import chalk from "chalk";
 
 export const args = {
@@ -110,6 +111,11 @@ export const exec = cmd.command({
       return;
     }
 
+    const resolvedEnv = await resolveOpSecretsInEnv(
+      envVars,
+      `v${version}`,
+    );
+
     if (!interactive) {
       console.error(printCommand(command, args));
       const result = await sandbox.runCommand({
@@ -119,7 +125,7 @@ export const exec = cmd.command({
         stdout: process.stdout,
         sudo: asSudo,
         cwd,
-        env: envVars,
+        env: resolvedEnv,
       });
 
       process.exitCode = result.exitCode;
@@ -128,7 +134,7 @@ export const exec = cmd.command({
         sandbox,
         cwd,
         execution: [command, ...args],
-        envVars,
+        envVars: resolvedEnv,
         sudo: asSudo,
         skipExtendingTimeout,
       });

@@ -176,7 +176,7 @@ Flags:
 Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
-    --env <key=value>, -e=<key=value>  Environment variables to set for the command
+    --env <key=value>, -e=<key=value>  Environment variables for the command. 1Password refs (op://...) supported.
 
 Auth & Scope:
 

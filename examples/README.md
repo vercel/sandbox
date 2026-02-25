@@ -31,6 +31,14 @@ Demonstrates how to install system packages using the `dnf` package manager with
 - Amazon Linux package management
 - Development environment setup
 
+### 🔑 [1Password Secrets Example](./onepassword-secrets)
+
+Shows how to inject 1Password secrets into a sandbox using secret references. Features include:
+
+- 1Password secret references (`op://vault/item/field`) in `integrations.onePassword.secrets`
+- Service account or desktop app authentication
+- Resolved secrets available to every command in the sandbox
+
 ### 📊 [Python Charts Example](./charts-python)
 
 Shows how to use Vercel's AI Gateway with OpenAI GPT-4 to generate and execute Python chart code in a secure sandbox. Features include:

@@ -142,6 +142,35 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+## 1Password secrets
+
+Inject 1Password secrets into the sandbox using [secret references][op-secret-refs] (`op://vault/item/field`). Pass them in `integrations.onePassword.secrets` when creating a sandbox. They are resolved at creation and available to every command.
+
+```ts
+const sandbox = await Sandbox.create({
+  source: { url: "https://github.com/you/your-repo.git", type: "git" },
+  integrations: {
+    onePassword: {
+      secrets: {
+        SOME_PRIVATE_KEY: "op://My Vault/My Item/private key",
+      },
+    },
+  },
+});
+```
+### Service account token
+
+The integration needs a [1Password service account][op-service-account]. The SDK reads `OP_SERVICE_ACCOUNT_TOKEN` from the process environment when resolving `op://` references. You can set it in any of these ways:
+
+For local development you can use the 1Password desktop app instead of a token: set `OP_ACCOUNT` to your 1Password account name and leave `OP_SERVICE_ACCOUNT_TOKEN` unset. The 1Password app must be running and unlocked, with the Developer setting enabled. See [1Password SDK authentication][op-sdk-auth].
+
+**Vercel**
+Add `OP_SERVICE_ACCOUNT_TOKEN` in your Vercel project or team under **Settings → Environment Variables**.
+
+**Local development**
+  1. Add `OP_SERVICE_ACCOUNT_TOKEN` to your `.env` or `.env.local` (or run `vercel env pull` to pull Vercel env vars into `.env.local`).
+  2. Run your script so it loads that file (e.g. `node --env-file=.env.local your-script.mjs` or use a loader like `dotenv`).
+
 ## Limitations
 
 - Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.
@@ -209,6 +238,9 @@ available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-pack
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
 [al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
+[op-secret-refs]: https://developer.1password.com/docs/cli/secret-references/
+[op-service-account]: https://developer.1password.com/docs/service-accounts/
+[op-sdk-auth]: https://developer.1password.com/docs/sdks/concepts/#authentication
 
 ## Authors
 

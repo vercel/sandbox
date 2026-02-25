@@ -18,6 +18,7 @@ import {
   type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { resolveOpSecretsInEnv } from "./utils/resolve-op-secrets";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -78,6 +79,18 @@ export interface BaseCreateSandboxParams {
   networkPolicy?: NetworkPolicy;
 
   /**
+   * Integrations for injecting secrets into the sandbox. Use
+   * `integrations.onePassword.secrets` to provide 1Password secret references
+   * (op://vault/item/field); they are resolved at creation time and merged
+   * into the environment for every command.
+   */
+  integrations?: {
+    onePassword?: {
+      secrets: Record<string, string>;
+    };
+  };
+
+  /**
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
@@ -99,6 +112,18 @@ interface GetSandboxParams {
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
+
+  /**
+   * Integrations for injecting secrets. Use `integrations.onePassword.secrets`
+   * to provide 1Password secret references; they are resolved when getting the
+   * sandbox and merged into the environment for every command run with this
+   * instance.
+   */
+  integrations?: {
+    onePassword?: {
+      secrets: Record<string, string>;
+    };
+  };
 }
 
 /** @inline */
@@ -149,6 +174,7 @@ interface RunCommandParams {
  */
 export class Sandbox {
   private readonly client: APIClient;
+  private readonly defaultEnv: Record<string, string>;
 
   /**
    * Routes from ports to subdomains.
@@ -269,6 +295,14 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
+
+    let defaultEnv: Record<string, string> = {};
+    if (params?.integrations?.onePassword?.secrets) {
+      defaultEnv = await resolveOpSecretsInEnv(
+        params.integrations.onePassword.secrets,
+      );
+    }
+
     const sandbox = await client.createSandbox({
       source: params?.source,
       projectId: credentials.projectId,
@@ -285,6 +319,7 @@ export class Sandbox {
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
+      defaultEnv,
     });
   }
 
@@ -312,10 +347,18 @@ export class Sandbox {
       ...privateParams,
     });
 
+    let defaultEnv: Record<string, string> = {};
+    if (params?.integrations?.onePassword?.secrets) {
+      defaultEnv = await resolveOpSecretsInEnv(
+        params.integrations.onePassword.secrets,
+      );
+    }
+
     return new Sandbox({
       client,
       sandbox: sandbox.json.sandbox,
       routes: sandbox.json.routes,
+      defaultEnv,
     });
   }
 
@@ -323,14 +366,17 @@ export class Sandbox {
     client,
     routes,
     sandbox,
+    defaultEnv,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
     sandbox: SandboxMetaData;
+    defaultEnv?: Record<string, string>;
   }) {
     this.client = client;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
+    this.defaultEnv = defaultEnv ?? {};
   }
 
   /**
@@ -437,7 +483,7 @@ export class Sandbox {
         command: params.cmd,
         args: params.args ?? [],
         cwd: params.cwd,
-        env: params.env ?? {},
+        env: { ...this.defaultEnv, ...(params.env ?? {}) },
         sudo: params.sudo ?? false,
         wait: true,
         signal: params.signal,
@@ -449,7 +495,7 @@ export class Sandbox {
         cmd: commandStream.command,
       });
 
-      getLogs(command); 
+      getLogs(command);
 
       const finished = await commandStream.finished;
       return new CommandFinished({
@@ -465,7 +511,7 @@ export class Sandbox {
       command: params.cmd,
       args: params.args ?? [],
       cwd: params.cwd,
-      env: params.env ?? {},
+      env: { ...this.defaultEnv, ...(params.env ?? {}) },
       sudo: params.sudo ?? false,
       signal: params.signal,
     });
