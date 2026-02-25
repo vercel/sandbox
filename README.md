@@ -162,10 +162,10 @@ const sandbox = await Sandbox.create({
 
 The integration needs a [1Password service account][op-service-account]. The SDK reads `OP_SERVICE_ACCOUNT_TOKEN` from the process environment when resolving `op://` references. You can set it in any of these ways:
 
-For local development you can use the 1Password desktop app instead of a token: set `OP_ACCOUNT` to your 1Password account name and leave `OP_SERVICE_ACCOUNT_TOKEN` unset. The 1Password app must be running and unlocked. See [1Password SDK authentication][op-sdk-auth].
+For local development you can use the 1Password desktop app instead of a token: set `OP_ACCOUNT` to your 1Password account name and leave `OP_SERVICE_ACCOUNT_TOKEN` unset. The 1Password app must be running and unlocked, with the Developer setting enabled. See [1Password SDK authentication][op-sdk-auth].
 
 **Vercel**
-Add `OP_SERVICE_ACCOUNT_TOKEN` in your Vercel project or team under **Settings → Environment Variables**.
+Add `OP_SERVICE_ACCOUNT_TOKEN` in your Vercel project or team under **Settings → Environment Variables**. Make sure to link the variable to your project so it syncs when you run `vercel env pull`.
 
 **Local development**
   1. Add `OP_SERVICE_ACCOUNT_TOKEN` to your `.env` or `.env.local` (or run `vercel env pull` to pull Vercel env vars into `.env.local`).
