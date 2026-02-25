@@ -153,6 +153,7 @@ export class APIClient extends BaseClient {
 
   async createSandbox(
     params: WithPrivate<{
+      name?: string;
       ports?: number[];
       projectId: string;
       source?:
@@ -168,6 +169,7 @@ export class APIClient extends BaseClient {
         | { type: "snapshot"; snapshotId: string };
       timeout?: number;
       resources?: { vcpus: number };
+      snapshotOnShutdown?: boolean;
       runtime?: RUNTIMES | (string & {});
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
@@ -177,7 +179,7 @@ export class APIClient extends BaseClient {
     const privateParams = getPrivateParams(params);
     return parseOrThrow(
       SandboxAndRoutesResponse,
-      await this.request("/v1/sandboxes", {
+      await this.request("/v1/sandboxes/named", {
         method: "POST",
         body: JSON.stringify({
           projectId: params.projectId,
@@ -186,6 +188,8 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
+          name: params.name,
+          snapshotOnShutdown: params.snapshotOnShutdown,
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
