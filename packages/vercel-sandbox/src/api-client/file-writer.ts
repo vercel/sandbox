@@ -37,11 +37,21 @@ interface FileStream {
 export class FileWriter {
   public readable: Readable;
   private pack: Pack;
+  private gzip: zlib.Gzip;
 
   constructor() {
-    const gzip = zlib.createGzip();
+    this.gzip = zlib.createGzip();
     this.pack = tar.pack();
-    this.readable = this.pack.pipe(gzip);
+    this.readable = this.pack.pipe(this.gzip);
+
+    // Forward errors from internal streams to the public readable stream
+    this.pack.on("error", (err) => {
+      this.readable.emit("error", err);
+    });
+
+    this.gzip.on("error", (err) => {
+      this.readable.emit("error", err);
+    });
   }
 
   /**
