@@ -11,6 +11,7 @@ import ora from "ora";
 import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
+import { ObjectFromKeyValue } from "../args/key-value-pair";
 
 export const args = {
   runtime,
@@ -53,6 +54,12 @@ export const args = {
     description:
       "Start an interactive shell session after creating the sandbox",
   }),
+  envVars: cmd.multioption({
+    long: "env",
+    short: "e",
+    type: ObjectFromKeyValue,
+    description: "Default environment variables for sandbox commands",
+  }),
   ...networkPolicyArgs,
   scope,
 } as const;
@@ -76,6 +83,7 @@ export const create = cmd.command({
     silent,
     snapshot,
     connect,
+    envVars,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -100,6 +108,7 @@ export const create = cmd.command({
           timeout: ms(timeout),
           resources,
           networkPolicy,
+          env: envVars,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -111,6 +120,7 @@ export const create = cmd.command({
           timeout: ms(timeout),
           resources,
           networkPolicy,
+          env: envVars,
           __interactive: true,
         });
     spinner?.stop();
