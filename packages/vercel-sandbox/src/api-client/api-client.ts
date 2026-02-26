@@ -167,6 +167,7 @@ export class APIClient extends BaseClient {
       resources?: { vcpus: number };
       runtime?: RUNTIMES | (string & {});
       networkPolicy?: NetworkPolicy;
+      env?: Record<string, string>;
       signal?: AbortSignal;
     }>,
   ) {
@@ -185,6 +186,7 @@ export class APIClient extends BaseClient {
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
+          env: params.env,
           ...privateParams,
         }),
         signal: params.signal,
