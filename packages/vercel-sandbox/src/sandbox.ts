@@ -1,25 +1,20 @@
-import type { SandboxMetaData, SandboxRouteData } from "./api-client";
-import { type Writable } from "stream";
-import { pipeline } from "stream/promises";
-import { createWriteStream } from "fs";
-import { mkdir } from "fs/promises";
-import { dirname, resolve } from "path";
+import type { SandboxMetaData, SandboxRouteData, NamedSandboxMetaData } from "./api-client";
 import { APIClient } from "./api-client";
-import { Command, CommandFinished } from "./command";
+import { APIError } from "./api-client/api-error";
 import { type Credentials, getCredentials } from "./utils/get-credentials";
-import { getPrivateParams, WithPrivate } from "./utils/types";
-import { WithFetchOptions } from "./api-client/api-client";
-import { RUNTIMES } from "./constants";
-import { Snapshot } from "./snapshot";
-import { consumeReadable } from "./utils/consume-readable";
-import {
-    type NetworkPolicy,
-    type NetworkPolicyRule,
-    type NetworkTransformer,
+import { getPrivateParams, type WithPrivate } from "./utils/types";
+import type { WithFetchOptions } from "./api-client/api-client";
+import type { RUNTIMES } from "./constants";
+import { Session, type RunCommandParams } from "./session";
+import type { Command, CommandFinished } from "./command";
+import type { Snapshot } from "./snapshot";
+import type { ConvertedSandbox } from "./utils/convert-sandbox";
+import type {
+    NetworkPolicy,
 } from "./network-policy";
-import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { setTimeout } from "node:timers/promises";
 
-export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
+export type { NetworkPolicy };
 
 /** @inline */
 export interface BaseCreateSandboxParams {
@@ -101,142 +96,75 @@ export type CreateSandboxParams =
 /** @inline */
 interface GetSandboxParams {
   /**
-   * Unique identifier of the sandbox.
+   * The name of the sandbox.
    */
-  sandboxId: string;
+  name: string;
+  /**
+   * Whether to resume an existing session. Defaults to true.
+   */
+  resume?: boolean;
   /**
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
 }
 
-/** @inline */
-interface RunCommandParams {
-  /**
-   * The command to execute
-   */
-  cmd: string;
-  /**
-   * Arguments to pass to the command
-   */
-  args?: string[];
-  /**
-   * Working directory to execute the command in
-   */
-  cwd?: string;
-  /**
-   * Environment variables to set for this command
-   */
-  env?: Record<string, string>;
-  /**
-   * If true, execute this command with root privileges. Defaults to false.
-   */
-  sudo?: boolean;
-  /**
-   * If true, the command will return without waiting for `exitCode`
-   */
-  detached?: boolean;
-  /**
-   * A `Writable` stream where `stdout` from the command will be piped
-   */
-  stdout?: Writable;
-  /**
-   * A `Writable` stream where `stderr` from the command will be piped
-   */
-  stderr?: Writable;
-  /**
-   * An AbortSignal to cancel the command execution
-   */
-  signal?: AbortSignal;
+function isSandboxStoppedError(err: unknown): boolean {
+  return err instanceof APIError && err.response.status === 410;
+}
+
+function isSandboxStoppingError(err: unknown): boolean {
+  return (
+    err instanceof APIError &&
+    err.response.status === 422 &&
+    (err.json as any)?.error?.code === "sandbox_stopping"
+  );
 }
 
 /**
- * A Sandbox is an isolated Linux MicroVM to run commands in.
+ * A Sandbox is a persistent named entity backed by isolated Linux MicroVMs.
+ * Each time it runs, it creates a "session" (the actual VM). Use
+ * {@link Sandbox.currentSession} to obtain the {@link Session} instance and
+ * interact with the VM.
  *
  * Use {@link Sandbox.create} or {@link Sandbox.get} to construct.
  * @hideconstructor
  */
 export class Sandbox {
   private readonly client: APIClient;
+  private readonly projectId: string;
 
   /**
-   * Routes from ports to subdomains.
-  /* @hidden
+   * Internal Session instance for the current VM.
    */
-  public readonly routes: SandboxRouteData[];
+  private _session: Session;
 
   /**
-   * Unique ID of this sandbox.
+   * Internal metadata about the named sandbox.
    */
-  public get sandboxId(): string {
-    return this.sandbox.id;
-  }
-
-  public get interactivePort(): number | undefined {
-    return this.sandbox.interactivePort ?? undefined;
-  }
+  private namedSandbox: NamedSandboxMetaData;
 
   /**
-   * The status of the sandbox.
+   * The name of this sandbox.
    */
-  public get status(): SandboxMetaData["status"] {
-    return this.sandbox.status;
+  public get name(): string {
+    return this.namedSandbox.name;
   }
 
   /**
-   * The creation date of the sandbox.
+   * Whether this sandbox snapshots on shutdown.
    */
-  public get createdAt(): Date {
-    return new Date(this.sandbox.createdAt);
+  public get snapshotOnShutdown(): boolean {
+    return this.namedSandbox.snapshotOnShutdown;
   }
 
   /**
-   * The timeout of the sandbox in milliseconds.
-   */
-  public get timeout(): number {
-    return this.sandbox.timeout;
-  }
-
-  /**
-   * The network policy of the sandbox.
-   */
-  public get networkPolicy(): NetworkPolicy | undefined {
-    return this.sandbox.networkPolicy;
-  }
-
-  /**
-   * If the sandbox was created from a snapshot, the ID of that snapshot.
-   */
-  public get sourceSnapshotId(): string | undefined {
-    return this.sandbox.sourceSnapshotId;
-  }
-
-  /**
-   * The amount of CPU used by the sandbox. Only reported once the VM is stopped.
-   */
-  public get activeCpuUsageMs(): number | undefined {
-    return this.sandbox.activeCpuDurationMs;
-  }
-
-  /**
-   * The amount of network data used by the sandbox. Only reported once the VM is stopped.
-   */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
-    return this.sandbox.networkTransfer;
-  }
-
-  /**
-   * Internal metadata about this sandbox.
-   */
-  private sandbox: ConvertedSandbox;
-
-  /**
-   * Allow to get a list of sandboxes for a team narrowed to the given params.
+   * Allow to get a list of named sandboxes for a team narrowed to the given params.
    * It returns both the sandboxes and the pagination metadata to allow getting
    * the next page of results.
    */
   static async list(
-    params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
+    params?: Partial<Parameters<APIClient["listNamedSandboxes"]>[0]> &
       Partial<Credentials> &
       WithFetchOptions,
   ) {
@@ -246,7 +174,7 @@ export class Sandbox {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    return client.listSandboxes({
+    return client.listNamedSandboxes({
       ...credentials,
       ...params,
     });
@@ -278,7 +206,7 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
-    const sandbox = await client.createSandbox({
+    const response = await client.createSandbox({
       source: params?.source,
       projectId: credentials.projectId,
       ports: params?.ports ?? [],
@@ -294,13 +222,15 @@ export class Sandbox {
 
     return new DisposableSandbox({
       client,
-      sandbox: sandbox.json.sandbox,
-      routes: sandbox.json.routes,
+      session: response.json.sandbox,
+      namedSandbox: response.json.namedSandbox,
+      routes: response.json.routes,
+      projectId: credentials.projectId,
     });
   }
 
   /**
-   * Retrieve an existing sandbox.
+   * Retrieve an existing named sandbox and resume its session.
    *
    * @param params - Get parameters and optional credentials.
    * @returns A promise resolving to the {@link Sandbox}.
@@ -316,450 +246,333 @@ export class Sandbox {
       fetch: params.fetch,
     });
 
-    const privateParams = getPrivateParams(params);
-    const sandbox = await client.getSandbox({
-      sandboxId: params.sandboxId,
+    const response = await client.getNamedSandbox({
+      name: params.name,
+      projectId: credentials.projectId,
+      resume: params.resume,
       signal: params.signal,
-      ...privateParams,
     });
 
     return new Sandbox({
       client,
-      sandbox: sandbox.json.sandbox,
-      routes: sandbox.json.routes,
+      session: response.json.sandbox,
+      namedSandbox: response.json.namedSandbox,
+      routes: response.json.routes,
+      projectId: credentials.projectId,
     });
   }
 
   constructor({
     client,
     routes,
-    sandbox,
+    session,
+    namedSandbox,
+    projectId,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
-    sandbox: SandboxMetaData;
+    session: SandboxMetaData;
+    namedSandbox: NamedSandboxMetaData;
+    projectId: string;
   }) {
     this.client = client;
-    this.routes = routes;
-    this.sandbox = convertSandbox(sandbox);
+    this._session = new Session({ client, routes, session });
+    this.namedSandbox = namedSandbox;
+    this.projectId = projectId;
   }
 
   /**
-   * Get a previously run command by its ID.
+   * Get the current session (the running VM) for this sandbox.
    *
-   * @param cmdId - ID of the command to retrieve
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A {@link Command} instance representing the command
+   * @returns The {@link Session} instance.
    */
-  async getCommand(
-    cmdId: string,
-    opts?: { signal?: AbortSignal },
-  ): Promise<Command> {
-    const command = await this.client.getCommand({
-      sandboxId: this.sandbox.id,
-      cmdId,
-      signal: opts?.signal,
-    });
+  currentSession(): Session {
+    return this._session;
+  }
 
-    return new Command({
+  /**
+   * Resume this sandbox by creating a new session via `getNamedSandbox`.
+   */
+  private async resume(signal?: AbortSignal): Promise<void> {
+    const response = await this.client.getNamedSandbox({
+      name: this.namedSandbox.name,
+      projectId: this.projectId,
+      resume: true,
+      signal,
+    });
+    this._session = new Session({
       client: this.client,
-      sandboxId: this.sandbox.id,
-      cmd: command.json.command,
+      routes: response.json.routes,
+      session: response.json.sandbox,
     });
   }
 
   /**
-   * Start executing a command in this sandbox.
-   *
-   * @param command - The command to execute.
-   * @param args - Arguments to pass to the command.
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the command execution.
-   * @returns A {@link CommandFinished} result once execution is done.
+   * Poll until the current session reaches a terminal state, then resume.
    */
+  private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
+    let status = this._session.status;
+    while (status === "stopping" || status === "snapshotting") {
+      await setTimeout(500, undefined, { signal });
+      const poll = await this.client.getSandbox({
+        sandboxId: this._session.sandboxId,
+        signal,
+      });
+      status = poll.json.sandbox.status;
+    }
+    await this.resume(signal);
+  }
+
+  /**
+   * Execute `fn`, and if the session is stopped/stopping, resume and retry.
+   */
+  private async withResume<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (isSandboxStoppedError(err)) {
+        await this.resume(signal);
+        return fn();
+      }
+      if (isSandboxStoppingError(err)) {
+        await this.waitForStopAndResume(signal);
+        return fn();
+      }
+      throw err;
+    }
+  }
+
+  // -- Session delegate getters --------------------------------------------------
+
+  /**
+   * Routes from ports to subdomains.
+   * @hidden
+   */
+  public get routes(): SandboxRouteData[] {
+    return this._session.routes;
+  }
+
+  /** Unique ID of this sandbox's current session. */
+  public get sandboxId(): string {
+    return this._session.sandboxId;
+  }
+
+  public get interactivePort(): number | undefined {
+    return this._session.interactivePort;
+  }
+
+  /** The status of the current session. */
+  public get status(): SandboxMetaData["status"] {
+    return this._session.status;
+  }
+
+  /** The creation date of the current session. */
+  public get createdAt(): Date {
+    return this._session.createdAt;
+  }
+
+  /** The timeout of the current session in milliseconds. */
+  public get timeout(): number {
+    return this._session.timeout;
+  }
+
+  /** The network policy of the current session. */
+  public get networkPolicy(): NetworkPolicy | undefined {
+    return this._session.networkPolicy;
+  }
+
+  /** If the session was created from a snapshot, the ID of that snapshot. */
+  public get sourceSnapshotId(): string | undefined {
+    return this._session.sourceSnapshotId;
+  }
+
+  /** The amount of CPU used by the session. Only reported once the VM is stopped. */
+  public get activeCpuUsageMs(): number | undefined {
+    return this._session.activeCpuUsageMs;
+  }
+
+  /** The amount of network data used by the session. Only reported once the VM is stopped. */
+  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+    return this._session.networkTransfer;
+  }
+
+  // -- Session delegate methods --------------------------------------------------
+
+  /** Shortcut for `currentSession().runCommand(...)`. */
   async runCommand(
     command: string,
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<CommandFinished>;
-
-  /**
-   * Start executing a command in detached mode.
-   *
-   * @param params - The command parameters.
-   * @returns A {@link Command} instance for the running command.
-   */
   async runCommand(
     params: RunCommandParams & { detached: true },
   ): Promise<Command>;
-
-  /**
-   * Start executing a command in this sandbox.
-   *
-   * @param params - The command parameters.
-   * @returns A {@link CommandFinished} result once execution is done.
-   */
   async runCommand(params: RunCommandParams): Promise<CommandFinished>;
-
   async runCommand(
     commandOrParams: string | RunCommandParams,
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    return typeof commandOrParams === "string"
-      ? this._runCommand({ cmd: commandOrParams, args, signal: opts?.signal })
-      : this._runCommand(commandOrParams);
+    const signal = typeof commandOrParams === "string" ? opts?.signal : commandOrParams.signal;
+    return this.withResume(
+      () => this._session.runCommand(commandOrParams as any, args, opts),
+      signal,
+    );
   }
 
-  /**
-   * Internal helper to start a command in the sandbox.
-   *
-   * @param params - Command execution parameters.
-   * @returns A {@link Command} or {@link CommandFinished}, depending on `detached`.
-   * @internal
-   */
-  async _runCommand(params: RunCommandParams) {
-    const wait = params.detached ? false : true;
-    const getLogs = (command: Command) => {
-      if (params.stdout || params.stderr) {
-        (async () => {
-          try {
-            for await (const log of command.logs({ signal: params.signal })) {
-              if (log.stream === "stdout") {
-                params.stdout?.write(log.data);
-              } else if (log.stream === "stderr") {
-                params.stderr?.write(log.data);
-              }
-            }
-          } catch (err) {
-            if (params.signal?.aborted) {
-              return;
-            }
-            throw err;
-          }
-        })();
-      }
-    };
-
-    if (wait) {
-      const commandStream = await this.client.runCommand({
-        sandboxId: this.sandbox.id,
-        command: params.cmd,
-        args: params.args ?? [],
-        cwd: params.cwd,
-        env: params.env ?? {},
-        sudo: params.sudo ?? false,
-        wait: true,
-        signal: params.signal,
-      });
-
-      const command = new Command({
-        client: this.client,
-        sandboxId: this.sandbox.id,
-        cmd: commandStream.command,
-      });
-
-      getLogs(command); 
-
-      const finished = await commandStream.finished;
-      return new CommandFinished({
-        client: this.client,
-        sandboxId: this.sandbox.id,
-        cmd: finished,
-        exitCode: finished.exitCode ?? 0,
-      });
-    }
-
-    const commandResponse = await this.client.runCommand({
-      sandboxId: this.sandbox.id,
-      command: params.cmd,
-      args: params.args ?? [],
-      cwd: params.cwd,
-      env: params.env ?? {},
-      sudo: params.sudo ?? false,
-      signal: params.signal,
-    });
-
-    const command = new Command({
-      client: this.client,
-      sandboxId: this.sandbox.id,
-      cmd: commandResponse.json.command,
-    });
-
-    getLogs(command);
-
-    return command;
+  /** Shortcut for `currentSession().getCommand(...)`. */
+  async getCommand(
+    cmdId: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<Command> {
+    return this.withResume(
+      () => this._session.getCommand(cmdId, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Create a directory in the filesystem of this sandbox.
-   *
-   * @param path - Path of the directory to create
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   */
+  /** Shortcut for `currentSession().mkDir(...)`. */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-    await this.client.mkDir({
-      sandboxId: this.sandbox.id,
-      path: path,
-      signal: opts?.signal,
-    });
+    return this.withResume(
+      () => this._session.mkDir(path, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Read a file from the filesystem of this sandbox as a stream.
-   *
-   * @param file - File to read, with path and optional cwd
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves to a ReadableStream containing the file contents, or null if file not found
-   */
+  /** Shortcut for `currentSession().readFile(...)`. */
   async readFile(
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-    return this.client.readFile({
-      sandboxId: this.sandbox.id,
-      path: file.path,
-      cwd: file.cwd,
-      signal: opts?.signal,
-    });
+    return this.withResume(
+      () => this._session.readFile(file, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Read a file from the filesystem of this sandbox as a Buffer.
-   *
-   * @param file - File to read, with path and optional cwd
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves to the file contents as a Buffer, or null if file not found
-   */
+  /** Shortcut for `currentSession().readFileToBuffer(...)`. */
   async readFileToBuffer(
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-    const stream = await this.client.readFile({
-      sandboxId: this.sandbox.id,
-      path: file.path,
-      cwd: file.cwd,
-      signal: opts?.signal,
-    });
-
-    if (stream === null) {
-      return null;
-    }
-
-    return consumeReadable(stream);
+    return this.withResume(
+      () => this._session.readFileToBuffer(file, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Download a file from the sandbox to the local filesystem.
-   *
-   * @param src - Source file on the sandbox, with path and optional cwd
-   * @param dst - Destination file on the local machine, with path and optional cwd
-   * @param opts - Optional parameters.
-   * @param opts.mkdirRecursive - If true, create parent directories for the destination if they don't exist.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns The absolute path to the written file, or null if the source file was not found
-   */
+  /** Shortcut for `currentSession().downloadFile(...)`. */
   async downloadFile(
     src: { path: string; cwd?: string },
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
-    if (!src?.path) {
-      throw new Error("downloadFile: source path is required");
-    }
-
-    if (!dst?.path) {
-      throw new Error("downloadFile: destination path is required");
-    }
-
-    const stream = await this.client.readFile({
-      sandboxId: this.sandbox.id,
-      path: src.path,
-      cwd: src.cwd,
-      signal: opts?.signal,
-    });
-
-    if (stream === null) {
-      return null;
-    }
-
-    try {
-      const dstPath = resolve(dst.cwd ?? "", dst.path);
-      if (opts?.mkdirRecursive) {
-        await mkdir(dirname(dstPath), { recursive: true });
-      }
-      await pipeline(stream, createWriteStream(dstPath), {
-        signal: opts?.signal,
-      });
-      return dstPath;
-    } finally {
-      stream.destroy();
-    }
+    return this.withResume(
+      () => this._session.downloadFile(src, dst, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Write files to the filesystem of this sandbox.
-   * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
-   * Writes files using the `vercel-sandbox` user.
-   *
-   * @param files - Array of files with path and stream/buffer contents
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the files are written
-   */
+  /** Shortcut for `currentSession().writeFiles(...)`. */
   async writeFiles(
     files: { path: string; content: Buffer }[],
     opts?: { signal?: AbortSignal },
   ) {
-    return this.client.writeFiles({
-      sandboxId: this.sandbox.id,
-      cwd: this.sandbox.cwd,
-      extractDir: "/",
-      files: files,
-      signal: opts?.signal,
-    });
+    return this.withResume(
+      () => this._session.writeFiles(files, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Get the public domain of a port of this sandbox.
-   *
-   * @param p - Port number to resolve
-   * @returns A full domain (e.g. `https://subdomain.vercel.run`)
-   * @throws If the port has no associated route
-   */
+  /** Shortcut for `currentSession().domain(...)`. */
   domain(p: number): string {
-    const route = this.routes.find(({ port }) => port == p);
-    if (route) {
-      return `https://${route.subdomain}.vercel.run`;
-    } else {
-      throw new Error(`No route for port ${p}`);
+    return this._session.domain(p);
+  }
+
+  /** Shortcut for `currentSession().stop(...)`. */
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox | void> {
+    try {
+      return await this._session.stop(opts);
+    } catch (err) {
+      if (isSandboxStoppedError(err)) return;
+      throw err;
     }
   }
 
-  /**
-   * Stop the sandbox.
-   *
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
-   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
-   */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
-    const response = await this.client.stopSandbox({
-      sandboxId: this.sandbox.id,
-      signal: opts?.signal,
-      blocking: opts?.blocking,
-    });
-    this.sandbox = convertSandbox(response.json.sandbox);
-    return this.sandbox;
-  }
-
-  /**
-   * Update the network policy for this sandbox.
-   *
-   * @param networkPolicy - The new network policy to apply.
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the network policy is updated.
-   *
-   * @example
-   * // Restrict to specific domains
-   * await sandbox.updateNetworkPolicy({
-   *   allow: ["*.npmjs.org", "github.com"],
-   * });
-   *
-   * @example
-   * // Inject credentials with per-domain transformers
-   * await sandbox.updateNetworkPolicy({
-   *   allow: {
-   *     "ai-gateway.vercel.sh": [{
-   *       transform: [{
-   *         headers: { authorization: "Bearer ..." }
-   *       }]
-   *     }],
-   *     "*": []
-   *   }
-   * });
-   *
-   * @example
-   * // Deny all network access
-   * await sandbox.updateNetworkPolicy("deny-all");
-   */
+  /** Shortcut for `currentSession().updateNetworkPolicy(...)`. */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-    const response = await this.client.updateNetworkPolicy({
-      sandboxId: this.sandbox.id,
-      networkPolicy: networkPolicy,
-      signal: opts?.signal,
-    });
-
-    // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = convertSandbox(response.json.sandbox);
-    return this.sandbox.networkPolicy!;
+    return this.withResume(
+      () => this._session.updateNetworkPolicy(networkPolicy, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Extend the timeout of the sandbox by the specified duration.
-   *
-   * This allows you to extend the lifetime of a sandbox up until the maximum
-   * execution timeout for your plan.
-   *
-   * @param duration - The duration in milliseconds to extend the timeout by
-   * @param opts - Optional parameters.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the timeout is extended
-   *
-   * @example
-   * const sandbox = await Sandbox.create({ timeout: ms('10m') });
-   * // Extends timeout by 5 minutes, to a total of 15 minutes.
-   * await sandbox.extendTimeout(ms('5m'));
-   */
+  /** Shortcut for `currentSession().extendTimeout(...)`. */
   async extendTimeout(
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-    const response = await this.client.extendTimeout({
-      sandboxId: this.sandbox.id,
-      duration,
-      signal: opts?.signal,
-    });
-
-    // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.withResume(
+      () => this._session.extendTimeout(duration, opts),
+      opts?.signal,
+    );
   }
 
-  /**
-   * Create a snapshot from this currently running sandbox. New sandboxes can
-   * then be created from this snapshot using {@link Sandbox.createFromSnapshot}.
-   *
-   * Note: this sandbox will be stopped as part of the snapshot creation process.
-   *
-   * @param opts - Optional parameters.
-   * @param opts.expiration - Optional expiration time in milliseconds. Use 0 for no expiration at all.
-   * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves to the Snapshot instance
-   */
+  /** Shortcut for `currentSession().snapshot(...)`. */
   async snapshot(opts?: {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-    const response = await this.client.createSnapshot({
-      sandboxId: this.sandbox.id,
-      expiration: opts?.expiration,
-      signal: opts?.signal,
+    return this.withResume(
+      () => this._session.snapshot(opts),
+      opts?.signal,
+    );
+  }
+
+  /**
+   * List sessions (VMs) that have been created for this named sandbox.
+   *
+   * @param params - Optional pagination parameters.
+   * @returns The list of sessions and pagination metadata.
+   */
+  async listSessions(params?: {
+    limit?: number;
+    since?: number | Date;
+    until?: number | Date;
+    signal?: AbortSignal;
+  }) {
+    return this.client.listSandboxes({
+      projectId: this.projectId,
+      name: this.namedSandbox.name,
+      limit: params?.limit,
+      since: params?.since,
+      until: params?.until,
+      signal: params?.signal,
     });
+  }
 
-    this.sandbox = convertSandbox(response.json.sandbox);
-
-    return new Snapshot({
-      client: this.client,
-      snapshot: response.json.snapshot,
+  /**
+   * List snapshots that belong to this named sandbox.
+   *
+   * @param params - Optional pagination parameters.
+   * @returns The list of snapshots and pagination metadata.
+   */
+  async listSnapshots(params?: {
+    limit?: number;
+    since?: number | Date;
+    until?: number | Date;
+    signal?: AbortSignal;
+  }) {
+    return this.client.listSnapshots({
+      projectId: this.projectId,
+      name: this.namedSandbox.name,
+      limit: params?.limit,
+      since: params?.since,
+      until: params?.until,
+      signal: params?.signal,
     });
   }
 }
