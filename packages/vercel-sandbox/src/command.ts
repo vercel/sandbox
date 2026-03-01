@@ -1,6 +1,6 @@
 import { APIClient, type CommandData } from "./api-client";
 import { Signal, resolveSignal } from "./utils/resolveSignal";
-import { getGlobalCredentials } from "./sandbox";
+import { getSandboxCredentials } from "./sandbox";
 import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 /**
@@ -54,7 +54,7 @@ export class Command {
    */
   get client(): APIClient {
     if (!this._client) {
-      const credentials = getGlobalCredentials();
+      const credentials = getSandboxCredentials();
       this._client = new APIClient({
         teamId: credentials.teamId,
         token: credentials.token,

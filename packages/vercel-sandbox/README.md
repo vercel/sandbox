@@ -142,6 +142,26 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+## Workflow DevKit integration
+
+`Sandbox` and `CommandFinished` support serialization with the
+[Workflow DevKit](https://vercel.com/docs/workflow). When a sandbox instance
+crosses a step boundary the SDK serializes only the sandbox ID, then
+rehydrates a fresh instance on the other side by calling `Sandbox.get`.
+
+Because the workflow runtime deserializes in a new execution context,
+credentials are not carried over. Call `setSandboxCredentials` early in your
+program so that deserialized instances can reconnect to the API:
+
+```ts
+import { Sandbox, setSandboxCredentials } from "@vercel/sandbox";
+
+setSandboxCredentials({
+  token: process.env.VERCEL_TOKEN!,
+  teamId: process.env.VERCEL_TEAM_ID!,
+});
+```
+
 ## Limitations
 
 - Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.

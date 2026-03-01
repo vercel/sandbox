@@ -8,7 +8,7 @@ import {
   dehydrateStepReturnValue,
   hydrateStepReturnValue,
 } from "@workflow/core/serialization";
-import { Sandbox, SerializedSandbox, setGlobalCredentials } from "./sandbox";
+import { Sandbox, SerializedSandbox, setSandboxCredentials } from "./sandbox";
 import type { SandboxMetaData, SandboxRouteData } from "./api-client";
 import { APIClient } from "./api-client";
 
@@ -108,7 +108,7 @@ describe("Sandbox serialization", () => {
     });
 
     it("calls Sandbox.get with the serialized sandbox ID", async () => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const mockSandbox = createMockSandbox();
       const getSpy = vi.spyOn(Sandbox, "get").mockResolvedValue(mockSandbox);
@@ -123,7 +123,7 @@ describe("Sandbox serialization", () => {
     });
 
     it("returns a promise", () => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       vi.spyOn(Sandbox, "get").mockResolvedValue(createMockSandbox());
 
@@ -133,7 +133,7 @@ describe("Sandbox serialization", () => {
     });
 
     it("passes global credentials to Sandbox.get", async () => {
-      setGlobalCredentials({ token: "my_token", teamId: "my_team" });
+      setSandboxCredentials({ token: "my_token", teamId: "my_team" });
 
       const getSpy = vi.spyOn(Sandbox, "get").mockResolvedValue(createMockSandbox());
 
@@ -149,7 +149,7 @@ describe("Sandbox serialization", () => {
     });
 
     it("returns a fully functional Sandbox instance", async () => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const mockSandbox = createMockSandbox();
       vi.spyOn(Sandbox, "get").mockResolvedValue(mockSandbox);
@@ -169,7 +169,7 @@ describe("Sandbox serialization", () => {
     });
 
     it("preserves sandboxId through roundtrip", async () => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const originalSandbox = createMockSandbox();
       vi.spyOn(Sandbox, "get").mockResolvedValue(originalSandbox);
@@ -182,7 +182,7 @@ describe("Sandbox serialization", () => {
     });
 
     it("serialized data can be stored and retrieved via JSON", async () => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const originalSandbox = createMockSandbox();
       vi.spyOn(Sandbox, "get").mockResolvedValue(originalSandbox);
@@ -199,7 +199,7 @@ describe("Sandbox serialization", () => {
 
   describe("global credentials error", () => {
     afterEach(() => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
     });
 
     it("throws a helpful error when deserializing without global credentials", async () => {
@@ -212,12 +212,12 @@ describe("Sandbox serialization", () => {
         /Global credentials have not been set/,
       );
       expect(() => FreshSandbox[WORKFLOW_DESERIALIZE](serializedData)).toThrowError(
-        /setGlobalCredentials/,
+        /setSandboxCredentials/,
       );
     });
 
     it("does not throw when global credentials have been set", async () => {
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       vi.spyOn(Sandbox, "get").mockResolvedValue(createMockSandbox());
 
@@ -234,7 +234,7 @@ describe("Sandbox serialization", () => {
 
     it("Sandbox survives a step boundary roundtrip", async () => {
       registerSerializationClass("Sandbox", Sandbox);
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const sandbox = createMockSandbox();
       vi.spyOn(Sandbox, "get").mockResolvedValue(sandbox);
@@ -252,7 +252,7 @@ describe("Sandbox serialization", () => {
 
     it("preserves sandbox properties through the runtime pipeline", async () => {
       registerSerializationClass("Sandbox", Sandbox);
-      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const sandbox = createMockSandbox();
       vi.spyOn(Sandbox, "get").mockResolvedValue(sandbox);

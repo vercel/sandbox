@@ -178,24 +178,24 @@ let globalCredentials: Credentials | null = null;
  *
  * @param credentials - The credentials to use globally
  */
-export function setGlobalCredentials(credentials: Credentials): void {
+export function setSandboxCredentials(credentials: Credentials): void {
   globalCredentials = credentials;
 }
 
 /**
  * Get the global credentials.
- * Throws if {@link setGlobalCredentials} has not been called.
+ * Throws if {@link setSandboxCredentials} has not been called.
  * @internal
  */
-export function getGlobalCredentials(): Credentials {
+export function getSandboxCredentials(): Credentials {
   if (!globalCredentials) {
     throw new Error(
       "Global credentials have not been set. " +
-        "Call `setGlobalCredentials({ token, teamId })` early in your program initialization " +
+        "Call `setSandboxCredentials({ token, teamId })` early in your program initialization " +
         "before using deserialized Sandbox or Command instances.\n\n" +
         "Example:\n" +
-        "  import { setGlobalCredentials } from '@vercel/sandbox';\n" +
-        "  setGlobalCredentials({ token: process.env.VERCEL_TOKEN, teamId: process.env.VERCEL_TEAM_ID });\n",
+        "  import { setSandboxCredentials } from '@vercel/sandbox';\n" +
+        "  setSandboxCredentials({ token: process.env.VERCEL_TOKEN, teamId: process.env.VERCEL_TEAM_ID });\n",
     );
   }
   return globalCredentials;
@@ -220,7 +220,7 @@ export class Sandbox {
    */
   get client(): APIClient {
     if (!this._client) {
-      const credentials = getGlobalCredentials();
+      const credentials = getSandboxCredentials();
       this._client = new APIClient({
         teamId: credentials.teamId,
         token: credentials.token,
@@ -321,7 +321,7 @@ export class Sandbox {
    * await sandbox.runCommand('echo', ['hello']);
    */
   static setCredentials(credentials: Credentials): void {
-    setGlobalCredentials(credentials);
+    setSandboxCredentials(credentials);
   }
 
   /**
@@ -362,13 +362,13 @@ export class Sandbox {
    * Deserialize a Sandbox by fetching its current state from the API.
    *
    * Requires global credentials to be set via {@link Sandbox.setCredentials}
-   * or {@link setGlobalCredentials} before deserialization.
+   * or {@link setSandboxCredentials} before deserialization.
    *
    * @param data - The serialized sandbox data
    * @returns A promise resolving to a fresh Sandbox instance
    */
   static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Promise<Sandbox> {
-    const credentials = getGlobalCredentials();
+    const credentials = getSandboxCredentials();
     return Sandbox.get({ sandboxId: data.sandboxId, ...credentials });
   }
 
