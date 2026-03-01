@@ -150,8 +150,8 @@ crosses a step boundary the SDK serializes only the sandbox ID, then
 rehydrates a fresh instance on the other side by calling `Sandbox.get`.
 
 Because the workflow runtime deserializes in a new execution context,
-credentials are not carried over. Call `setSandboxCredentials` early in your
-program so that deserialized instances can reconnect to the API:
+credentials are not carried over. Call `setSandboxCredentials` in the module
+scope so that deserialized instances can reconnect to the API:
 
 ```ts
 import { Sandbox, setSandboxCredentials } from "@vercel/sandbox";

@@ -1,6 +1,6 @@
 import { APIClient, type CommandData } from "./api-client";
 import { Signal, resolveSignal } from "./utils/resolveSignal";
-import { getSandboxCredentials } from "./sandbox";
+import { getSandboxCredentials } from "./utils/sandbox-credentials";
 import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 /**

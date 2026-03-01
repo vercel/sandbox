@@ -13,6 +13,10 @@ import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import {
+  setSandboxCredentials,
+  getSandboxCredentials,
+} from "./utils/sandbox-credentials";
+import {
   type NetworkPolicy,
   type NetworkPolicyRule,
   type NetworkTransformer,
@@ -163,43 +167,8 @@ interface RunCommandParams {
   signal?: AbortSignal;
 }
 
-// ============================================================================
-// Global credentials storage
-// ============================================================================
-
-let globalCredentials: Credentials | null = null;
-
-/**
- * Set global credentials for Sandbox and Command instances.
- * These credentials are used when lazily creating API clients for deserialized instances.
- *
- * Must be called early in program initialization before using deserialized
- * Sandbox or Command instances.
- *
- * @param credentials - The credentials to use globally
- */
-export function setSandboxCredentials(credentials: Credentials): void {
-  globalCredentials = credentials;
-}
-
-/**
- * Get the global credentials.
- * Throws if {@link setSandboxCredentials} has not been called.
- * @internal
- */
-export function getSandboxCredentials(): Credentials {
-  if (!globalCredentials) {
-    throw new Error(
-      "Global credentials have not been set. " +
-        "Call `setSandboxCredentials({ token, teamId })` early in your program initialization " +
-        "before using deserialized Sandbox or Command instances.\n\n" +
-        "Example:\n" +
-        "  import { setSandboxCredentials } from '@vercel/sandbox';\n" +
-        "  setSandboxCredentials({ token: process.env.VERCEL_TOKEN, teamId: process.env.VERCEL_TEAM_ID });\n",
-    );
-  }
-  return globalCredentials;
-}
+// Re-export for public API
+export { setSandboxCredentials } from "./utils/sandbox-credentials";
 
 // ============================================================================
 // Sandbox class
