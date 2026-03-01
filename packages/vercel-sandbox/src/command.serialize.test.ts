@@ -1,8 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   WORKFLOW_SERIALIZE,
   WORKFLOW_DESERIALIZE,
 } from "@workflow/serde";
+import { registerSerializationClass } from "@workflow/core/class-serialization";
+import {
+  dehydrateStepReturnValue,
+  hydrateStepReturnValue,
+} from "@workflow/core/serialization";
 import {
   Command,
   CommandFinished,
@@ -417,6 +422,52 @@ describe("CommandFinished serialization", () => {
       const waited = await commandFinished.wait();
 
       expect(waited).toBe(commandFinished);
+    });
+  });
+
+  describe("workflow runtime integration", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("CommandFinished survives a step boundary roundtrip", async () => {
+      registerSerializationClass("CommandFinished", CommandFinished);
+
+      const commandFinished = createMockCommandFinished(
+        mockCommandData,
+        mockSandboxId,
+        0,
+        mockOutput,
+      );
+
+      // Simulate step returning a CommandFinished
+      const dehydrated = await dehydrateStepReturnValue(commandFinished, "run_123", undefined);
+      expect(dehydrated).toBeInstanceOf(Uint8Array);
+
+      // Simulate workflow receiving the step result
+      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_123", undefined);
+
+      expect(rehydrated).toBeInstanceOf(CommandFinished);
+      expect(rehydrated.exitCode).toBe(0);
+      expect(rehydrated.cmdId).toBe(mockCommandData.id);
+    });
+
+    it("preserves output through the runtime pipeline", async () => {
+      registerSerializationClass("CommandFinished", CommandFinished);
+
+      const commandFinished = createMockCommandFinished(
+        mockCommandData,
+        mockSandboxId,
+        42,
+        mockOutput,
+      );
+
+      const dehydrated = await dehydrateStepReturnValue(commandFinished, "run_456", undefined);
+      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_456", undefined);
+
+      expect(rehydrated.exitCode).toBe(42);
+      expect(await rehydrated.stdout()).toBe(mockOutput.stdout);
+      expect(await rehydrated.stderr()).toBe(mockOutput.stderr);
     });
   });
 });

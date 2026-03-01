@@ -3,6 +3,11 @@ import {
   WORKFLOW_SERIALIZE,
   WORKFLOW_DESERIALIZE,
 } from "@workflow/serde";
+import { registerSerializationClass } from "@workflow/core/class-serialization";
+import {
+  dehydrateStepReturnValue,
+  hydrateStepReturnValue,
+} from "@workflow/core/serialization";
 import { Sandbox, SerializedSandbox, setGlobalCredentials } from "./sandbox";
 import type { SandboxMetaData, SandboxRouteData } from "./api-client";
 import { APIClient } from "./api-client";
@@ -219,6 +224,45 @@ describe("Sandbox serialization", () => {
       const serializedData: SerializedSandbox = { sandboxId: "sbx_test123" };
 
       expect(() => Sandbox[WORKFLOW_DESERIALIZE](serializedData)).not.toThrow();
+    });
+  });
+
+  describe("workflow runtime integration", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("Sandbox survives a step boundary roundtrip", async () => {
+      registerSerializationClass("Sandbox", Sandbox);
+      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+
+      const sandbox = createMockSandbox();
+      vi.spyOn(Sandbox, "get").mockResolvedValue(sandbox);
+
+      // Simulate step returning a Sandbox
+      const dehydrated = await dehydrateStepReturnValue(sandbox, "run_123", undefined);
+      expect(dehydrated).toBeInstanceOf(Uint8Array);
+
+      // Simulate workflow receiving the step result
+      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_123", undefined);
+
+      expect(rehydrated).toBeInstanceOf(Sandbox);
+      expect(rehydrated.sandboxId).toBe(sandbox.sandboxId);
+    });
+
+    it("preserves sandbox properties through the runtime pipeline", async () => {
+      registerSerializationClass("Sandbox", Sandbox);
+      setGlobalCredentials({ token: "test_token", teamId: "team_test" });
+
+      const sandbox = createMockSandbox();
+      vi.spyOn(Sandbox, "get").mockResolvedValue(sandbox);
+
+      const dehydrated = await dehydrateStepReturnValue(sandbox, "run_456", undefined);
+      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_456", undefined);
+
+      expect(rehydrated.sandboxId).toBe("sbx_test123");
+      expect(rehydrated.status).toBe("running");
+      expect(rehydrated.routes).toEqual(mockRoutes);
     });
   });
 });
