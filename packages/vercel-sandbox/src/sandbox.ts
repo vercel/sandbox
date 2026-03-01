@@ -332,7 +332,7 @@ export class Sandbox {
   static async list(
     params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
       Partial<Credentials> &
-      WithFetchOptions
+      WithFetchOptions,
   ) {
     const credentials = await getCredentials(params);
     const client = new APIClient({
@@ -388,7 +388,7 @@ export class Sandbox {
     params?: WithPrivate<
       CreateSandboxParams | (CreateSandboxParams & Credentials)
     > &
-      WithFetchOptions
+      WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     const credentials = await getCredentials(params);
     const client = new APIClient({
@@ -426,7 +426,7 @@ export class Sandbox {
    */
   static async get(
     params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
-      WithFetchOptions
+      WithFetchOptions,
   ): Promise<Sandbox> {
     const credentials = await getCredentials(params);
     const client = new APIClient({
@@ -480,7 +480,7 @@ export class Sandbox {
    */
   async getCommand(
     cmdId: string,
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ): Promise<Command> {
     const command = await this.client.getCommand({
       sandboxId: this.sandbox.id,
@@ -507,7 +507,7 @@ export class Sandbox {
   async runCommand(
     command: string,
     args?: string[],
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ): Promise<CommandFinished>;
 
   /**
@@ -517,7 +517,7 @@ export class Sandbox {
    * @returns A {@link Command} instance for the running command.
    */
   async runCommand(
-    params: RunCommandParams & { detached: true }
+    params: RunCommandParams & { detached: true },
   ): Promise<Command>;
 
   /**
@@ -531,7 +531,7 @@ export class Sandbox {
   async runCommand(
     commandOrParams: string | RunCommandParams,
     args?: string[],
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
     const params: RunCommandParams =
       typeof commandOrParams === "string"
@@ -635,7 +635,7 @@ export class Sandbox {
    */
   async readFile(
     file: { path: string; cwd?: string },
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
     return this.client.readFile({
       sandboxId: this.sandbox.id,
@@ -655,7 +655,7 @@ export class Sandbox {
    */
   async readFileToBuffer(
     file: { path: string; cwd?: string },
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
     const stream = await this.client.readFile({
       sandboxId: this.sandbox.id,
@@ -684,7 +684,7 @@ export class Sandbox {
   async downloadFile(
     src: { path: string; cwd?: string },
     dst: { path: string; cwd?: string },
-    opts?: { mkdirRecursive?: boolean; signal?: AbortSignal }
+    opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
     if (!src?.path) {
       throw new Error("downloadFile: source path is required");
@@ -731,7 +731,7 @@ export class Sandbox {
    */
   async writeFiles(
     files: { path: string; content: Buffer }[],
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ) {
     return this.client.writeFiles({
       sandboxId: this.sandbox.id,
@@ -840,7 +840,7 @@ export class Sandbox {
    */
   async extendTimeout(
     duration: number,
-    opts?: { signal?: AbortSignal }
+    opts?: { signal?: AbortSignal },
   ): Promise<void> {
     const response = await this.client.extendTimeout({
       sandboxId: this.sandbox.id,

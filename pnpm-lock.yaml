@@ -338,8 +338,8 @@ importers:
         specifier: 3.2.0
         version: 3.2.0
       '@workflow/serde':
-        specifier: 4.0.1-beta.1
-        version: 4.0.1-beta.1
+        specifier: 4.1.0-beta.2
+        version: 4.1.0-beta.2
       async-retry:
         specifier: 1.3.3
         version: 1.3.3
@@ -1581,8 +1581,8 @@ packages:
   '@vitest/utils@3.2.1':
     resolution: {integrity: sha512-KkHlGhePEKZSub5ViknBcN5KEF+u7dSUr9NW8QsVICusUojrgrOnnY3DEWWO877ax2Pyopuk2qHmt+gkNKnBVw==}
 
-  '@workflow/serde@4.0.1-beta.1':
-    resolution: {integrity: sha512-JdCvZk0sD1qk2XzteSHVNGbpRM8YcvRBglSJy3FysYgi19pBkk3me2P9gzFpPrnQS6IhAPnEqnJOAODHg1iZrA==}
+  '@workflow/serde@4.1.0-beta.2':
+    resolution: {integrity: sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww==}
 
   acorn-walk@8.3.4:
     resolution: {integrity: sha512-ueEepnujpqee2o5aIYnvHU6C0A42MNdsIDeqy5BydrkuC5R1ZuUFnm27EeFJGoEHJQgn3uleRvmTXaJgfXbt4g==}
@@ -4900,7 +4900,7 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@workflow/serde@4.0.1-beta.1': {}
+  '@workflow/serde@4.1.0-beta.2': {}
 
   acorn-walk@8.3.4:
     dependencies:
