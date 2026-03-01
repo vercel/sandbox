@@ -56,8 +56,8 @@ export class Command {
     if (!this._client) {
       const credentials = getGlobalCredentials();
       this._client = new APIClient({
-        teamId: credentials.teamId!,
-        token: credentials.token!,
+        teamId: credentials.teamId,
+        token: credentials.token,
       });
     }
     return this._client;

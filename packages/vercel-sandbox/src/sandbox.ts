@@ -121,8 +121,6 @@ interface GetSandboxParams {
  */
 export interface SerializedSandbox {
   sandboxId: string;
-  metadata: SandboxMetaData;
-  routes: SandboxRouteData[];
 }
 
 /** @inline */
@@ -169,13 +167,14 @@ interface RunCommandParams {
 // Global credentials storage
 // ============================================================================
 
-let globalCredentials: Partial<Credentials> = {};
+let globalCredentials: Credentials | null = null;
 
 /**
  * Set global credentials for Sandbox and Command instances.
  * These credentials are used when lazily creating API clients for deserialized instances.
  *
- * If not called, deserialized instances will use OIDC authentication by default.
+ * Must be called early in program initialization before using deserialized
+ * Sandbox or Command instances.
  *
  * @param credentials - The credentials to use globally
  */
@@ -185,10 +184,20 @@ export function setGlobalCredentials(credentials: Credentials): void {
 
 /**
  * Get the global credentials.
- * Returns empty object by default (for OIDC authentication).
+ * Throws if {@link setGlobalCredentials} has not been called.
  * @internal
  */
-export function getGlobalCredentials(): Partial<Credentials> {
+export function getGlobalCredentials(): Credentials {
+  if (!globalCredentials) {
+    throw new Error(
+      "Global credentials have not been set. " +
+        "Call `setGlobalCredentials({ token, teamId })` early in your program initialization " +
+        "before using deserialized Sandbox or Command instances.\n\n" +
+        "Example:\n" +
+        "  import { setGlobalCredentials } from '@vercel/sandbox';\n" +
+        "  setGlobalCredentials({ token: process.env.VERCEL_TOKEN, teamId: process.env.VERCEL_TEAM_ID });\n",
+    );
+  }
   return globalCredentials;
 }
 
@@ -213,8 +222,8 @@ export class Sandbox {
     if (!this._client) {
       const credentials = getGlobalCredentials();
       this._client = new APIClient({
-        teamId: credentials.teamId!,
-        token: credentials.token!,
+        teamId: credentials.teamId,
+        token: credentials.token,
       });
     }
     return this._client;
@@ -341,30 +350,26 @@ export class Sandbox {
    * Serialize a Sandbox instance to plain data for @workflow/serde.
    *
    * @param instance - The Sandbox instance to serialize
-   * @returns A plain object containing the sandbox ID, metadata, and routes
+   * @returns A plain object containing the sandbox ID
    */
   static [WORKFLOW_SERIALIZE](instance: Sandbox): SerializedSandbox {
     return {
       sandboxId: instance.sandboxId,
-      metadata: instance.sandbox,
-      routes: instance.routes,
     };
   }
 
   /**
-   * Deserialize plain data back into a Sandbox instance for @workflow/serde.
+   * Deserialize a Sandbox by fetching its current state from the API.
    *
-   * The deserialized instance will lazily create an API client using global credentials
-   * when needed. Call {@link Sandbox.setCredentials} before using the deserialized instance.
+   * Requires global credentials to be set via {@link Sandbox.setCredentials}
+   * or {@link setGlobalCredentials} before deserialization.
    *
    * @param data - The serialized sandbox data
-   * @returns The reconstructed Sandbox instance
+   * @returns A promise resolving to a fresh Sandbox instance
    */
-  static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Sandbox {
-    return new Sandbox({
-      sandbox: data.metadata,
-      routes: data.routes,
-    });
+  static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Promise<Sandbox> {
+    const credentials = getGlobalCredentials();
+    return Sandbox.get({ sandboxId: data.sandboxId, ...credentials });
   }
 
   /**
