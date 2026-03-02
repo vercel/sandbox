@@ -79,6 +79,14 @@ export class Session {
   private session: ConvertedSandbox;
 
   /**
+   * Returns the current internal state of this session.
+   * @internal
+   */
+  get _state(): ConvertedSandbox {
+    return this.session;
+  }
+
+  /**
    * Unique ID of this session.
    */
   public get sessionId(): string {
@@ -507,7 +515,7 @@ export class Session {
    * @throws If the port has no associated route
    */
   domain(p: number): string {
-    const route = this.routes.find(({ port }) => port === p);
+    const route = this.routes.find(({ port }) => port == p);
     if (route) {
       return `https://${route.subdomain}.vercel.run`;
     } else {

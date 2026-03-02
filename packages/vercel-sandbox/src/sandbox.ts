@@ -389,6 +389,11 @@ export class Sandbox {
         sandboxId: this._session.sessionId,
         signal,
       });
+      this._session = new Session({
+        client: this.client,
+        routes: poll.json.routes,
+        session: poll.json.sandbox,
+      });
       status = poll.json.sandbox.status;
     }
     await this.resume(signal);
@@ -570,12 +575,14 @@ export class Sandbox {
   }
 
   /** Shortcut for `currentSession().stop(...)`. */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox | void> {
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
     this.assertNotDeleted();
     try {
       return await this._session.stop(opts);
     } catch (err) {
-      if (isSandboxStoppedError(err)) return;
+      if (isSandboxStoppedError(err)) {
+        return this._session._state;
+      }
       throw err;
     }
   }

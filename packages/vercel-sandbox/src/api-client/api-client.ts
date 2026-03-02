@@ -792,7 +792,7 @@ export class APIClient extends BaseClient {
       await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
         method: "PATCH",
         query: {
-          project: params.projectId,
+          projectId: params.projectId,
         },
         body: JSON.stringify({
           snapshotOnShutdown: params.snapshotOnShutdown,
@@ -808,6 +808,9 @@ export class APIClient extends BaseClient {
     );
   }
 
+  // Note: the API also supports a `preserveSandboxes` query parameter, but we
+  // intentionally always delete the underlying sessions (sandboxes) when
+  // deleting a named sandbox, so we don't expose it here.
   async deleteNamedSandbox(params: {
     name: string;
     projectId: string;
@@ -819,7 +822,8 @@ export class APIClient extends BaseClient {
       await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
         method: "DELETE",
         query: {
-          project: params.projectId,
+          projectId: params.projectId,
+          preserveSandboxes: "false",
           preserveSnapshots: params.preserveSnapshots !== undefined
             ? String(params.preserveSnapshots)
             : undefined,
