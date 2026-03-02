@@ -1,5 +1,12 @@
 # sandbox-filesystem-snapshots
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`3aee2c734fc470fe41ee0c1fd9f4db6b83b3dcdc`](https://github.com/vercel/sandbox/commit/3aee2c734fc470fe41ee0c1fd9f4db6b83b3dcdc)]:
+  - @vercel/sandbox@1.8.0
+
 ## 0.0.8
 
 ### Patch Changes

@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 2.5.3
+sandbox 2.5.4
 
 ▲ sandbox [options] <command>
 
@@ -74,6 +74,7 @@ Options:
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>  Environment variables to set for the command
     --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
@@ -82,7 +83,6 @@ Options:
     --allowed-cidr <str>               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     --workdir, -w <str>                The working directory to run the command in [optional]
-    --env <key=value>, -e=<key=value>  Environment variables to set for the command
 
 Flags:
 
@@ -118,18 +118,19 @@ Create a sandbox in the specified account and project.
 
 Options:
 
-    --runtime <runtime>               One of 'node22', 'node24', 'python3.13' [default: node24]
-    --timeout <num UNIT>              The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
-    --vcpus <COUNT>                   Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>  Publish sandbox port(s) to DOMAIN.vercel.run
-    --snapshot, -s <snapshot_id>      Start the sandbox from a snapshot ID [optional]
-    --network-policy <MODE>           Network policy mode: "allow-all" or "deny-all"
+    --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
+    --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>  Default environment variables for sandbox commands
+    --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>            Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>              CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>               CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --allowed-domain <str>             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
 
 Flags:
 
