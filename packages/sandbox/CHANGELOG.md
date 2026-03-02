@@ -1,5 +1,14 @@
 # sandbox
 
+## 2.5.4
+
+### Patch Changes
+
+- Add `--env/-e` support to `sandbox create` to set default environment variables inherited by sandbox commands. ([#70](https://github.com/vercel/sandbox/pull/70))
+
+- Updated dependencies [[`3aee2c734fc470fe41ee0c1fd9f4db6b83b3dcdc`](https://github.com/vercel/sandbox/commit/3aee2c734fc470fe41ee0c1fd9f4db6b83b3dcdc)]:
+  - @vercel/sandbox@1.8.0
+
 ## 2.5.3
 
 ### Patch Changes
