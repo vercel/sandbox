@@ -21,7 +21,7 @@ type CommandFinishedData,
   SnapshotResponse,
   CreateSnapshotResponse,
   NamedSandboxAndSessionResponse,
-  NamedSandboxesResponse,
+  NamedSandboxesPaginationResponse,
   UpdateNamedSandboxResponse,
   type CommandData,
 } from "./validators";
@@ -733,28 +733,14 @@ export class APIClient extends BaseClient {
 
   async listNamedSandboxes(params: {
     projectId: string;
-    /**
-     * Maximum number of named sandboxes to return.
-     * @example 20
-     */
     limit?: number;
-    /**
-     * Field to sort by. Defaults to 'createdAt'.
-     */
     sortBy?: "createdAt" | "name";
-    /**
-     * Filter named sandboxes whose name starts with this prefix.
-     * Only valid when `sortBy` is `'name'`.
-     */
     namePrefix?: string;
-    /**
-     * Opaque pagination cursor from a previous response.
-     */
     cursor?: string;
     signal?: AbortSignal;
   }) {
     const result = await parseOrThrow(
-      NamedSandboxesResponse,
+      NamedSandboxesPaginationResponse,
       await this.request(`/v1/sandboxes/named`, {
         query: {
           project: params.projectId,
@@ -818,7 +804,7 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      EmptyResponse,
+      UpdateNamedSandboxResponse,
       await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
         method: "DELETE",
         query: {

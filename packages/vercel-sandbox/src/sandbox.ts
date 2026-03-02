@@ -64,24 +64,20 @@ export interface BaseCreateSandboxParams {
    * 2048 MB of memory per vCPU.
    */
   resources?: { vcpus: number };
-
   /**
    * The runtime of the sandbox, currently only `node24`, `node22` and `python3.13` are supported.
    * If not specified, the default runtime `node24` will be used.
    */
   runtime?: RUNTIMES | (string & {});
-
   /**
    * Network policy to define network restrictions for the sandbox.
    * Defaults to full internet access if not specified.
    */
   networkPolicy?: NetworkPolicy;
-
   /**
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
-
   /**
    * Whether to enable snapshots on shutdown. Defaults to true.
    */
@@ -124,10 +120,6 @@ function isSandboxStoppingError(err: unknown): boolean {
 
 /**
  * A Sandbox is a persistent named entity backed by isolated Linux MicroVMs.
- * Each time it runs, it creates a "session" (the actual VM). Use
- * {@link Sandbox.currentSession} to obtain the {@link Session} instance and
- * interact with the VM.
- *
  * Use {@link Sandbox.create} or {@link Sandbox.get} to construct.
  * @hideconstructor
  */
@@ -144,14 +136,6 @@ export class Sandbox {
    * Internal metadata about the named sandbox.
    */
   private namedSandbox: NamedSandboxMetaData;
-
-  private _isDeleted = false;
-
-  private assertNotDeleted(): void {
-    if (this._isDeleted) {
-      throw new Error(`Sandbox "${this.namedSandbox.name}" has been deleted`);
-    }
-  }
 
   /**
    * The name of this sandbox.
@@ -213,24 +197,7 @@ export class Sandbox {
   }
 
   /**
-   * Delete this named sandbox.
-   *
-   * After deletion the instance becomes inert — all further API calls will
-   * throw immediately.
-   */
-  async delete(opts?: { preserveSnapshots?: boolean; signal?: AbortSignal }): Promise<void> {
-    this.assertNotDeleted();
-    await this.client.deleteNamedSandbox({
-      name: this.namedSandbox.name,
-      projectId: this.projectId,
-      preserveSnapshots: opts?.preserveSnapshots,
-      signal: opts?.signal,
-    });
-    this._isDeleted = true;
-  }
-
-  /**
-   * Allow to get a list of named sandboxes for a team narrowed to the given params.
+   * Allow to get a list of sandboxes for a team narrowed to the given params.
    * It returns both the sandboxes and the pagination metadata to allow getting
    * the next page of results.
    */
@@ -301,7 +268,7 @@ export class Sandbox {
   }
 
   /**
-   * Retrieve an existing named sandbox and resume its session.
+   * Retrieve an existing sandbox and resume its session.
    *
    * @param params - Get parameters and optional credentials.
    * @returns A promise resolving to the {@link Sandbox}.
@@ -491,7 +458,7 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    this.assertNotDeleted();
+
     const signal = typeof commandOrParams === "string" ? opts?.signal : commandOrParams.signal;
     return this.withResume(
       () => this._session.runCommand(commandOrParams as any, args, opts),
@@ -504,7 +471,7 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.getCommand(cmdId, opts),
       opts?.signal,
@@ -513,7 +480,7 @@ export class Sandbox {
 
   /** Shortcut for `currentSession().mkDir(...)`. */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.mkDir(path, opts),
       opts?.signal,
@@ -525,7 +492,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.readFile(file, opts),
       opts?.signal,
@@ -537,7 +504,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.readFileToBuffer(file, opts),
       opts?.signal,
@@ -550,7 +517,7 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.downloadFile(src, dst, opts),
       opts?.signal,
@@ -562,7 +529,7 @@ export class Sandbox {
     files: { path: string; content: Buffer }[],
     opts?: { signal?: AbortSignal },
   ) {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.writeFiles(files, opts),
       opts?.signal,
@@ -576,7 +543,7 @@ export class Sandbox {
 
   /** Shortcut for `currentSession().stop(...)`. */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
-    this.assertNotDeleted();
+
     try {
       return await this._session.stop(opts);
     } catch (err) {
@@ -592,7 +559,7 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.updateNetworkPolicy(networkPolicy, opts),
       opts?.signal,
@@ -604,7 +571,7 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.extendTimeout(duration, opts),
       opts?.signal,
@@ -616,7 +583,7 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-    this.assertNotDeleted();
+
     return this.withResume(
       () => this._session.snapshot(opts),
       opts?.signal,
@@ -639,7 +606,7 @@ export class Sandbox {
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-    this.assertNotDeleted();
+
     const response = await this.client.updateNamedSandbox({
       name: this.namedSandbox.name,
       projectId: this.projectId,
@@ -654,6 +621,21 @@ export class Sandbox {
   }
 
   /**
+   * Delete this named sandbox.
+   *
+   * After deletion the instance becomes inert — all further API calls will
+   * throw immediately.
+   */
+  async delete(opts?: { preserveSnapshots?: boolean; signal?: AbortSignal }): Promise<void> {
+    await this.client.deleteNamedSandbox({
+      name: this.namedSandbox.name,
+      projectId: this.projectId,
+      preserveSnapshots: opts?.preserveSnapshots,
+      signal: opts?.signal,
+    });
+  }
+
+  /**
    * List sessions (VMs) that have been created for this named sandbox.
    *
    * @param params - Optional pagination parameters.
@@ -665,7 +647,7 @@ export class Sandbox {
     until?: number | Date;
     signal?: AbortSignal;
   }) {
-    this.assertNotDeleted();
+
     return this.client.listSandboxes({
       projectId: this.projectId,
       name: this.namedSandbox.name,
@@ -688,7 +670,7 @@ export class Sandbox {
     until?: number | Date;
     signal?: AbortSignal;
   }) {
-    this.assertNotDeleted();
+
     return this.client.listSnapshots({
       projectId: this.projectId,
       name: this.namedSandbox.name,

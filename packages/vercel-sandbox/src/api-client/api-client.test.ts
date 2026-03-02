@@ -412,6 +412,275 @@ describe("APIClient", () => {
     });
   });
 
+  describe("getNamedSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeNamedSandbox = () => ({
+      name: "my-sandbox",
+      snapshotOnShutdown: true,
+      region: "iad1",
+      vcpus: 1,
+      memory: 2048,
+      runtime: "node24",
+      timeout: 300000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    const makeSandbox = () => ({
+      id: "sbx_123",
+      memory: 2048,
+      vcpus: 1,
+      region: "iad1",
+      runtime: "node24",
+      timeout: 300000,
+      status: "running",
+      requestedAt: Date.now(),
+      createdAt: Date.now(),
+      cwd: "/",
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("fetches a named sandbox by name and projectId", async () => {
+      const body = {
+        namedSandbox: makeNamedSandbox(),
+        sandbox: makeSandbox(),
+        routes: [{ url: "https://example.com", subdomain: "sbx", port: 3000 }],
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.getNamedSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+      });
+
+      expect(result.json.namedSandbox.name).toBe("my-sandbox");
+      expect(result.json.sandbox.id).toBe("sbx_123");
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v1/sandboxes/named/my-sandbox");
+      expect(url).toContain("projectId=proj_123");
+    });
+
+    it("passes resume query param when provided", async () => {
+      const body = {
+        namedSandbox: makeNamedSandbox(),
+        sandbox: makeSandbox(),
+        routes: [],
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.getNamedSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        resume: true,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("resume=true");
+    });
+  });
+
+  describe("listNamedSandboxes", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeNamedSandbox = (name: string) => ({
+      name,
+      snapshotOnShutdown: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("lists named sandboxes with pagination", async () => {
+      const body = {
+        namedSandboxes: [makeNamedSandbox("sb-1"), makeNamedSandbox("sb-2")],
+        pagination: { count: 2, next: null, total: 2 },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.listNamedSandboxes({
+        projectId: "proj_123",
+      });
+
+      expect(result.json.sandboxes).toHaveLength(2);
+      expect(result.json.sandboxes[0].name).toBe("sb-1");
+      expect(result.json.pagination.total).toBe(2);
+    });
+
+    it("passes all query params", async () => {
+      const body = {
+        namedSandboxes: [],
+        pagination: { count: 0, next: null, total: 0 },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listNamedSandboxes({
+        projectId: "proj_123",
+        limit: 5,
+        sortBy: "name",
+        namePrefix: "test-",
+        cursor: "abc",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("project=proj_123");
+      expect(url).toContain("limit=5");
+      expect(url).toContain("sortBy=name");
+      expect(url).toContain("namePrefix=test-");
+      expect(url).toContain("cursor=abc");
+    });
+  });
+
+  describe("updateNamedSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeNamedSandbox = () => ({
+      name: "my-sandbox",
+      snapshotOnShutdown: true,
+      region: "iad1",
+      vcpus: 2,
+      memory: 4096,
+      runtime: "node24",
+      timeout: 600000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("sends PATCH with update fields", async () => {
+      const body = { namedSandbox: makeNamedSandbox() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.updateNamedSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        snapshotOnShutdown: true,
+        timeout: 600000,
+      });
+
+      expect(result.json.namedSandbox.name).toBe("my-sandbox");
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v1/sandboxes/named/my-sandbox");
+      expect(url).toContain("projectId=proj_123");
+      expect(opts.method).toBe("PATCH");
+
+      const parsedBody = JSON.parse(opts.body);
+      expect(parsedBody.snapshotOnShutdown).toBe(true);
+      expect(parsedBody.timeout).toBe(600000);
+    });
+  });
+
+  describe("deleteNamedSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeNamedSandbox = () => ({
+      name: "my-sandbox",
+      snapshotOnShutdown: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("sends DELETE with projectId and preserveSandboxes=false", async () => {
+      const body = { namedSandbox: makeNamedSandbox() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.deleteNamedSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+      });
+
+      expect(result.json.namedSandbox.name).toBe("my-sandbox");
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v1/sandboxes/named/my-sandbox");
+      expect(url).toContain("projectId=proj_123");
+      expect(url).toContain("preserveSandboxes=false");
+      expect(opts.method).toBe("DELETE");
+    });
+
+    it("passes preserveSnapshots when provided", async () => {
+      const body = { namedSandbox: makeNamedSandbox() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.deleteNamedSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        preserveSnapshots: true,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("preserveSnapshots=true");
+    });
+  });
+
   describe("createSnapshot", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
