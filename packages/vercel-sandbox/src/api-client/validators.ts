@@ -213,3 +213,7 @@ export const NamedSandboxesResponse = z.object({
   namedSandboxes: z.array(NamedSandbox),
   pagination: Pagination,
 });
+
+export const UpdateNamedSandboxResponse = z.object({
+  namedSandbox: NamedSandbox,
+});

@@ -1,0 +1,18 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "ai-example": "0.1.1",
+    "charts-python-example": "0.1.4",
+    "dev-server-example": "0.1.4",
+    "sandbox-filesystem-snapshots": "0.0.8",
+    "install-packages-example": "0.1.4",
+    "private-repo-example": "0.1.4",
+    "sandbox-basics-example": "0.1.4",
+    "@vercel/pty-tunnel": "2.0.3",
+    "@vercel/pty-tunnel-server": "0.0.2",
+    "sandbox": "2.5.3",
+    "@vercel/sandbox": "1.7.1"
+  },
+  "changesets": []
+}

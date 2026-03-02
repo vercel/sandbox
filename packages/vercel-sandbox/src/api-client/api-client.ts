@@ -22,6 +22,7 @@ type CommandFinishedData,
   CreateSnapshotResponse,
   NamedSandboxAndSessionResponse,
   NamedSandboxesResponse,
+  UpdateNamedSandboxResponse,
   type CommandData,
 } from "./validators";
 import { APIError, StreamError } from "./api-error";
@@ -764,6 +765,58 @@ export class APIClient extends BaseClient {
         pagination: result.json.pagination,
       },
     };
+  }
+
+  async updateNamedSandbox(params: {
+    name: string;
+    projectId: string;
+    snapshotOnShutdown?: boolean;
+    resources?: { vcpus?: number; memory?: number };
+    runtime?: RUNTIMES | (string & {});
+    timeout?: number;
+    networkPolicy?: NetworkPolicy;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      UpdateNamedSandboxResponse,
+      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+        method: "PATCH",
+        query: {
+          project: params.projectId,
+        },
+        body: JSON.stringify({
+          snapshotOnShutdown: params.snapshotOnShutdown,
+          resources: params.resources,
+          runtime: params.runtime,
+          timeout: params.timeout,
+          networkPolicy: params.networkPolicy
+            ? toAPINetworkPolicy(params.networkPolicy)
+            : undefined,
+        }),
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async deleteNamedSandbox(params: {
+    name: string;
+    projectId: string;
+    preserveSnapshots?: boolean;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      EmptyResponse,
+      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+        method: "DELETE",
+        query: {
+          project: params.projectId,
+          preserveSnapshots: params.preserveSnapshots !== undefined
+            ? String(params.preserveSnapshots)
+            : undefined,
+        },
+        signal: params.signal,
+      }),
+    );
   }
 }
 

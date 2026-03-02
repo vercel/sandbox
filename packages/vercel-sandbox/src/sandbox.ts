@@ -12,6 +12,7 @@ import type { ConvertedSandbox } from "./utils/convert-sandbox";
 import type {
     NetworkPolicy,
 } from "./network-policy";
+import { fromAPINetworkPolicy } from "./utils/network-policy";
 import { setTimeout } from "node:timers/promises";
 
 export type { NetworkPolicy };
@@ -144,6 +145,14 @@ export class Sandbox {
    */
   private namedSandbox: NamedSandboxMetaData;
 
+  private _isDeleted = false;
+
+  private assertNotDeleted(): void {
+    if (this._isDeleted) {
+      throw new Error(`Sandbox "${this.namedSandbox.name}" has been deleted`);
+    }
+  }
+
   /**
    * The name of this sandbox.
    */
@@ -156,6 +165,68 @@ export class Sandbox {
    */
   public get snapshotOnShutdown(): boolean {
     return this.namedSandbox.snapshotOnShutdown;
+  }
+
+  /** The region this sandbox runs in. */
+  public get region(): string | undefined {
+    return this.namedSandbox.region;
+  }
+
+  /** Number of virtual CPUs allocated. */
+  public get vcpus(): number | undefined {
+    return this.namedSandbox.vcpus;
+  }
+
+  /** Memory allocated in MB. */
+  public get memory(): number | undefined {
+    return this.namedSandbox.memory;
+  }
+
+  /** Runtime identifier (e.g. "node24", "python3.13"). */
+  public get runtime(): string | undefined {
+    return this.namedSandbox.runtime;
+  }
+
+  /** Cumulative egress bytes across all sessions. */
+  public get totalEgressBytes(): number | undefined {
+    return this.namedSandbox.totalEgressBytes;
+  }
+
+  /** Cumulative ingress bytes across all sessions. */
+  public get totalIngressBytes(): number | undefined {
+    return this.namedSandbox.totalIngressBytes;
+  }
+
+  /** Cumulative active CPU duration in milliseconds across all sessions. */
+  public get totalActiveCpuDurationMs(): number | undefined {
+    return this.namedSandbox.totalActiveCpuDurationMs;
+  }
+
+  /** Cumulative wall-clock duration in milliseconds across all sessions. */
+  public get totalDurationMs(): number | undefined {
+    return this.namedSandbox.totalDurationMs;
+  }
+
+  /** When this sandbox was last updated. */
+  public get updatedAt(): Date {
+    return new Date(this.namedSandbox.updatedAt);
+  }
+
+  /**
+   * Delete this named sandbox.
+   *
+   * After deletion the instance becomes inert — all further API calls will
+   * throw immediately.
+   */
+  async delete(opts?: { preserveSnapshots?: boolean; signal?: AbortSignal }): Promise<void> {
+    this.assertNotDeleted();
+    await this.client.deleteNamedSandbox({
+      name: this.namedSandbox.name,
+      projectId: this.projectId,
+      preserveSnapshots: opts?.preserveSnapshots,
+      signal: opts?.signal,
+    });
+    this._isDeleted = true;
   }
 
   /**
@@ -366,19 +437,21 @@ export class Sandbox {
     return this._session.status;
   }
 
-  /** The creation date of the current session. */
+  /** When this sandbox was created. */
   public get createdAt(): Date {
-    return this._session.createdAt;
+    return new Date(this.namedSandbox.createdAt);
   }
 
-  /** The timeout of the current session in milliseconds. */
-  public get timeout(): number {
-    return this._session.timeout;
+  /** The default timeout of this sandbox in milliseconds. */
+  public get timeout(): number | undefined {
+    return this.namedSandbox.timeout;
   }
 
-  /** The network policy of the current session. */
+  /** The default network policy of this sandbox. */
   public get networkPolicy(): NetworkPolicy | undefined {
-    return this._session.networkPolicy;
+    return this.namedSandbox.networkPolicy
+      ? fromAPINetworkPolicy(this.namedSandbox.networkPolicy)
+      : undefined;
   }
 
   /** If the session was created from a snapshot, the ID of that snapshot. */
@@ -413,6 +486,7 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
+    this.assertNotDeleted();
     const signal = typeof commandOrParams === "string" ? opts?.signal : commandOrParams.signal;
     return this.withResume(
       () => this._session.runCommand(commandOrParams as any, args, opts),
@@ -425,6 +499,7 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.getCommand(cmdId, opts),
       opts?.signal,
@@ -433,6 +508,7 @@ export class Sandbox {
 
   /** Shortcut for `currentSession().mkDir(...)`. */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.mkDir(path, opts),
       opts?.signal,
@@ -444,6 +520,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.readFile(file, opts),
       opts?.signal,
@@ -455,6 +532,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.readFileToBuffer(file, opts),
       opts?.signal,
@@ -467,6 +545,7 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.downloadFile(src, dst, opts),
       opts?.signal,
@@ -478,6 +557,7 @@ export class Sandbox {
     files: { path: string; content: Buffer }[],
     opts?: { signal?: AbortSignal },
   ) {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.writeFiles(files, opts),
       opts?.signal,
@@ -491,6 +571,7 @@ export class Sandbox {
 
   /** Shortcut for `currentSession().stop(...)`. */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox | void> {
+    this.assertNotDeleted();
     try {
       return await this._session.stop(opts);
     } catch (err) {
@@ -504,6 +585,7 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.updateNetworkPolicy(networkPolicy, opts),
       opts?.signal,
@@ -515,6 +597,7 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.extendTimeout(duration, opts),
       opts?.signal,
@@ -526,10 +609,41 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
+    this.assertNotDeleted();
     return this.withResume(
       () => this._session.snapshot(opts),
       opts?.signal,
     );
+  }
+
+  /**
+   * Update the named sandbox configuration. Only provided fields are modified.
+   *
+   * @param params - Fields to update.
+   * @param opts - Optional abort signal.
+   */
+  async update(
+    params: {
+      snapshotOnShutdown?: boolean;
+      resources?: { vcpus?: number; memory?: number };
+      runtime?: RUNTIMES | (string & {});
+      timeout?: number;
+      networkPolicy?: NetworkPolicy;
+    },
+    opts?: { signal?: AbortSignal },
+  ): Promise<void> {
+    this.assertNotDeleted();
+    const response = await this.client.updateNamedSandbox({
+      name: this.namedSandbox.name,
+      projectId: this.projectId,
+      snapshotOnShutdown: params.snapshotOnShutdown,
+      resources: params.resources,
+      runtime: params.runtime,
+      timeout: params.timeout,
+      networkPolicy: params.networkPolicy,
+      signal: opts?.signal,
+    });
+    this.namedSandbox = response.json.namedSandbox;
   }
 
   /**
@@ -544,6 +658,7 @@ export class Sandbox {
     until?: number | Date;
     signal?: AbortSignal;
   }) {
+    this.assertNotDeleted();
     return this.client.listSandboxes({
       projectId: this.projectId,
       name: this.namedSandbox.name,
@@ -566,6 +681,7 @@ export class Sandbox {
     until?: number | Date;
     signal?: AbortSignal;
   }) {
+    this.assertNotDeleted();
     return this.client.listSnapshots({
       projectId: this.projectId,
       name: this.namedSandbox.name,
