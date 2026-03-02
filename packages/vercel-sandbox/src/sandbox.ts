@@ -78,6 +78,20 @@ export interface BaseCreateSandboxParams {
   networkPolicy?: NetworkPolicy;
 
   /**
+   * Default environment variables for the sandbox.
+   * These are inherited by all commands unless overridden with
+   * the `env` option in `runCommand`.
+   *
+   * @example
+   * const sandbox = await Sandbox.create({
+   *   env: { NODE_ENV: "production", API_KEY: "secret" },
+   * });
+   * // All commands will have NODE_ENV and API_KEY set
+   * await sandbox.runCommand("node", ["app.js"]);
+   */
+  env?: Record<string, string>;
+
+  /**
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
@@ -277,6 +291,7 @@ export class Sandbox {
       resources: params?.resources,
       runtime: params && "runtime" in params ? params?.runtime : undefined,
       networkPolicy: params?.networkPolicy,
+      env: params?.env,
       signal: params?.signal,
       ...privateParams,
     });
