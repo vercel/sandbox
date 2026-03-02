@@ -1,25 +1,14 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  WORKFLOW_SERIALIZE,
-  WORKFLOW_DESERIALIZE,
-} from "@workflow/serde";
+import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 import { registerSerializationClass } from "@workflow/core/class-serialization";
 import {
   dehydrateStepReturnValue,
   hydrateStepReturnValue,
 } from "@workflow/core/serialization";
-import { Sandbox, SerializedSandbox, setSandboxCredentials } from "./sandbox";
+import { Sandbox, type SerializedSandbox } from "./sandbox";
 import type { SandboxMetaData, SandboxRouteData } from "./api-client";
 import { APIClient } from "./api-client";
-
-// Mock the getCredentials function
-vi.mock("./utils/get-credentials", () => ({
-  getCredentials: vi.fn().mockResolvedValue({
-    teamId: "team_test",
-    token: "test_token",
-    projectId: "project_test",
-  }),
-}));
+import { toSandboxSnapshot } from "./utils/sandbox-snapshot";
 
 describe("Sandbox serialization", () => {
   const mockMetadata: SandboxMetaData = {
@@ -35,6 +24,7 @@ describe("Sandbox serialization", () => {
     createdAt: 1700000000000,
     cwd: "/vercel/sandbox",
     updatedAt: 1700000002000,
+    networkPolicy: { mode: "allow-all" },
   };
 
   const mockRoutes: SandboxRouteData[] = [
@@ -53,216 +43,182 @@ describe("Sandbox serialization", () => {
 
     return new Sandbox({
       client,
-      sandbox: metadata,
+      sandbox: toSandboxSnapshot(metadata),
       routes,
     });
   };
 
+  const serializeSandbox = (sandbox: Sandbox): SerializedSandbox => {
+    return Sandbox[WORKFLOW_SERIALIZE](sandbox);
+  };
+
+  const deserializeSandbox = (data: SerializedSandbox): Sandbox => {
+    return Sandbox[WORKFLOW_DESERIALIZE](data);
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("WORKFLOW_SERIALIZE", () => {
-    it("serializes to just the sandbox ID", () => {
+    it("serializes sandbox snapshot data", () => {
       const sandbox = createMockSandbox();
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](sandbox);
+      const serialized = serializeSandbox(sandbox);
 
-      expect(serialized).toEqual({ sandboxId: "sbx_test123" });
+      expect(serialized.metadata.id).toBe("sbx_test123");
+      expect(serialized.routes).toEqual(mockRoutes);
+      expect(serialized.metadata.networkPolicy).toBe("allow-all");
     });
 
-    it("preserves the sandbox ID", () => {
+    it("returns plain JSON-serializable data", () => {
       const sandbox = createMockSandbox();
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](sandbox);
-
-      expect(serialized.sandboxId).toBe(sandbox.sandboxId);
-    });
-
-    it("returns a plain object that can be JSON serialized", () => {
-      const sandbox = createMockSandbox();
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](sandbox);
+      const serialized = serializeSandbox(sandbox);
 
       const jsonString = JSON.stringify(serialized);
       const parsed = JSON.parse(jsonString);
 
-      expect(parsed.sandboxId).toBe("sbx_test123");
+      expect(parsed.metadata.id).toBe("sbx_test123");
+      expect(parsed.routes).toEqual(mockRoutes);
     });
 
     it("does not include the API client or credentials", () => {
       const sandbox = createMockSandbox();
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](sandbox);
+      const serialized = serializeSandbox(sandbox);
 
       expect(serialized).not.toHaveProperty("client");
-      expect(serialized).not.toHaveProperty("metadata");
-      expect(serialized).not.toHaveProperty("routes");
       expect(JSON.stringify(serialized)).not.toContain("token");
-    });
-
-    it("handles special characters in sandbox ID", () => {
-      const metadataWithSpecialId = { ...mockMetadata, id: "sbx_test-123_abc" };
-      const sandbox = createMockSandbox(metadataWithSpecialId);
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](sandbox);
-
-      expect(serialized.sandboxId).toBe("sbx_test-123_abc");
     });
   });
 
   describe("WORKFLOW_DESERIALIZE", () => {
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
+    it("returns synchronously", () => {
+      const sandbox = createMockSandbox();
+      const serialized = serializeSandbox(sandbox);
 
-    it("calls Sandbox.get with the serialized sandbox ID", async () => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
-
-      const mockSandbox = createMockSandbox();
-      const getSpy = vi.spyOn(Sandbox, "get").mockResolvedValue(mockSandbox);
-
-      const serializedData: SerializedSandbox = { sandboxId: "sbx_test123" };
-      const result = await Sandbox[WORKFLOW_DESERIALIZE](serializedData);
-
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ sandboxId: "sbx_test123" }),
-      );
-      expect(result).toBe(mockSandbox);
-    });
-
-    it("returns a promise", () => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
-
-      vi.spyOn(Sandbox, "get").mockResolvedValue(createMockSandbox());
-
-      const result = Sandbox[WORKFLOW_DESERIALIZE]({ sandboxId: "sbx_test123" });
-
-      expect(result).toBeInstanceOf(Promise);
-    });
-
-    it("passes global credentials to Sandbox.get", async () => {
-      setSandboxCredentials({ token: "my_token", teamId: "my_team" });
-
-      const getSpy = vi.spyOn(Sandbox, "get").mockResolvedValue(createMockSandbox());
-
-      await Sandbox[WORKFLOW_DESERIALIZE]({ sandboxId: "sbx_test123" });
-
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sandboxId: "sbx_test123",
-          token: "my_token",
-          teamId: "my_team",
-        }),
-      );
-    });
-
-    it("returns a fully functional Sandbox instance", async () => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
-
-      const mockSandbox = createMockSandbox();
-      vi.spyOn(Sandbox, "get").mockResolvedValue(mockSandbox);
-
-      const result = await Sandbox[WORKFLOW_DESERIALIZE]({ sandboxId: "sbx_test123" });
+      const result = deserializeSandbox(serialized);
 
       expect(result).toBeInstanceOf(Sandbox);
+      expect(result).not.toBeInstanceOf(Promise);
+    });
+
+    it("reconstructs a fully usable snapshot-backed instance", () => {
+      const sandbox = createMockSandbox();
+      const serialized = serializeSandbox(sandbox);
+
+      const result = deserializeSandbox(serialized);
+
       expect(result.sandboxId).toBe("sbx_test123");
       expect(result.status).toBe("running");
       expect(result.routes).toEqual(mockRoutes);
-    });
-  });
-
-  describe("roundtrip serialization", () => {
-    afterEach(() => {
-      vi.restoreAllMocks();
+      expect(result.networkPolicy).toBe("allow-all");
+      expect(result.domain(3000)).toBe("https://test-3000.vercel.run");
     });
 
-    it("preserves sandboxId through roundtrip", async () => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
-
-      const originalSandbox = createMockSandbox();
-      vi.spyOn(Sandbox, "get").mockResolvedValue(originalSandbox);
-
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](originalSandbox);
-      expect(serialized.sandboxId).toBe("sbx_test123");
-
-      const deserialized = await Sandbox[WORKFLOW_DESERIALIZE](serialized);
-      expect(deserialized.sandboxId).toBe("sbx_test123");
-    });
-
-    it("serialized data can be stored and retrieved via JSON", async () => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
-
-      const originalSandbox = createMockSandbox();
-      vi.spyOn(Sandbox, "get").mockResolvedValue(originalSandbox);
-
-      const serialized = Sandbox[WORKFLOW_SERIALIZE](originalSandbox);
-      const storedJson = JSON.stringify(serialized);
-
-      const retrievedData: SerializedSandbox = JSON.parse(storedJson);
-      const deserialized = await Sandbox[WORKFLOW_DESERIALIZE](retrievedData);
-
-      expect(deserialized.sandboxId).toBe(originalSandbox.sandboxId);
-    });
-  });
-
-  describe("global credentials error", () => {
-    afterEach(() => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
-    });
-
-    it("throws a helpful error when deserializing without global credentials", async () => {
+    it("does not require global credentials just to deserialize and read metadata", async () => {
       vi.resetModules();
       const { Sandbox: FreshSandbox } = await import("./sandbox");
 
-      const serializedData: SerializedSandbox = { sandboxId: "sbx_test123" };
+      const serializedData: SerializedSandbox = {
+        metadata: {
+          id: "sbx_test123",
+          memory: 2048,
+          vcpus: 1,
+          region: "us-east-1",
+          runtime: "node24",
+          timeout: 300000,
+          status: "running",
+          requestedAt: 1700000000000,
+          startedAt: 1700000001000,
+          createdAt: 1700000000000,
+          cwd: "/vercel/sandbox",
+          updatedAt: 1700000002000,
+          networkPolicy: "allow-all",
+        },
+        routes: mockRoutes,
+      };
 
-      expect(() => FreshSandbox[WORKFLOW_DESERIALIZE](serializedData)).toThrowError(
-        /Global credentials have not been set/,
-      );
-      expect(() => FreshSandbox[WORKFLOW_DESERIALIZE](serializedData)).toThrowError(
-        /setSandboxCredentials/,
-      );
+      const deserialized = FreshSandbox[WORKFLOW_DESERIALIZE](
+        serializedData,
+      ) as Sandbox;
+
+      expect(deserialized.sandboxId).toBe("sbx_test123");
+      expect(deserialized.status).toBe("running");
+      expect(deserialized.routes).toEqual(mockRoutes);
     });
 
-    it("does not throw when global credentials have been set", async () => {
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
+    it("still requires global credentials when API client is actually accessed", async () => {
+      vi.resetModules();
+      const { Sandbox: FreshSandbox } = await import("./sandbox");
 
-      vi.spyOn(Sandbox, "get").mockResolvedValue(createMockSandbox());
+      const serializedData: SerializedSandbox = {
+        metadata: {
+          id: "sbx_test123",
+          memory: 2048,
+          vcpus: 1,
+          region: "us-east-1",
+          runtime: "node24",
+          timeout: 300000,
+          status: "running",
+          requestedAt: 1700000000000,
+          startedAt: 1700000001000,
+          createdAt: 1700000000000,
+          cwd: "/vercel/sandbox",
+          updatedAt: 1700000002000,
+          networkPolicy: "allow-all",
+        },
+        routes: mockRoutes,
+      };
 
-      const serializedData: SerializedSandbox = { sandboxId: "sbx_test123" };
+      const deserialized = FreshSandbox[WORKFLOW_DESERIALIZE](
+        serializedData,
+      ) as Sandbox;
 
-      expect(() => Sandbox[WORKFLOW_DESERIALIZE](serializedData)).not.toThrow();
+      expect(() => deserialized.client).toThrowError(
+        /Global credentials have not been set/,
+      );
     });
   });
 
   describe("workflow runtime integration", () => {
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it("Sandbox survives a step boundary roundtrip", async () => {
+    it("survives a step boundary roundtrip", async () => {
       registerSerializationClass("Sandbox", Sandbox);
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const sandbox = createMockSandbox();
-      vi.spyOn(Sandbox, "get").mockResolvedValue(sandbox);
 
-      // Simulate step returning a Sandbox
-      const dehydrated = await dehydrateStepReturnValue(sandbox, "run_123", undefined);
-      expect(dehydrated).toBeInstanceOf(Uint8Array);
-
-      // Simulate workflow receiving the step result
-      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_123", undefined);
+      const dehydrated = await dehydrateStepReturnValue(
+        sandbox,
+        "run_123",
+        undefined,
+      );
+      const rehydrated = await hydrateStepReturnValue(
+        dehydrated,
+        "run_123",
+        undefined,
+      );
 
       expect(rehydrated).toBeInstanceOf(Sandbox);
-      expect(rehydrated.sandboxId).toBe(sandbox.sandboxId);
+      expect(rehydrated.sandboxId).toBe("sbx_test123");
+      expect(rehydrated.routes).toEqual(mockRoutes);
     });
 
-    it("preserves sandbox properties through the runtime pipeline", async () => {
+    it("preserves converted metadata through runtime pipeline", async () => {
       registerSerializationClass("Sandbox", Sandbox);
-      setSandboxCredentials({ token: "test_token", teamId: "team_test" });
 
       const sandbox = createMockSandbox();
-      vi.spyOn(Sandbox, "get").mockResolvedValue(sandbox);
 
-      const dehydrated = await dehydrateStepReturnValue(sandbox, "run_456", undefined);
-      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_456", undefined);
+      const dehydrated = await dehydrateStepReturnValue(
+        sandbox,
+        "run_456",
+        undefined,
+      );
+      const rehydrated = await hydrateStepReturnValue(
+        dehydrated,
+        "run_456",
+        undefined,
+      );
 
-      expect(rehydrated.sandboxId).toBe("sbx_test123");
       expect(rehydrated.status).toBe("running");
-      expect(rehydrated.routes).toEqual(mockRoutes);
+      expect(rehydrated.networkPolicy).toBe("allow-all");
     });
   });
 });

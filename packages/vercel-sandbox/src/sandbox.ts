@@ -21,7 +21,10 @@ import {
   type NetworkPolicyRule,
   type NetworkTransformer,
 } from "./network-policy";
-import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import {
+  toSandboxSnapshot,
+  type SandboxSnapshot,
+} from "./utils/sandbox-snapshot";
 import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
@@ -124,7 +127,8 @@ interface GetSandboxParams {
  * Serialized representation of a Sandbox for @workflow/serde.
  */
 export interface SerializedSandbox {
-  sandboxId: string;
+  metadata: SandboxSnapshot;
+  routes: SandboxRouteData[];
 }
 
 /** @inline */
@@ -260,14 +264,16 @@ export class Sandbox {
   /**
    * The amount of network data used by the sandbox. Only reported once the VM is stopped.
    */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+  public get networkTransfer():
+    | { ingress: number; egress: number }
+    | undefined {
     return this.sandbox.networkTransfer;
   }
 
   /**
    * Internal metadata about this sandbox.
    */
-  private sandbox: ConvertedSandbox;
+  private sandbox: SandboxSnapshot;
 
   /**
    * Set global credentials for Sandbox and Command instances.
@@ -319,26 +325,29 @@ export class Sandbox {
    * Serialize a Sandbox instance to plain data for @workflow/serde.
    *
    * @param instance - The Sandbox instance to serialize
-   * @returns A plain object containing the sandbox ID
+   * @returns A plain object containing sandbox metadata and routes
    */
   static [WORKFLOW_SERIALIZE](instance: Sandbox): SerializedSandbox {
     return {
-      sandboxId: instance.sandboxId,
+      metadata: instance.sandbox,
+      routes: instance.routes,
     };
   }
 
   /**
-   * Deserialize a Sandbox by fetching its current state from the API.
+   * Deserialize a Sandbox from serialized snapshot data.
    *
-   * Requires global credentials to be set via {@link Sandbox.setCredentials}
-   * or {@link setSandboxCredentials} before deserialization.
+   * The deserialized instance uses the serialized metadata synchronously and
+   * lazily creates an API client only when methods perform API requests.
    *
    * @param data - The serialized sandbox data
-   * @returns A promise resolving to a fresh Sandbox instance
+   * @returns The reconstructed Sandbox instance
    */
-  static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Promise<Sandbox> {
-    const credentials = getSandboxCredentials();
-    return Sandbox.get({ sandboxId: data.sandboxId, ...credentials });
+  static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Sandbox {
+    return new Sandbox({
+      sandbox: data.metadata,
+      routes: data.routes,
+    });
   }
 
   /**
@@ -382,7 +391,7 @@ export class Sandbox {
 
     return new DisposableSandbox({
       client,
-      sandbox: sandbox.json.sandbox,
+      sandbox: toSandboxSnapshot(sandbox.json.sandbox),
       routes: sandbox.json.routes,
     });
   }
@@ -413,7 +422,7 @@ export class Sandbox {
 
     return new Sandbox({
       client,
-      sandbox: sandbox.json.sandbox,
+      sandbox: toSandboxSnapshot(sandbox.json.sandbox),
       routes: sandbox.json.routes,
     });
   }
@@ -423,7 +432,7 @@ export class Sandbox {
    *
    * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
    * @param params.routes - Port-to-subdomain mappings for exposed ports
-   * @param params.sandbox - Sandbox metadata
+   * @param params.sandbox - Sandbox snapshot metadata
    */
   constructor({
     client,
@@ -432,11 +441,11 @@ export class Sandbox {
   }: {
     client?: APIClient;
     routes: SandboxRouteData[];
-    sandbox: SandboxMetaData;
+    sandbox: SandboxSnapshot;
   }) {
     this._client = client ?? null;
     this.routes = routes;
-    this.sandbox = convertSandbox(sandbox);
+    this.sandbox = sandbox;
   }
 
   /**
@@ -735,13 +744,16 @@ export class Sandbox {
    * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
    * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+  async stop(opts?: {
+    signal?: AbortSignal;
+    blocking?: boolean;
+  }): Promise<SandboxSnapshot> {
     const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
     });
-    this.sandbox = convertSandbox(response.json.sandbox);
+    this.sandbox = toSandboxSnapshot(response.json.sandbox);
     return this.sandbox;
   }
 
@@ -787,7 +799,7 @@ export class Sandbox {
     });
 
     // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = convertSandbox(response.json.sandbox);
+    this.sandbox = toSandboxSnapshot(response.json.sandbox);
     return this.sandbox.networkPolicy!;
   }
 
@@ -818,7 +830,7 @@ export class Sandbox {
     });
 
     // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = convertSandbox(response.json.sandbox);
+    this.sandbox = toSandboxSnapshot(response.json.sandbox);
   }
 
   /**
@@ -842,7 +854,7 @@ export class Sandbox {
       signal: opts?.signal,
     });
 
-    this.sandbox = convertSandbox(response.json.sandbox);
+    this.sandbox = toSandboxSnapshot(response.json.sandbox);
 
     return new Snapshot({
       client: this.client,

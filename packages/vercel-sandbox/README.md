@@ -146,12 +146,12 @@ const sandbox = await Sandbox.create({
 
 `Sandbox` and `CommandFinished` support serialization with the
 [Workflow DevKit](https://vercel.com/docs/workflow). When a sandbox instance
-crosses a step boundary the SDK serializes only the sandbox ID, then
-rehydrates a fresh instance on the other side by calling `Sandbox.get`.
+crosses a step boundary the SDK serializes sandbox metadata and routes, then
+rehydrates synchronously from that snapshot.
 
 Because the workflow runtime deserializes in a new execution context,
 credentials are not carried over. Call `setSandboxCredentials` in the module
-scope so that deserialized instances can reconnect to the API:
+scope so deserialized instances can make API calls when needed:
 
 ```ts
 import { Sandbox, setSandboxCredentials } from "@vercel/sandbox";
