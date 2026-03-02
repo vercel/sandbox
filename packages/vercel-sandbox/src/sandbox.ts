@@ -152,22 +152,22 @@ export class Sandbox {
   }
 
   /** The region this sandbox runs in. */
-  public get region(): string | undefined {
+  public get region(): string {
     return this.namedSandbox.region;
   }
 
   /** Number of virtual CPUs allocated. */
-  public get vcpus(): number | undefined {
+  public get vcpus(): number {
     return this.namedSandbox.vcpus;
   }
 
   /** Memory allocated in MB. */
-  public get memory(): number | undefined {
+  public get memory(): number {
     return this.namedSandbox.memory;
   }
 
   /** Runtime identifier (e.g. "node24", "python3.13"). */
-  public get runtime(): string | undefined {
+  public get runtime(): string {
     return this.namedSandbox.runtime;
   }
 
@@ -415,7 +415,7 @@ export class Sandbox {
   }
 
   /** The default timeout of this sandbox in milliseconds. */
-  public get timeout(): number | undefined {
+  public get timeout(): number {
     return this.namedSandbox.timeout;
   }
 
@@ -543,15 +543,7 @@ export class Sandbox {
 
   /** Shortcut for `currentSession().stop(...)`. */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
-
-    try {
-      return await this._session.stop(opts);
-    } catch (err) {
-      if (isSandboxStoppedError(err)) {
-        return this._session._state;
-      }
-      throw err;
-    }
+    return this._session.stop(opts);
   }
 
   /** Shortcut for `currentSession().updateNetworkPolicy(...)`. */

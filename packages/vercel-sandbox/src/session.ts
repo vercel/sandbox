@@ -79,14 +79,6 @@ export class Session {
   private session: ConvertedSandbox;
 
   /**
-   * Returns the current internal state of this session.
-   * @internal
-   */
-  get _state(): ConvertedSandbox {
-    return this.session;
-  }
-
-  /**
    * Unique ID of this session.
    */
   public get sessionId(): string {
