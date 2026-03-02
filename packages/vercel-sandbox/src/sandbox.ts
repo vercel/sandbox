@@ -130,7 +130,7 @@ export class Sandbox {
   /**
    * Internal Session instance for the current VM.
    */
-  private _session: Session;
+  private session: Session;
 
   /**
    * Internal metadata about the named sandbox.
@@ -145,23 +145,37 @@ export class Sandbox {
   }
 
   /**
+   * Routes from ports to subdomains.
+   * @hidden
+   */
+  public get routes(): SandboxRouteData[] {
+    return this.session.routes;
+  }
+
+  /**
    * Whether this sandbox snapshots on shutdown.
    */
   public get snapshotOnShutdown(): boolean {
     return this.namedSandbox.snapshotOnShutdown;
   }
 
-  /** The region this sandbox runs in. */
+  /**
+   * The region this sandbox runs in.
+   */
   public get region(): string {
     return this.namedSandbox.region;
   }
 
-  /** Number of virtual CPUs allocated. */
+  /**
+   * Number of virtual CPUs allocated.
+   */
   public get vcpus(): number {
     return this.namedSandbox.vcpus;
   }
 
-  /** Memory allocated in MB. */
+  /**
+   * Memory allocated in MB.
+   */
   public get memory(): number {
     return this.namedSandbox.memory;
   }
@@ -171,29 +185,97 @@ export class Sandbox {
     return this.namedSandbox.runtime;
   }
 
-  /** Cumulative egress bytes across all sessions. */
+  /**
+   * Cumulative egress bytes across all sessions.
+   */
   public get totalEgressBytes(): number | undefined {
     return this.namedSandbox.totalEgressBytes;
   }
 
-  /** Cumulative ingress bytes across all sessions. */
+  /**
+   * Cumulative ingress bytes across all sessions.
+   */
   public get totalIngressBytes(): number | undefined {
     return this.namedSandbox.totalIngressBytes;
   }
 
-  /** Cumulative active CPU duration in milliseconds across all sessions. */
+  /**
+   * Cumulative active CPU duration in milliseconds across all sessions.
+   */
   public get totalActiveCpuDurationMs(): number | undefined {
     return this.namedSandbox.totalActiveCpuDurationMs;
   }
 
-  /** Cumulative wall-clock duration in milliseconds across all sessions. */
+  /**
+   * Cumulative wall-clock duration in milliseconds across all sessions.
+   */
   public get totalDurationMs(): number | undefined {
     return this.namedSandbox.totalDurationMs;
   }
 
-  /** When this sandbox was last updated. */
+  /**
+   * When this sandbox was last updated.
+   */
   public get updatedAt(): Date {
     return new Date(this.namedSandbox.updatedAt);
+  }
+
+  /**
+   * When this sandbox was created.
+   */
+  public get createdAt(): Date {
+    return new Date(this.namedSandbox.createdAt);
+  }
+
+  /**
+   * Interactive port.
+   */
+  public get interactivePort(): number | undefined {
+    return this.session.interactivePort;
+  }
+
+  /**
+   * The status of the current session.
+   */
+  public get status(): SandboxMetaData["status"] {
+    return this.session.status;
+  }
+
+  /**
+   * The default timeout of this sandbox in milliseconds.
+   */
+  public get timeout(): number {
+    return this.namedSandbox.timeout;
+  }
+
+  /**
+   * The default network policy of this sandbox.
+   */
+  public get networkPolicy(): NetworkPolicy | undefined {
+    return this.namedSandbox.networkPolicy
+      ? fromAPINetworkPolicy(this.namedSandbox.networkPolicy)
+      : undefined;
+  }
+
+  /**
+   * If the session was created from a snapshot, the ID of that snapshot.
+   */
+  public get sourceSnapshotId(): string | undefined {
+    return this.session.sourceSnapshotId;
+  }
+
+  /**
+   * The amount of CPU used by the session. Only reported once the VM is stopped.
+   */
+  public get activeCpuUsageMs(): number | undefined {
+    return this.session.activeCpuUsageMs;
+  }
+
+  /**
+   * The amount of network data used by the session. Only reported once the VM is stopped.
+   */
+  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+    return this.session.networkTransfer;
   }
 
   /**
@@ -314,7 +396,7 @@ export class Sandbox {
     projectId: string;
   }) {
     this.client = client;
-    this._session = new Session({ client, routes, session });
+    this.session = new Session({ client, routes, session });
     this.namedSandbox = namedSandbox;
     this.projectId = projectId;
   }
@@ -325,7 +407,7 @@ export class Sandbox {
    * @returns The {@link Session} instance.
    */
   currentSession(): Session {
-    return this._session;
+    return this.session;
   }
 
   /**
@@ -338,7 +420,7 @@ export class Sandbox {
       resume: true,
       signal,
     });
-    this._session = new Session({
+    this.session = new Session({
       client: this.client,
       routes: response.json.routes,
       session: response.json.sandbox,
@@ -349,14 +431,16 @@ export class Sandbox {
    * Poll until the current session reaches a terminal state, then resume.
    */
   private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
-    let status = this._session.status;
+    const pollingInterval = 500;
+    let status = this.session.status;
+
     while (status === "stopping" || status === "snapshotting") {
-      await setTimeout(500, undefined, { signal });
+      await setTimeout(pollingInterval, undefined, { signal });
       const poll = await this.client.getSandbox({
-        sandboxId: this._session.sessionId,
+        sandboxId: this.session.sessionId,
         signal,
       });
-      this._session = new Session({
+      this.session = new Session({
         client: this.client,
         routes: poll.json.routes,
         session: poll.json.sandbox,
@@ -385,65 +469,9 @@ export class Sandbox {
     }
   }
 
-  // -- Session delegate getters --------------------------------------------------
-
   /**
-   * Routes from ports to subdomains.
-   * @hidden
+   * Shortcut for `currentSession().runCommand(...)`.
    */
-  public get routes(): SandboxRouteData[] {
-    return this._session.routes;
-  }
-
-  /** Unique ID of this sandbox's current session. */
-  public get sandboxId(): string {
-    return this._session.sessionId;
-  }
-
-  public get interactivePort(): number | undefined {
-    return this._session.interactivePort;
-  }
-
-  /** The status of the current session. */
-  public get status(): SandboxMetaData["status"] {
-    return this._session.status;
-  }
-
-  /** When this sandbox was created. */
-  public get createdAt(): Date {
-    return new Date(this.namedSandbox.createdAt);
-  }
-
-  /** The default timeout of this sandbox in milliseconds. */
-  public get timeout(): number {
-    return this.namedSandbox.timeout;
-  }
-
-  /** The default network policy of this sandbox. */
-  public get networkPolicy(): NetworkPolicy | undefined {
-    return this.namedSandbox.networkPolicy
-      ? fromAPINetworkPolicy(this.namedSandbox.networkPolicy)
-      : undefined;
-  }
-
-  /** If the session was created from a snapshot, the ID of that snapshot. */
-  public get sourceSnapshotId(): string | undefined {
-    return this._session.sourceSnapshotId;
-  }
-
-  /** The amount of CPU used by the session. Only reported once the VM is stopped. */
-  public get activeCpuUsageMs(): number | undefined {
-    return this._session.activeCpuUsageMs;
-  }
-
-  /** The amount of network data used by the session. Only reported once the VM is stopped. */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
-    return this._session.networkTransfer;
-  }
-
-  // -- Session delegate methods --------------------------------------------------
-
-  /** Shortcut for `currentSession().runCommand(...)`. */
   async runCommand(
     command: string,
     args?: string[],
@@ -458,60 +486,69 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-
     const signal = typeof commandOrParams === "string" ? opts?.signal : commandOrParams.signal;
     return this.withResume(
-      () => this._session.runCommand(commandOrParams as any, args, opts),
+      () => this.session.runCommand(commandOrParams as any, args, opts),
       signal,
     );
   }
 
-  /** Shortcut for `currentSession().getCommand(...)`. */
+  /**
+   * Shortcut for `currentSession().getCommand(...)`.
+   */
   async getCommand(
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
 
     return this.withResume(
-      () => this._session.getCommand(cmdId, opts),
+      () => this.session.getCommand(cmdId, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().mkDir(...)`. */
+  /**
+   * Shortcut for `currentSession().mkDir(...)`.
+   */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
 
     return this.withResume(
-      () => this._session.mkDir(path, opts),
+      () => this.session.mkDir(path, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().readFile(...)`. */
+  /**
+   * Shortcut for `currentSession().readFile(...)`.
+   */
   async readFile(
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
 
     return this.withResume(
-      () => this._session.readFile(file, opts),
+      () => this.session.readFile(file, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().readFileToBuffer(...)`. */
+  /**
+   * Shortcut for `currentSession().readFileToBuffer(...)`.
+   */
   async readFileToBuffer(
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
 
     return this.withResume(
-      () => this._session.readFileToBuffer(file, opts),
+      () => this.session.readFileToBuffer(file, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().downloadFile(...)`. */
+  /**
+   * Shortcut for `currentSession().downloadFile(...)`.
+   */
   async downloadFile(
     src: { path: string; cwd?: string },
     dst: { path: string; cwd?: string },
@@ -519,65 +556,77 @@ export class Sandbox {
   ): Promise<string | null> {
 
     return this.withResume(
-      () => this._session.downloadFile(src, dst, opts),
+      () => this.session.downloadFile(src, dst, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().writeFiles(...)`. */
+  /**
+   * Shortcut for `currentSession().writeFiles(...)`.
+   */
   async writeFiles(
     files: { path: string; content: Buffer }[],
     opts?: { signal?: AbortSignal },
   ) {
 
     return this.withResume(
-      () => this._session.writeFiles(files, opts),
+      () => this.session.writeFiles(files, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().domain(...)`. */
+  /**
+   * Shortcut for `currentSession().domain(...)`.
+   */
   domain(p: number): string {
-    return this._session.domain(p);
+    return this.session.domain(p);
   }
 
-  /** Shortcut for `currentSession().stop(...)`. */
+  /**
+   * Shortcut for `currentSession().stop(...)`.
+   */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
-    return this._session.stop(opts);
+    return this.session.stop(opts);
   }
 
-  /** Shortcut for `currentSession().updateNetworkPolicy(...)`. */
+  /**
+   * Shortcut for `currentSession().updateNetworkPolicy(...)`.
+   */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
 
     return this.withResume(
-      () => this._session.updateNetworkPolicy(networkPolicy, opts),
+      () => this.session.updateNetworkPolicy(networkPolicy, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().extendTimeout(...)`. */
+  /**
+   * Shortcut for `currentSession().extendTimeout(...)`.
+   */
   async extendTimeout(
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
 
     return this.withResume(
-      () => this._session.extendTimeout(duration, opts),
+      () => this.session.extendTimeout(duration, opts),
       opts?.signal,
     );
   }
 
-  /** Shortcut for `currentSession().snapshot(...)`. */
+  /**
+   * Shortcut for `currentSession().snapshot(...)`.
+   */
   async snapshot(opts?: {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
 
     return this.withResume(
-      () => this._session.snapshot(opts),
+      () => this.session.snapshot(opts),
       opts?.signal,
     );
   }
@@ -590,7 +639,6 @@ export class Sandbox {
    */
   async update(
     params: {
-      snapshotOnShutdown?: boolean;
       resources?: { vcpus?: number; memory?: number };
       runtime?: RUNTIMES | (string & {});
       timeout?: number;
@@ -602,7 +650,6 @@ export class Sandbox {
     const response = await this.client.updateNamedSandbox({
       name: this.namedSandbox.name,
       projectId: this.projectId,
-      snapshotOnShutdown: params.snapshotOnShutdown,
       resources: params.resources,
       runtime: params.runtime,
       timeout: params.timeout,

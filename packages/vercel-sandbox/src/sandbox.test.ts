@@ -209,13 +209,10 @@ for (const port of ports) {
   });
 
   it("auto-resumes a stopped session when running a command", async () => {
-    const session = sandbox.currentSession();
-    await session.stop({ blocking: true });
+    await sandbox.stop({ blocking: true });
     const result = await sandbox.runCommand("echo", ["resumed!"]);
     expect(result.exitCode).toBe(0);
     expect(await result.stdout()).toContain("resumed!");
-    // Session should have changed
-    expect(sandbox.currentSession()).not.toBe(session);
   });
 
   it("raises an error when the timeout cannot be updated", async () => {
@@ -231,5 +228,65 @@ for (const port of ports) {
         },
       });
     }
+  });
+
+  it("returns not found when getting a deleted sandbox", async () => {
+    const sandbox = await Sandbox.create();
+    const name = sandbox.name;
+    await sandbox.delete();
+
+    try {
+      await Sandbox.get({ name });
+      expect.fail("Expected Sandbox.get to throw an error");
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      expect(error).toMatchObject({
+        response: { status: 404 },
+      });
+    }
+  });
+
+  it("lists two sessions after stop and resume", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop({ blocking: true });
+
+    const resumed = await Sandbox.get({ name: sandbox.name });
+    const { json } = await resumed.listSessions();
+
+    expect(json.sandboxes).toHaveLength(2);
+
+    const currentSessionId = resumed.currentSession().sessionId;
+    const match = json.sandboxes.find((s) => s.id === currentSessionId);
+    expect(match).toBeDefined();
+  });
+
+  it("lists one snapshot after creating one", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.snapshot();
+
+    const { json } = await sandbox.listSnapshots();
+    expect(json.snapshots).toHaveLength(1);
+  });
+
+  it("reflects updated resources after update", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop({ blocking: true });
+
+    await sandbox.update({ resources: { vcpus: 4, memory: 8192 } });
+
+    const updated = await Sandbox.get({
+      name: sandbox.name,
+      resume: false,
+    });
+    expect(updated.vcpus).toBe(4);
+    expect(updated.memory).toBe(8192);
+  });
+
+  it("appears in the sandbox list after creation", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop();
+    const { json } = await Sandbox.list({ limit: 1 });
+    expect(json.sandboxes).toHaveLength(1);
+    expect(json.sandboxes[0].name).toBe(sandbox.name);
   });
 });

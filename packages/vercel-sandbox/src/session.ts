@@ -59,8 +59,6 @@ export interface RunCommandParams {
 
 /**
  * A Session represents a running VM instance within a named {@link Sandbox}.
- * It exposes all methods to interact with the VM: running commands,
- * reading/writing files, managing network policies, and creating snapshots.
  *
  * Obtain a session via {@link Sandbox.currentSession}.
  */
@@ -124,67 +122,93 @@ export class Session {
     return this.session.sourceSnapshotId;
   }
 
-  /** Memory allocated to this session in MB. */
+  /**
+   * Memory allocated to this session in MB.
+   */
   public get memory(): number {
     return this.session.memory;
   }
 
-  /** Number of vCPUs allocated to this session. */
+  /**
+   * Number of vCPUs allocated to this session.
+   */
   public get vcpus(): number {
     return this.session.vcpus;
   }
 
-  /** The region where this session is hosted. */
+  /**
+   * The region where this session is hosted.
+   */
   public get region(): string {
     return this.session.region;
   }
 
-  /** Runtime identifier (e.g. "node24", "python3.13"). */
+  /**
+   * Runtime identifier (e.g. "node24", "python3.13").
+   */
   public get runtime(): string {
     return this.session.runtime;
   }
 
-  /** The working directory of this session. */
+  /**
+   * The working directory of this session.
+   */
   public get cwd(): string {
     return this.session.cwd;
   }
 
-  /** When this session was requested. */
+  /**
+   * When this session was requested.
+   */
   public get requestedAt(): Date {
     return new Date(this.session.requestedAt);
   }
 
-  /** When this session started running. */
+  /**
+   * When this session started running.
+   */
   public get startedAt(): Date | undefined {
     return this.session.startedAt != null ? new Date(this.session.startedAt) : undefined;
   }
 
-  /** When this session was requested to stop. */
+  /**
+   * When this session was requested to stop.
+   */
   public get requestedStopAt(): Date | undefined {
     return this.session.requestedStopAt != null ? new Date(this.session.requestedStopAt) : undefined;
   }
 
-  /** When this session was stopped. */
+  /**
+   * When this session was stopped.
+   */
   public get stoppedAt(): Date | undefined {
     return this.session.stoppedAt != null ? new Date(this.session.stoppedAt) : undefined;
   }
 
-  /** When this session was aborted. */
+  /**
+   * When this session was aborted.
+   */
   public get abortedAt(): Date | undefined {
     return this.session.abortedAt != null ? new Date(this.session.abortedAt) : undefined;
   }
 
-  /** The wall-clock duration of this session in milliseconds. */
+  /**
+   * The wall-clock duration of this session in milliseconds.
+   */
   public get duration(): number | undefined {
     return this.session.duration;
   }
 
-  /** When a snapshot was requested for this session. */
+  /**
+   * When a snapshot was requested for this session.
+   */
   public get snapshottedAt(): Date | undefined {
     return this.session.snapshottedAt != null ? new Date(this.session.snapshottedAt) : undefined;
   }
 
-  /** When this session was last updated. */
+  /**
+   * When this session was last updated.
+   */
   public get updatedAt(): Date {
     return new Date(this.session.updatedAt);
   }

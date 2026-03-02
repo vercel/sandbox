@@ -794,9 +794,6 @@ export class APIClient extends BaseClient {
     );
   }
 
-  // Note: the API also supports a `preserveSandboxes` query parameter, but we
-  // intentionally always delete the underlying sessions (sandboxes) when
-  // deleting a named sandbox, so we don't expose it here.
   async deleteNamedSandbox(params: {
     name: string;
     projectId: string;
