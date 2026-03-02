@@ -1,15 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  WORKFLOW_SERIALIZE,
-  WORKFLOW_DESERIALIZE,
-} from "@workflow/serde";
+import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 import { registerSerializationClass } from "@workflow/core/class-serialization";
 import {
   dehydrateStepReturnValue,
   hydrateStepReturnValue,
 } from "@workflow/core/serialization";
 import {
-  Command,
   CommandFinished,
   SerializedCommandFinished,
   CommandOutput,
@@ -112,8 +108,8 @@ describe("CommandFinished serialization", () => {
 
       const serialized = CommandFinished[WORKFLOW_SERIALIZE](commandFinished);
 
-      expect(serialized.output.stdout).toBe("Custom stdout\n");
-      expect(serialized.output.stderr).toBe("Custom stderr\n");
+      expect(serialized.output?.stdout).toBe("Custom stdout\n");
+      expect(serialized.output?.stderr).toBe("Custom stderr\n");
     });
 
     it("returns a plain object that can be JSON serialized", () => {
@@ -157,7 +153,8 @@ describe("CommandFinished serialization", () => {
         output: mockOutput,
       };
 
-      const commandFinished = CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
 
       expect(commandFinished).toBeInstanceOf(CommandFinished);
       expect(commandFinished.exitCode).toBe(0);
@@ -186,7 +183,8 @@ describe("CommandFinished serialization", () => {
         output: mockOutput,
       };
 
-      const commandFinished = CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
 
       expect(commandFinished.exitCode).toBe(127);
     });
@@ -199,7 +197,8 @@ describe("CommandFinished serialization", () => {
         output: mockOutput,
       };
 
-      const commandFinished = CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
 
       expect(commandFinished.cmdId).toBe(mockCommandData.id);
       expect(commandFinished.cwd).toBe(mockCommandData.cwd);
@@ -214,7 +213,8 @@ describe("CommandFinished serialization", () => {
         output: mockOutput,
       };
 
-      const commandFinished = CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
 
       expect(await commandFinished.stdout()).toBe(mockOutput.stdout);
       expect(await commandFinished.stderr()).toBe(mockOutput.stderr);
@@ -228,11 +228,12 @@ describe("CommandFinished serialization", () => {
         output: mockOutput,
       };
 
-      const commandFinished = CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
 
       // Client is lazily created - internal _client should be null initially
       // (accessing .client would create one using OIDC by default)
-      expect((commandFinished as unknown as { _client: unknown })._client).toBeNull();
+      expect(Reflect.get(commandFinished, "_client")).toBeNull();
     });
   });
 
@@ -340,13 +341,13 @@ describe("CommandFinished serialization", () => {
 
       const serialized = CommandFinished[WORKFLOW_SERIALIZE](commandFinished);
 
-      expect(serialized.output.stdout.length).toBe(10000);
-      expect(serialized.output.stderr.length).toBe(10000);
+      expect(serialized.output?.stdout.length).toBe(10000);
+      expect(serialized.output?.stderr.length).toBe(10000);
     });
 
     it("handles output with special characters", async () => {
       const specialOutput: CommandOutput = {
-        stdout: "Hello\nWorld\t\"quoted\"\n",
+        stdout: 'Hello\nWorld\t"quoted"\n',
         stderr: "Error: 日本語\n",
       };
       const commandFinished = createMockCommandFinished(
@@ -418,7 +419,8 @@ describe("CommandFinished serialization", () => {
         output: mockOutput,
       };
 
-      const commandFinished = CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
       const waited = await commandFinished.wait();
 
       expect(waited).toBe(commandFinished);
@@ -441,11 +443,19 @@ describe("CommandFinished serialization", () => {
       );
 
       // Simulate step returning a CommandFinished
-      const dehydrated = await dehydrateStepReturnValue(commandFinished, "run_123", undefined);
+      const dehydrated = await dehydrateStepReturnValue(
+        commandFinished,
+        "run_123",
+        undefined,
+      );
       expect(dehydrated).toBeInstanceOf(Uint8Array);
 
       // Simulate workflow receiving the step result
-      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_123", undefined);
+      const rehydrated = await hydrateStepReturnValue(
+        dehydrated,
+        "run_123",
+        undefined,
+      );
 
       expect(rehydrated).toBeInstanceOf(CommandFinished);
       expect(rehydrated.exitCode).toBe(0);
@@ -462,8 +472,16 @@ describe("CommandFinished serialization", () => {
         mockOutput,
       );
 
-      const dehydrated = await dehydrateStepReturnValue(commandFinished, "run_456", undefined);
-      const rehydrated = await hydrateStepReturnValue(dehydrated, "run_456", undefined);
+      const dehydrated = await dehydrateStepReturnValue(
+        commandFinished,
+        "run_456",
+        undefined,
+      );
+      const rehydrated = await hydrateStepReturnValue(
+        dehydrated,
+        "run_456",
+        undefined,
+      );
 
       expect(rehydrated.exitCode).toBe(42);
       expect(await rehydrated.stdout()).toBe(mockOutput.stdout);
