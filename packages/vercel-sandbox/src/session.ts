@@ -81,7 +81,7 @@ export class Session {
   /**
    * Unique ID of this session.
    */
-  public get sandboxId(): string {
+  public get sessionId(): string {
     return this.session.id;
   }
 
@@ -125,14 +125,16 @@ export class Session {
   }
 
   /**
-   * The amount of CPU used by the session. Only reported once the VM is stopped.
+   * The amount of active CPU used by the session. Only reported once the VM is
+   * stopped.
    */
   public get activeCpuUsageMs(): number | undefined {
     return this.session.activeCpuDurationMs;
   }
 
   /**
-   * The amount of network data used by the session. Only reported once the VM is stopped.
+   * The amount of network data used by the session. Only reported once the VM
+   * is stopped.
    */
   public get networkTransfer(): {ingress: number, egress: number} | undefined {
     return this.session.networkTransfer;

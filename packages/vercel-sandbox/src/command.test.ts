@@ -1,18 +1,15 @@
 import { expect, it, vi, beforeEach, afterEach, describe } from "vitest";
 import { Sandbox } from "./sandbox";
-import type { Session } from "./session";
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   let sandbox: Sandbox;
-  let session: Session;
 
   beforeEach(async () => {
     sandbox = await Sandbox.create();
-    session = sandbox.currentSession();
   });
 
   afterEach(async () => {
-    await session.stop();
+    await sandbox.stop();
   });
 
   it("supports more than one logs consumer", async () => {
@@ -20,7 +17,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
 
-    const cmd = await session.runCommand({
+    const cmd = await sandbox.runCommand({
       cmd: "echo",
       args: ["Hello World!"],
       stdout: process.stdout,
@@ -33,7 +30,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   it("does not warn when there is only one logs consumer", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const cmd = await session.runCommand({
+    const cmd = await sandbox.runCommand({
       cmd: "echo",
       args: ["Hello World!"],
     });
@@ -43,7 +40,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   });
 
   it("Kills a command with a SIGINT", async () => {
-    const cmd = await session.runCommand({
+    const cmd = await sandbox.runCommand({
       cmd: "sleep",
       args: ["200000"],
       detached: true,
@@ -55,7 +52,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   });
 
   it("Kills a command with a SIGTERM", async () => {
-    const cmd = await session.runCommand({
+    const cmd = await sandbox.runCommand({
       cmd: "sleep",
       args: ["200000"],
       detached: true,
@@ -68,7 +65,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   });
 
   it("can execute commands with sudo", async () => {
-    const cmd = await session.runCommand({
+    const cmd = await sandbox.runCommand({
       cmd: "env",
       sudo: true,
       env: {
@@ -92,7 +89,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     expect(pathSegments).toContain("/vercel/bin");
     expect(pathSegments).toContain("/vercel/runtimes/node22/bin");
 
-    const dnf = await session.runCommand({
+    const dnf = await sandbox.runCommand({
       cmd: "dnf",
       args: ["install", "-y", "golang"],
       sudo: true,
@@ -100,7 +97,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
 
     expect(dnf.exitCode).toBe(0);
 
-    const which = await session.runCommand("which", ["go"]);
+    const which = await sandbox.runCommand("which", ["go"]);
     expect(await which.output()).toContain("/usr/bin/go");
   });
 });

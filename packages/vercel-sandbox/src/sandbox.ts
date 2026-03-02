@@ -315,7 +315,7 @@ export class Sandbox {
     while (status === "stopping" || status === "snapshotting") {
       await setTimeout(500, undefined, { signal });
       const poll = await this.client.getSandbox({
-        sandboxId: this._session.sandboxId,
+        sandboxId: this._session.sessionId,
         signal,
       });
       status = poll.json.sandbox.status;
@@ -354,7 +354,7 @@ export class Sandbox {
 
   /** Unique ID of this sandbox's current session. */
   public get sandboxId(): string {
-    return this._session.sandboxId;
+    return this._session.sessionId;
   }
 
   public get interactivePort(): number | undefined {

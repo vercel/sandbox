@@ -17,7 +17,7 @@ describe("downloadFile validation", () => {
       projectId: "test-project",
     });
     await expect(
-      sandbox.currentSession().downloadFile(undefined as any, { path: "/tmp/out" }),
+      sandbox.downloadFile(undefined as any, { path: "/tmp/out" }),
     ).rejects.toThrow("downloadFile: source path is required");
   });
 
@@ -30,7 +30,7 @@ describe("downloadFile validation", () => {
       projectId: "test-project",
     });
     await expect(
-      sandbox.currentSession().downloadFile({ path: "" }, { path: "/tmp/out" }),
+      sandbox.downloadFile({ path: "" }, { path: "/tmp/out" }),
     ).rejects.toThrow("downloadFile: source path is required");
   });
 
@@ -43,7 +43,7 @@ describe("downloadFile validation", () => {
       projectId: "test-project",
     });
     await expect(
-      sandbox.currentSession().downloadFile({ path: "file.txt" }, undefined as any),
+      sandbox.downloadFile({ path: "file.txt" }, undefined as any),
     ).rejects.toThrow("downloadFile: destination path is required");
   });
 
@@ -56,7 +56,7 @@ describe("downloadFile validation", () => {
       projectId: "test-project",
     });
     await expect(
-      sandbox.currentSession().downloadFile({ path: "file.txt" }, { path: "" }),
+      sandbox.downloadFile({ path: "file.txt" }, { path: "" }),
     ).rejects.toThrow("downloadFile: destination path is required");
   });
 });
@@ -70,53 +70,50 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   });
 
   afterEach(async () => {
-    await sandbox.currentSession().stop();
+    await sandbox.stop();
   });
 
   it("allows to write files and then read them as a stream", async () => {
-    const session = sandbox.currentSession();
-    await session.writeFiles([
+    await sandbox.writeFiles([
       { path: "hello1.txt", content: Buffer.from("Hello 1") },
       { path: "hello2.txt", content: Buffer.from("Hello 2") },
     ]);
 
-    const content1 = await session.readFile({ path: "hello1.txt" });
-    const content2 = await session.readFile({ path: "hello2.txt" });
+    const content1 = await sandbox.readFile({ path: "hello1.txt" });
+    const content2 = await sandbox.readFile({ path: "hello2.txt" });
     expect((await consumeReadable(content1!)).toString()).toBe("Hello 1");
     expect((await consumeReadable(content2!)).toString()).toBe("Hello 2");
   });
 
   it("allows to write files and then read them to a buffer", async () => {
-    const session = sandbox.currentSession();
-    await session.writeFiles([
+    await sandbox.writeFiles([
       { path: "hello1.txt", content: Buffer.from("Hello 1") },
       { path: "hello2.txt", content: Buffer.from("Hello 2") },
     ]);
 
-    const content1 = await session.readFileToBuffer({ path: "hello1.txt" });
-    const content2 = await session.readFileToBuffer({ path: "hello2.txt" });
+    const content1 = await sandbox.readFileToBuffer({ path: "hello1.txt" });
+    const content2 = await sandbox.readFileToBuffer({ path: "hello2.txt" });
     expect(content1?.toString()).toBe("Hello 1");
     expect(content2?.toString()).toBe("Hello 2");
   });
 
   it("returns null when reading a non-existent file to buffer", async () => {
-    const content = await sandbox.currentSession().readFileToBuffer({
+    const content = await sandbox.readFileToBuffer({
       path: "non-existent.txt",
     });
     expect(content).toBeNull();
   });
 
   it("allows downloading a file from the sandbox", async () => {
-    const session = sandbox.currentSession();
     const fileContent = "Hello from sandbox";
-    await session.writeFiles([
+    await sandbox.writeFiles([
       { path: "download-test.txt", content: Buffer.from(fileContent) },
     ]);
 
     const tmpDir = await mkdtemp(join(tmpdir(), "sandbox-test-"));
 
     try {
-      const result = await session.downloadFile(
+      const result = await sandbox.downloadFile(
         { path: "download-test.txt" },
         { path: "downloaded.txt", cwd: tmpDir },
       );
@@ -131,7 +128,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "sandbox-test-"));
 
     try {
-      const result = await sandbox.currentSession().downloadFile(
+      const result = await sandbox.downloadFile(
         { path: "non-existent.txt" },
         { path: "should-not-exist.txt", cwd: tmpDir },
       );
@@ -142,9 +139,8 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   });
 
   it("creates parent directories when mkdirRecursive is true", async () => {
-    const session = sandbox.currentSession();
     const fileContent = "Hello from sandbox";
-    await session.writeFiles([
+    await sandbox.writeFiles([
       { path: "download-test.txt", content: Buffer.from(fileContent) },
     ]);
 
@@ -152,7 +148,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
     const nestedPath = join(tmpDir, "nested", "dir", "downloaded.txt");
 
     try {
-      const result = await session.downloadFile(
+      const result = await sandbox.downloadFile(
         { path: "download-test.txt" },
         { path: nestedPath },
         { mkdirRecursive: true },
@@ -165,7 +161,6 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   });
 
   it("verifies port forwarding works correctly", async () => {
-    const session = sandbox.currentSession();
     const serverScript = `
 const http = require('http');
 const ports = process.argv.slice(2);
@@ -182,11 +177,11 @@ for (const port of ports) {
 }
 `;
 
-    await session.writeFiles([
+    await sandbox.writeFiles([
       { path: "server.js", content: Buffer.from(serverScript) },
     ]);
 
-    const server = await session.runCommand({
+    const server = await sandbox.runCommand({
       cmd: "node",
       args: ["server.js", ...PORTS.map(String)],
       detached: true,
@@ -197,7 +192,7 @@ for (const port of ports) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     for (const port of PORTS) {
-      const response = await fetch(session.domain(port));
+      const response = await fetch(sandbox.domain(port));
       const text = await response.text();
       expect(text).toBe(`hello port ${port}`);
     }
@@ -206,12 +201,11 @@ for (const port of ports) {
   });
 
   it("allows extending the sandbox timeout", async () => {
-    const session = sandbox.currentSession();
-    const originalTimeout = session.timeout;
+    const originalTimeout = sandbox.timeout;
     const extensionDuration = ms("5m");
 
-    await session.extendTimeout(extensionDuration);
-    expect(session.timeout).toEqual(originalTimeout + extensionDuration);
+    await sandbox.extendTimeout(extensionDuration);
+    expect(sandbox.timeout).toEqual(originalTimeout + extensionDuration);
   });
 
   it("auto-resumes a stopped session when running a command", async () => {
@@ -226,7 +220,7 @@ for (const port of ports) {
 
   it("raises an error when the timeout cannot be updated", async () => {
     try {
-      await sandbox.currentSession().extendTimeout(ms("5d"));
+      await sandbox.extendTimeout(ms("5d"));
       expect.fail("Expected extendTimeout to throw an error");
     } catch (error) {
       expect(error).toBeInstanceOf(APIError);
