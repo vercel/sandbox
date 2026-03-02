@@ -209,9 +209,25 @@ export const NamedSandboxAndSessionResponse = z.object({
   routes: z.array(SandboxRoute),
 });
 
+export const CursorPagination = z.object({
+  /**
+   * Amount of items in the current page.
+   * @example 20
+   */
+  count: z.number(),
+  /**
+   * Opaque cursor that must be used to request the next page, or null if there are no more results.
+   */
+  next: z.string().nullable(),
+  /**
+   * Total number of items across all pages.
+   */
+  total: z.number(),
+});
+
 export const NamedSandboxesResponse = z.object({
   namedSandboxes: z.array(NamedSandbox),
-  pagination: Pagination,
+  pagination: CursorPagination,
 });
 
 export const UpdateNamedSandboxResponse = z.object({

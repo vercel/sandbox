@@ -733,9 +733,24 @@ export class APIClient extends BaseClient {
 
   async listNamedSandboxes(params: {
     projectId: string;
+    /**
+     * Maximum number of named sandboxes to return.
+     * @example 20
+     */
     limit?: number;
-    since?: number | Date;
-    until?: number | Date;
+    /**
+     * Field to sort by. Defaults to 'createdAt'.
+     */
+    sortBy?: "createdAt" | "name";
+    /**
+     * Filter named sandboxes whose name starts with this prefix.
+     * Only valid when `sortBy` is `'name'`.
+     */
+    namePrefix?: string;
+    /**
+     * Opaque pagination cursor from a previous response.
+     */
+    cursor?: string;
     signal?: AbortSignal;
   }) {
     const result = await parseOrThrow(
@@ -744,14 +759,9 @@ export class APIClient extends BaseClient {
         query: {
           project: params.projectId,
           limit: params.limit,
-          since:
-            typeof params.since === "number"
-              ? params.since
-              : params.since?.getTime(),
-          until:
-            typeof params.until === "number"
-              ? params.until
-              : params.until?.getTime(),
+          sortBy: params.sortBy,
+          namePrefix: params.namePrefix,
+          cursor: params.cursor,
         },
         method: "GET",
         signal: params.signal,
