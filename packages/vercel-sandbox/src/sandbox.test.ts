@@ -14,7 +14,9 @@ describe("downloadFile validation", () => {
     const sandbox = new Sandbox({
       client: {} as any,
       routes: [],
-      sandbox: { id: "test" } as any,
+      session: { id: "test" } as any,
+      namedSandbox: { name: "test" } as any,
+      projectId: "test-project",
     });
     await expect(
       sandbox.downloadFile(undefined as any, { path: "/tmp/out" }),
@@ -25,7 +27,9 @@ describe("downloadFile validation", () => {
     const sandbox = new Sandbox({
       client: {} as any,
       routes: [],
-      sandbox: { id: "test" } as any,
+      session: { id: "test" } as any,
+      namedSandbox: { name: "test" } as any,
+      projectId: "test-project",
     });
     await expect(
       sandbox.downloadFile({ path: "" }, { path: "/tmp/out" }),
@@ -36,7 +40,9 @@ describe("downloadFile validation", () => {
     const sandbox = new Sandbox({
       client: {} as any,
       routes: [],
-      sandbox: { id: "test" } as any,
+      session: { id: "test" } as any,
+      namedSandbox: { name: "test" } as any,
+      projectId: "test-project",
     });
     await expect(
       sandbox.downloadFile({ path: "file.txt" }, undefined as any),
@@ -47,7 +53,9 @@ describe("downloadFile validation", () => {
     const sandbox = new Sandbox({
       client: {} as any,
       routes: [],
-      sandbox: { id: "test" } as any,
+      session: { id: "test" } as any,
+      namedSandbox: { name: "test" } as any,
+      projectId: "test-project",
     });
     await expect(
       sandbox.downloadFile({ path: "file.txt" }, { path: "" }),
@@ -319,11 +327,19 @@ for (const port of ports) {
   });
 
   it("allows extending the sandbox timeout", async () => {
-    const originalTimeout = sandbox.timeout;
+    const session = sandbox.currentSession();
+    const originalTimeout = session.timeout;
     const extensionDuration = ms("5m");
 
     await sandbox.extendTimeout(extensionDuration);
-    expect(sandbox.timeout).toEqual(originalTimeout + extensionDuration);
+    expect(session.timeout).toEqual(originalTimeout + extensionDuration);
+  });
+
+  it("auto-resumes a stopped session when running a command", async () => {
+    await sandbox.stop({ blocking: true });
+    const result = await sandbox.runCommand("echo", ["resumed!"]);
+    expect(result.exitCode).toBe(0);
+    expect(await result.stdout()).toContain("resumed!");
   });
 
   it("raises an error when the timeout cannot be updated", async () => {
@@ -339,5 +355,65 @@ for (const port of ports) {
         },
       });
     }
+  });
+
+  it("returns not found when getting a deleted sandbox", async () => {
+    const sandbox = await Sandbox.create();
+    const name = sandbox.name;
+    await sandbox.delete();
+
+    try {
+      await Sandbox.get({ name });
+      expect.fail("Expected Sandbox.get to throw an error");
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      expect(error).toMatchObject({
+        response: { status: 404 },
+      });
+    }
+  });
+
+  it("lists two sessions after stop and resume", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop({ blocking: true });
+
+    const resumed = await Sandbox.get({ name: sandbox.name });
+    const { json } = await resumed.listSessions();
+
+    expect(json.sandboxes).toHaveLength(2);
+
+    const currentSessionId = resumed.currentSession().sessionId;
+    const match = json.sandboxes.find((s) => s.id === currentSessionId);
+    expect(match).toBeDefined();
+  });
+
+  it("lists one snapshot after creating one", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.snapshot();
+
+    const { json } = await sandbox.listSnapshots();
+    expect(json.snapshots).toHaveLength(1);
+  });
+
+  it("reflects updated resources after update", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop({ blocking: true });
+
+    await sandbox.update({ resources: { vcpus: 4, memory: 8192 } });
+
+    const updated = await Sandbox.get({
+      name: sandbox.name,
+      resume: false,
+    });
+    expect(updated.vcpus).toBe(4);
+    expect(updated.memory).toBe(8192);
+  });
+
+  it("appears in the sandbox list after creation", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop();
+    const { json } = await Sandbox.list({ limit: 1 });
+    expect(json.sandboxes).toHaveLength(1);
+    expect(json.sandboxes[0].name).toBe(sandbox.name);
   });
 });

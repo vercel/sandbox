@@ -30,7 +30,7 @@ export const stop = cmd.command({
               token,
               teamId: team,
               projectId: project,
-              sandboxId,
+              name: sandboxId,
             });
             await sandbox.stop();
           },

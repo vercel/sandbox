@@ -5,21 +5,24 @@ import {
   type RequestParams,
 } from "./base-client";
 import {
-CommandFinishedData,
+type CommandFinishedData,
   SandboxAndRoutesResponse,
   SandboxResponse,
   CommandResponse,
   CommandFinishedResponse,
   EmptyResponse,
   LogLine,
-  LogLineStdout,
-  LogLineStderr,
+  type LogLineStdout,
+  type LogLineStderr,
   SandboxesResponse,
   SnapshotsResponse,
   ExtendTimeoutResponse,
   UpdateNetworkPolicyResponse,
   SnapshotResponse,
   CreateSnapshotResponse,
+  NamedSandboxAndSessionResponse,
+  NamedSandboxesPaginationResponse,
+  UpdateNamedSandboxResponse,
   type CommandData,
 } from "./validators";
 import { APIError, StreamError } from "./api-error";
@@ -32,10 +35,10 @@ import os from "os";
 import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
 import { getVercelOidcToken } from "@vercel/oidc";
-import { NetworkPolicy } from "../network-policy";
-import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
-import { getPrivateParams, WithPrivate } from "../utils/types";
-import { RUNTIMES } from "../constants";
+import type { NetworkPolicy } from "../network-policy";
+import { toAPINetworkPolicy } from "../utils/network-policy";
+import { getPrivateParams, type WithPrivate } from "../utils/types";
+import type { RUNTIMES } from "../constants";
 import { setTimeout } from "node:timers/promises";
 
 interface Claims {
@@ -175,7 +178,7 @@ export class APIClient extends BaseClient {
   ) {
     const privateParams = getPrivateParams(params);
     return parseOrThrow(
-      SandboxAndRoutesResponse,
+      NamedSandboxAndSessionResponse,
       await this.request("/v1/sandboxes/named", {
         method: "POST",
         body: JSON.stringify({
@@ -270,7 +273,7 @@ export class APIClient extends BaseClient {
 
       const iterator = jsonlinesStream[Symbol.asyncIterator]();
       const commandChunk = await iterator.next();
-      const { command } = CommandResponse.parse(commandChunk.value);
+      const { command } = CommandResponse.parse(commandChunk.value);
 
       const finished = (async () => {
         const finishedChunk = await iterator.next();  
@@ -377,6 +380,10 @@ export class APIClient extends BaseClient {
      */
     projectId: string;
     /**
+     * Filter sandboxes by named sandbox name.
+     */
+    name?: string;
+    /**
      * Maximum number of sandboxes to list from a request.
      * @example 10
      */
@@ -398,6 +405,7 @@ export class APIClient extends BaseClient {
       await this.request(`/v1/sandboxes`, {
         query: {
           project: params.projectId,
+          name: params.name,
           limit: params.limit,
           since:
             typeof params.since === "number"
@@ -421,6 +429,10 @@ export class APIClient extends BaseClient {
      */
     projectId: string;
     /**
+     * Filter snapshots by named sandbox name.
+     */
+    name?: string;
+    /**
      * Maximum number of snapshots to list from a request.
      * @example 10
      */
@@ -442,6 +454,7 @@ export class APIClient extends BaseClient {
       await this.request(`/v1/sandboxes/snapshots`, {
         query: {
           project: params.projectId,
+          name: params.name,
           limit: params.limit,
           since:
             typeof params.since === "number"
@@ -696,6 +709,112 @@ export class APIClient extends BaseClient {
     return parseOrThrow(
       SnapshotResponse,
       await this.request(url, { signal: params.signal }),
+    );
+  }
+
+  async getNamedSandbox(params: {
+    name: string;
+    projectId: string;
+    resume?: boolean;
+    signal?: AbortSignal;
+  }) {
+    const query: Record<string, string | undefined> = {
+      projectId: params.projectId,
+    };
+    if (params.resume !== undefined) {
+      query.resume = String(params.resume);
+    }
+    return parseOrThrow(
+      NamedSandboxAndSessionResponse,
+      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+        query,
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async listNamedSandboxes(params: {
+    projectId: string;
+    limit?: number;
+    sortBy?: "createdAt" | "name";
+    namePrefix?: string;
+    cursor?: string;
+    signal?: AbortSignal;
+  }) {
+    const result = await parseOrThrow(
+      NamedSandboxesPaginationResponse,
+      await this.request(`/v1/sandboxes/named`, {
+        query: {
+          project: params.projectId,
+          limit: params.limit,
+          sortBy: params.sortBy,
+          namePrefix: params.namePrefix,
+          cursor: params.cursor,
+        },
+        method: "GET",
+        signal: params.signal,
+      }),
+    );
+
+    return {
+      ...result,
+      json: {
+        sandboxes: result.json.namedSandboxes,
+        pagination: result.json.pagination,
+      },
+    };
+  }
+
+  async updateNamedSandbox(params: {
+    name: string;
+    projectId: string;
+    snapshotOnShutdown?: boolean;
+    resources?: { vcpus?: number; memory?: number };
+    runtime?: RUNTIMES | (string & {});
+    timeout?: number;
+    networkPolicy?: NetworkPolicy;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      UpdateNamedSandboxResponse,
+      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+        method: "PATCH",
+        query: {
+          projectId: params.projectId,
+        },
+        body: JSON.stringify({
+          snapshotOnShutdown: params.snapshotOnShutdown,
+          resources: params.resources,
+          runtime: params.runtime,
+          timeout: params.timeout,
+          networkPolicy: params.networkPolicy
+            ? toAPINetworkPolicy(params.networkPolicy)
+            : undefined,
+        }),
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async deleteNamedSandbox(params: {
+    name: string;
+    projectId: string;
+    preserveSnapshots?: boolean;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      UpdateNamedSandboxResponse,
+      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+        method: "DELETE",
+        query: {
+          projectId: params.projectId,
+          preserveSandboxes: "false",
+          preserveSnapshots: params.preserveSnapshots !== undefined
+            ? String(params.preserveSnapshots)
+            : undefined,
+        },
+        signal: params.signal,
+      }),
     );
   }
 }

@@ -63,7 +63,7 @@ export const cp = cmd.command({
       })
     } else {
       const sandbox = await sandboxClient.get({
-        sandboxId: source.sandboxId,
+        name: source.sandboxId,
         teamId: scope.team,
         token: scope.token,
         projectId: scope.project,
@@ -95,7 +95,7 @@ export const cp = cmd.command({
       await fs.writeFile(dest.path, sourceFile);
     } else {
       const sandbox = await sandboxClient.get({
-        sandboxId: dest.sandboxId,
+        name: dest.sandboxId,
         teamId: scope.team,
         projectId: scope.project,
         token: scope.token,
