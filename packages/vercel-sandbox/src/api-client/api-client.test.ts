@@ -426,6 +426,8 @@ describe("APIClient", () => {
       timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      status: "running" as const,
+      currentSandboxId: "sbx_123",
     });
 
     const makeSandbox = () => ({
@@ -513,6 +515,8 @@ describe("APIClient", () => {
       timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      status: "running" as const,
+      currentSandboxId: "sbx_123",
     });
 
     beforeEach(() => {
@@ -586,6 +590,8 @@ describe("APIClient", () => {
       timeout: 600000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      status: "running" as const,
+      currentSandboxId: "sbx_123",
     });
 
     beforeEach(() => {
@@ -639,6 +645,8 @@ describe("APIClient", () => {
       timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      status: "running" as const,
+      currentSandboxId: "sbx_123",
     });
 
     beforeEach(() => {

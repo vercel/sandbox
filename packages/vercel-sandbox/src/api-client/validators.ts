@@ -199,6 +199,9 @@ export const NamedSandbox = z.object({
   totalDurationMs: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  currentSandboxId: z.string(),
+  currentSnapshotId: z.string().optional(),
+  status: Sandbox.shape.status,
 });
 
 export type NamedSandboxMetaData = z.infer<typeof NamedSandbox>;

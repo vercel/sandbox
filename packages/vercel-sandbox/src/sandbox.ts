@@ -265,6 +265,13 @@ export class Sandbox {
   }
 
   /**
+   * The current snapshot ID of this sandbox, if any.
+   */
+  public get currentSnapshotId(): string | undefined {
+    return this.namedSandbox.currentSnapshotId;
+  }
+
+  /**
    * The amount of CPU used by the session. Only reported once the VM is stopped.
    */
   public get activeCpuUsageMs(): number | undefined {

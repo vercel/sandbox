@@ -65,7 +65,7 @@ export const list = cmd.command({
       TIMEOUT: {
         value: (s) => timeAgo(s.createdAt + s.timeout),
       },
-      SNAPSHOT: { value: (s) => s.sourceSnapshotId ?? "-" }
+      SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" }
     };
     if (all) {
       columns.CPU = { value: (s) => s.totalActiveCpuDurationMs ? formatRunDuration(s.totalActiveCpuDurationMs) : "-" };
