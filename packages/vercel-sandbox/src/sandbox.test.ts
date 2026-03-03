@@ -201,11 +201,12 @@ for (const port of ports) {
   });
 
   it("allows extending the sandbox timeout", async () => {
-    const originalTimeout = sandbox.timeout;
+    const session = sandbox.currentSession();
+    const originalTimeout = session.timeout;
     const extensionDuration = ms("5m");
 
     await sandbox.extendTimeout(extensionDuration);
-    expect(sandbox.timeout).toEqual(originalTimeout + extensionDuration);
+    expect(session.timeout).toEqual(originalTimeout + extensionDuration);
   });
 
   it("auto-resumes a stopped session when running a command", async () => {

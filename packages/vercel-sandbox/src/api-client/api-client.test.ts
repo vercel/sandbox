@@ -506,6 +506,11 @@ describe("APIClient", () => {
     const makeNamedSandbox = (name: string) => ({
       name,
       snapshotOnShutdown: false,
+      region: "iad1",
+      vcpus: 1,
+      memory: 2048,
+      runtime: "node24",
+      timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -627,6 +632,11 @@ describe("APIClient", () => {
     const makeNamedSandbox = () => ({
       name: "my-sandbox",
       snapshotOnShutdown: false,
+      region: "iad1",
+      vcpus: 1,
+      memory: 2048,
+      runtime: "node24",
+      timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
