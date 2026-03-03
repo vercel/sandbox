@@ -54,7 +54,7 @@ export const snapshot = cmd.command({
       typeof sandboxId !== "string"
         ? sandboxId
         : await sandboxClient.get({
-            sandboxId,
+            name: sandboxId,
             projectId: project,
             teamId: team,
             token,
@@ -63,7 +63,7 @@ export const snapshot = cmd.command({
     if (!["running"].includes(sandbox.status)) {
       console.error(
         [
-          `Sandbox ${sandbox.sandboxId} is not available (status: ${sandbox.status}).`,
+          `Sandbox ${sandbox.name} is not available (status: ${sandbox.status}).`,
           `${chalk.bold("hint:")} Only 'running' sandboxes can be snapshotted.`,
           "├▶ Use `sandbox list` to check sandbox status.",
           "╰▶ Use `sandbox create` to create a new sandbox.",
