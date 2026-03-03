@@ -1,0 +1,19 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "ai-example": "0.1.1",
+    "charts-python-example": "0.1.4",
+    "dev-server-example": "0.1.4",
+    "sandbox-filesystem-snapshots-example": "0.0.17",
+    "install-packages-example": "0.1.4",
+    "private-repo-example": "0.1.4",
+    "sandbox-basics-example": "0.1.4",
+    "workflow-code-runner-example": "0.1.6",
+    "@vercel/pty-tunnel": "2.0.3",
+    "@vercel/pty-tunnel-server": "0.0.2",
+    "sandbox": "2.5.12",
+    "@vercel/sandbox": "1.10.2"
+  },
+  "changesets": []
+}

@@ -58,7 +58,7 @@ const networkPolicyCommand = cmd.command({
       typeof sandboxId !== "string"
         ? sandboxId
         : await sandboxClient.get({
-            sandboxId,
+            name: sandboxId,
             projectId: project,
             teamId: team,
             token,
@@ -67,7 +67,7 @@ const networkPolicyCommand = cmd.command({
     if (!["pending", "running"].includes(sandbox.status)) {
       console.error(
         [
-          `Sandbox ${sandbox.sandboxId} is not available (status: ${sandbox.status}).`,
+          `Sandbox ${sandbox.name} is not available (status: ${sandbox.status}).`,
           `${chalk.bold("hint:")} Only 'pending' or 'running' sandboxes can execute commands.`,
           "├▶ Use `sandbox list` to check sandbox status.",
           "╰▶ Use `sandbox create` to create a new sandbox.",
@@ -84,7 +84,7 @@ const networkPolicyCommand = cmd.command({
 
       process.stderr.write(
         "✅ Network policy updated for sandbox " +
-          chalk.cyan(sandbox.sandboxId) +
+          chalk.cyan(sandbox.name) +
           "\n",
       );
       const mode = typeof response === "string" ? response : "restricted";

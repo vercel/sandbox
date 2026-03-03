@@ -10,7 +10,7 @@ export async function createSandbox() {
   });
 
   return {
-    id: sandbox.sandboxId,
+    id: sandbox.name,
     routes: sandbox.routes,
     url: sandbox.domain(3000),
   };
@@ -21,7 +21,7 @@ export async function uploadFiles(params: {
   files: { path: string; content: string }[];
 }) {
   const sandbox = await Sandbox.get({
-    sandboxId: params.sandboxId,
+    name: params.sandboxId,
   });
 
   const files = params.files.map((file) => ({
@@ -60,7 +60,7 @@ export async function runCommand(params: {
   detached?: boolean;
 }) {
   const sandbox = await Sandbox.get({
-    sandboxId: params.sandboxId,
+    name: params.sandboxId,
   });
 
   const cmd = await sandbox.runCommand({

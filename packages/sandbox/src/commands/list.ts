@@ -51,7 +51,7 @@ export const list = cmd.command({
     type Column = { value: (s: SandboxRow) => string | number; color?: (s: SandboxRow) => ChalkInstance };
 
     const columns: Record<string, Column> = {
-      ID: { value: (s) => s.id },
+      ID: { value: (s) => s.name },
       STATUS: {
         value: (s) => s.status,
         color: (s) => SandboxStatusColor[s.status] ?? chalk.reset,
@@ -65,13 +65,13 @@ export const list = cmd.command({
       TIMEOUT: {
         value: (s) => timeAgo(s.createdAt + s.timeout),
       },
-      SNAPSHOT: { value: (s) => s.sourceSnapshotId ?? "-" }
+      SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" }
     };
     if (all) {
-      columns.CPU = { value: (s) => s.activeCpuDurationMs ? formatRunDuration(s.activeCpuDurationMs) : "-" };
+      columns.CPU = { value: (s) => s.totalActiveCpuDurationMs ? formatRunDuration(s.totalActiveCpuDurationMs) : "-" };
       columns["NETWORK (OUT/IN)"] = {
-        value: (s) => s.networkTransfer ?
-          `${formatBytes(s.networkTransfer.egress)} / ${formatBytes(s.networkTransfer.ingress)}` : "- / -",
+        value: (s) => (s.totalEgressBytes || s.totalIngressBytes) ?
+          `${formatBytes(s.totalEgressBytes ?? 0)} / ${formatBytes(s.totalIngressBytes ?? 0)}` : "- / -",
       };
     }
 
