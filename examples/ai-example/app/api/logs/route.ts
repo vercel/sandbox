@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const sandbox = await Sandbox.get({ sandboxId });
+      const sandbox = await Sandbox.get({ name: sandboxId });
       const command = await sandbox.getCommand(cmdId);
 
       for await (const log of command.logs()) {

@@ -319,7 +319,7 @@ async function attach({
   client.close();
 
   console.error(
-    chalk.dim(`\n╰▶ connection to ▲ ${sandbox.sandboxId} closed.`),
+    chalk.dim(`\n╰▶ connection to ▲ ${sandbox.name} closed.`),
   );
 }
 

@@ -1,10 +1,12 @@
 export {
-  Sandbox,
   type NetworkPolicy,
+  Sandbox,
+} from "./sandbox.js";
+export {
+  Session,
   type NetworkPolicyRule,
   type NetworkTransformer,
-} from "./sandbox.js";
-export type { SerializedSandbox } from "./sandbox.js";
+} from "./session.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
 export { Command, CommandFinished } from "./command.js";

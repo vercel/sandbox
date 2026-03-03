@@ -183,3 +183,46 @@ export const CreateSnapshotResponse = z.object({
 export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
+
+export const NamedSandbox = z.object({
+  name: z.string(),
+  snapshotOnShutdown: z.boolean(),
+  region: z.string(),
+  vcpus: z.number(),
+  memory: z.number(),
+  runtime: z.string(),
+  timeout: z.number(),
+  networkPolicy: NetworkPolicyValidator.optional(),
+  totalEgressBytes: z.number().optional(),
+  totalIngressBytes: z.number().optional(),
+  totalActiveCpuDurationMs: z.number().optional(),
+  totalDurationMs: z.number().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  currentSandboxId: z.string(),
+  currentSnapshotId: z.string().optional(),
+  status: Sandbox.shape.status,
+});
+
+export type NamedSandboxMetaData = z.infer<typeof NamedSandbox>;
+
+export const NamedSandboxAndSessionResponse = z.object({
+  namedSandbox: NamedSandbox,
+  sandbox: Sandbox,
+  routes: z.array(SandboxRoute),
+});
+
+export const CursorPagination = z.object({
+  count: z.number(),
+  next: z.string().nullable(),
+  total: z.number(),
+});
+
+export const NamedSandboxesPaginationResponse = z.object({
+  namedSandboxes: z.array(NamedSandbox),
+  pagination: CursorPagination,
+});
+
+export const UpdateNamedSandboxResponse = z.object({
+  namedSandbox: NamedSandbox,
+});
