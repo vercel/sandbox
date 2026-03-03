@@ -470,17 +470,38 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().runCommand(...)`.
+   * Start executing a command in this sandbox.
+   *
+   * @param command - The command to execute.
+   * @param args - Arguments to pass to the command.
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the command execution.
+   * @returns A {@link CommandFinished} result once execution is done.
    */
   async runCommand(
     command: string,
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<CommandFinished>;
+  /**
+   * Start executing a command in detached mode.
+   *
+   * @param params - The command parameters.
+   * @returns A {@link Command} instance for the running command.
+   */
   async runCommand(
     params: RunCommandParams & { detached: true },
   ): Promise<Command>;
+
+  /**
+   * Start executing a command in this sandbox.
+   *
+   * @param params - The command parameters.
+   * @returns A {@link CommandFinished} result once execution is done.
+   */
+
   async runCommand(params: RunCommandParams): Promise<CommandFinished>;
+
   async runCommand(
     commandOrParams: string | RunCommandParams,
     args?: string[],
@@ -494,7 +515,11 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().getCommand(...)`.
+   * Internal helper to start a command in the sandbox.
+   *
+   * @param params - Command execution parameters.
+   * @returns A {@link Command} or {@link CommandFinished}, depending on `detached`.
+   * @internal
    */
   async getCommand(
     cmdId: string,
@@ -508,7 +533,11 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().mkDir(...)`.
+   * Create a directory in the filesystem of this sandbox.
+   *
+   * @param path - Path of the directory to create
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
 
@@ -519,7 +548,12 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().readFile(...)`.
+   * Read a file from the filesystem of this sandbox as a stream.
+   *
+   * @param file - File to read, with path and optional cwd
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves to a ReadableStream containing the file contents, or null if file not found
    */
   async readFile(
     file: { path: string; cwd?: string },
@@ -533,7 +567,12 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().readFileToBuffer(...)`.
+   * Read a file from the filesystem of this sandbox as a Buffer.
+   *
+   * @param file - File to read, with path and optional cwd
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves to the file contents as a Buffer, or null if file not found
    */
   async readFileToBuffer(
     file: { path: string; cwd?: string },
@@ -547,7 +586,14 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().downloadFile(...)`.
+   * Download a file from the sandbox to the local filesystem.
+   *
+   * @param src - Source file on the sandbox, with path and optional cwd
+   * @param dst - Destination file on the local machine, with path and optional cwd
+   * @param opts - Optional parameters.
+   * @param opts.mkdirRecursive - If true, create parent directories for the destination if they don't exist.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns The absolute path to the written file, or null if the source file was not found
    */
   async downloadFile(
     src: { path: string; cwd?: string },
@@ -562,7 +608,14 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().writeFiles(...)`.
+   * Write files to the filesystem of this sandbox.
+   * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
+   * Writes files using the `vercel-sandbox` user.
+   *
+   * @param files - Array of files with path and stream/buffer contents
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves when the files are written
    */
   async writeFiles(
     files: { path: string; content: Buffer }[],
@@ -576,21 +629,58 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().domain(...)`.
+   * Get the public domain of a port of this sandbox.
+   *
+   * @param p - Port number to resolve
+   * @returns A full domain (e.g. `https://subdomain.vercel.run`)
+   * @throws If the port has no associated route
    */
   domain(p: number): string {
     return this.session.domain(p);
   }
 
   /**
-   * Shortcut for `currentSession().stop(...)`.
+   * Stop the sandbox.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
+   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
     return this.session.stop(opts);
   }
 
   /**
-   * Shortcut for `currentSession().updateNetworkPolicy(...)`.
+   * Update the network policy for this sandbox.
+   *
+   * @param networkPolicy - The new network policy to apply.
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves when the network policy is updated.
+   *
+   * @example
+   * // Restrict to specific domains
+   * await sandbox.updateNetworkPolicy({
+   *   allow: ["*.npmjs.org", "github.com"],
+   * });
+   *
+   * @example
+   * // Inject credentials with per-domain transformers
+   * await sandbox.updateNetworkPolicy({
+   *   allow: {
+   *     "ai-gateway.vercel.sh": [{
+   *       transform: [{
+   *         headers: { authorization: "Bearer ..." }
+   *       }]
+   *     }],
+   *     "*": []
+   *   }
+   * });
+   *
+   * @example
+   * // Deny all network access
+   * await sandbox.updateNetworkPolicy("deny-all");
    */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
@@ -604,7 +694,20 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().extendTimeout(...)`.
+   * Extend the timeout of the sandbox by the specified duration.
+   *
+   * This allows you to extend the lifetime of a sandbox up until the maximum
+   * execution timeout for your plan.
+   *
+   * @param duration - The duration in milliseconds to extend the timeout by
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves when the timeout is extended
+   *
+   * @example
+   * const sandbox = await Sandbox.create({ timeout: ms('10m') });
+   * // Extends timeout by 5 minutes, to a total of 15 minutes.
+   * await sandbox.extendTimeout(ms('5m'));
    */
   async extendTimeout(
     duration: number,
@@ -618,7 +721,15 @@ export class Sandbox {
   }
 
   /**
-   * Shortcut for `currentSession().snapshot(...)`.
+   * Create a snapshot from this currently running sandbox. New sandboxes can
+   * then be created from this snapshot using {@link Sandbox.createFromSnapshot}.
+   *
+   * Note: this sandbox will be stopped as part of the snapshot creation process.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.expiration - Optional expiration time in milliseconds. Use 0 for no expiration at all.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A promise that resolves to the Snapshot instance
    */
   async snapshot(opts?: {
     expiration?: number;
