@@ -135,7 +135,7 @@ export const create = cmd.command({
       const hasPorts = routes.length > 0;
 
       process.stderr.write("✅ Sandbox ");
-      process.stdout.write(chalk.cyan(sandbox.sandboxId));
+      process.stdout.write(chalk.cyan(sandbox.name));
       process.stderr.write(" created.\n");
       process.stderr.write(
         chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",

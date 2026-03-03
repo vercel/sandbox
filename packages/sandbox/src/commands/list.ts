@@ -1,8 +1,7 @@
 import * as cmd from "cmd-ts";
-import { Sandbox } from "@vercel/sandbox";
 import { sandboxClient } from "../client";
 import { scope } from "../args/scope";
-import chalk, { ChalkInstance } from "chalk";
+import { ChalkInstance } from "chalk";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
 import { table, timeAgo, formatBytes, formatRunDuration } from "../util/output";
@@ -19,7 +18,7 @@ export const list = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all }) {
+  async handler({ scope: { token, team, project }, all: _all }) {
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
@@ -33,13 +32,7 @@ export const list = cmd.command({
         limit: 100,
       });
 
-      let sandboxes = json.sandboxes;
-
-      if (!all) {
-        sandboxes = sandboxes.filter((x) => x.status === "running");
-      }
-
-      return sandboxes;
+      return json.sandboxes;
     })();
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
@@ -51,11 +44,7 @@ export const list = cmd.command({
     type Column = { value: (s: SandboxRow) => string | number; color?: (s: SandboxRow) => ChalkInstance };
 
     const columns: Record<string, Column> = {
-      ID: { value: (s) => s.id },
-      STATUS: {
-        value: (s) => s.status,
-        color: (s) => SandboxStatusColor[s.status] ?? chalk.reset,
-      },
+      NAME: { value: (s) => s.name },
       CREATED: {
         value: (s) => timeAgo(s.createdAt),
       },
@@ -65,26 +54,13 @@ export const list = cmd.command({
       TIMEOUT: {
         value: (s) => timeAgo(s.createdAt + s.timeout),
       },
-      SNAPSHOT: { value: (s) => s.sourceSnapshotId ?? "-" }
+      CPU: { value: (s) => s.totalActiveCpuDurationMs ? formatRunDuration(s.totalActiveCpuDurationMs) : "-" },
+      "NETWORK (OUT/IN)": {
+        value: (s) => s.totalEgressBytes != null && s.totalIngressBytes != null ?
+          `${formatBytes(s.totalEgressBytes)} / ${formatBytes(s.totalIngressBytes)}` : "- / -",
+      },
     };
-    if (all) {
-      columns.CPU = { value: (s) => s.activeCpuDurationMs ? formatRunDuration(s.activeCpuDurationMs) : "-" };
-      columns["NETWORK (OUT/IN)"] = {
-        value: (s) => s.networkTransfer ?
-          `${formatBytes(s.networkTransfer.egress)} / ${formatBytes(s.networkTransfer.ingress)}` : "- / -",
-      };
-    }
 
     console.log(table({ rows: sandboxes, columns }));
   },
 });
-
-const SandboxStatusColor: Record<Sandbox["status"], ChalkInstance> = {
-  running: chalk.cyan,
-  failed: chalk.red,
-  stopped: chalk.gray.dim,
-  stopping: chalk.gray,
-  pending: chalk.magenta,
-  snapshotting: chalk.blue,
-  aborted: chalk.gray.dim,
-};
