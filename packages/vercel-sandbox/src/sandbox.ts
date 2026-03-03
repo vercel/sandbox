@@ -119,7 +119,7 @@ function isSandboxStoppingError(err: unknown): boolean {
 }
 
 /**
- * A Sandbox is a persistent named entity backed by isolated Linux MicroVMs.
+ * A Sandbox is a persistent, isolated Linux MicroVMs to run commands in.
  * Use {@link Sandbox.create} or {@link Sandbox.get} to construct.
  * @hideconstructor
  */
