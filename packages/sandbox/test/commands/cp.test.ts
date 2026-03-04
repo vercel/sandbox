@@ -16,7 +16,7 @@ describe("copy path parsing", () => {
       parseLocalOrRemotePath("my-sandbox:/home/user/file.txt"),
     ).resolves.toEqual({
       type: "remote",
-      sandboxId: "my-sandbox",
+      sandboxName: "my-sandbox",
       path: "/home/user/file.txt",
     });
   });
