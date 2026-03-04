@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - named-sandboxes
   pull_request:
 
 env:
@@ -84,3 +85,13 @@ jobs:
                 source_run_id: String(context.runId),
               },
             });
+
+      - name: Create Beta Release Pull Request
+        uses: changesets/action@v1
+        if: github.ref == 'refs/heads/named-sandboxes'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          version: pnpm version:prepare
+          publish: pnpm release --tag beta
+          commitMode: github-api
