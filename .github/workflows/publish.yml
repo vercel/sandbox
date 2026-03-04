@@ -40,22 +40,26 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Verify beta pre-release mode
+        if: github.ref == 'refs/heads/named-sandboxes'
+        run: |
+          if [ ! -f .changeset/pre.json ]; then
+            echo "ERROR: .changeset/pre.json not found. named-sandboxes must be in changeset pre-release mode."
+            exit 1
+          fi
+          TAG=$(jq -r '.tag' .changeset/pre.json)
+          if [ "$TAG" != "beta" ]; then
+            echo "ERROR: Expected pre-release tag 'beta', got '$TAG'."
+            exit 1
+          fi
+          echo "Verified: changeset pre-release mode is active with tag 'beta'."
+
       - name: Create Release Pull Request
         uses: changesets/action@v1
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/named-sandboxes'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
         with:
           version: pnpm version:prepare
           publish: pnpm release
-
-      - name: Create Beta Release Pull Request
-        uses: changesets/action@v1
-        if: github.ref == 'refs/heads/named-sandboxes'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
-        with:
-          version: pnpm version:prepare
-          publish: pnpm release --tag beta
