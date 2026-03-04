@@ -137,7 +137,7 @@ const getCommand = cmd.command({
       { field: "Runtime", value: sandbox.runtime },
       { field: "vCPUs", value: String(sandbox.vcpus) },
       { field: "Memory", value: memoryFormatter.format(sandbox.memory) },
-      { field: "Timeout", value: `${sandbox.timeout}ms` },
+      { field: "Timeout", value: ms(sandbox.timeout, { long: true }) },
       { field: "Region", value: sandbox.region },
     ];
 
