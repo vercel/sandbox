@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.0
+
+### Major Changes
+
+- Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
+
 ## 1.8.1
 
 ### Patch Changes
