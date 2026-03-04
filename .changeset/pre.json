@@ -15,5 +15,7 @@
     "sandbox": "2.5.12",
     "@vercel/sandbox": "1.10.2"
   },
-  "changesets": []
+  "changesets": [
+    "fair-pears-dream"
+  ]
 }
