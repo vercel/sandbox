@@ -11,17 +11,7 @@ describe("copy path parsing", () => {
     );
   });
 
-  test("parses remote paths with legacy sandbox ID", async () => {
-    await expect(
-      parseLocalOrRemotePath("sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik:/etc/os-release"),
-    ).resolves.toEqual({
-      type: "remote",
-      sandboxId: "sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik",
-      path: "/etc/os-release",
-    });
-  });
-
-  test("parses remote paths with named sandbox", async () => {
+  test("parses remote paths with a sandbox name", async () => {
     await expect(
       parseLocalOrRemotePath("my-sandbox:/home/user/file.txt"),
     ).resolves.toEqual({
