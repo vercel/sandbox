@@ -1,5 +1,11 @@
 # sandbox
 
+## 3.0.0-beta.0
+
+### Major Changes
+
+- Support named sandboxes
+
 ## 2.5.4
 
 ### Patch Changes
