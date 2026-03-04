@@ -22,7 +22,7 @@ export const run = cmd.command({
       await Exec.exec.handler({ ...rest, sandbox });
     } finally {
       if (removeAfterUse) {
-        await sandbox.stop();
+        await sandbox.delete();
       }
     }
   },

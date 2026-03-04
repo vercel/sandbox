@@ -1,6 +1,6 @@
 import { sandboxClient } from "../client";
 import * as cmd from "cmd-ts";
-import { sandboxId } from "../args/sandbox-id";
+import { sandboxName } from "../args/sandbox-name";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { scope } from "../args/scope";
@@ -18,12 +18,12 @@ export const parseLocalOrRemotePath = async (input: string) => {
       throw new Error(
         [
           `Invalid copy path format: "${input}".`,
-          `${chalk.bold("hint:")} Expected format: SANDBOX_ID:PATH (e.g., sbx_abc123:/home/user/file.txt).`,
+          `${chalk.bold("hint:")} Expected format: SANDBOX_NAME:PATH (e.g., my-sandbox:/home/user/file.txt).`,
           "╰▶ Local paths should not contain colons.",
         ].join("\n"),
       );
     }
-    return { type: "remote", sandboxId: await sandboxId.from(id), path } as const;
+    return { type: "remote", sandboxName: await sandboxName.from(id), path } as const;
   }
 
   return { type: "local", path: input } as const;
@@ -40,19 +40,19 @@ export const cp = cmd.command({
   args: {
     source: cmd.positional({
       displayName: `src`,
-      description: `The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox`,
+      description: `The source file to copy from local file system, or a sandbox_name:path from a remote sandbox`,
       type: localOrRemote,
     }),
     dest: cmd.positional({
       displayName: `dst`,
-      description: `The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox`,
+      description: `The destination file to copy to local file system, or a sandbox_name:path to a remote sandbox`,
       type: localOrRemote,
     }),
     scope,
   },
   async handler({ scope, source, dest }) {
     const spinner = ora({ text: `Reading source file (${source.path})...` }).start();
-    let sourceFile: Buffer<ArrayBufferLike> | null = null;
+    let sourceFile: Buffer<ArrayBufferLike> | null = null;
 
     if (source.type === "local") {
       sourceFile = await fs.readFile(source.path).catch((err) => {
@@ -63,7 +63,7 @@ export const cp = cmd.command({
       })
     } else {
       const sandbox = await sandboxClient.get({
-        name: source.sandboxId,
+        name: source.sandboxName,
         teamId: scope.team,
         token: scope.token,
         projectId: scope.project,
@@ -79,8 +79,8 @@ export const cp = cmd.command({
         const dir = path.dirname(source.path);
         spinner.fail(
           [
-            `File not found: ${source.path} in sandbox ${source.sandboxId}.`,
-            `${chalk.bold("hint:")} Verify the file path exists using \`sandbox exec ${source.sandboxId} ls ${dir}\`.`,
+            `File not found: ${source.path} in sandbox ${source.sandboxName}.`,
+            `${chalk.bold("hint:")} Verify the file path exists using \`sandbox exec ${source.sandboxName} ls ${dir}\`.`,
           ].join("\n"),
         );
       } else {
@@ -95,7 +95,7 @@ export const cp = cmd.command({
       await fs.writeFile(dest.path, sourceFile);
     } else {
       const sandbox = await sandboxClient.get({
-        name: dest.sandboxId,
+        name: dest.sandboxName,
         teamId: scope.team,
         projectId: scope.project,
         token: scope.token,

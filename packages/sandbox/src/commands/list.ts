@@ -17,9 +17,21 @@ export const list = cmd.command({
       short: "a",
       description: "Show all sandboxes (default shows just running)",
     }),
+    namePrefix: cmd.option({
+      long: "name-prefix",
+      description: "Filter sandboxes by name prefix",
+      type: cmd.optional(cmd.string),
+    }),
+    sortBy: cmd.option({
+      long: "sort-by",
+      description: "Sort sandboxes by field",
+      type: cmd.optional(
+        cmd.oneOf(["createdAt", "name"] as const),
+      ),
+    }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all }) {
+  async handler({ scope: { token, team, project }, all, namePrefix, sortBy }) {
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
@@ -31,6 +43,8 @@ export const list = cmd.command({
         teamId: team,
         projectId: project,
         limit: 100,
+        ...(namePrefix && { namePrefix }),
+        ...(sortBy && { sortBy }),
       });
 
       let sandboxes = json.sandboxes;
@@ -51,7 +65,7 @@ export const list = cmd.command({
     type Column = { value: (s: SandboxRow) => string | number; color?: (s: SandboxRow) => ChalkInstance };
 
     const columns: Record<string, Column> = {
-      ID: { value: (s) => s.name },
+      NAME: { value: (s) => s.name },
       STATUS: {
         value: (s) => s.status,
         color: (s) => SandboxStatusColor[s.status] ?? chalk.reset,
