@@ -14,6 +14,15 @@ import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 
 export const args = {
+  name: cmd.option({
+    long: "name",
+    description: "A user-chosen name for the sandbox. It must be unique per project.",
+    type: cmd.optional(cmd.string),
+  }),
+  nonPersistent: cmd.flag({
+    long: "non-persistent",
+    description: "Disable automatic restore of the filesystem between sessions.",
+  }),
   runtime,
   timeout,
   vcpus,
@@ -41,7 +50,7 @@ export const args = {
   }),
   silent: cmd.flag({
     long: "silent",
-    description: "Don't write sandbox ID to stdout",
+    description: "Don't write sandbox name to stdout",
   }),
   snapshot: cmd.option({
     long: "snapshot",
@@ -75,6 +84,8 @@ export const create = cmd.command({
     },
   ],
   async handler({
+    name,
+    nonPersistent,
     ports,
     scope,
     runtime,
@@ -96,10 +107,12 @@ export const create = cmd.command({
       deniedCIDRs,
     });
 
+    const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
+          name,
           source: { type: "snapshot", snapshotId: snapshot },
           teamId: scope.team,
           projectId: scope.project,
@@ -109,9 +122,11 @@ export const create = cmd.command({
           resources,
           networkPolicy,
           env: envVars,
+          persistent,
           __interactive: true,
         })
       : await sandboxClient.create({
+          name,
           teamId: scope.team,
           projectId: scope.project,
           token: scope.token,
@@ -121,6 +136,7 @@ export const create = cmd.command({
           resources,
           networkPolicy,
           env: envVars,
+          persistent,
           __interactive: true,
         });
     spinner?.stop();

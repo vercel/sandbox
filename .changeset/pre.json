@@ -15,6 +15,8 @@
     "@vercel/sandbox": "1.7.1"
   },
   "changesets": [
-    "fair-pears-dream"
+    "fair-pears-dream",
+    "light-results-change",
+    "stale-hotels-grow"
   ]
 }
