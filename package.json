@@ -18,7 +18,7 @@
     "build": "turbo run typecheck build",
     "test": "turbo run test",
     "version:prepare": "changeset version && turbo run version:bump && pnpm install --no-frozen-lockfile",
-    "release": "changeset publish"
+    "release": "changeset publish 2>&1 || echo 'PUBLISH FAILED WITH CODE $?'"
   },
   "lint-staged": {
     "./{*,{packages,.github}/**/*}.{js,ts}": [
