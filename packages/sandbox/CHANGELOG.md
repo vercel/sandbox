@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.1
+
+### Major Changes
+
+- Introduce long-lived sandboxes to the CLI
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.1
+
 ## 3.0.0-beta.0
 
 ### Major Changes

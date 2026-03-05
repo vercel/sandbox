@@ -62,7 +62,7 @@ const get = cmd.command({
     scope,
     snapshotId: cmd.positional({
       type: snapshotId,
-      description: "snapshot ID to retrieve",
+      description: "Snapshot ID to retrieve",
     }),
   },
   async handler({ scope: { token, team, project }, snapshotId: id }) {
@@ -105,7 +105,7 @@ const remove = cmd.command({
   args: {
     snapshotId: cmd.positional({
       type: snapshotId,
-      description: "snapshot ID to delete",
+      description: "Snapshot ID to delete",
     }),
     snapshotIds: cmd.restPositionals({
       type: snapshotId,

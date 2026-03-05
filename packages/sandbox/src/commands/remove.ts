@@ -5,8 +5,8 @@ import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 
 export const remove = cmd.command({
-  name: "rm",
-  aliases: ["remove"],
+  name: "remove",
+  aliases: ["rm"],
   description: "Permanently remove one or more sandboxes",
   args: {
     sandboxName: cmd.positional({
@@ -19,7 +19,7 @@ export const remove = cmd.command({
     }),
     preserveSnapshots: cmd.flag({
       long: "preserve-snapshots",
-      description: "Keep snapshots when deleting the sandbox",
+      description: "Keep snapshots when removing the sandbox",
     }),
     scope,
   },
@@ -32,7 +32,7 @@ export const remove = cmd.command({
     const tasks = Array.from(
       new Set([sandboxName, ...sandboxNames]),
       (name) => ({
-        title: `Deleting sandbox ${name}`,
+        title: `Removing sandbox ${name}`,
         async task() {
           const sandbox = await sandboxClient.get({
             token,

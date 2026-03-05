@@ -16,7 +16,7 @@ const list = cmd.command({
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
-      description: "sandbox name to list sessions for",
+      description: "Sandbox name to list sessions for",
     }),
     scope,
   },

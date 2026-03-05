@@ -1,5 +1,12 @@
 # sandbox-filesystem-snapshots
 
+## 0.0.10-beta.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.1
+
 ## 0.0.9
 
 ### Patch Changes

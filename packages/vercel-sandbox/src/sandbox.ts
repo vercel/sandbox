@@ -95,7 +95,7 @@ export interface BaseCreateSandboxParams {
   /**
    * Whether to enable snapshots on shutdown. Defaults to true.
    */
-  snapshotOnShutdown?: boolean;
+  persistent?: boolean;
 }
 
 export type CreateSandboxParams =
@@ -167,10 +167,10 @@ export class Sandbox {
   }
 
   /**
-   * Whether this sandbox snapshots on shutdown.
+   * Whether the sandbox persists the state.
    */
-  public get snapshotOnShutdown(): boolean {
-    return this.namedSandbox.snapshotOnShutdown;
+  public get persistent(): boolean {
+    return this.namedSandbox.persistent;
   }
 
   /**
@@ -358,7 +358,7 @@ export class Sandbox {
       env: params?.env,
       signal: params?.signal,
       name: params?.name,
-      snapshotOnShutdown: params?.snapshotOnShutdown,
+      persistent: params?.persistent,
       ...privateParams,
     });
 

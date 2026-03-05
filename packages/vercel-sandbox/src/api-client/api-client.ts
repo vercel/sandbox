@@ -169,7 +169,7 @@ export class APIClient extends BaseClient {
         | { type: "snapshot"; snapshotId: string };
       timeout?: number;
       resources?: { vcpus: number };
-      snapshotOnShutdown?: boolean;
+      persistent?: boolean;
       runtime?: RUNTIMES | (string & {});
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
@@ -189,7 +189,7 @@ export class APIClient extends BaseClient {
           resources: params.resources,
           runtime: params.runtime,
           name: params.name,
-          snapshotOnShutdown: params.snapshotOnShutdown,
+          persistent: params.persistent,
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
@@ -768,7 +768,7 @@ export class APIClient extends BaseClient {
   async updateNamedSandbox(params: {
     name: string;
     projectId: string;
-    snapshotOnShutdown?: boolean;
+    persistent?: boolean;
     resources?: { vcpus?: number; memory?: number };
     runtime?: RUNTIMES | (string & {});
     timeout?: number;
@@ -783,7 +783,7 @@ export class APIClient extends BaseClient {
           projectId: params.projectId,
         },
         body: JSON.stringify({
-          snapshotOnShutdown: params.snapshotOnShutdown,
+          persistent: params.persistent,
           resources: params.resources,
           runtime: params.runtime,
           timeout: params.timeout,

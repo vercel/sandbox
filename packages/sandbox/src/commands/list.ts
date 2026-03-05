@@ -24,7 +24,7 @@ export const list = cmd.command({
     }),
     sortBy: cmd.option({
       long: "sort-by",
-      description: "Sort sandboxes by field",
+      description: "Sort sandboxes by field. Options: createdAt (default), name",
       type: cmd.optional(
         cmd.oneOf(["createdAt", "name"] as const),
       ),

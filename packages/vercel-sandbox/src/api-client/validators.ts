@@ -186,7 +186,7 @@ export const SnapshotResponse = z.object({
 
 export const NamedSandbox = z.object({
   name: z.string(),
-  snapshotOnShutdown: z.boolean(),
+  persistent: z.boolean(),
   region: z.string(),
   vcpus: z.number(),
   memory: z.number(),

@@ -23,7 +23,7 @@ const setCommand = cmd.command({
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
-      description: "sandbox name to update",
+      description: "Sandbox name to update",
     }),
     vcpus,
     runtime: cmd.option({
@@ -110,7 +110,7 @@ const getCommand = cmd.command({
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
-      description: "sandbox name to inspect",
+      description: "Sandbox name to inspect",
     }),
     scope,
   },

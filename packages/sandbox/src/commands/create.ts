@@ -19,8 +19,8 @@ export const args = {
     description: "A user-chosen name for the sandbox. It must be unique per project.",
     type: cmd.optional(cmd.string),
   }),
-  noSnapshotOnShutdown: cmd.flag({
-    long: "no-snapshot-on-shutdown",
+  nonPersistent: cmd.flag({
+    long: "non-persistent",
     description: "Disable automatic snapshotting on shutdown.",
   }),
   runtime,
@@ -85,7 +85,7 @@ export const create = cmd.command({
   ],
   async handler({
     name,
-    noSnapshotOnShutdown,
+    nonPersistent,
     ports,
     scope,
     runtime,
@@ -107,7 +107,7 @@ export const create = cmd.command({
       deniedCIDRs,
     });
 
-    const snapshotOnShutdown = !noSnapshotOnShutdown
+    const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
@@ -122,7 +122,7 @@ export const create = cmd.command({
           resources,
           networkPolicy,
           env: envVars,
-          snapshotOnShutdown,
+          persistent,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -136,7 +136,7 @@ export const create = cmd.command({
           resources,
           networkPolicy,
           env: envVars,
-          snapshotOnShutdown,
+          persistent,
           __interactive: true,
         });
     spinner?.stop();

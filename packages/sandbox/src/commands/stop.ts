@@ -10,11 +10,11 @@ export const stop = cmd.command({
   args: {
     sandboxName: cmd.positional({
       type: sandboxName,
-      description: "a sandbox name to stop",
+      description: "A sandbox name to stop",
     }),
     sandboxNames: cmd.restPositionals({
       type: sandboxName,
-      description: "more sandboxes to stop",
+      description: "More sandboxes to stop",
     }),
     scope,
   },
