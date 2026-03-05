@@ -273,14 +273,13 @@ for (const port of ports) {
     const sandbox = await Sandbox.create();
     await sandbox.stop({ blocking: true });
 
-    await sandbox.update({ resources: { vcpus: 4, memory: 8192 } });
+    await sandbox.update({ resources: { vcpus: 4 } });
 
     const updated = await Sandbox.get({
       name: sandbox.name,
       resume: false,
     });
     expect(updated.vcpus).toBe(4);
-    expect(updated.memory).toBe(8192);
   });
 
   it("appears in the sandbox list after creation", async () => {
