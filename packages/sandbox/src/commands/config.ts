@@ -8,77 +8,31 @@ import {
   networkPolicyMode as networkPolicyModeType,
 } from "../args/network-policy";
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
-import { runtimeType } from "../args/runtime";
-import { vcpus } from "../args/vcpus";
+import { vcpusType } from "../args/vcpus";
 import { Duration } from "../types/duration";
+import { BooleanString } from "../types/boolean-string";
 import ora from "ora";
 import chalk from "chalk";
 import ms from "ms";
 import { table } from "../util/output";
 import { acquireRelease } from "../util/disposables";
 
-const setCommand = cmd.command({
-  name: "set",
-  description: "Update the configuration of a sandbox",
+const vcpusCommand = cmd.command({
+  name: "vcpus",
+  description: "Update the vCPU count of a sandbox",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
       description: "Sandbox name to update",
     }),
-    vcpus,
-    runtime: cmd.option({
-      long: "runtime",
-      type: cmd.optional(runtimeType),
-      description: "Runtime to use: node22, node24, or python3.13",
+    count: cmd.positional({
+      type: vcpusType,
+      description:
+        "Number of vCPUs to allocate (each vCPU includes 2048 MB of memory)",
     }),
-    timeout: cmd.option({
-      long: "timeout",
-      type: cmd.optional(Duration),
-      description: "The maximum duration a sandbox can run for. Example: 5m, 1h",
-    }),
-    ...networkPolicyArgs,
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    vcpus,
-    runtime,
-    timeout,
-    networkPolicy: networkPolicyMode,
-    allowedDomains,
-    allowedCIDRs,
-    deniedCIDRs,
-  }) {
-    const hasNetworkPolicyArgs =
-      networkPolicyMode !== undefined ||
-      allowedDomains.length > 0 ||
-      allowedCIDRs.length > 0 ||
-      deniedCIDRs.length > 0;
-
-    if (
-      vcpus === undefined &&
-      runtime === undefined &&
-      timeout === undefined &&
-      !hasNetworkPolicyArgs
-    ) {
-      throw new Error(
-        [
-          `At least one option must be provided.`,
-          `${chalk.bold("hint:")} Use --vcpus, --runtime, --timeout, or --network-policy to update the sandbox configuration.`,
-        ].join("\n"),
-      );
-    }
-
-    const networkPolicy = hasNetworkPolicyArgs
-      ? buildNetworkPolicy({
-          networkPolicy: networkPolicyMode,
-          allowedDomains,
-          allowedCIDRs,
-          deniedCIDRs,
-        })
-      : undefined;
-
+  async handler({ scope: { token, team, project }, sandbox: name, count }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -88,14 +42,16 @@ const setCommand = cmd.command({
 
     const spinner = ora("Updating sandbox configuration...").start();
     try {
-      await sandbox.update({
-        ...(vcpus !== undefined && { resources: { vcpus } }),
-        ...(runtime !== undefined && { runtime }),
-        ...(timeout !== undefined && { timeout: ms(timeout) }),
-        ...(networkPolicy !== undefined && { networkPolicy }),
-      });
-      spinner.succeed(
-        "Configuration updated for sandbox " + chalk.cyan(name),
+      await sandbox.update({ resources: { vcpus: count } });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " +
+          chalk.cyan(name) +
+          "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "vcpus: " + chalk.cyan(count) + "\n",
       );
     } catch (error) {
       spinner.stop();
@@ -104,8 +60,100 @@ const setCommand = cmd.command({
   },
 });
 
-const getCommand = cmd.command({
-  name: "get",
+const timeoutCommand = cmd.command({
+  name: "timeout",
+  description: "Update the timeout of a sandbox (will be applied to all new sessions)",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    duration: cmd.positional({
+      type: Duration,
+      description: "The maximum duration a sandbox can run for. Example: 5m, 1h",
+    }),
+    scope,
+  },
+  async handler({
+    scope: { token, team, project },
+    sandbox: name,
+    duration,
+  }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ timeout: ms(duration) });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " +
+          chalk.cyan(name) +
+          "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "timeout: " + chalk.cyan(duration) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
+const persistentCommand = cmd.command({
+  name: "persistent",
+  description: "Enable or disable automatic restore of the filesystem between sessions",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    value: cmd.positional({
+      type: BooleanString,
+      description: "Enable or disable automatic restore of the filesystem between sessions",
+    }),
+    scope,
+  },
+  async handler({
+    scope: { token, team, project },
+    sandbox: name,
+    value,
+  }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ persistent: value });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " +
+          chalk.cyan(name) +
+          "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "persistent: " + chalk.cyan(value) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
+const listCommand = cmd.command({
+  name: "list",
   description: "Display the current configuration of a sandbox",
   args: {
     sandbox: cmd.positional({
@@ -128,17 +176,12 @@ const getCommand = cmd.command({
       });
     })();
 
-    const memoryFormatter = new Intl.NumberFormat(undefined, {
-      style: "unit",
-      unit: "megabyte",
-    });
-
+    const networkPolicy = typeof sandbox.networkPolicy === "string" ? sandbox.networkPolicy : "restricted";
     const rows = [
-      { field: "Runtime", value: sandbox.runtime },
       { field: "vCPUs", value: String(sandbox.vcpus) },
-      { field: "Memory", value: memoryFormatter.format(sandbox.memory) },
       { field: "Timeout", value: ms(sandbox.timeout, { long: true }) },
-      { field: "Region", value: sandbox.region },
+      { field: "Persistent", value: String(sandbox.persistent) },
+      { field: "Network policy", value: String(networkPolicy) },
     ];
 
     console.log(
@@ -155,8 +198,7 @@ const getCommand = cmd.command({
 
 const networkPolicyCommand = cmd.command({
   name: "network-policy",
-  description: `Update the network policy of a sandbox.
-  This will fully override the previous configuration.`,
+  description: `Update the network policy of a sandbox`,
   args: {
     sandbox: cmd.positional({
       type: sandboxName as cmd.Type<string, string | Sandbox>,
@@ -178,12 +220,6 @@ const networkPolicyCommand = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
-    process.stderr.write(
-      chalk.yellow(
-        "Warning: 'config network-policy' is deprecated. Use 'config set --network-policy=...' instead.\n",
-      ),
-    );
-
     const networkPolicyMode = resolveMode(networkPolicyFlag, modeFlag);
 
     if (
@@ -214,7 +250,7 @@ const networkPolicyCommand = cmd.command({
 
     const spinner = ora("Updating network policy...").start();
     try {
-      const response = await sandbox.updateNetworkPolicy(networkPolicy);
+      await sandbox.update({ networkPolicy });
       spinner.stop();
 
       process.stderr.write(
@@ -222,7 +258,7 @@ const networkPolicyCommand = cmd.command({
           chalk.cyan(sandbox.name) +
           "\n",
       );
-      const mode = typeof response === "string" ? response : "restricted";
+      const mode = typeof networkPolicy === "string" ? networkPolicy : "restricted";
       process.stderr.write(
         chalk.dim("   ╰ ") + "mode: " + chalk.cyan(mode) + "\n",
       );
@@ -237,8 +273,10 @@ export const config = cmd.subcommands({
   name: "config",
   description: "View and update sandbox configuration",
   cmds: {
-    set: setCommand,
-    get: getCommand,
+    list: listCommand,
+    vcpus: vcpusCommand,
+    timeout: timeoutCommand,
+    persistent: persistentCommand,
     "network-policy": networkPolicyCommand,
   },
 });

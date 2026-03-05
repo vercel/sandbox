@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.1
+sandbox 3.0.0-beta.2
 
 ▲ sandbox [options] <command>
 
@@ -56,7 +56,7 @@ Flags:
 Options:
 
     --name-prefix <str>  Filter sandboxes by name prefix [optional]
-    --sort-by <value>    Sort sandboxes by field [optional]
+    --sort-by <value>    Sort sandboxes by field. Options: createdAt (default), name [optional]
 
 Auth & Scope:
 
@@ -77,6 +77,7 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --persistent <true|false>          Enable or disable automatic restore of the filesystem between sessions. [optional]
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -94,7 +95,6 @@ Options:
 
 Flags:
 
-    --non-persistent     Disable automatic snapshotting on shutdown. [optional]
     --silent             Don't write sandbox name to stdout [optional]
     --connect            Start an interactive shell session after creating the sandbox [optional]
     --sudo               Give extended privileges to the command. [optional]
@@ -128,6 +128,7 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --persistent <true|false>          Enable or disable automatic restore of the filesystem between sessions. [optional]
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -144,10 +145,9 @@ Options:
 
 Flags:
 
-    --non-persistent  Disable automatic snapshotting on shutdown. [optional]
-    --silent          Don't write sandbox name to stdout [optional]
-    --connect         Start an interactive shell session after creating the sandbox [optional]
-    --help, -h        show help [optional]
+    --silent    Don't write sandbox name to stdout [optional]
+    --connect   Start an interactive shell session after creating the sandbox [optional]
+    --help, -h  show help [optional]
 
 Auth & Scope:
 
@@ -208,8 +208,8 @@ Stop the current session of one or more sandboxes
 
 Arguments:
 
-    <name>     a sandbox name to stop
-    [...name]  more sandboxes to stop
+    <name>     A sandbox name to stop
+    [...name]  More sandboxes to stop
 
 Auth & Scope:
 
@@ -324,40 +324,22 @@ Commands:
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
 ```
 
-## `sandbox config network-policy`
+## `sandbox config`
 
 ```
-network-policy
+sandbox config
 
-▲ sandbox config network-policy [options]
+▲ sandbox config [options] <command>
 
-Update the network policy of a sandbox.
-  This will fully override the previous configuration.
+For command help, run `sandbox config <command> --help`
 
-Arguments:
+Commands:
 
-    <name>  The name of the sandbox
-
-Options:
-
-    --network-policy <MODE>  Network policy mode: "allow-all" or "deny-all"
-      - allow-all: sandbox can access any website/domain
-      - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>   Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>     CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>      CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --mode <MODE>            Alias for --network-policy. [optional]
-
-Auth & Scope:
-
-    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
-    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
-Flags:
-
-    --help, -h  show help [optional]
+    list            <name>               Display the current configuration of a sandbox
+    vcpus           <name> <COUNT>       Update the vCPU count of a sandbox
+    timeout         <name> <num UNIT>    Update the timeout of a sandbox (will be applied to all new sessions)
+    persistent      <name> <true|false>  Enable or disable automatic restore of the filesystem between sessions
+    network-policy  <name>               Update the network policy of a sandbox
 ```
 
 ## `sandbox login`

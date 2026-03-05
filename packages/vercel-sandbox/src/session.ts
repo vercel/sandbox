@@ -558,49 +558,56 @@ export class Session {
   }
 
   /**
-   * Update the network policy for this session.
+   * Update the current session's settings.
    *
-   * @param networkPolicy - The new network policy to apply.
+   * @param params - Fields to update.
+   * @param params.networkPolicy - The new network policy to apply.
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the network policy is updated.
-   *
+   * 
    * @example
    * // Restrict to specific domains
-   * await session.updateNetworkPolicy({
-   *   allow: ["*.npmjs.org", "github.com"],
+   * await session.update({
+   *   networkPolicy: {
+   *     allow: ["*.npmjs.org", "github.com"],
+   *   }
    * });
    *
    * @example
    * // Inject credentials with per-domain transformers
-   * await session.updateNetworkPolicy({
-   *   allow: {
-   *     "ai-gateway.vercel.sh": [{
-   *       transform: [{
-   *         headers: { authorization: "Bearer ..." }
-   *       }]
-   *     }],
-   *     "*": []
+   * await session.update({
+   *   networkPolicy: {
+   *     allow: {
+   *       "ai-gateway.vercel.sh": [{
+   *         transform: [{
+   *           headers: { authorization: "Bearer ..." }
+   *         }]
+   *       }],
+   *       "*": []
+   *     }
    *   }
    * });
    *
    * @example
    * // Deny all network access
-   * await session.updateNetworkPolicy("deny-all");
+   * await session.update({ networkPolicy: "deny-all" });
    */
-  async updateNetworkPolicy(
-    networkPolicy: NetworkPolicy,
+  async update(
+    params: {
+      networkPolicy?: NetworkPolicy;
+    },
     opts?: { signal?: AbortSignal },
-  ): Promise<NetworkPolicy> {
-    const response = await this.client.updateNetworkPolicy({
-      sandboxId: this.session.id,
-      networkPolicy: networkPolicy,
-      signal: opts?.signal,
-    });
+  ): Promise<void> {
+    if (params.networkPolicy !== undefined) {
+      const response = await this.client.updateNetworkPolicy({
+        sandboxId: this.session.id,
+        networkPolicy: params.networkPolicy,
+        signal: opts?.signal,
+      });
 
-    // Update the internal session metadata with the new network policy
-    this.session = convertSandbox(response.json.sandbox);
-    return this.session.networkPolicy!;
+      // Update the internal session metadata with the new network policy
+      this.session = convertSandbox(response.json.sandbox);
+    }
   }
 
   /**
