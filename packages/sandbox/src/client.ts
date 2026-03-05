@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
   get: (params) =>
-    withErrorHandling(Sandbox.get({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params })),
   create: (params) =>
     withErrorHandling(Sandbox.create({ fetch: fetchWithUserAgent, ...params })),
   list: (params) =>

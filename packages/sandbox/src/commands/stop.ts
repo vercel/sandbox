@@ -1,36 +1,35 @@
 import * as cmd from "cmd-ts";
 import { Listr } from "listr2";
-import { sandboxId } from "../args/sandbox-id";
+import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 
 export const stop = cmd.command({
   name: "stop",
-  aliases: ["rm", "remove"],
-  description: "Stop one or more running sandboxes",
+  description: "Stop the current session of one or more sandboxes",
   args: {
-    sandboxId: cmd.positional({
-      type: sandboxId,
-      description: "a sandbox ID to stop",
+    sandboxName: cmd.positional({
+      type: sandboxName,
+      description: "A sandbox name to stop",
     }),
-    sandboxIds: cmd.restPositionals({
-      type: sandboxId,
-      description: "more sandboxes to stop",
+    sandboxNames: cmd.restPositionals({
+      type: sandboxName,
+      description: "More sandboxes to stop",
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, sandboxId, sandboxIds }) {
+  async handler({ scope: { token, team, project }, sandboxName, sandboxNames }) {
     const tasks = Array.from(
-      new Set([sandboxId, ...sandboxIds]),
-      (sandboxId) => {
+      new Set([sandboxName, ...sandboxNames]),
+      (sandboxName) => {
         return {
-          title: `Stopping sandbox ${sandboxId}`,
+          title: `Stopping sandbox ${sandboxName}`,
           async task() {
             const sandbox = await sandboxClient.get({
               token,
               teamId: team,
               projectId: project,
-              name: sandboxId,
+              name: sandboxName,
             });
             await sandbox.stop();
           },

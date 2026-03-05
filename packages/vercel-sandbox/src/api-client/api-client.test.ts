@@ -536,7 +536,7 @@ describe("APIClient", () => {
 
     const makeNamedSandbox = () => ({
       name: "my-sandbox",
-      snapshotOnShutdown: true,
+      persistent: true,
       region: "iad1",
       vcpus: 1,
       memory: 2048,
@@ -625,7 +625,7 @@ describe("APIClient", () => {
 
     const makeNamedSandbox = (name: string) => ({
       name,
-      snapshotOnShutdown: false,
+      persistent: false,
       region: "iad1",
       vcpus: 1,
       memory: 2048,
@@ -700,7 +700,7 @@ describe("APIClient", () => {
 
     const makeNamedSandbox = () => ({
       name: "my-sandbox",
-      snapshotOnShutdown: true,
+      persistent: true,
       region: "iad1",
       vcpus: 2,
       memory: 4096,
@@ -732,7 +732,7 @@ describe("APIClient", () => {
       const result = await client.updateNamedSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
-        snapshotOnShutdown: true,
+        persistent: true,
         timeout: 600000,
       });
 
@@ -744,7 +744,7 @@ describe("APIClient", () => {
       expect(opts.method).toBe("PATCH");
 
       const parsedBody = JSON.parse(opts.body);
-      expect(parsedBody.snapshotOnShutdown).toBe(true);
+      expect(parsedBody.persistent).toBe(true);
       expect(parsedBody.timeout).toBe(600000);
     });
   });
@@ -755,7 +755,7 @@ describe("APIClient", () => {
 
     const makeNamedSandbox = () => ({
       name: "my-sandbox",
-      snapshotOnShutdown: false,
+      persistent: false,
       region: "iad1",
       vcpus: 1,
       memory: 2048,

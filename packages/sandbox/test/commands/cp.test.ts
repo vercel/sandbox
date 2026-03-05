@@ -11,13 +11,13 @@ describe("copy path parsing", () => {
     );
   });
 
-  test("parses remote paths", async () => {
+  test("parses remote paths with a sandbox name", async () => {
     await expect(
-      parseLocalOrRemotePath("sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik:/etc/os-release"),
+      parseLocalOrRemotePath("my-sandbox:/home/user/file.txt"),
     ).resolves.toEqual({
       type: "remote",
-      sandboxId: "sbx_Z1bhKlvVP1ecxCg2ewRUSU0hg1ik",
-      path: "/etc/os-release",
+      sandboxName: "my-sandbox",
+      path: "/home/user/file.txt",
     });
   });
 });

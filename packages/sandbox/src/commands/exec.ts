@@ -1,6 +1,6 @@
 import { Sandbox } from "@vercel/sandbox";
 import * as cmd from "cmd-ts";
-import { sandboxId } from "../args/sandbox-id";
+import { sandboxName } from "../args/sandbox-name";
 import { isatty } from "node:tty";
 import { startInteractiveShell } from "../interactive-shell/interactive-shell";
 import { printCommand } from "../util/print-command";
@@ -11,7 +11,7 @@ import chalk from "chalk";
 
 export const args = {
   sandbox: cmd.positional({
-    type: sandboxId as cmd.Type<string, string | Sandbox>,
+    type: sandboxName as cmd.Type<string, string | Sandbox>,
   }),
   command: cmd.positional({
     displayName: "command",
@@ -80,35 +80,22 @@ export const exec = cmd.command({
     cwd,
     args,
     asSudo,
-    sandbox: sandboxId,
+    sandbox: sandboxName,
     scope: { token, team, project },
     interactive,
     envVars,
     skipExtendingTimeout,
   }) {
     const sandbox =
-      typeof sandboxId !== "string"
-        ? sandboxId
+      typeof sandboxName !== "string"
+        ? sandboxName
         : await sandboxClient.get({
-            name: sandboxId,
+            name: sandboxName,
             projectId: project,
             teamId: team,
             token,
             __includeSystemRoutes: true,
           });
-
-    if (!["pending", "running"].includes(sandbox.status)) {
-      console.error(
-        [
-          `Sandbox ${sandbox.name} is not available (status: ${sandbox.status}).`,
-          `${chalk.bold("hint:")} Only 'pending' or 'running' sandboxes can execute commands.`,
-          "├▶ Use `sandbox list` to check sandbox status.",
-          "╰▶ Use `sandbox create` to create a new sandbox.",
-        ].join("\n"),
-      );
-      process.exitCode = 1;
-      return;
-    }
 
     if (!interactive) {
       console.error(printCommand(command, args));

@@ -1,5 +1,5 @@
 import * as cmd from "cmd-ts";
-import { sandboxId } from "../args/sandbox-id";
+import { sandboxName } from "../args/sandbox-name";
 import { Sandbox } from "@vercel/sandbox";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
@@ -23,7 +23,7 @@ export const args = {
     description: "The expiration time of the snapshot. Use 0 for no expiration.",
   }),
   sandbox: cmd.positional({
-    type: sandboxId as cmd.Type<string, string | Sandbox>,
+    type: sandboxName as cmd.Type<string, string | Sandbox>,
   }),
   scope,
 } as const;
@@ -33,7 +33,7 @@ export const snapshot = cmd.command({
   description: "Take a snapshot of the filesystem of a sandbox",
   args,
   async handler({
-    sandbox: sandboxId,
+    sandbox: sandboxName,
     stop,
     scope: { token, team, project },
     silent,
@@ -42,7 +42,7 @@ export const snapshot = cmd.command({
     if (!stop) {
       console.error(
         [
-          "Snapshotting a sandbox will automatically stop it.",
+          "Snapshotting will stop the current session of this sandbox.",
           `${chalk.bold("hint:")} Confirm with --stop to continue.`,
         ].join("\n"),
       );
@@ -51,10 +51,10 @@ export const snapshot = cmd.command({
     }
 
     const sandbox =
-      typeof sandboxId !== "string"
-        ? sandboxId
+      typeof sandboxName !== "string"
+        ? sandboxName
         : await sandboxClient.get({
-            name: sandboxId,
+            name: sandboxName,
             projectId: project,
             teamId: team,
             token,
