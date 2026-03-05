@@ -21,7 +21,7 @@ export const args = {
   }),
   nonPersistent: cmd.flag({
     long: "non-persistent",
-    description: "Disable automatic snapshotting on shutdown.",
+    description: "Disable automatic restore of the filesystem between sessions.",
   }),
   runtime,
   timeout,
