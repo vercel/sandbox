@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.2
+
+### Minor Changes
+
+- Refactor the sandbox update and deprecate old network-policy update
+
 ## 2.0.0-beta.1
 
 ### Minor Changes

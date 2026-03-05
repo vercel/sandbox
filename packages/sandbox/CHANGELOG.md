@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.2
+
+### Minor Changes
+
+- Refactor the sandbox update and deprecate old network-policy update
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.2
+
 ## 3.0.0-beta.1
 
 ### Major Changes

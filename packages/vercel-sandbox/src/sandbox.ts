@@ -676,6 +676,8 @@ export class Sandbox {
   /**
    * Update the network policy for this sandbox.
    *
+   * @deprecated Use {@link Sandbox.update} instead.
+   *
    * @param networkPolicy - The new network policy to apply.
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
@@ -708,11 +710,12 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-
-    return this.withResume(
-      () => this.session.updateNetworkPolicy(networkPolicy, opts),
+    await this.withResume(
+      () => this.session.update({ networkPolicy: networkPolicy }, opts),
       opts?.signal,
     );
+
+    return this.session.networkPolicy!;
   }
 
   /**
@@ -765,31 +768,43 @@ export class Sandbox {
   }
 
   /**
-   * Update the named sandbox configuration. Only provided fields are modified.
+   * Update the named sandbox configuration.
    *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
   async update(
     params: {
-      resources?: { vcpus?: number; memory?: number };
-      runtime?: RUNTIMES | (string & {});
+      persistent?: boolean;
+      resources?: { vcpus?: number; };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-
+    // Update the sandbox config. This config will be used on the next session.
     const response = await this.client.updateNamedSandbox({
       name: this.namedSandbox.name,
       projectId: this.projectId,
+      persistent: params.persistent,
       resources: params.resources,
-      runtime: params.runtime,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
       signal: opts?.signal,
     });
     this.namedSandbox = response.json.namedSandbox;
+
+    // Update the current session config. This only applies to network policy.
+    if (params.networkPolicy) {
+      try {
+        return await this.session.update({ networkPolicy: params.networkPolicy }, opts);
+      } catch (err) {
+        if (isSandboxStoppedError(err) || isSandboxStoppingError(err)) {
+          return;
+        }
+        throw err;
+      }
+    }
   }
 
   /**
