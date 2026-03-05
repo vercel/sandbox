@@ -10,7 +10,6 @@ import {
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
 import { Duration } from "../types/duration";
-import { BooleanString } from "../types/boolean-string";
 import ora from "ora";
 import chalk from "chalk";
 import ms from "ms";
@@ -115,7 +114,7 @@ const persistentCommand = cmd.command({
       description: "Sandbox name to update",
     }),
     value: cmd.positional({
-      type: BooleanString,
+      type: { ...cmd.oneOf(["true", "false"]), displayName: "true|false" },
       description: "Enable or disable automatic restore of the filesystem between sessions",
     }),
     scope,
@@ -134,7 +133,7 @@ const persistentCommand = cmd.command({
 
     const spinner = ora("Updating sandbox configuration...").start();
     try {
-      await sandbox.update({ persistent: value });
+      await sandbox.update({ persistent: value === "true" });
       spinner.stop();
 
       process.stderr.write(
