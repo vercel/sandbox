@@ -77,7 +77,6 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --persistent <true|false>          Enable or disable automatic restore of the filesystem between sessions. [optional]
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -95,6 +94,7 @@ Options:
 
 Flags:
 
+    --non-persistent     Disable automatic restore of the filesystem between sessions. [optional]
     --silent             Don't write sandbox name to stdout [optional]
     --connect            Start an interactive shell session after creating the sandbox [optional]
     --sudo               Give extended privileges to the command. [optional]
@@ -128,7 +128,6 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --persistent <true|false>          Enable or disable automatic restore of the filesystem between sessions. [optional]
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -145,9 +144,10 @@ Options:
 
 Flags:
 
-    --silent    Don't write sandbox name to stdout [optional]
-    --connect   Start an interactive shell session after creating the sandbox [optional]
-    --help, -h  show help [optional]
+    --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
+    --silent          Don't write sandbox name to stdout [optional]
+    --connect         Start an interactive shell session after creating the sandbox [optional]
+    --help, -h        show help [optional]
 
 Auth & Scope:
 

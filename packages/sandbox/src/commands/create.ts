@@ -12,7 +12,6 @@ import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
-import { BooleanString } from "../types/boolean-string";
 
 export const args = {
   name: cmd.option({
@@ -20,10 +19,9 @@ export const args = {
     description: "A user-chosen name for the sandbox. It must be unique per project.",
     type: cmd.optional(cmd.string),
   }),
-  persistent: cmd.option({
-    long: "persistent",
-    description: "Enable or disable automatic restore of the filesystem between sessions.",
-    type: cmd.optional(BooleanString),
+  nonPersistent: cmd.flag({
+    long: "non-persistent",
+    description: "Disable automatic restore of the filesystem between sessions.",
   }),
   runtime,
   timeout,
@@ -87,7 +85,7 @@ export const create = cmd.command({
   ],
   async handler({
     name,
-    persistent,
+    nonPersistent,
     ports,
     scope,
     runtime,
@@ -109,6 +107,7 @@ export const create = cmd.command({
       deniedCIDRs,
     });
 
+    const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
