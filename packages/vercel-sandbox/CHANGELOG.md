@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.1
+
+### Minor Changes
+
+- Rename snapshotOnShutdown to persistent
+
 ## 2.0.0-beta.0
 
 ### Major Changes

@@ -1,7 +1,7 @@
 import * as cmd from "cmd-ts";
 import { subcommands } from "cmd-ts";
 import { Listr } from "listr2";
-import chalk, { ChalkInstance } from "chalk";
+import chalk, { type ChalkInstance } from "chalk";
 import ora from "ora";
 import { scope } from "../args/scope";
 import { snapshotId } from "../args/snapshot-id";
@@ -48,7 +48,7 @@ const list = cmd.command({
                 : timeAgo(s.expiresAt),
           },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
-          ["SOURCE SANDBOX"]: { value: (s) => s.sourceSandboxId },
+          ["SOURCE SESSION"]: { value: (s) => s.sourceSandboxId },
         },
       }),
     );
@@ -62,7 +62,7 @@ const get = cmd.command({
     scope,
     snapshotId: cmd.positional({
       type: snapshotId,
-      description: "snapshot ID to retrieve",
+      description: "Snapshot ID to retrieve",
     }),
   },
   async handler({ scope: { token, team, project }, snapshotId: id }) {
@@ -91,7 +91,7 @@ const get = cmd.command({
           CREATED: { value: (s) => timeAgo(s.createdAt) },
           EXPIRATION: { value: (s) => s.status === 'deleted' ? chalk.gray.dim('deleted') : timeAgo(s.expiresAt) },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
-          ["SOURCE SANDBOX"]: { value: (s) => s.sourceSandboxId },
+          ["SOURCE SESSION"]: { value: (s) => s.sourceSandboxId },
         },
       }),
     );
@@ -105,7 +105,7 @@ const remove = cmd.command({
   args: {
     snapshotId: cmd.positional({
       type: snapshotId,
-      description: "snapshot ID to delete",
+      description: "Snapshot ID to delete",
     }),
     snapshotIds: cmd.restPositionals({
       type: snapshotId,

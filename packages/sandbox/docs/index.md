@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 2.5.5
+sandbox 3.0.0-beta.1
 
 ▲ sandbox [options] <command>
 
@@ -9,18 +9,20 @@ For command help, run `sandbox <command> --help`
 
 Commands:
 
-    ls | list                                        List all sandboxes for the specified account and project.
-    create                                           Create a sandbox in the specified account and project.
-    config                                           Update a sandbox configuration
-    cp | copy      <src> <dst>                       Copy files between your local filesystem and a remote sandbox
-    exec           <sandbox_id> <command> [...args]  Execute a command in an existing sandbox
-    ssh | connect  <sandbox_id>                      Start an interactive shell in an existing sandbox
-    rm | stop      <sandbox_id> [...sandbox_id]      Stop one or more running sandboxes
-    run            <command> [...args]               Create and run a command in a sandbox
-    snapshot       <sandbox_id>                      Take a snapshot of the filesystem of a sandbox
-    snapshots                                        Manage sandbox snapshots
-    login                                            Log in to the Sandbox CLI
-    logout                                           Log out of the Sandbox CLI
+    ls | list                                  List all sandboxes for the specified account and project.
+    create                                     Create a sandbox in the specified account and project.
+    config                                     View and update sandbox configuration
+    cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
+    exec           <name> <command> [...args]  Execute a command in an existing sandbox
+    ssh | connect  <name>                      Start an interactive shell in an existing sandbox
+    stop           <name> [...name]            Stop the current session of one or more sandboxes
+    rm | remove    <name> [...name]            Permanently remove one or more sandboxes
+    run            <command> [...args]         Create and run a command in a sandbox
+    snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
+    snapshots                                  Manage sandbox snapshots
+    sessions                                   Manage sandbox sessions
+    login                                      Log in to the Sandbox CLI
+    logout                                     Log out of the Sandbox CLI
 
 Examples:
 
@@ -34,7 +36,7 @@ Examples:
 
 – Execute command in an existing sandbox
 
-  $ sandbox exec <sandbox-id> -- npm test
+  $ sandbox exec <name> -- npm test
 ```
 
 ## `sandbox list`
@@ -50,6 +52,11 @@ Flags:
 
     --all, -a   Show all sandboxes (default shows just running) [optional]
     --help, -h  show help [optional]
+
+Options:
+
+    --name-prefix <str>  Filter sandboxes by name prefix [optional]
+    --sort-by <value>    Sort sandboxes by field [optional]
 
 Auth & Scope:
 
@@ -69,6 +76,7 @@ Create and run a command in a sandbox
 
 Options:
 
+    --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -86,7 +94,8 @@ Options:
 
 Flags:
 
-    --silent             Don't write sandbox ID to stdout [optional]
+    --non-persistent     Disable automatic snapshotting on shutdown. [optional]
+    --silent             Don't write sandbox name to stdout [optional]
     --connect            Start an interactive shell session after creating the sandbox [optional]
     --sudo               Give extended privileges to the command. [optional]
     --interactive, -i    Run the command in a secure interactive shell [optional]
@@ -118,6 +127,7 @@ Create a sandbox in the specified account and project.
 
 Options:
 
+    --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
     --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -134,9 +144,10 @@ Options:
 
 Flags:
 
-    --silent    Don't write sandbox ID to stdout [optional]
-    --connect   Start an interactive shell session after creating the sandbox [optional]
-    --help, -h  show help [optional]
+    --non-persistent  Disable automatic snapshotting on shutdown. [optional]
+    --silent          Don't write sandbox name to stdout [optional]
+    --connect         Start an interactive shell session after creating the sandbox [optional]
+    --help, -h        show help [optional]
 
 Auth & Scope:
 
@@ -162,9 +173,9 @@ Execute a command in an existing sandbox
 
 Arguments:
 
-    <sandbox_id>  The ID of the sandbox to execute the command in
-    <command>     The executable to invoke
-    [...args]     arguments to pass to the command
+    <name>     The name of the sandbox
+    <command>  The executable to invoke
+    [...args]  arguments to pass to the command
 
 Flags:
 
@@ -193,12 +204,12 @@ stop
 
 ▲ sandbox stop [options]
 
-Stop one or more running sandboxes
+Stop the current session of one or more sandboxes
 
 Arguments:
 
-    <sandbox_id>     a sandbox ID to stop
-    [...sandbox_id]  more sandboxes to stop
+    <name>     a sandbox name to stop
+    [...name]  more sandboxes to stop
 
 Auth & Scope:
 
@@ -222,8 +233,8 @@ Copy files between your local filesystem and a remote sandbox
 
 Arguments:
 
-    <src>  The source file to copy from local file system, or or a sandbox_id:path from a remote sandbox
-    <dst>  The destination file to copy to local file system, or or a sandbox_id:path to a remote sandbox
+    <src>  The source file to copy from local file system, or a sandbox_name:path from a remote sandbox
+    <dst>  The destination file to copy to local file system, or a sandbox_name:path to a remote sandbox
 
 Auth & Scope:
 
@@ -247,7 +258,7 @@ Start an interactive shell in an existing sandbox
 
 Arguments:
 
-    <sandbox_id>  The ID of the sandbox to execute the command in
+    <name>  The name of the sandbox
 
 Flags:
 
@@ -288,7 +299,7 @@ Options:
 
 Arguments:
 
-    <sandbox_id>  The ID of the sandbox to execute the command in
+    <name>  The name of the sandbox
 
 Auth & Scope:
 
@@ -325,7 +336,7 @@ Update the network policy of a sandbox.
 
 Arguments:
 
-    <sandbox_id>  The ID of the sandbox to execute the command in
+    <name>  The name of the sandbox
 
 Options:
 
