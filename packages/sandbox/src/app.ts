@@ -5,12 +5,14 @@ import { list } from "./commands/list";
 import { exec } from "./commands/exec";
 import { connect } from "./commands/connect";
 import { stop } from "./commands/stop";
+import { remove } from "./commands/remove";
 import { cp } from "./commands/cp";
 import { login } from "./commands/login";
 import { logout } from "./commands/logout";
 import { version } from "./pkg";
 import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
+import { sessions } from "./commands/sessions";
 import { config } from "./commands/config";
 
 export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
@@ -26,9 +28,11 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
       exec,
       connect,
       stop,
+      remove,
       run,
       snapshot,
       snapshots,
+      sessions,
       ...(!opts?.withoutAuth && {
         login,
         logout,
@@ -45,7 +49,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
       },
       {
         description: "Execute command in an existing sandbox",
-        command: `sandbox exec <sandbox-id> -- npm test`,
+        command: `sandbox exec <name> -- npm test`,
       },
     ],
   });
