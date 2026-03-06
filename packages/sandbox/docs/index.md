@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.3
+sandbox 3.0.0-beta.4
 
 ▲ sandbox [options] <command>
 
@@ -102,6 +102,7 @@ Flags:
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
     --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
     --rm                 Automatically remove the sandbox when the command exits. [optional]
+    --stop               Stop the sandbox when the command exits. [optional]
     --help, -h           show help [optional]
 
 Auth & Scope:
