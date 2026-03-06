@@ -782,12 +782,17 @@ export class Sandbox {
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    let resources: { vcpus: number; memory: number } | undefined;
+    if (params.resources?.vcpus) {
+      resources = { vcpus: params.resources.vcpus, memory: params.resources.vcpus * 2048 };
+    }
+
     // Update the sandbox config. This config will be used on the next session.
     const response = await this.client.updateNamedSandbox({
       name: this.namedSandbox.name,
       projectId: this.projectId,
       persistent: params.persistent,
-      resources: params.resources,
+      resources,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
       signal: opts?.signal,
