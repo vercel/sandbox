@@ -1,5 +1,13 @@
 # sandbox
 
+## 3.0.0-beta.4
+
+### Minor Changes
+
+- Support new --stop option for exec/run, support new --name option for snaphosts list
+
+- support new --name option for snapshots list, support new --stop option for run
+
 ## 3.0.0-beta.3
 
 ### Minor Changes
