@@ -24,6 +24,10 @@ export const run = cmd.command({
   description: "Create and run a command in a sandbox",
   args,
   async handler({ removeAfterUse, stopAfterUse, ...rest }) {
+    if (removeAfterUse && stopAfterUse) {
+      throw new Error("--rm and --stop are mutually exclusive.");
+    }
+
     let sandbox: Sandbox;
 
     // Resume an existing sandbox or otherwise create it.
@@ -53,7 +57,8 @@ export const run = cmd.command({
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();
-      } else if (stopAfterUse) {
+      }
+      if (stopAfterUse) {
         await sandbox.stop();
       }
     }
