@@ -4,6 +4,7 @@ import { Listr } from "listr2";
 import chalk, { type ChalkInstance } from "chalk";
 import ora from "ora";
 import { scope } from "../args/scope";
+import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
 import { snapshotClient } from "../client";
 import { acquireRelease } from "../util/disposables";
@@ -14,9 +15,14 @@ const list = cmd.command({
   aliases: ["ls"],
   description: "List snapshots for the specified account and project.",
   args: {
-    scope, // only arg, position doesn't matter
+    scope,
+    name: cmd.option({
+      type: cmd.optional(sandboxName),
+      long: "name",
+      description: "Filter snapshots by sandbox.",
+    }),
   },
-  async handler({ scope: { token, team, project } }) {
+  async handler({ scope: { token, team, project }, name }) {
     const snapshots = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching snapshots...").start(),
@@ -26,6 +32,7 @@ const list = cmd.command({
         token,
         teamId: team,
         projectId: project,
+        name,
         limit: 100,
       });
       return json.snapshots;
