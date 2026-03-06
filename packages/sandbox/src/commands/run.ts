@@ -13,13 +13,21 @@ const args = {
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
   }),
+  stopAfterUse: cmd.flag({
+    long: "stop",
+    description: "Stop the sandbox when the command exits.",
+  }),
 } as const;
 
 export const run = cmd.command({
   name: "run",
   description: "Create and run a command in a sandbox",
   args,
-  async handler({ removeAfterUse, ...rest }) {
+  async handler({ removeAfterUse, stopAfterUse, ...rest }) {
+    if (removeAfterUse && stopAfterUse) {
+      throw new Error("--rm and --stop are mutually exclusive.");
+    }
+
     let sandbox: Sandbox;
 
     // Resume an existing sandbox or otherwise create it.
@@ -35,13 +43,13 @@ export const run = cmd.command({
         });
       } catch (error) {
         if (error instanceof StyledError && error.cause instanceof APIError && error.cause.response.status === 404) {
-          sandbox = await Create.create.handler({ ...rest });
+          sandbox = await Create.create.handler({ ...rest, nonPersistent: rest.nonPersistent || removeAfterUse });
         } else {
           throw error;
         }
       }
     } else {
-      sandbox = await Create.create.handler({ ...rest });
+      sandbox = await Create.create.handler({ ...rest, nonPersistent: rest.nonPersistent || removeAfterUse });
     }
 
     try {
@@ -49,6 +57,9 @@ export const run = cmd.command({
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();
+      }
+      if (stopAfterUse) {
+        await sandbox.stop();
       }
     }
   },
