@@ -35,13 +35,13 @@ export const run = cmd.command({
         });
       } catch (error) {
         if (error instanceof StyledError && error.cause instanceof APIError && error.cause.response.status === 404) {
-          sandbox = await Create.create.handler({ ...rest });
+          sandbox = await Create.create.handler({ ...rest, nonPersistent: rest.nonPersistent || removeAfterUse });
         } else {
           throw error;
         }
       }
     } else {
-      sandbox = await Create.create.handler({ ...rest });
+      sandbox = await Create.create.handler({ ...rest, nonPersistent: rest.nonPersistent || removeAfterUse });
     }
 
     try {
