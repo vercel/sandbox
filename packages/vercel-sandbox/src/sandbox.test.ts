@@ -270,16 +270,19 @@ for (const port of ports) {
   });
 
   it("reflects updated resources after update", async () => {
-    const sandbox = await Sandbox.create();
+    const sandbox = await Sandbox.create({ timeout: 60_000, persistent: true });
     await sandbox.stop({ blocking: true });
 
-    await sandbox.update({ resources: { vcpus: 4 } });
+    await sandbox.update({ resources: { vcpus: 4 }, timeout: 30_000, persistent: false });
 
     const updated = await Sandbox.get({
       name: sandbox.name,
       resume: false,
     });
     expect(updated.vcpus).toBe(4);
+    expect(updated.memory).toBe(8192);
+    expect(updated.timeout).toBe(30_000);
+    expect(updated.persistent).toBe(false);
   });
 
   it("appears in the sandbox list after creation", async () => {
