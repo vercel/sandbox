@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.3
+
+### Minor Changes
+
+- Automatically scale memory to vcpu when updating
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.3
+
 ## 3.0.0-beta.2
 
 ### Minor Changes
