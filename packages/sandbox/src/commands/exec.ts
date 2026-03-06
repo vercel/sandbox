@@ -68,6 +68,10 @@ export const args = {
     type: ObjectFromKeyValue,
     description: "Environment variables to set for the command",
   }),
+  stopAfterUse: cmd.flag({
+    long: "stop",
+    description: "Stop the sandbox when the command exits.",
+  }),
   scope,
 } as const;
 
@@ -85,6 +89,7 @@ export const exec = cmd.command({
     interactive,
     envVars,
     skipExtendingTimeout,
+    stopAfterUse,
   }) {
     const sandbox =
       typeof sandboxName !== "string"
@@ -97,28 +102,34 @@ export const exec = cmd.command({
             __includeSystemRoutes: true,
           });
 
-    if (!interactive) {
-      console.error(printCommand(command, args));
-      const result = await sandbox.runCommand({
-        cmd: command,
-        args,
-        stderr: process.stderr,
-        stdout: process.stdout,
-        sudo: asSudo,
-        cwd,
-        env: envVars,
-      });
+    try {
+      if (!interactive) {
+        console.error(printCommand(command, args));
+        const result = await sandbox.runCommand({
+          cmd: command,
+          args,
+          stderr: process.stderr,
+          stdout: process.stdout,
+          sudo: asSudo,
+          cwd,
+          env: envVars,
+        });
 
-      process.exitCode = result.exitCode;
-    } else {
-      await startInteractiveShell({
-        sandbox,
-        cwd,
-        execution: [command, ...args],
-        envVars,
-        sudo: asSudo,
-        skipExtendingTimeout,
-      });
+        process.exitCode = result.exitCode;
+      } else {
+        await startInteractiveShell({
+          sandbox,
+          cwd,
+          execution: [command, ...args],
+          envVars,
+          sudo: asSudo,
+          skipExtendingTimeout,
+        });
+      }
+    } finally {
+      if (stopAfterUse) {
+        await sandbox.stop();
+      }
     }
   },
 });
