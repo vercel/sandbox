@@ -13,13 +13,17 @@ const args = {
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
   }),
+  stopAfterUse: cmd.flag({
+    long: "stop",
+    description: "Stop the sandbox when the command exits.",
+  }),
 } as const;
 
 export const run = cmd.command({
   name: "run",
   description: "Create and run a command in a sandbox",
   args,
-  async handler({ removeAfterUse, ...rest }) {
+  async handler({ removeAfterUse, stopAfterUse, ...rest }) {
     let sandbox: Sandbox;
 
     // Resume an existing sandbox or otherwise create it.
@@ -49,6 +53,8 @@ export const run = cmd.command({
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();
+      } else if (stopAfterUse) {
+        await sandbox.stop();
       }
     }
   },
