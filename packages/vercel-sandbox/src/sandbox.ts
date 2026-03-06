@@ -792,7 +792,7 @@ export class Sandbox {
       name: this.namedSandbox.name,
       projectId: this.projectId,
       persistent: params.persistent,
-      resources: resources,
+      resources,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
       signal: opts?.signal,
