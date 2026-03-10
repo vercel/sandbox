@@ -1,10 +1,18 @@
-import { it, beforeEach, afterEach, expect, describe } from "vitest";
+import { it, beforeEach, afterEach, expect, describe, vi } from "vitest";
 import { consumeReadable } from "./utils/consume-readable";
 import { Sandbox } from "./sandbox";
+import * as sandboxOperations from "./sandbox-operations";
+import {
+  mkdir,
+  readFile as readSandboxFile,
+  runCommand as runSandboxCommand,
+  writeFile as writeSandboxFile,
+} from "./sandbox-operations";
 import { APIError } from "./api-client/api-error";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { Readable } from "stream";
 import ms from "ms";
 
 describe("downloadFile validation", () => {
@@ -50,6 +58,163 @@ describe("downloadFile validation", () => {
     await expect(
       sandbox.downloadFile({ path: "file.txt" }, { path: "" }),
     ).rejects.toThrow("downloadFile: destination path is required");
+  });
+});
+
+describe("top-level sandbox helpers", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("runs commands by sandbox ID", async () => {
+    const command = {
+      id: "cmd_123",
+      name: "echo",
+      args: ["hello"],
+      cwd: "/vercel/sandbox",
+      sandboxId: "sandbox_123",
+      startedAt: Date.now(),
+      exitCode: 0,
+    };
+    const client = {
+      runCommand: vi.fn().mockResolvedValue({
+        command,
+        finished: Promise.resolve(command),
+      }),
+    } as any;
+
+    const result = await runSandboxCommand(
+      "sandbox_123",
+      "echo",
+      ["hello"],
+      { client },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(client.runCommand).toHaveBeenCalledWith({
+      sandboxId: "sandbox_123",
+      command: "echo",
+      args: ["hello"],
+      cwd: undefined,
+      env: {},
+      sudo: false,
+      wait: true,
+      signal: undefined,
+    });
+  });
+
+  it("creates directories by sandbox ID", async () => {
+    const client = {
+      mkDir: vi.fn().mockResolvedValue(undefined),
+    } as any;
+
+    await mkdir("sandbox_123", "tmp/nested", { client });
+
+    expect(client.mkDir).toHaveBeenCalledWith({
+      sandboxId: "sandbox_123",
+      path: "tmp/nested",
+      signal: undefined,
+    });
+  });
+
+  it("reads files by sandbox ID", async () => {
+    const stream = Readable.from([Buffer.from("Hello")]);
+    const client = {
+      readFile: vi.fn().mockResolvedValue(stream),
+    } as any;
+
+    const result = await readSandboxFile(
+      "sandbox_123",
+      { path: "hello.txt", cwd: "/tmp" },
+      { client },
+    );
+
+    expect(result).toBe(stream);
+    expect(client.readFile).toHaveBeenCalledWith({
+      sandboxId: "sandbox_123",
+      path: "hello.txt",
+      cwd: "/tmp",
+      signal: undefined,
+    });
+  });
+
+  it("writes a single file by sandbox ID", async () => {
+    const content = Buffer.from("Hello");
+    const client = {
+      getSandbox: vi.fn().mockResolvedValue({
+        json: {
+          sandbox: { cwd: "/vercel/sandbox" },
+          routes: [],
+        },
+      }),
+      writeFiles: vi.fn().mockResolvedValue(undefined),
+    } as any;
+
+    await writeSandboxFile(
+      "sandbox_123",
+      { path: "hello.txt", content },
+      { client },
+    );
+
+    expect(client.getSandbox).toHaveBeenCalledWith({
+      sandboxId: "sandbox_123",
+      signal: undefined,
+    });
+    expect(client.writeFiles).toHaveBeenCalledWith({
+      sandboxId: "sandbox_123",
+      cwd: "/vercel/sandbox",
+      extractDir: "/",
+      files: [{ path: "hello.txt", content }],
+      signal: undefined,
+    });
+  });
+});
+
+describe("Sandbox delegates to standalone helpers", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("delegates runCommand with the instance client", async () => {
+    const client = {} as any;
+    const sandbox = new Sandbox({
+      client,
+      routes: [],
+      sandbox: { id: "sandbox_123" } as any,
+    });
+    const command = { exitCode: 0 } as any;
+    const runCommandSpy = vi
+      .spyOn(sandboxOperations, "runCommand")
+      .mockResolvedValue(command);
+
+    const result = await sandbox.runCommand({ cmd: "echo" });
+
+    expect(result).toBe(command);
+    expect(runCommandSpy).toHaveBeenCalledWith(
+      "sandbox_123",
+      { cmd: "echo" },
+      { client },
+    );
+  });
+
+  it("delegates writeFiles with the instance client", async () => {
+    const client = {} as any;
+    const files = [{ path: "hello.txt", content: Buffer.from("Hello") }];
+    const sandbox = new Sandbox({
+      client,
+      routes: [],
+      sandbox: { id: "sandbox_123" } as any,
+    });
+    const writeFilesSpy = vi
+      .spyOn(sandboxOperations, "writeFiles")
+      .mockResolvedValue(undefined);
+
+    await sandbox.writeFiles(files);
+
+    expect(writeFilesSpy).toHaveBeenCalledWith("sandbox_123", files, {
+      signal: undefined,
+      client,
+    });
   });
 });
 
