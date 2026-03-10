@@ -1,5 +1,5 @@
-import { APIClient, type CommandData } from "./api-client";
-import { Signal, resolveSignal } from "./utils/resolveSignal";
+import { APIClient, type CommandData } from "./api-client/index.js";
+import { Signal, resolveSignal } from "./utils/resolveSignal.js";
 
 /**
  * A command executed in a Sandbox.

@@ -1,7 +1,7 @@
 import { it, beforeEach, afterEach, expect, describe } from "vitest";
-import { consumeReadable } from "./utils/consume-readable";
-import { Sandbox } from "./sandbox";
-import { APIError } from "./api-client/api-error";
+import { consumeReadable } from "./utils/consume-readable.js";
+import { Sandbox } from "./sandbox.js";
+import { APIError } from "./api-client/api-error.js";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";

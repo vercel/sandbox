@@ -1,9 +1,26 @@
 {
   "name": "@vercel/sandbox",
+  "type": "module",
   "version": "1.8.0",
   "description": "Software Development Kit for Vercel Sandbox",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    },
+    "./dist/*.js": {
+      "import": "./dist/*.js",
+      "require": "./dist/*.cjs",
+      "default": "./dist/*.cjs"
+    },
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "README.md",
@@ -11,7 +28,7 @@
   ],
   "scripts": {
     "clean": "rm -rf node_modules dist",
-    "build": "tsc",
+    "build": "tsdown",
     "test": "vitest run",
     "typedoc": "typedoc",
     "typecheck": "tsc --noEmit",
@@ -49,6 +66,7 @@
     "dotenv": "16.5.0",
     "factoree": "^0.1.2",
     "typedoc": "0.28.5",
+    "tsdown": "catalog:",
     "typescript": "5.8.3",
     "vitest": "catalog:"
   }

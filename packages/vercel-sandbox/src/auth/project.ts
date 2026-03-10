@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { fetchApi } from "./api";
-import { NotOk } from "./error";
-import { readLinkedProject } from "./linked-project";
+import { fetchApi } from "./api.js";
+import { NotOk } from "./error.js";
+import { readLinkedProject } from "./linked-project.js";
 
 const TeamsSchema = z.object({
   teams: z

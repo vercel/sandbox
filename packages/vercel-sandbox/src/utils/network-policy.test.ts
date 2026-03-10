@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy";
+import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy.js";
 
 describe("toAPINetworkPolicy", () => {
   it("converts allow-all", () => {
