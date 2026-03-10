@@ -2,7 +2,7 @@ import type { SandboxMetaData, SandboxRouteData } from "./api-client";
 import { type Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
-import { mkdir } from "fs/promises";
+import { mkdir as mkdirLocal } from "fs/promises";
 import { dirname, resolve } from "path";
 import { APIClient } from "./api-client";
 import { Command, CommandFinished } from "./command";
@@ -113,6 +113,100 @@ interface GetSandboxParams {
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
+}
+
+interface SandboxAccessOptions extends WithFetchOptions {
+  token?: string;
+  teamId?: string;
+  projectId?: string;
+}
+
+interface SandboxOperationParams extends GetSandboxParams, SandboxAccessOptions {}
+
+interface GetCommandBySandboxIdParams extends SandboxOperationParams {
+  cmdId: string;
+}
+
+interface MkDirBySandboxIdParams extends SandboxOperationParams {
+  path: string;
+}
+
+interface ReadFileBySandboxIdParams extends SandboxOperationParams {
+  path: string;
+  cwd?: string;
+}
+
+interface WriteFilesBySandboxIdParams extends SandboxOperationParams {
+  files: { path: string; content: Buffer }[];
+}
+
+interface WriteFileBySandboxIdParams extends SandboxOperationParams {
+  path: string;
+  content: Buffer;
+}
+
+interface DownloadFileBySandboxIdParams extends SandboxOperationParams {
+  src: { path: string; cwd?: string };
+  dst: { path: string; cwd?: string };
+  mkdirRecursive?: boolean;
+}
+
+interface GetSandboxDomainParams extends SandboxOperationParams {
+  port: number;
+}
+
+interface StopSandboxParams extends SandboxOperationParams {
+  blocking?: boolean;
+}
+
+interface UpdateSandboxNetworkPolicyParams extends SandboxOperationParams {
+  networkPolicy: NetworkPolicy;
+}
+
+interface ExtendSandboxTimeoutParams extends SandboxOperationParams {
+  duration: number;
+}
+
+interface CreateSnapshotBySandboxIdParams extends SandboxOperationParams {
+  expiration?: number;
+}
+
+function getSandboxAccessCredentials(
+  params?: SandboxAccessOptions,
+): Pick<Credentials, "teamId" | "token"> | null {
+  if (
+    typeof params?.token === "string" &&
+    typeof params?.teamId === "string"
+  ) {
+    return {
+      token: params.token,
+      teamId: params.teamId,
+    };
+  }
+
+  if (params?.token !== undefined || params?.teamId !== undefined) {
+    const missing = [
+      typeof params?.token === "string" ? null : "token",
+      typeof params?.teamId === "string" ? null : "teamId",
+    ].filter((value) => value !== null);
+
+    throw new Error(
+      `Missing credentials parameters to access the Vercel API: ${missing.join(", ")}`,
+    );
+  }
+
+  return null;
+}
+
+async function createSandboxClient(params?: SandboxAccessOptions) {
+  const credentials =
+    getSandboxAccessCredentials(params) ?? (await getCredentials(params));
+
+  return new APIClient({
+    teamId: credentials.teamId,
+    token: credentials.token,
+    fetch: params?.fetch,
+  });
 }
 
 /** @inline */
@@ -310,15 +404,9 @@ export class Sandbox {
    * @returns A promise resolving to the {@link Sandbox}.
    */
   static async get(
-    params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
-      WithFetchOptions,
+    params: WithPrivate<GetSandboxParams & SandboxAccessOptions>,
   ): Promise<Sandbox> {
-    const credentials = await getCredentials(params);
-    const client = new APIClient({
-      teamId: credentials.teamId,
-      token: credentials.token,
-      fetch: params.fetch,
-    });
+    const client = await createSandboxClient(params);
 
     const privateParams = getPrivateParams(params);
     const sandbox = await client.getSandbox({
@@ -594,7 +682,7 @@ export class Sandbox {
     try {
       const dstPath = resolve(dst.cwd ?? "", dst.path);
       if (opts?.mkdirRecursive) {
-        await mkdir(dirname(dstPath), { recursive: true });
+        await mkdirLocal(dirname(dstPath), { recursive: true });
       }
       await pipeline(stream, createWriteStream(dstPath), {
         signal: opts?.signal,
@@ -781,4 +869,194 @@ class DisposableSandbox extends Sandbox implements AsyncDisposable {
   async [Symbol.asyncDispose]() {
     await this.stop();
   }
+}
+
+async function loadSandbox(params: WithPrivate<SandboxOperationParams>) {
+  return Sandbox.get(params);
+}
+
+/**
+ * Retrieve a previously run command from an existing sandbox by ID.
+ */
+export async function getCommand(
+  params: WithPrivate<GetCommandBySandboxIdParams>,
+): Promise<Command> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.getCommand(params.cmdId, { signal: params.signal });
+}
+
+/**
+ * Start executing a command in an existing sandbox by ID.
+ */
+export async function runCommand(
+  params: WithPrivate<RunCommandParams & SandboxOperationParams & { detached: true }>,
+): Promise<Command>;
+export async function runCommand(
+  params: WithPrivate<RunCommandParams & SandboxOperationParams>,
+): Promise<CommandFinished>;
+export async function runCommand(
+  params: WithPrivate<RunCommandParams & SandboxOperationParams>,
+): Promise<Command | CommandFinished> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.runCommand({
+    cmd: params.cmd,
+    args: params.args,
+    cwd: params.cwd,
+    env: params.env,
+    sudo: params.sudo,
+    detached: params.detached,
+    stdout: params.stdout,
+    stderr: params.stderr,
+    signal: params.signal,
+  });
+}
+
+/**
+ * Create a directory in an existing sandbox by ID.
+ */
+export async function mkDir(
+  params: WithPrivate<MkDirBySandboxIdParams>,
+): Promise<void> {
+  const sandbox = await loadSandbox(params);
+  await sandbox.mkDir(params.path, {
+    signal: params.signal,
+  });
+}
+
+/**
+ * Alias for {@link mkDir}.
+ */
+export async function mkdir(
+  params: WithPrivate<MkDirBySandboxIdParams>,
+): Promise<void> {
+  await mkDir(params);
+}
+
+/**
+ * Read a file from an existing sandbox by ID as a stream.
+ */
+export async function readFile(
+  params: WithPrivate<ReadFileBySandboxIdParams>,
+): Promise<NodeJS.ReadableStream | null> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.readFile(
+    {
+      path: params.path,
+      cwd: params.cwd,
+    },
+    { signal: params.signal },
+  );
+}
+
+/**
+ * Read a file from an existing sandbox by ID as a buffer.
+ */
+export async function readFileToBuffer(
+  params: WithPrivate<ReadFileBySandboxIdParams>,
+): Promise<Buffer | null> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.readFileToBuffer(
+    {
+      path: params.path,
+      cwd: params.cwd,
+    },
+    { signal: params.signal },
+  );
+}
+
+/**
+ * Download a file from an existing sandbox by ID to the local filesystem.
+ */
+export async function downloadFile(
+  params: WithPrivate<DownloadFileBySandboxIdParams>,
+): Promise<string | null> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.downloadFile(params.src, params.dst, {
+    mkdirRecursive: params.mkdirRecursive,
+    signal: params.signal,
+  });
+}
+
+/**
+ * Write multiple files to an existing sandbox by ID.
+ */
+export async function writeFiles(
+  params: WithPrivate<WriteFilesBySandboxIdParams>,
+): Promise<void> {
+  const sandbox = await loadSandbox(params);
+  await sandbox.writeFiles(params.files, {
+    signal: params.signal,
+  });
+}
+
+/**
+ * Write a single file to an existing sandbox by ID.
+ */
+export async function writeFile(
+  params: WithPrivate<WriteFileBySandboxIdParams>,
+): Promise<void> {
+  await writeFiles({
+    ...params,
+    files: [{ path: params.path, content: params.content }],
+  });
+}
+
+/**
+ * Resolve the public domain for a port exposed by an existing sandbox.
+ */
+export async function getSandboxDomain(
+  params: WithPrivate<GetSandboxDomainParams>,
+): Promise<string> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.domain(params.port);
+}
+
+/**
+ * Stop an existing sandbox by ID.
+ */
+export async function stopSandbox(
+  params: WithPrivate<StopSandboxParams>,
+) {
+  const sandbox = await loadSandbox(params);
+  return sandbox.stop({
+    signal: params.signal,
+    blocking: params.blocking,
+  });
+}
+
+/**
+ * Update the network policy for an existing sandbox by ID.
+ */
+export async function updateSandboxNetworkPolicy(
+  params: WithPrivate<UpdateSandboxNetworkPolicyParams>,
+): Promise<NetworkPolicy> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.updateNetworkPolicy(params.networkPolicy, {
+    signal: params.signal,
+  });
+}
+
+/**
+ * Extend the timeout of an existing sandbox by ID.
+ */
+export async function extendSandboxTimeout(
+  params: WithPrivate<ExtendSandboxTimeoutParams>,
+): Promise<void> {
+  const sandbox = await loadSandbox(params);
+  await sandbox.extendTimeout(params.duration, {
+    signal: params.signal,
+  });
+}
+
+/**
+ * Create a snapshot from an existing sandbox by ID.
+ */
+export async function createSnapshot(
+  params: WithPrivate<CreateSnapshotBySandboxIdParams>,
+): Promise<Snapshot> {
+  const sandbox = await loadSandbox(params);
+  return sandbox.snapshot({
+    expiration: params.expiration,
+    signal: params.signal,
+  });
 }
