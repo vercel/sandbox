@@ -1,23 +1,33 @@
 import type { SandboxMetaData, SandboxRouteData } from "./api-client";
-import { type Writable } from "stream";
-import { pipeline } from "stream/promises";
-import { createWriteStream } from "fs";
-import { mkdir as mkdirLocal } from "fs/promises";
-import { dirname, resolve } from "path";
 import { APIClient } from "./api-client";
-import { Command, CommandFinished } from "./command";
-import { type Credentials, getCredentials } from "./utils/get-credentials";
-import { getPrivateParams, WithPrivate } from "./utils/types";
 import { WithFetchOptions } from "./api-client/api-client";
+import { Command, CommandFinished } from "./command";
 import { RUNTIMES } from "./constants";
+import {
+  createSandboxClient,
+  createSnapshot as createSnapshotBySandboxId,
+  downloadFile as downloadFileBySandboxId,
+  extendSandboxTimeout as extendSandboxTimeoutBySandboxId,
+  getCommand as getCommandBySandboxId,
+  mkDir as mkDirBySandboxId,
+  readFile as readFileBySandboxId,
+  readFileToBuffer as readFileToBufferBySandboxId,
+  runCommand as runCommandBySandboxId,
+  type RunCommandParams,
+  type SandboxAccessOptions,
+  stopSandbox as stopSandboxBySandboxId,
+  updateSandboxNetworkPolicy as updateSandboxNetworkPolicyBySandboxId,
+  writeFiles as writeFilesBySandboxId,
+} from "./sandbox-operations";
 import { Snapshot } from "./snapshot";
-import { consumeReadable } from "./utils/consume-readable";
+import { type Credentials, getCredentials } from "./utils/get-credentials";
+import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { getPrivateParams, WithPrivate } from "./utils/types";
 import {
   type NetworkPolicy,
   type NetworkPolicyRule,
   type NetworkTransformer,
 } from "./network-policy";
-import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -111,140 +121,6 @@ interface GetSandboxParams {
   sandboxId: string;
   /**
    * An AbortSignal to cancel the operation.
-   */
-  signal?: AbortSignal;
-}
-
-interface SandboxAccessOptions extends WithFetchOptions {
-  token?: string;
-  teamId?: string;
-  projectId?: string;
-}
-
-interface SandboxOperationParams extends GetSandboxParams, SandboxAccessOptions {}
-
-interface GetCommandBySandboxIdParams extends SandboxOperationParams {
-  cmdId: string;
-}
-
-interface MkDirBySandboxIdParams extends SandboxOperationParams {
-  path: string;
-}
-
-interface ReadFileBySandboxIdParams extends SandboxOperationParams {
-  path: string;
-  cwd?: string;
-}
-
-interface WriteFilesBySandboxIdParams extends SandboxOperationParams {
-  files: { path: string; content: Buffer }[];
-}
-
-interface WriteFileBySandboxIdParams extends SandboxOperationParams {
-  path: string;
-  content: Buffer;
-}
-
-interface DownloadFileBySandboxIdParams extends SandboxOperationParams {
-  src: { path: string; cwd?: string };
-  dst: { path: string; cwd?: string };
-  mkdirRecursive?: boolean;
-}
-
-interface GetSandboxDomainParams extends SandboxOperationParams {
-  port: number;
-}
-
-interface StopSandboxParams extends SandboxOperationParams {
-  blocking?: boolean;
-}
-
-interface UpdateSandboxNetworkPolicyParams extends SandboxOperationParams {
-  networkPolicy: NetworkPolicy;
-}
-
-interface ExtendSandboxTimeoutParams extends SandboxOperationParams {
-  duration: number;
-}
-
-interface CreateSnapshotBySandboxIdParams extends SandboxOperationParams {
-  expiration?: number;
-}
-
-function getSandboxAccessCredentials(
-  params?: SandboxAccessOptions,
-): Pick<Credentials, "teamId" | "token"> | null {
-  if (
-    typeof params?.token === "string" &&
-    typeof params?.teamId === "string"
-  ) {
-    return {
-      token: params.token,
-      teamId: params.teamId,
-    };
-  }
-
-  if (params?.token !== undefined || params?.teamId !== undefined) {
-    const missing = [
-      typeof params?.token === "string" ? null : "token",
-      typeof params?.teamId === "string" ? null : "teamId",
-    ].filter((value) => value !== null);
-
-    throw new Error(
-      `Missing credentials parameters to access the Vercel API: ${missing.join(", ")}`,
-    );
-  }
-
-  return null;
-}
-
-async function createSandboxClient(params?: SandboxAccessOptions) {
-  const credentials =
-    getSandboxAccessCredentials(params) ?? (await getCredentials(params));
-
-  return new APIClient({
-    teamId: credentials.teamId,
-    token: credentials.token,
-    fetch: params?.fetch,
-  });
-}
-
-/** @inline */
-interface RunCommandParams {
-  /**
-   * The command to execute
-   */
-  cmd: string;
-  /**
-   * Arguments to pass to the command
-   */
-  args?: string[];
-  /**
-   * Working directory to execute the command in
-   */
-  cwd?: string;
-  /**
-   * Environment variables to set for this command
-   */
-  env?: Record<string, string>;
-  /**
-   * If true, execute this command with root privileges. Defaults to false.
-   */
-  sudo?: boolean;
-  /**
-   * If true, the command will return without waiting for `exitCode`
-   */
-  detached?: boolean;
-  /**
-   * A `Writable` stream where `stdout` from the command will be piped
-   */
-  stdout?: Writable;
-  /**
-   * A `Writable` stream where `stderr` from the command will be piped
-   */
-  stderr?: Writable;
-  /**
-   * An AbortSignal to cancel the command execution
    */
   signal?: AbortSignal;
 }
@@ -448,16 +324,9 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
-    const command = await this.client.getCommand({
-      sandboxId: this.sandbox.id,
-      cmdId,
+    return getCommandBySandboxId(this.sandbox.id, cmdId, {
       signal: opts?.signal,
-    });
-
-    return new Command({
       client: this.client,
-      sandboxId: this.sandbox.id,
-      cmd: command.json.command,
     });
   }
 
@@ -500,88 +369,13 @@ export class Sandbox {
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
     return typeof commandOrParams === "string"
-      ? this._runCommand({ cmd: commandOrParams, args, signal: opts?.signal })
-      : this._runCommand(commandOrParams);
-  }
-
-  /**
-   * Internal helper to start a command in the sandbox.
-   *
-   * @param params - Command execution parameters.
-   * @returns A {@link Command} or {@link CommandFinished}, depending on `detached`.
-   * @internal
-   */
-  async _runCommand(params: RunCommandParams) {
-    const wait = params.detached ? false : true;
-    const getLogs = (command: Command) => {
-      if (params.stdout || params.stderr) {
-        (async () => {
-          try {
-            for await (const log of command.logs({ signal: params.signal })) {
-              if (log.stream === "stdout") {
-                params.stdout?.write(log.data);
-              } else if (log.stream === "stderr") {
-                params.stderr?.write(log.data);
-              }
-            }
-          } catch (err) {
-            if (params.signal?.aborted) {
-              return;
-            }
-            throw err;
-          }
-        })();
-      }
-    }
-
-    if (wait) {
-      const commandStream = await this.client.runCommand({
-        sandboxId: this.sandbox.id,
-        command: params.cmd,
-        args: params.args ?? [],
-        cwd: params.cwd,
-        env: params.env ?? {},
-        sudo: params.sudo ?? false,
-        wait: true,
-        signal: params.signal,
-      });
-
-      const command = new Command({
-        client: this.client,
-        sandboxId: this.sandbox.id,
-        cmd: commandStream.command,
-      });
-
-      getLogs(command); 
-
-      const finished = await commandStream.finished;
-      return new CommandFinished({
-        client: this.client,
-        sandboxId: this.sandbox.id,
-        cmd: finished,
-        exitCode: finished.exitCode ?? 0,
-      });
-    }
-
-    const commandResponse = await this.client.runCommand({
-      sandboxId: this.sandbox.id,
-      command: params.cmd,
-      args: params.args ?? [],
-      cwd: params.cwd,
-      env: params.env ?? {},
-      sudo: params.sudo ?? false,
-      signal: params.signal,
-    });
-
-    const command = new Command({
-      client: this.client,
-      sandboxId: this.sandbox.id,
-      cmd: commandResponse.json.command,
-    });
-
-    getLogs(command);
-
-    return command;
+      ? runCommandBySandboxId(this.sandbox.id, commandOrParams, args, {
+          signal: opts?.signal,
+          client: this.client,
+        })
+      : runCommandBySandboxId(this.sandbox.id, commandOrParams, {
+          client: this.client,
+        });
   }
 
   /**
@@ -592,10 +386,9 @@ export class Sandbox {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-    await this.client.mkDir({
-      sandboxId: this.sandbox.id,
-      path: path,
+    await mkDirBySandboxId(this.sandbox.id, path, {
       signal: opts?.signal,
+      client: this.client,
     });
   }
 
@@ -611,11 +404,9 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-    return this.client.readFile({
-      sandboxId: this.sandbox.id,
-      path: file.path,
-      cwd: file.cwd,
+    return readFileBySandboxId(this.sandbox.id, file, {
       signal: opts?.signal,
+      client: this.client,
     });
   }
 
@@ -631,18 +422,10 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-    const stream = await this.client.readFile({
-      sandboxId: this.sandbox.id,
-      path: file.path,
-      cwd: file.cwd,
+    return readFileToBufferBySandboxId(this.sandbox.id, file, {
       signal: opts?.signal,
+      client: this.client,
     });
-
-    if (stream === null) {
-      return null;
-    }
-
-    return consumeReadable(stream);
   }
 
   /**
@@ -660,37 +443,11 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
-    if (!src?.path) {
-      throw new Error("downloadFile: source path is required");
-    }
-
-    if (!dst?.path) {
-      throw new Error("downloadFile: destination path is required");
-    }
-
-    const stream = await this.client.readFile({
-      sandboxId: this.sandbox.id,
-      path: src.path,
-      cwd: src.cwd,
+    return downloadFileBySandboxId(this.sandbox.id, src, dst, {
+      mkdirRecursive: opts?.mkdirRecursive,
       signal: opts?.signal,
+      client: this.client,
     });
-
-    if (stream === null) {
-      return null;
-    }
-
-    try {
-      const dstPath = resolve(dst.cwd ?? "", dst.path);
-      if (opts?.mkdirRecursive) {
-        await mkdirLocal(dirname(dstPath), { recursive: true });
-      }
-      await pipeline(stream, createWriteStream(dstPath), {
-        signal: opts?.signal,
-      });
-      return dstPath;
-    } finally {
-      stream.destroy()
-    }
   }
 
   /**
@@ -706,13 +463,10 @@ export class Sandbox {
   async writeFiles(
     files: { path: string; content: Buffer }[],
     opts?: { signal?: AbortSignal },
-  ) {
-    return this.client.writeFiles({
-      sandboxId: this.sandbox.id,
-      cwd: this.sandbox.cwd,
-      extractDir: "/",
-      files: files,
+  ): Promise<void> {
+    await writeFilesBySandboxId(this.sandbox.id, files, {
       signal: opts?.signal,
+      client: this.client,
     });
   }
 
@@ -741,12 +495,11 @@ export class Sandbox {
    * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
-    const response = await this.client.stopSandbox({
-      sandboxId: this.sandbox.id,
+    this.sandbox = await stopSandboxBySandboxId(this.sandbox.id, {
       signal: opts?.signal,
       blocking: opts?.blocking,
+      client: this.client,
     });
-    this.sandbox = convertSandbox(response.json.sandbox);
     return this.sandbox;
   }
 
@@ -785,15 +538,21 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
-    const response = await this.client.updateNetworkPolicy({
-      sandboxId: this.sandbox.id,
-      networkPolicy: networkPolicy,
-      signal: opts?.signal,
-    });
+    const updatedNetworkPolicy = await updateSandboxNetworkPolicyBySandboxId(
+      this.sandbox.id,
+      networkPolicy,
+      {
+        signal: opts?.signal,
+        client: this.client,
+      },
+    );
 
-    // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = convertSandbox(response.json.sandbox);
-    return this.sandbox.networkPolicy!;
+    this.sandbox = {
+      ...this.sandbox,
+      networkPolicy: updatedNetworkPolicy,
+    };
+
+    return updatedNetworkPolicy;
   }
 
   /**
@@ -816,14 +575,15 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-    const response = await this.client.extendTimeout({
-      sandboxId: this.sandbox.id,
-      duration,
+    await extendSandboxTimeoutBySandboxId(this.sandbox.id, duration, {
       signal: opts?.signal,
+      client: this.client,
     });
 
-    // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = convertSandbox(response.json.sandbox);
+    this.sandbox = {
+      ...this.sandbox,
+      timeout: this.sandbox.timeout + duration,
+    };
   }
 
   /**
@@ -841,18 +601,19 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-    const response = await this.client.createSnapshot({
-      sandboxId: this.sandbox.id,
+    const snapshot = await createSnapshotBySandboxId(this.sandbox.id, {
       expiration: opts?.expiration,
       signal: opts?.signal,
-    });
-
-    this.sandbox = convertSandbox(response.json.sandbox);
-
-    return new Snapshot({
       client: this.client,
-      snapshot: response.json.snapshot,
     });
+
+    const refreshedSandbox = await this.client.getSandbox({
+      sandboxId: this.sandbox.id,
+      signal: opts?.signal,
+    });
+    this.sandbox = convertSandbox(refreshedSandbox.json.sandbox);
+
+    return snapshot;
   }
 }
 
@@ -871,192 +632,3 @@ class DisposableSandbox extends Sandbox implements AsyncDisposable {
   }
 }
 
-async function loadSandbox(params: WithPrivate<SandboxOperationParams>) {
-  return Sandbox.get(params);
-}
-
-/**
- * Retrieve a previously run command from an existing sandbox by ID.
- */
-export async function getCommand(
-  params: WithPrivate<GetCommandBySandboxIdParams>,
-): Promise<Command> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.getCommand(params.cmdId, { signal: params.signal });
-}
-
-/**
- * Start executing a command in an existing sandbox by ID.
- */
-export async function runCommand(
-  params: WithPrivate<RunCommandParams & SandboxOperationParams & { detached: true }>,
-): Promise<Command>;
-export async function runCommand(
-  params: WithPrivate<RunCommandParams & SandboxOperationParams>,
-): Promise<CommandFinished>;
-export async function runCommand(
-  params: WithPrivate<RunCommandParams & SandboxOperationParams>,
-): Promise<Command | CommandFinished> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.runCommand({
-    cmd: params.cmd,
-    args: params.args,
-    cwd: params.cwd,
-    env: params.env,
-    sudo: params.sudo,
-    detached: params.detached,
-    stdout: params.stdout,
-    stderr: params.stderr,
-    signal: params.signal,
-  });
-}
-
-/**
- * Create a directory in an existing sandbox by ID.
- */
-export async function mkDir(
-  params: WithPrivate<MkDirBySandboxIdParams>,
-): Promise<void> {
-  const sandbox = await loadSandbox(params);
-  await sandbox.mkDir(params.path, {
-    signal: params.signal,
-  });
-}
-
-/**
- * Alias for {@link mkDir}.
- */
-export async function mkdir(
-  params: WithPrivate<MkDirBySandboxIdParams>,
-): Promise<void> {
-  await mkDir(params);
-}
-
-/**
- * Read a file from an existing sandbox by ID as a stream.
- */
-export async function readFile(
-  params: WithPrivate<ReadFileBySandboxIdParams>,
-): Promise<NodeJS.ReadableStream | null> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.readFile(
-    {
-      path: params.path,
-      cwd: params.cwd,
-    },
-    { signal: params.signal },
-  );
-}
-
-/**
- * Read a file from an existing sandbox by ID as a buffer.
- */
-export async function readFileToBuffer(
-  params: WithPrivate<ReadFileBySandboxIdParams>,
-): Promise<Buffer | null> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.readFileToBuffer(
-    {
-      path: params.path,
-      cwd: params.cwd,
-    },
-    { signal: params.signal },
-  );
-}
-
-/**
- * Download a file from an existing sandbox by ID to the local filesystem.
- */
-export async function downloadFile(
-  params: WithPrivate<DownloadFileBySandboxIdParams>,
-): Promise<string | null> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.downloadFile(params.src, params.dst, {
-    mkdirRecursive: params.mkdirRecursive,
-    signal: params.signal,
-  });
-}
-
-/**
- * Write multiple files to an existing sandbox by ID.
- */
-export async function writeFiles(
-  params: WithPrivate<WriteFilesBySandboxIdParams>,
-): Promise<void> {
-  const sandbox = await loadSandbox(params);
-  await sandbox.writeFiles(params.files, {
-    signal: params.signal,
-  });
-}
-
-/**
- * Write a single file to an existing sandbox by ID.
- */
-export async function writeFile(
-  params: WithPrivate<WriteFileBySandboxIdParams>,
-): Promise<void> {
-  await writeFiles({
-    ...params,
-    files: [{ path: params.path, content: params.content }],
-  });
-}
-
-/**
- * Resolve the public domain for a port exposed by an existing sandbox.
- */
-export async function getSandboxDomain(
-  params: WithPrivate<GetSandboxDomainParams>,
-): Promise<string> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.domain(params.port);
-}
-
-/**
- * Stop an existing sandbox by ID.
- */
-export async function stopSandbox(
-  params: WithPrivate<StopSandboxParams>,
-) {
-  const sandbox = await loadSandbox(params);
-  return sandbox.stop({
-    signal: params.signal,
-    blocking: params.blocking,
-  });
-}
-
-/**
- * Update the network policy for an existing sandbox by ID.
- */
-export async function updateSandboxNetworkPolicy(
-  params: WithPrivate<UpdateSandboxNetworkPolicyParams>,
-): Promise<NetworkPolicy> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.updateNetworkPolicy(params.networkPolicy, {
-    signal: params.signal,
-  });
-}
-
-/**
- * Extend the timeout of an existing sandbox by ID.
- */
-export async function extendSandboxTimeout(
-  params: WithPrivate<ExtendSandboxTimeoutParams>,
-): Promise<void> {
-  const sandbox = await loadSandbox(params);
-  await sandbox.extendTimeout(params.duration, {
-    signal: params.signal,
-  });
-}
-
-/**
- * Create a snapshot from an existing sandbox by ID.
- */
-export async function createSnapshot(
-  params: WithPrivate<CreateSnapshotBySandboxIdParams>,
-): Promise<Snapshot> {
-  const sandbox = await loadSandbox(params);
-  return sandbox.snapshot({
-    expiration: params.expiration,
-    signal: params.signal,
-  });
-}

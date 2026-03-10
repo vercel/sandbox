@@ -2,4 +2,4 @@
 "@vercel/sandbox": minor
 ---
 
-Expose top-level sandbox helpers that accept a sandboxId for command and file operations.
+Expose sandboxId-first top-level helpers and move the standalone sandbox operations into a dedicated module.
