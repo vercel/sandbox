@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.8.1
+
+### Patch Changes
+
+- Fix unhandled promise rejection when running a command while the sandbox is stopping ([#82](https://github.com/vercel/sandbox/pull/82))
+
 ## 1.8.0
 
 ### Minor Changes
