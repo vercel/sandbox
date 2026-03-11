@@ -777,7 +777,7 @@ export class APIClient extends BaseClient {
   }) {
     return parseOrThrow(
       UpdateNamedSandboxResponse,
-      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+      await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         method: "PATCH",
         query: {
           projectId: params.projectId,
@@ -804,7 +804,7 @@ export class APIClient extends BaseClient {
   }) {
     return parseOrThrow(
       UpdateNamedSandboxResponse,
-      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+      await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         method: "DELETE",
         query: {
           projectId: params.projectId,
