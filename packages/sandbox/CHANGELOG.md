@@ -1,5 +1,14 @@
 # sandbox
 
+## 3.0.0-beta.5
+
+### Patch Changes
+
+- Add support for patch + delete v2 endpoints for named sandboxes.
+
+- Updated dependencies [[`67d41ad2c78913125c25d86acd9ee6a505170ca1`](https://github.com/vercel/sandbox/commit/67d41ad2c78913125c25d86acd9ee6a505170ca1)]:
+  - @vercel/sandbox@2.0.0-beta.4
+
 ## 3.0.0-beta.4
 
 ### Minor Changes
