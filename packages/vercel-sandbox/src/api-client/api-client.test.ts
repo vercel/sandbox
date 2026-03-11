@@ -621,7 +621,7 @@ describe("APIClient", () => {
       expect(result.json.namedSandbox.name).toBe("my-sandbox");
 
       const [url, opts] = mockFetch.mock.calls[0];
-      expect(url).toContain("/v1/sandboxes/named/my-sandbox");
+      expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
       expect(opts.method).toBe("PATCH");
 
@@ -674,7 +674,7 @@ describe("APIClient", () => {
       expect(result.json.namedSandbox.name).toBe("my-sandbox");
 
       const [url, opts] = mockFetch.mock.calls[0];
-      expect(url).toContain("/v1/sandboxes/named/my-sandbox");
+      expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
       expect(url).toContain("preserveSandboxes=false");
       expect(opts.method).toBe("DELETE");
