@@ -17,11 +17,11 @@ export async function createSandbox() {
 }
 
 export async function uploadFiles(params: {
-  sandboxId: string;
+  sandboxName: string;
   files: { path: string; content: string }[];
 }) {
   const sandbox = await Sandbox.get({
-    name: params.sandboxId,
+    name: params.sandboxName,
   });
 
   const files = params.files.map((file) => ({
@@ -56,11 +56,11 @@ export async function uploadFiles(params: {
 export async function runCommand(params: {
   args: string[];
   cmd: string;
-  sandboxId: string;
+  sandboxName: string;
   detached?: boolean;
 }) {
   const sandbox = await Sandbox.get({
-    name: params.sandboxId,
+    name: params.sandboxName,
   });
 
   const cmd = await sandbox.runCommand({

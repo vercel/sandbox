@@ -256,14 +256,14 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
     const command = await this.client.getCommand({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       cmdId,
       signal: opts?.signal,
     });
 
     return new Command({
       client: this.client,
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       cmd: command.json.command,
     });
   }
@@ -343,7 +343,7 @@ export class Session {
 
     if (wait) {
       const commandStream = await this.client.runCommand({
-        sandboxId: this.session.id,
+        sessionId: this.session.id,
         command: params.cmd,
         args: params.args ?? [],
         cwd: params.cwd,
@@ -355,7 +355,7 @@ export class Session {
 
       const command = new Command({
         client: this.client,
-        sandboxId: this.session.id,
+        sessionId: this.session.id,
         cmd: commandStream.command,
       });
 
@@ -365,14 +365,14 @@ export class Session {
       ]);
       return new CommandFinished({
         client: this.client,
-        sandboxId: this.session.id,
+        sessionId: this.session.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
       });
     }
 
     const commandResponse = await this.client.runCommand({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       command: params.cmd,
       args: params.args ?? [],
       cwd: params.cwd,
@@ -383,7 +383,7 @@ export class Session {
 
     const command = new Command({
       client: this.client,
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       cmd: commandResponse.json.command,
     });
 
@@ -406,7 +406,7 @@ export class Session {
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
     await this.client.mkDir({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       path: path,
       signal: opts?.signal,
     });
@@ -425,7 +425,7 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
     return this.client.readFile({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
@@ -445,7 +445,7 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
     const stream = await this.client.readFile({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
@@ -482,7 +482,7 @@ export class Session {
     }
 
     const stream = await this.client.readFile({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       path: src.path,
       cwd: src.cwd,
       signal: opts?.signal,
@@ -521,7 +521,7 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ) {
     return this.client.writeFiles({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       cwd: this.session.cwd,
       extractDir: "/",
       files: files,
@@ -555,11 +555,11 @@ export class Session {
    */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
     const response = await this.client.stopSandbox({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
     });
-    this.session = convertSandbox(response.json.sandbox);
+    this.session = convertSandbox(response.json.session);
     return this.session;
   }
 
@@ -606,13 +606,13 @@ export class Session {
   ): Promise<void> {
     if (params.networkPolicy !== undefined) {
       const response = await this.client.updateNetworkPolicy({
-        sandboxId: this.session.id,
+        sessionId: this.session.id,
         networkPolicy: params.networkPolicy,
         signal: opts?.signal,
       });
 
       // Update the internal session metadata with the new network policy
-      this.session = convertSandbox(response.json.sandbox);
+      this.session = convertSandbox(response.json.session);
     }
   }
 
@@ -638,13 +638,13 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
     const response = await this.client.extendTimeout({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       duration,
       signal: opts?.signal,
     });
 
     // Update the internal session metadata with the new timeout value
-    this.session = convertSandbox(response.json.sandbox);
+    this.session = convertSandbox(response.json.session);
   }
 
   /**
@@ -663,12 +663,12 @@ export class Session {
     signal?: AbortSignal;
   }): Promise<Snapshot> {
     const response = await this.client.createSnapshot({
-      sandboxId: this.session.id,
+      sessionId: this.session.id,
       expiration: opts?.expiration,
       signal: opts?.signal,
     });
 
-    this.session = convertSandbox(response.json.sandbox);
+    this.session = convertSandbox(response.json.session);
 
     return new Snapshot({
       client: this.client,

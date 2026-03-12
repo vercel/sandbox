@@ -458,16 +458,16 @@ export class Sandbox {
 
     while (status === "stopping" || status === "snapshotting") {
       await setTimeout(pollingInterval, undefined, { signal });
-      const poll = await this.client.getSandbox({
-        sandboxId: this.session.sessionId,
+      const poll = await this.client.getSession({
+        sessionId: this.session.sessionId,
         signal,
       });
       this.session = new Session({
         client: this.client,
         routes: poll.json.routes,
-        session: poll.json.sandbox,
+        session: poll.json.session,
       });
-      status = poll.json.sandbox.status;
+      status = poll.json.session.status;
     }
     await this.resume(signal);
   }
@@ -818,11 +818,10 @@ export class Sandbox {
    * After deletion the instance becomes inert — all further API calls will
    * throw immediately.
    */
-  async delete(opts?: { preserveSnapshots?: boolean; signal?: AbortSignal }): Promise<void> {
+  async delete(opts?: { signal?: AbortSignal }): Promise<void> {
     await this.client.deleteNamedSandbox({
       name: this.namedSandbox.name,
       projectId: this.projectId,
-      preserveSnapshots: opts?.preserveSnapshots,
       signal: opts?.signal,
     });
   }

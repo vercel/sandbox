@@ -2,7 +2,8 @@ interface Options<ErrorData> {
   message?: string;
   json?: ErrorData;
   text?: string;
-  sandboxId?: string;
+  sandboxName?: string;
+  sessionId?: string;
 }
 
 export class APIError<ErrorData> extends Error {
@@ -10,7 +11,8 @@ export class APIError<ErrorData> extends Error {
   public message: string;
   public json?: ErrorData;
   public text?: string;
-  public sandboxId?: string;
+  public sandboxName?: string;
+  public sessionId?: string
 
   constructor(response: Response, options?: Options<ErrorData>) {
     super(response.statusText);
@@ -22,7 +24,8 @@ export class APIError<ErrorData> extends Error {
     this.message = options?.message ?? "";
     this.json = options?.json;
     this.text = options?.text;
-    this.sandboxId = options?.sandboxId;
+    this.sandboxName = options?.sandboxName;
+    this.sessionId = options?.sessionId;
   }
 }
 
@@ -32,13 +35,13 @@ export class APIError<ErrorData> extends Error {
  */
 export class StreamError extends Error {
   public code: string;
-  public sandboxId: string;
+  public sessionId: string;
 
-  constructor(code: string, message: string, sandboxId: string) {
+  constructor(code: string, message: string, sessionId: string) {
     super(message);
     this.name = "StreamError";
     this.code = code;
-    this.sandboxId = sandboxId;
+    this.sessionId = sessionId;
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, StreamError);
     }

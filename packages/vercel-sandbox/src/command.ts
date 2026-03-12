@@ -22,9 +22,9 @@ export class Command {
   protected client: APIClient;
 
   /**
-   * ID of the sandbox this command is running in.
+   * ID of the session this command is running in.
    */
-  private sandboxId: string;
+  private sessionId: string;
 
   /**
    * Data for the command execution.
@@ -55,22 +55,22 @@ export class Command {
   }
 
   /**
-   * @param params - Object containing the client, sandbox ID, and command ID.
+   * @param params - Object containing the client, session ID, and command ID.
    * @param params.client - API client used to interact with the backend.
-   * @param params.sandboxId - The ID of the sandbox where the command is running.
+   * @param params.sessionId - The ID of the session where the command is running.
    * @param params.cmdId - The ID of the command execution.
    */
   constructor({
     client,
-    sandboxId,
+    sessionId,
     cmd,
   }: {
     client: APIClient;
-    sandboxId: string;
+    sessionId: string;
     cmd: CommandData;
   }) {
     this.client = client;
-    this.sandboxId = sandboxId;
+    this.sessionId = sessionId;
     this.cmd = cmd;
     this.exitCode = cmd.exitCode ?? null;
   }
@@ -97,7 +97,7 @@ export class Command {
    */
   logs(opts?: { signal?: AbortSignal }) {
     return this.client.getLogs({
-      sandboxId: this.sandboxId,
+      sessionId: this.sessionId,
       cmdId: this.cmd.id,
       signal: opts?.signal,
     });
@@ -126,7 +126,7 @@ export class Command {
     params?.signal?.throwIfAborted();
 
     const command = await this.client.getCommand({
-      sandboxId: this.sandboxId,
+      sessionId: this.sessionId,
       cmdId: this.cmd.id,
       wait: true,
       signal: params?.signal,
@@ -134,7 +134,7 @@ export class Command {
 
     return new CommandFinished({
       client: this.client,
-      sandboxId: this.sandboxId,
+      sessionId: this.sessionId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
     });
@@ -232,7 +232,7 @@ export class Command {
    */
   async kill(signal?: Signal, opts?: { abortSignal?: AbortSignal }) {
     await this.client.killCommand({
-      sandboxId: this.sandboxId,
+      sessionId: this.sessionId,
       commandId: this.cmd.id,
       signal: resolveSignal(signal ?? "SIGTERM"),
       abortSignal: opts?.abortSignal,
@@ -257,15 +257,15 @@ export class CommandFinished extends Command {
   public exitCode: number;
 
   /**
-   * @param params - Object containing client, sandbox ID, command ID, and exit code.
+   * @param params - Object containing client, session ID, command ID, and exit code.
    * @param params.client - API client used to interact with the backend.
-   * @param params.sandboxId - The ID of the sandbox where the command ran.
+   * @param params.sessionId - The ID of the session where the command ran.
    * @param params.cmdId - The ID of the command execution.
    * @param params.exitCode - The exit code of the completed command.
    */
   constructor(params: {
     client: APIClient;
-    sandboxId: string;
+    sessionId: string;
     cmd: CommandData;
     exitCode: number;
   }) {
