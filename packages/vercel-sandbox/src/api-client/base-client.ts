@@ -97,9 +97,10 @@ function extractSessionId(url: string): string | undefined {
 
 /**
  * Extract sandbox name from a sandbox API url.
+ * Excludes known sub-paths like /sessions/ and /snapshots/.
  */
 function extractSandboxName(url: string): string | undefined {
-  const match = url.match(/\/v2\/sandboxes\/([^/?]+)/);
+  const match = url.match(/\/v2\/sandboxes\/(?!sessions(?:\/|$|\?))(?!snapshots(?:\/|$|\?))([^/?]+)/);
   return match?.[1];
 }
 

@@ -658,7 +658,7 @@ describe("APIClient", () => {
       });
     });
 
-    it("sends DELETE with projectId and preserveSandboxes=false", async () => {
+    it("sends DELETE with projectId", async () => {
       const body = { sandbox: makeSandboxMetadata() };
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify(body), {
@@ -676,7 +676,6 @@ describe("APIClient", () => {
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
-      expect(url).toContain("preserveSandboxes=false");
       expect(opts.method).toBe("DELETE");
     });
   });
@@ -698,7 +697,7 @@ describe("APIClient", () => {
       mockFetch.mockResolvedValue(
         new Response(
           JSON.stringify({
-            sandbox: {
+            session: {
               id: "sbx_123",
               memory: 2048,
               vcpus: 1,

@@ -384,10 +384,10 @@ for (const port of ports) {
     const resumed = await Sandbox.get({ name: sandbox.name });
     const { json } = await resumed.listSessions();
 
-    expect(json.sandboxes).toHaveLength(2);
+    expect(json.sessions).toHaveLength(2);
 
     const currentSessionId = resumed.currentSession().sessionId;
-    const match = json.sandboxes.find((s) => s.id === currentSessionId);
+    const match = json.sessions.find((s) => s.id === currentSessionId);
     expect(match).toBeDefined();
   });
 
