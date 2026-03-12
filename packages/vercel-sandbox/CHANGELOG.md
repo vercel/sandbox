@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.5
+
+### Minor Changes
+
+- Rename sandbox to session, namedSandbox to sandbox
+
 ## 2.0.0-beta.4
 
 ### Patch Changes
