@@ -15,7 +15,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      metadata: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -28,7 +28,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      metadata: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -41,7 +41,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      metadata: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -54,7 +54,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      metadata: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(

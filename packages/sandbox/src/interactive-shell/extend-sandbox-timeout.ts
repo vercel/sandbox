@@ -11,18 +11,26 @@ export async function extendSandboxTimeoutPeriodically(
   sandbox: Sandbox,
   signal: AbortSignal,
 ) {
-  const nextTick = sandbox.createdAt.getTime() + sandbox.timeout;
+  const timeout = sandbox.timeout;
+  if (timeout == null) return;
+
+  const nextTick = sandbox.createdAt.getTime() + timeout;
   debug(`next tick: ${new Date(nextTick).toISOString()}`);
 
   while (!signal.aborted) {
-    const timeout =
-      sandbox.createdAt.getTime() + sandbox.timeout - Date.now() - BUFFER;
-    if (timeout > 2000) {
-      debug(`sleeping for ${timeout}ms until next timeout extension`);
-      await setTimeout(timeout, null, { signal });
+    const currentTimeout = sandbox.timeout;
+    if (currentTimeout == null) return;
+
+    const sleepMs =
+      sandbox.createdAt.getTime() + currentTimeout - Date.now() - BUFFER;
+    if (sleepMs > 2000) {
+      debug(`sleeping for ${sleepMs}ms until next timeout extension`);
+      await setTimeout(sleepMs, null, { signal });
     }
     await sandbox.extendTimeout(ms("5 minutes"));
-    const nextTick = sandbox.createdAt.getTime() + sandbox.timeout;
+    const updatedTimeout = sandbox.timeout;
+    if (updatedTimeout == null) return;
+    const nextTick = sandbox.createdAt.getTime() + updatedTimeout;
     debug(
       `extended sandbox timeout by 5 minutes. next tick: ${new Date(nextTick).toISOString()}`,
     );

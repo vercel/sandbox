@@ -1,4 +1,4 @@
-import type { SandboxMetaData, SandboxRouteData } from "./api-client";
+import type { SessionMetaData, SandboxRouteData } from "./api-client";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
@@ -13,7 +13,7 @@ import type {
     NetworkPolicyRule,
     NetworkTransformer,
 } from "./network-policy";
-import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { convertSession, type ConvertedSession } from "./utils/convert-sandbox";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -74,7 +74,7 @@ export class Session {
   /**
    * Internal metadata about the current session.
    */
-  private session: ConvertedSandbox;
+  private session: ConvertedSession;
 
   /**
    * Unique ID of this session.
@@ -90,7 +90,7 @@ export class Session {
   /**
    * The status of this session.
    */
-  public get status(): SandboxMetaData["status"] {
+  public get status(): SessionMetaData["status"] {
     return this.session.status;
   }
 
@@ -236,11 +236,11 @@ export class Session {
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
-    session: SandboxMetaData;
+    session: SessionMetaData;
   }) {
     this.client = client;
     this.routes = routes;
-    this.session = convertSandbox(session);
+    this.session = convertSession(session);
   }
 
   /**
@@ -553,13 +553,13 @@ export class Session {
    * @param opts.blocking - If true, poll until the session has fully stopped and return the final state.
    * @returns The session metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
-    const response = await this.client.stopSandbox({
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSession> {
+    const response = await this.client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
     });
-    this.session = convertSandbox(response.json.session);
+    this.session = convertSession(response.json.session);
     return this.session;
   }
 
@@ -612,7 +612,7 @@ export class Session {
       });
 
       // Update the internal session metadata with the new network policy
-      this.session = convertSandbox(response.json.session);
+      this.session = convertSession(response.json.session);
     }
   }
 
@@ -644,7 +644,7 @@ export class Session {
     });
 
     // Update the internal session metadata with the new timeout value
-    this.session = convertSandbox(response.json.session);
+    this.session = convertSession(response.json.session);
   }
 
   /**
@@ -668,7 +668,7 @@ export class Session {
       signal: opts?.signal,
     });
 
-    this.session = convertSandbox(response.json.session);
+    this.session = convertSession(response.json.session);
 
     return new Snapshot({
       client: this.client,

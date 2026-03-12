@@ -177,8 +177,8 @@ const listCommand = cmd.command({
 
     const networkPolicy = typeof sandbox.networkPolicy === "string" ? sandbox.networkPolicy : "restricted";
     const rows = [
-      { field: "vCPUs", value: String(sandbox.vcpus) },
-      { field: "Timeout", value: ms(sandbox.timeout, { long: true }) },
+      { field: "vCPUs", value: String(sandbox.vcpus ?? "-") },
+      { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
     ];

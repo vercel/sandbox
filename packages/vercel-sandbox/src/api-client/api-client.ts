@@ -18,9 +18,9 @@ type CommandFinishedData,
   SnapshotsResponse,
   SnapshotResponse,
   CreateSnapshotResponse,
-  NamedSandboxAndSessionResponse,
-  NamedSandboxesPaginationResponse,
-  UpdateNamedSandboxResponse,
+  SandboxAndSessionResponse,
+  SandboxesPaginationResponse,
+  UpdateSandboxResponse,
   type CommandData,
 } from "./validators";
 import { APIError, StreamError } from "./api-error";
@@ -176,7 +176,7 @@ export class APIClient extends BaseClient {
   ) {
     const privateParams = getPrivateParams(params);
     return parseOrThrow(
-      NamedSandboxAndSessionResponse,
+      SandboxAndSessionResponse,
       await this.request("/v2/sandboxes", {
         method: "POST",
         body: JSON.stringify({
@@ -371,28 +371,28 @@ export class APIClient extends BaseClient {
     };
   }
 
-  async listSandboxes(params: {
+  async listSessions(params: {
     /**
-     * The ID or name of the project to which the sandboxes belong.
+     * The ID or name of the project to which the sessions belong.
      * @example "my-project"
      */
     projectId: string;
     /**
-     * Filter sandboxes by named sandbox name.
+     * Filter sessions by sandbox name.
      */
     name?: string;
     /**
-     * Maximum number of sandboxes to list from a request.
+     * Maximum number of sessions to list from a request.
      * @example 10
      */
     limit?: number;
     /**
-     * Get sandboxes created after this JavaScript timestamp.
+     * Get sessions created after this JavaScript timestamp.
      * @example 1540095775941
      */
     since?: number | Date;
     /**
-     * Get sandboxes created before this JavaScript timestamp.
+     * Get sessions created before this JavaScript timestamp.
      * @example 1540095775951
      */
     until?: number | Date;
@@ -609,7 +609,7 @@ export class APIClient extends BaseClient {
     });
   }
 
-  async stopSandbox(params: {
+  async stopSession(params: {
     sessionId: string;
     signal?: AbortSignal;
     blocking?: boolean;
@@ -710,7 +710,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async getNamedSandbox(params: {
+  async getSandbox(params: {
     name: string;
     projectId: string;
     resume?: boolean;
@@ -723,7 +723,7 @@ export class APIClient extends BaseClient {
       query.resume = String(params.resume);
     }
     return parseOrThrow(
-      NamedSandboxAndSessionResponse,
+      SandboxAndSessionResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         query,
         signal: params.signal,
@@ -731,7 +731,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async listNamedSandboxes(params: {
+  async listSandboxes(params: {
     projectId: string;
     limit?: number;
     sortBy?: "createdAt" | "name";
@@ -739,8 +739,8 @@ export class APIClient extends BaseClient {
     cursor?: string;
     signal?: AbortSignal;
   }) {
-    const result = await parseOrThrow(
-      NamedSandboxesPaginationResponse,
+    return parseOrThrow(
+      SandboxesPaginationResponse,
       await this.request(`/v2/sandboxes`, {
         query: {
           project: params.projectId,
@@ -753,17 +753,9 @@ export class APIClient extends BaseClient {
         signal: params.signal,
       }),
     );
-
-    return {
-      ...result,
-      json: {
-        sandboxes: result.json.namedSandboxes,
-        pagination: result.json.pagination,
-      },
-    };
   }
 
-  async updateNamedSandbox(params: {
+  async updateSandbox(params: {
     name: string;
     projectId: string;
     persistent?: boolean;
@@ -774,7 +766,7 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      UpdateNamedSandboxResponse,
+      UpdateSandboxResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         method: "PATCH",
         query: {
@@ -794,13 +786,13 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async deleteNamedSandbox(params: {
+  async deleteSandbox(params: {
     name: string;
     projectId: string;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      UpdateNamedSandboxResponse,
+      UpdateSandboxResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         method: "DELETE",
         query: {
