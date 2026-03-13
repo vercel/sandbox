@@ -58,7 +58,7 @@ export interface RunCommandParams {
 }
 
 /**
- * A Session represents a running VM instance within a named {@link Sandbox}.
+ * A Session represents a running VM instance within a {@link Sandbox}.
  *
  * Obtain a session via {@link Sandbox.currentSession}.
  */

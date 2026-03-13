@@ -147,7 +147,7 @@ export class Sandbox {
   private session: Session;
 
   /**
-   * Internal metadata about the named sandbox.
+   * Internal metadata about the sandbox.
    */
   private metadata: SandboxMetaData;
 
@@ -768,7 +768,7 @@ export class Sandbox {
   }
 
   /**
-   * Update the named sandbox configuration.
+   * Update the sandbox configuration.
    *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
@@ -813,7 +813,7 @@ export class Sandbox {
   }
 
   /**
-   * Delete this named sandbox.
+   * Delete this sandbox.
    *
    * After deletion the instance becomes inert — all further API calls will
    * throw immediately.
@@ -827,7 +827,7 @@ export class Sandbox {
   }
 
   /**
-   * List sessions (VMs) that have been created for this named sandbox.
+   * List sessions (VMs) that have been created for this sandbox.
    *
    * @param params - Optional pagination parameters.
    * @returns The list of sessions and pagination metadata.
@@ -850,7 +850,7 @@ export class Sandbox {
   }
 
   /**
-   * List snapshots that belong to this named sandbox.
+   * List snapshots that belong to this sandbox.
    *
    * @param params - Optional pagination parameters.
    * @returns The list of snapshots and pagination metadata.

@@ -427,7 +427,7 @@ export class APIClient extends BaseClient {
      */
     projectId: string;
     /**
-     * Filter snapshots by named sandbox name.
+     * Filter snapshots by sandbox name.
      */
     name?: string;
     /**
