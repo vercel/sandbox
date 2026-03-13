@@ -15,7 +15,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -28,7 +28,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -41,7 +41,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -54,7 +54,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      namedSandbox: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -64,17 +64,18 @@ describe("downloadFile validation", () => {
 });
 
 const makeSandboxMetadata = (): SandboxMetaData => ({
-  id: "sbx_123",
+  name: "test-name",
+  currentSessionId: "sbx_123",
+  persistent: true,
+  status: 'running',
   memory: 2048,
   vcpus: 1,
   region: "iad1",
   runtime: "node24",
   timeout: 300_000,
-  status: "running",
-  requestedAt: 1,
-  createdAt: 1,
   cwd: "/",
   updatedAt: 1,
+  createdAt: 1,
 });
 
 const makeCommand = (): CommandData => ({
@@ -82,7 +83,7 @@ const makeCommand = (): CommandData => ({
   name: "echo",
   args: ["hello"],
   cwd: "/",
-  sandboxId: "sbx_123",
+  sessionId: "sbx_123",
   exitCode: null,
   startedAt: 1,
 });
@@ -92,7 +93,7 @@ describe("_runCommand error handling", () => {
     const command = makeCommand();
     const logsError = new APIError(new Response("failed", { status: 500 }), {
       message: "Failed to stream logs",
-      sandboxId: "sbx_123",
+      sessionId: "sbx_123",
     });
 
     const runCommandMock = vi.fn(async ({ wait }: { wait?: boolean }) => {
@@ -118,8 +119,8 @@ describe("_runCommand error handling", () => {
         getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
-      session: makeSandboxMetadata(),
-      namedSandbox: { name: "test" } as any,
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
       projectId: "test-project",
     });
 
@@ -136,7 +137,7 @@ describe("_runCommand error handling", () => {
     const command = makeCommand();
     const logsError = new APIError(new Response("failed", { status: 500 }), {
       message: "Failed to stream logs",
-      sandboxId: "sbx_123",
+      sessionId: "sbx_123",
     });
 
     const runCommandMock = vi.fn(async ({ wait }: { wait?: boolean }) => {
@@ -162,8 +163,8 @@ describe("_runCommand error handling", () => {
         getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
-      session: makeSandboxMetadata(),
-      namedSandbox: { name: "test" } as any,
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
       projectId: "test-project",
     });
 
@@ -384,10 +385,10 @@ for (const port of ports) {
     const resumed = await Sandbox.get({ name: sandbox.name });
     const { json } = await resumed.listSessions();
 
-    expect(json.sandboxes).toHaveLength(2);
+    expect(json.sessions).toHaveLength(2);
 
     const currentSessionId = resumed.currentSession().sessionId;
-    const match = json.sandboxes.find((s) => s.id === currentSessionId);
+    const match = json.sessions.find((s) => s.id === currentSessionId);
     expect(match).toBeDefined();
   });
 

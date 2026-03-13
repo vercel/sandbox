@@ -1,4 +1,4 @@
-import type { SandboxMetaData, SandboxRouteData, NamedSandboxMetaData } from "./api-client";
+import type { SessionMetaData, SandboxRouteData, SandboxMetaData } from "./api-client";
 import { APIClient } from "./api-client";
 import { APIError } from "./api-client/api-error";
 import { type Credentials, getCredentials } from "./utils/get-credentials";
@@ -8,7 +8,7 @@ import type { RUNTIMES } from "./constants";
 import { Session, type RunCommandParams } from "./session";
 import type { Command, CommandFinished } from "./command";
 import type { Snapshot } from "./snapshot";
-import type { ConvertedSandbox } from "./utils/convert-sandbox";
+import type { ConvertedSession } from "./utils/convert-sandbox";
 import type {
     NetworkPolicy,
 } from "./network-policy";
@@ -147,15 +147,15 @@ export class Sandbox {
   private session: Session;
 
   /**
-   * Internal metadata about the named sandbox.
+   * Internal metadata about the sandbox.
    */
-  private namedSandbox: NamedSandboxMetaData;
+  private sandbox: SandboxMetaData;
 
   /**
    * The name of this sandbox.
    */
   public get name(): string {
-    return this.namedSandbox.name;
+    return this.sandbox.name;
   }
 
   /**
@@ -170,75 +170,75 @@ export class Sandbox {
    * Whether the sandbox persists the state.
    */
   public get persistent(): boolean {
-    return this.namedSandbox.persistent;
+    return this.sandbox.persistent;
   }
 
   /**
    * The region this sandbox runs in.
    */
-  public get region(): string {
-    return this.namedSandbox.region;
+  public get region(): string | undefined {
+    return this.sandbox.region;
   }
 
   /**
    * Number of virtual CPUs allocated.
    */
-  public get vcpus(): number {
-    return this.namedSandbox.vcpus;
+  public get vcpus(): number | undefined {
+    return this.sandbox.vcpus;
   }
 
   /**
    * Memory allocated in MB.
    */
-  public get memory(): number {
-    return this.namedSandbox.memory;
+  public get memory(): number | undefined {
+    return this.sandbox.memory;
   }
 
   /** Runtime identifier (e.g. "node24", "python3.13"). */
-  public get runtime(): string {
-    return this.namedSandbox.runtime;
+  public get runtime(): string | undefined {
+    return this.sandbox.runtime;
   }
 
   /**
    * Cumulative egress bytes across all sessions.
    */
   public get totalEgressBytes(): number | undefined {
-    return this.namedSandbox.totalEgressBytes;
+    return this.sandbox.totalEgressBytes;
   }
 
   /**
    * Cumulative ingress bytes across all sessions.
    */
   public get totalIngressBytes(): number | undefined {
-    return this.namedSandbox.totalIngressBytes;
+    return this.sandbox.totalIngressBytes;
   }
 
   /**
    * Cumulative active CPU duration in milliseconds across all sessions.
    */
   public get totalActiveCpuDurationMs(): number | undefined {
-    return this.namedSandbox.totalActiveCpuDurationMs;
+    return this.sandbox.totalActiveCpuDurationMs;
   }
 
   /**
    * Cumulative wall-clock duration in milliseconds across all sessions.
    */
   public get totalDurationMs(): number | undefined {
-    return this.namedSandbox.totalDurationMs;
+    return this.sandbox.totalDurationMs;
   }
 
   /**
    * When this sandbox was last updated.
    */
   public get updatedAt(): Date {
-    return new Date(this.namedSandbox.updatedAt);
+    return new Date(this.sandbox.updatedAt);
   }
 
   /**
    * When this sandbox was created.
    */
   public get createdAt(): Date {
-    return new Date(this.namedSandbox.createdAt);
+    return new Date(this.sandbox.createdAt);
   }
 
   /**
@@ -251,23 +251,23 @@ export class Sandbox {
   /**
    * The status of the current session.
    */
-  public get status(): SandboxMetaData["status"] {
+  public get status(): SessionMetaData["status"] {
     return this.session.status;
   }
 
   /**
    * The default timeout of this sandbox in milliseconds.
    */
-  public get timeout(): number {
-    return this.namedSandbox.timeout;
+  public get timeout(): number | undefined {
+    return this.sandbox.timeout;
   }
 
   /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
-    return this.namedSandbox.networkPolicy
-      ? fromAPINetworkPolicy(this.namedSandbox.networkPolicy)
+    return this.sandbox.networkPolicy
+      ? fromAPINetworkPolicy(this.sandbox.networkPolicy)
       : undefined;
   }
 
@@ -282,7 +282,7 @@ export class Sandbox {
    * The current snapshot ID of this sandbox, if any.
    */
   public get currentSnapshotId(): string | undefined {
-    return this.namedSandbox.currentSnapshotId;
+    return this.sandbox.currentSnapshotId;
   }
 
   /**
@@ -305,7 +305,7 @@ export class Sandbox {
    * the next page of results.
    */
   static async list(
-    params?: Partial<Parameters<APIClient["listNamedSandboxes"]>[0]> &
+    params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
       Partial<Credentials> &
       WithFetchOptions,
   ) {
@@ -315,7 +315,7 @@ export class Sandbox {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    return client.listNamedSandboxes({
+    return client.listSandboxes({
       ...credentials,
       ...params,
     });
@@ -364,8 +364,8 @@ export class Sandbox {
 
     return new DisposableSandbox({
       client,
-      session: response.json.sandbox,
-      namedSandbox: response.json.namedSandbox,
+      session: response.json.session,
+      sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
     });
@@ -388,7 +388,7 @@ export class Sandbox {
       fetch: params.fetch,
     });
 
-    const response = await client.getNamedSandbox({
+    const response = await client.getSandbox({
       name: params.name,
       projectId: credentials.projectId,
       resume: params.resume,
@@ -397,8 +397,8 @@ export class Sandbox {
 
     return new Sandbox({
       client,
-      session: response.json.sandbox,
-      namedSandbox: response.json.namedSandbox,
+      session: response.json.session,
+      sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
     });
@@ -408,18 +408,18 @@ export class Sandbox {
     client,
     routes,
     session,
-    namedSandbox,
+    sandbox,
     projectId,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
-    session: SandboxMetaData;
-    namedSandbox: NamedSandboxMetaData;
+    session: SessionMetaData;
+    sandbox: SandboxMetaData;
     projectId: string;
   }) {
     this.client = client;
     this.session = new Session({ client, routes, session });
-    this.namedSandbox = namedSandbox;
+    this.sandbox = sandbox;
     this.projectId = projectId;
   }
 
@@ -433,11 +433,11 @@ export class Sandbox {
   }
 
   /**
-   * Resume this sandbox by creating a new session via `getNamedSandbox`.
+   * Resume this sandbox by creating a new session via `getSandbox`.
    */
   private async resume(signal?: AbortSignal): Promise<void> {
-    const response = await this.client.getNamedSandbox({
-      name: this.namedSandbox.name,
+    const response = await this.client.getSandbox({
+      name: this.sandbox.name,
       projectId: this.projectId,
       resume: true,
       signal,
@@ -445,7 +445,7 @@ export class Sandbox {
     this.session = new Session({
       client: this.client,
       routes: response.json.routes,
-      session: response.json.sandbox,
+      session: response.json.session,
     });
   }
 
@@ -458,16 +458,16 @@ export class Sandbox {
 
     while (status === "stopping" || status === "snapshotting") {
       await setTimeout(pollingInterval, undefined, { signal });
-      const poll = await this.client.getSandbox({
-        sandboxId: this.session.sessionId,
+      const poll = await this.client.getSession({
+        sessionId: this.session.sessionId,
         signal,
       });
       this.session = new Session({
         client: this.client,
         routes: poll.json.routes,
-        session: poll.json.sandbox,
+        session: poll.json.session,
       });
-      status = poll.json.sandbox.status;
+      status = poll.json.session.status;
     }
     await this.resume(signal);
   }
@@ -667,9 +667,9 @@ export class Sandbox {
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
-   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
+   * @returns The sandbox at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSession> {
     return this.session.stop(opts);
   }
 
@@ -768,7 +768,7 @@ export class Sandbox {
   }
 
   /**
-   * Update the named sandbox configuration.
+   * Update the sandbox configuration.
    *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
@@ -788,8 +788,8 @@ export class Sandbox {
     }
 
     // Update the sandbox config. This config will be used on the next session.
-    const response = await this.client.updateNamedSandbox({
-      name: this.namedSandbox.name,
+    const response = await this.client.updateSandbox({
+      name: this.sandbox.name,
       projectId: this.projectId,
       persistent: params.persistent,
       resources,
@@ -797,7 +797,7 @@ export class Sandbox {
       networkPolicy: params.networkPolicy,
       signal: opts?.signal,
     });
-    this.namedSandbox = response.json.namedSandbox;
+    this.sandbox = response.json.sandbox;
 
     // Update the current session config. This only applies to network policy.
     if (params.networkPolicy) {
@@ -813,22 +813,21 @@ export class Sandbox {
   }
 
   /**
-   * Delete this named sandbox.
+   * Delete this sandbox.
    *
    * After deletion the instance becomes inert — all further API calls will
    * throw immediately.
    */
-  async delete(opts?: { preserveSnapshots?: boolean; signal?: AbortSignal }): Promise<void> {
-    await this.client.deleteNamedSandbox({
-      name: this.namedSandbox.name,
+  async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+    await this.client.deleteSandbox({
+      name: this.sandbox.name,
       projectId: this.projectId,
-      preserveSnapshots: opts?.preserveSnapshots,
       signal: opts?.signal,
     });
   }
 
   /**
-   * List sessions (VMs) that have been created for this named sandbox.
+   * List sessions (VMs) that have been created for this sandbox.
    *
    * @param params - Optional pagination parameters.
    * @returns The list of sessions and pagination metadata.
@@ -840,9 +839,9 @@ export class Sandbox {
     signal?: AbortSignal;
   }) {
 
-    return this.client.listSandboxes({
+    return this.client.listSessions({
       projectId: this.projectId,
-      name: this.namedSandbox.name,
+      name: this.sandbox.name,
       limit: params?.limit,
       since: params?.since,
       until: params?.until,
@@ -851,7 +850,7 @@ export class Sandbox {
   }
 
   /**
-   * List snapshots that belong to this named sandbox.
+   * List snapshots that belong to this sandbox.
    *
    * @param params - Optional pagination parameters.
    * @returns The list of snapshots and pagination metadata.
@@ -865,7 +864,7 @@ export class Sandbox {
 
     return this.client.listSnapshots({
       projectId: this.projectId,
-      name: this.namedSandbox.name,
+      name: this.sandbox.name,
       limit: params?.limit,
       since: params?.since,
       until: params?.until,

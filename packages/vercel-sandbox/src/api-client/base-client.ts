@@ -88,11 +88,19 @@ export interface Parsed<Data> {
 }
 
 /**
- * Extract sandboxId from a sandbox API URL.
- * URLs follow the pattern: /v1/sandboxes/{sandboxId}/...
+ * Extract sessionId from a sandbox API URL.
  */
-function extractSandboxId(url: string): string | undefined {
-  const match = url.match(/\/v1\/sandboxes\/([^/?]+)/);
+function extractSessionId(url: string): string | undefined {
+  const match = url.match(/\/v2\/sandboxes\/sessions\/([^/?]+)/);
+  return match?.[1];
+}
+
+/**
+ * Extract sandbox name from a sandbox API url.
+ * Excludes known sub-paths like /sessions/ and /snapshots/.
+ */
+function extractSandboxName(url: string): string | undefined {
+  const match = url.match(/\/v2\/sandboxes\/(?!sessions(?:\/|$|\?))(?!snapshots(?:\/|$|\?))([^/?]+)/);
   return match?.[1];
 }
 
@@ -107,12 +115,17 @@ export async function parse<Data, ErrorData>(
   validator: ZodType<Data>,
   response: Response,
 ): Promise<Parsed<Data> | APIError<ErrorData>> {
-  const sandboxId = extractSandboxId(response.url);
+  const sessionId = extractSessionId(response.url);
+  let sandboxName: string | undefined;
+  if (!sessionId) {
+    sandboxName = extractSandboxName(response.url);
+  }
 
   const text = await response.text().catch((err) => {
     return new APIError<ErrorData>(response, {
       message: `Can't read response text: ${String(err)}`,
-      sandboxId,
+      sessionId,
+      sandboxName
     });
   });
 
@@ -128,7 +141,8 @@ export async function parse<Data, ErrorData>(
     return new APIError<ErrorData>(response, {
       message: `Can't parse JSON: ${String(error)}`,
       text,
-      sandboxId,
+      sessionId,
+      sandboxName
     });
   }
 
@@ -137,7 +151,8 @@ export async function parse<Data, ErrorData>(
       message: `Status code ${response.status} is not ok`,
       json: json as ErrorData,
       text,
-      sandboxId,
+      sessionId,
+      sandboxName
     });
   }
 
@@ -147,7 +162,8 @@ export async function parse<Data, ErrorData>(
       message: `Response JSON is not valid: ${validated.error}`,
       json: json as ErrorData,
       text,
-      sandboxId,
+      sessionId,
+      sandboxName
     });
   }
 

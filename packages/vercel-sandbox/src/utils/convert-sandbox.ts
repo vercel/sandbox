@@ -1,13 +1,13 @@
-import type { SandboxMetaData } from "../api-client";
+import type { SessionMetaData } from "../api-client";
 import type { NetworkPolicy } from "../network-policy";
 import { fromAPINetworkPolicy } from "./network-policy";
 
-export type ConvertedSandbox = Omit<SandboxMetaData, "networkPolicy"> & {
+export type ConvertedSession = Omit<SessionMetaData, "networkPolicy"> & {
   networkPolicy?: NetworkPolicy;
 };
 
-export function convertSandbox(sandbox: SandboxMetaData): ConvertedSandbox {
-  const { networkPolicy, ...rest } = sandbox;
+export function convertSession(session: SessionMetaData): ConvertedSession {
+  const { networkPolicy, ...rest } = session;
   return {
     ...rest,
     networkPolicy: networkPolicy

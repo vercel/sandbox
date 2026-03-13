@@ -32,10 +32,10 @@ export class Snapshot {
   }
 
   /**
-   * The ID the sandbox from which this snapshot was created.
+   * The ID of the session from which this snapshot was created.
    */
-  public get sourceSandboxId(): string {
-    return this.snapshot.sourceSandboxId;
+  public get sourceSessionId(): string {
+    return this.snapshot.sourceSessionId;
   }
 
   /**

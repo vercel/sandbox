@@ -6,23 +6,21 @@ import {
 } from "./base-client";
 import {
 type CommandFinishedData,
-  SandboxAndRoutesResponse,
-  SandboxResponse,
+  SessionAndRoutesResponse,
+  SessionResponse,
+  SessionsResponse,
   CommandResponse,
   CommandFinishedResponse,
   EmptyResponse,
   LogLine,
   type LogLineStdout,
   type LogLineStderr,
-  SandboxesResponse,
   SnapshotsResponse,
-  ExtendTimeoutResponse,
-  UpdateNetworkPolicyResponse,
   SnapshotResponse,
   CreateSnapshotResponse,
-  NamedSandboxAndSessionResponse,
-  NamedSandboxesPaginationResponse,
-  UpdateNamedSandboxResponse,
+  SandboxAndSessionResponse,
+  SandboxesPaginationResponse,
+  UpdateSandboxResponse,
   type CommandData,
 } from "./validators";
 import { APIError, StreamError } from "./api-error";
@@ -137,15 +135,15 @@ export class APIClient extends BaseClient {
     });
   }
 
-  async getSandbox(
-    params: WithPrivate<{ sandboxId: string; signal?: AbortSignal }>,
+  async getSession(
+    params: WithPrivate<{ sessionId: string; signal?: AbortSignal }>,
   ) {
     const privateParams = getPrivateParams(params);
     let querystring = new URLSearchParams(privateParams).toString();
     querystring = querystring ? `?${querystring}` : "";
     return parseOrThrow(
-      SandboxAndRoutesResponse,
-      await this.request(`/v1/sandboxes/${params.sandboxId}${querystring}`, {
+      SessionAndRoutesResponse,
+      await this.request(`/v2/sandboxes/sessions/${params.sessionId}${querystring}`, {
         signal: params.signal,
       }),
     );
@@ -178,8 +176,8 @@ export class APIClient extends BaseClient {
   ) {
     const privateParams = getPrivateParams(params);
     return parseOrThrow(
-      NamedSandboxAndSessionResponse,
-      await this.request("/v1/sandboxes/named", {
+      SandboxAndSessionResponse,
+      await this.request("/v2/sandboxes", {
         method: "POST",
         body: JSON.stringify({
           projectId: params.projectId,
@@ -202,7 +200,7 @@ export class APIClient extends BaseClient {
   }
 
   async runCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     cwd?: string;
     command: string;
     args: string[];
@@ -212,7 +210,7 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }): Promise<{ command: CommandData; finished: Promise<CommandFinishedData> }>;
   async runCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     cwd?: string;
     command: string;
     args: string[];
@@ -222,7 +220,7 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
   async runCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     cwd?: string;
     command: string;
     args: string[];
@@ -233,7 +231,7 @@ export class APIClient extends BaseClient {
   }) {
     if (params.wait) {
       const response = await this.request(
-        `/v1/sandboxes/${params.sandboxId}/cmd`,
+        `/v2/sandboxes/sessions/${params.sessionId}/cmd`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -255,14 +253,14 @@ export class APIClient extends BaseClient {
       if (response.headers.get("content-type") !== "application/x-ndjson") {
         throw new APIError(response, {
           message: "Expected a stream of command data",
-          sandboxId: params.sandboxId,
+          sessionId: params.sessionId,
         });
       }
 
       if (response.body === null) {
         throw new APIError(response, {
           message: "No response body",
-          sandboxId: params.sandboxId,
+          sessionId: params.sessionId,
         });
       }
 
@@ -276,7 +274,7 @@ export class APIClient extends BaseClient {
       const { command } = CommandResponse.parse(commandChunk.value);
 
       const finished = (async () => {
-        const finishedChunk = await iterator.next();  
+        const finishedChunk = await iterator.next();
         const { command } = CommandFinishedResponse.parse(finishedChunk.value);
         return command;
       })();
@@ -286,7 +284,7 @@ export class APIClient extends BaseClient {
 
     return parseOrThrow(
       CommandResponse,
-      await this.request(`/v1/sandboxes/${params.sandboxId}/cmd`, {
+      await this.request(`/v2/sandboxes/sessions/${params.sessionId}/cmd`, {
         method: "POST",
         body: JSON.stringify({
           command: params.command,
@@ -301,19 +299,19 @@ export class APIClient extends BaseClient {
   }
 
   async getCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     cmdId: string;
     wait: true;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CommandFinishedResponse>>>;
   async getCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     cmdId: string;
     wait?: boolean;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
   async getCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     cmdId: string;
     wait?: boolean;
     signal?: AbortSignal;
@@ -322,28 +320,28 @@ export class APIClient extends BaseClient {
       ? parseOrThrow(
           CommandFinishedResponse,
           await this.request(
-            `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}`,
+            `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`,
             { signal: params.signal, query: { wait: "true" } },
           ),
         )
       : parseOrThrow(
           CommandResponse,
           await this.request(
-            `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}`,
+            `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`,
             { signal: params.signal },
           ),
         );
   }
 
   async mkDir(params: {
-    sandboxId: string;
+    sessionId: string;
     path: string;
     cwd?: string;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
       EmptyResponse,
-      await this.request(`/v1/sandboxes/${params.sandboxId}/fs/mkdir`, {
+      await this.request(`/v2/sandboxes/sessions/${params.sessionId}/fs/mkdir`, {
         method: "POST",
         body: JSON.stringify({ path: params.path, cwd: params.cwd }),
         signal: params.signal,
@@ -352,14 +350,14 @@ export class APIClient extends BaseClient {
   }
 
   getFileWriter(params: {
-    sandboxId: string;
+    sessionId: string;
     extractDir: string;
     signal?: AbortSignal;
   }) {
     const writer = new FileWriter();
     return {
       response: (async () => {
-        return this.request(`/v1/sandboxes/${params.sandboxId}/fs/write`, {
+        return this.request(`/v2/sandboxes/sessions/${params.sessionId}/fs/write`, {
           method: "POST",
           headers: {
             "content-type": "application/gzip",
@@ -373,36 +371,36 @@ export class APIClient extends BaseClient {
     };
   }
 
-  async listSandboxes(params: {
+  async listSessions(params: {
     /**
-     * The ID or name of the project to which the sandboxes belong.
+     * The ID or name of the project to which the sessions belong.
      * @example "my-project"
      */
     projectId: string;
     /**
-     * Filter sandboxes by named sandbox name.
+     * Filter sessions by sandbox name.
      */
     name?: string;
     /**
-     * Maximum number of sandboxes to list from a request.
+     * Maximum number of sessions to list from a request.
      * @example 10
      */
     limit?: number;
     /**
-     * Get sandboxes created after this JavaScript timestamp.
+     * Get sessions created after this JavaScript timestamp.
      * @example 1540095775941
      */
     since?: number | Date;
     /**
-     * Get sandboxes created before this JavaScript timestamp.
+     * Get sessions created before this JavaScript timestamp.
      * @example 1540095775951
      */
     until?: number | Date;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      SandboxesResponse,
-      await this.request(`/v1/sandboxes`, {
+      SessionsResponse,
+      await this.request(`/v2/sandboxes/sessions`, {
         query: {
           project: params.projectId,
           name: params.name,
@@ -429,7 +427,7 @@ export class APIClient extends BaseClient {
      */
     projectId: string;
     /**
-     * Filter snapshots by named sandbox name.
+     * Filter snapshots by sandbox name.
      */
     name?: string;
     /**
@@ -451,7 +449,7 @@ export class APIClient extends BaseClient {
   }) {
     return parseOrThrow(
       SnapshotsResponse,
-      await this.request(`/v1/sandboxes/snapshots`, {
+      await this.request(`/v2/sandboxes/snapshots`, {
         query: {
           project: params.projectId,
           name: params.name,
@@ -472,14 +470,14 @@ export class APIClient extends BaseClient {
   }
 
   async writeFiles(params: {
-    sandboxId: string;
+    sessionId: string;
     cwd: string;
     files: { path: string; content: Buffer }[];
     extractDir: string;
     signal?: AbortSignal;
   }) {
     const { writer, response } = this.getFileWriter({
-      sandboxId: params.sandboxId,
+      sessionId: params.sessionId,
       extractDir: params.extractDir,
       signal: params.signal,
     });
@@ -500,13 +498,13 @@ export class APIClient extends BaseClient {
   }
 
   async readFile(params: {
-    sandboxId: string;
+    sessionId: string;
     path: string;
     cwd?: string;
     signal?: AbortSignal;
   }): Promise<Readable | null> {
     const response = await this.request(
-      `/v1/sandboxes/${params.sandboxId}/fs/read`,
+      `/v2/sandboxes/sessions/${params.sessionId}/fs/read`,
       {
         method: "POST",
         body: JSON.stringify({ path: params.path, cwd: params.cwd }),
@@ -526,7 +524,7 @@ export class APIClient extends BaseClient {
   }
 
   async killCommand(params: {
-    sandboxId: string;
+    sessionId: string;
     commandId: string;
     signal: number;
     abortSignal?: AbortSignal;
@@ -534,7 +532,7 @@ export class APIClient extends BaseClient {
     return parseOrThrow(
       CommandResponse,
       await this.request(
-        `/v1/sandboxes/${params.sandboxId}/${params.commandId}/kill`,
+        `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.commandId}/kill`,
         {
           method: "POST",
           body: JSON.stringify({ signal: params.signal }),
@@ -545,7 +543,7 @@ export class APIClient extends BaseClient {
   }
 
   getLogs(params: {
-    sandboxId: string;
+    sessionId: string;
     cmdId: string;
     signal?: AbortSignal;
   }): AsyncGenerator<
@@ -561,7 +559,7 @@ export class APIClient extends BaseClient {
       : mergeSignals(params.signal, disposer.signal);
 
     const generator = (async function* () {
-      const url = `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}/logs`;
+      const url = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}/logs`;
       const response = await self.request(url, {
         method: "GET",
         signal,
@@ -574,14 +572,14 @@ export class APIClient extends BaseClient {
       if (response.headers.get("content-type") !== "application/x-ndjson") {
         throw new APIError(response, {
           message: "Expected a stream of logs",
-          sandboxId: params.sandboxId,
+          sessionId: params.sessionId,
         });
       }
 
       if (response.body === null) {
         throw new APIError(response, {
           message: "No response body",
-          sandboxId: params.sandboxId,
+          sessionId: params.sessionId,
         });
       }
 
@@ -596,7 +594,7 @@ export class APIClient extends BaseClient {
           throw new StreamError(
             parsed.data.code,
             parsed.data.message,
-            params.sandboxId,
+            params.sessionId,
           );
         }
         yield parsed;
@@ -611,27 +609,27 @@ export class APIClient extends BaseClient {
     });
   }
 
-  async stopSandbox(params: {
-    sandboxId: string;
+  async stopSession(params: {
+    sessionId: string;
     signal?: AbortSignal;
     blocking?: boolean;
-  }): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
-    const url = `/v1/sandboxes/${params.sandboxId}/stop`;
+  }): Promise<Parsed<z.infer<typeof SessionResponse>>> {
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/stop`;
     const response = await parseOrThrow(
-      SandboxResponse,
+      SessionResponse,
       await this.request(url, { method: "POST", signal: params.signal }),
     );
 
     if (params.blocking) {
-      let sandbox = response.json.sandbox;
-      while (sandbox.status !== "stopped" && sandbox.status !== "failed" && sandbox.status !== "aborted") {
+      let session = response.json.session;
+      while (session.status !== "stopped" && session.status !== "failed" && session.status !== "aborted") {
         await setTimeout(500, undefined, { signal: params.signal });
-        const poll = await this.getSandbox({
-          sandboxId: params.sandboxId,
+        const poll = await this.getSession({
+          sessionId: params.sessionId,
           signal: params.signal,
         });
-        sandbox = poll.json.sandbox;
-        response.json.sandbox = sandbox;
+        session = poll.json.session;
+        response.json.session = session;
       }
     }
 
@@ -639,13 +637,13 @@ export class APIClient extends BaseClient {
   }
 
   async updateNetworkPolicy(params: {
-    sandboxId: string;
+    sessionId: string;
     networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
-    const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
+  }): Promise<Parsed<z.infer<typeof SessionResponse>>> {
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/network-policy`;
     return parseOrThrow(
-      UpdateNetworkPolicyResponse,
+      SessionResponse,
       await this.request(url, {
         method: "POST",
         body: JSON.stringify(toAPINetworkPolicy(params.networkPolicy)),
@@ -655,13 +653,13 @@ export class APIClient extends BaseClient {
   }
 
   async extendTimeout(params: {
-    sandboxId: string;
+    sessionId: string;
     duration: number;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof ExtendTimeoutResponse>>> {
-    const url = `/v1/sandboxes/${params.sandboxId}/extend-timeout`;
+  }): Promise<Parsed<z.infer<typeof SessionResponse>>> {
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/extend-timeout`;
     return parseOrThrow(
-      ExtendTimeoutResponse,
+      SessionResponse,
       await this.request(url, {
         method: "POST",
         body: JSON.stringify({ duration: params.duration }),
@@ -671,11 +669,11 @@ export class APIClient extends BaseClient {
   }
 
   async createSnapshot(params: {
-    sandboxId: string;
+    sessionId: string;
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
-    const url = `/v1/sandboxes/${params.sandboxId}/snapshot`;
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/snapshot`;
     const body =
       params.expiration === undefined
         ? undefined
@@ -694,7 +692,7 @@ export class APIClient extends BaseClient {
     snapshotId: string;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
-    const url = `/v1/sandboxes/snapshots/${params.snapshotId}`;
+    const url = `/v2/sandboxes/snapshots/${params.snapshotId}`;
     return parseOrThrow(
       SnapshotResponse,
       await this.request(url, { method: "DELETE", signal: params.signal }),
@@ -705,14 +703,14 @@ export class APIClient extends BaseClient {
     snapshotId: string;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
-    const url = `/v1/sandboxes/snapshots/${params.snapshotId}`;
+    const url = `/v2/sandboxes/snapshots/${params.snapshotId}`;
     return parseOrThrow(
       SnapshotResponse,
       await this.request(url, { signal: params.signal }),
     );
   }
 
-  async getNamedSandbox(params: {
+  async getSandbox(params: {
     name: string;
     projectId: string;
     resume?: boolean;
@@ -725,15 +723,15 @@ export class APIClient extends BaseClient {
       query.resume = String(params.resume);
     }
     return parseOrThrow(
-      NamedSandboxAndSessionResponse,
-      await this.request(`/v1/sandboxes/named/${encodeURIComponent(params.name)}`, {
+      SandboxAndSessionResponse,
+      await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         query,
         signal: params.signal,
       }),
     );
   }
 
-  async listNamedSandboxes(params: {
+  async listSandboxes(params: {
     projectId: string;
     limit?: number;
     sortBy?: "createdAt" | "name";
@@ -741,9 +739,9 @@ export class APIClient extends BaseClient {
     cursor?: string;
     signal?: AbortSignal;
   }) {
-    const result = await parseOrThrow(
-      NamedSandboxesPaginationResponse,
-      await this.request(`/v1/sandboxes/named`, {
+    return parseOrThrow(
+      SandboxesPaginationResponse,
+      await this.request(`/v2/sandboxes`, {
         query: {
           project: params.projectId,
           limit: params.limit,
@@ -755,17 +753,9 @@ export class APIClient extends BaseClient {
         signal: params.signal,
       }),
     );
-
-    return {
-      ...result,
-      json: {
-        sandboxes: result.json.namedSandboxes,
-        pagination: result.json.pagination,
-      },
-    };
   }
 
-  async updateNamedSandbox(params: {
+  async updateSandbox(params: {
     name: string;
     projectId: string;
     persistent?: boolean;
@@ -776,7 +766,7 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      UpdateNamedSandboxResponse,
+      UpdateSandboxResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         method: "PATCH",
         query: {
@@ -796,22 +786,17 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async deleteNamedSandbox(params: {
+  async deleteSandbox(params: {
     name: string;
     projectId: string;
-    preserveSnapshots?: boolean;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      UpdateNamedSandboxResponse,
+      UpdateSandboxResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         method: "DELETE",
         query: {
           projectId: params.projectId,
-          preserveSandboxes: "false",
-          preserveSnapshots: params.preserveSnapshots !== undefined
-            ? String(params.preserveSnapshots)
-            : undefined,
         },
         signal: params.signal,
       }),
