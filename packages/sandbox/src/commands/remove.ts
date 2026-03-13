@@ -17,17 +17,12 @@ export const remove = cmd.command({
       type: sandboxName,
       description: "more sandboxes to remove",
     }),
-    preserveSnapshots: cmd.flag({
-      long: "preserve-snapshots",
-      description: "Keep snapshots when removing the sandbox",
-    }),
     scope,
   },
   async handler({
     scope: { token, team, project },
     sandboxName,
     sandboxNames,
-    preserveSnapshots,
   }) {
     const tasks = Array.from(
       new Set([sandboxName, ...sandboxNames]),
@@ -40,7 +35,7 @@ export const remove = cmd.command({
             projectId: project,
             name,
           });
-          await sandbox.delete({ preserveSnapshots });
+          await sandbox.delete();
         },
       }),
     );

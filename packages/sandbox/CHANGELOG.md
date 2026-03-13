@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.6
+
+### Minor Changes
+
+- Rename sandbox to session, namedSandbox to sandbox
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.5
+
 ## 3.0.0-beta.5
 
 ### Patch Changes

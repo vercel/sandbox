@@ -15,11 +15,11 @@ export default function SplitScreenChatOptimized() {
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
   const [logs, setLogs] = useState<string[]>([]);
-  const [sandboxId, setSandboxId] = useState<string | null>(null);
+  const [sandboxName, setSandboxName] = useState<string | null>(null);
   const [renderPreview, setRenderPreview] = useState(false);
   const isReadyRef = useRef(false);
 
-  const sandboxIdRef = useRef<string | null>(null);
+  const sandboxNameRef = useRef<string | null>(null);
   const sandboxRoutesRef = useRef<{ subdomain: string; port: number }[] | null>(
     null,
   );
@@ -45,41 +45,41 @@ export default function SplitScreenChatOptimized() {
     onFinish(message) {
       const msg = message.message.parts.find((part) => part.type === "text");
       startTransition(async () => {
-        if (sandboxIdRef.current && sandboxRoutesRef.current && msg) {
+        if (sandboxNameRef.current && sandboxRoutesRef.current && msg) {
           await uploadFiles({
             files: extractCodeBlocks(msg!.text),
-            sandboxId: sandboxIdRef.current,
+            sandboxName: sandboxNameRef.current,
           });
 
           if (!isReadyRef.current) {
             isReadyRef.current = true;
             const install = await runCommand({
-              sandboxId: sandboxIdRef.current,
+              sandboxName: sandboxNameRef.current,
               cmd: "npm",
               args: ["install", "--loglevel", "info"],
               detached: true,
             });
 
             for await (const log of getLogs({
-              sandboxId: sandboxIdRef.current,
+              sandboxName: sandboxNameRef.current,
               cmdId: install.cmdId,
             })) {
               setLogs((prevLogs) => [...prevLogs, log]);
             }
 
             const next = await runCommand({
-              sandboxId: sandboxIdRef.current,
+              sandboxName: sandboxNameRef.current,
               cmd: "npm",
               args: ["run", "dev"],
               detached: true,
             });
             (async () => {
-              if (!sandboxRoutesRef.current || !sandboxIdRef.current) {
+              if (!sandboxRoutesRef.current || !sandboxNameRef.current) {
                 console.error("Sandbox routes or ID is missing");
                 return;
               }
               for await (const log of getLogs({
-                sandboxId: sandboxIdRef.current,
+                sandboxName: sandboxNameRef.current,
                 cmdId: next.cmdId,
               })) {
                 setLogs((prevLogs) => [...prevLogs, log]);
@@ -107,19 +107,19 @@ export default function SplitScreenChatOptimized() {
 
   const handleFormSubmit = useCallback(
     (event: React.FormEvent) => {
-      if (!sandboxId || !url || !routes) {
+      if (!sandboxName || !url || !routes) {
         startTransition(async () => {
           const { id, url, routes } = await createSandbox();
           setSandboxUrl(url);
           setRoutes(routes);
-          setSandboxId(id);
-          sandboxIdRef.current = id;
+          setSandboxName(id);
+          sandboxNameRef.current = id;
           sandboxRoutesRef.current = routes;
         });
       }
       return handleSubmit(event);
     },
-    [sandboxId, url, routes, handleSubmit],
+    [sandboxName, url, routes, handleSubmit],
   );
 
   const handleReload = useCallback(() => {
@@ -225,7 +225,7 @@ export default function SplitScreenChatOptimized() {
   );
 }
 
-async function* getLogs(params: { cmdId: string; sandboxId: string }) {
+async function* getLogs(params: { cmdId: string; sandboxName: string }) {
   const response = await fetch("/api/logs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

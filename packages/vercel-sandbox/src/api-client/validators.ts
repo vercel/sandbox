@@ -1,6 +1,24 @@
 import { z } from "zod";
 
-export type SandboxMetaData = z.infer<typeof Sandbox>;
+export type SessionMetaData = z.infer<typeof Session>;
+
+const RuleMatcherValidator = z.object({
+  exact: z.string().optional(),
+  startsWith: z.string().optional(),
+  regex: z.string().optional(),
+});
+
+const KeyValueMatcherValidator = z.object({
+  key: RuleMatcherValidator.optional(),
+  value: RuleMatcherValidator.optional(),
+});
+
+const RuleMatchValidator = z.object({
+  path: RuleMatcherValidator.optional(),
+  method: z.array(z.string()).optional(),
+  queryString: z.array(KeyValueMatcherValidator).optional(),
+  headers: z.array(KeyValueMatcherValidator).optional(),
+});
 
 export const InjectionRuleValidator = z.object({
   domain: z.string(),
@@ -8,23 +26,67 @@ export const InjectionRuleValidator = z.object({
   headers: z.record(z.string()).optional(),
   // headerNames are returned in responses
   headerNames: z.array(z.string()).optional(),
+  match: RuleMatchValidator.optional(),
 });
 
-export const NetworkPolicyValidator = z.union([
+export const ForwardRuleValidator = z.object({
+  domain: z.string(),
+  forwardURL: z.string(),
+  match: RuleMatchValidator.optional(),
+});
+
+export const NetworkPolicyTransformValidator = z.object({
+  headers: z.record(z.string()).optional(),
+});
+
+export const NetworkPolicyRuleValidator = z.object({
+  match: RuleMatchValidator.optional(),
+  transform: z.array(NetworkPolicyTransformValidator).optional(),
+  forwardURL: z.string().optional(),
+});
+
+export const V2NetworkPolicyObjectValidator = z.object({
+  allow: z
+    .union([
+      z.array(z.string()),
+      z.record(z.array(NetworkPolicyRuleValidator)),
+    ])
+    .optional(),
+  subnets: z
+    .object({
+      allow: z.array(z.string()).optional(),
+      deny: z.array(z.string()).optional(),
+    })
+    .optional(),
+});
+
+const NetworkPolicyModeValidator = z.union([
   z.object({ mode: z.literal("allow-all") }).passthrough(),
   z.object({ mode: z.literal("deny-all") }).passthrough(),
-  z
-    .object({
-      mode: z.literal("custom"),
-      allowedDomains: z.array(z.string()).optional(),
-      allowedCIDRs: z.array(z.string()).optional(),
-      deniedCIDRs: z.array(z.string()).optional(),
-      injectionRules: z.array(InjectionRuleValidator).optional(),
-    })
-    .passthrough(),
 ]);
 
-export const Sandbox = z.object({
+const LegacyCustomNetworkPolicyValidator = z
+  .object({
+    mode: z.literal("custom"),
+    allowedDomains: z.array(z.string()).optional(),
+    allowedCIDRs: z.array(z.string()).optional(),
+    deniedCIDRs: z.array(z.string()).optional(),
+    injectionRules: z.array(InjectionRuleValidator).optional(),
+    forwardRules: z.array(ForwardRuleValidator).optional(),
+  })
+  .passthrough();
+
+export const NetworkPolicyRequestValidator = z.union([
+  NetworkPolicyModeValidator,
+  V2NetworkPolicyObjectValidator.passthrough(),
+]);
+
+export const NetworkPolicyResponseValidator = z.union([
+  NetworkPolicyModeValidator,
+  LegacyCustomNetworkPolicyValidator,
+]);
+
+export const Session = z.object({
   id: z.string(),
   memory: z.number(),
   vcpus: z.number(),
@@ -52,7 +114,7 @@ export const Sandbox = z.object({
   cwd: z.string(),
   updatedAt: z.number(),
   interactivePort: z.number().optional(),
-  networkPolicy: NetworkPolicyValidator.optional(),
+  networkPolicy: NetworkPolicyResponseValidator.optional(),
   activeCpuDurationMs: z.number().optional(),
   networkTransfer: z.object({
     ingress: z.number(),
@@ -72,7 +134,7 @@ export type SnapshotMetadata = z.infer<typeof Snapshot>;
 
 export const Snapshot = z.object({
   id: z.string(),
-  sourceSandboxId: z.string(),
+  sourceSessionId: z.string(),
   region: z.string(),
   status: z.enum(["created", "deleted", "failed"]),
   sizeBytes: z.number(),
@@ -81,22 +143,9 @@ export const Snapshot = z.object({
   updatedAt: z.number(),
 });
 
-export const Pagination = z.object({
-  /**
-   * Amount of items in the current page.
-   * @example 20
-   */
+export const CursorPagination = z.object({
   count: z.number(),
-  /**
-   * Timestamp that must be used to request the next page.
-   * @example 1540095775951
-   */
-  next: z.number().nullable(),
-  /**
-   * Timestamp that must be used to request the previous page.
-   * @example 1540095775951
-   */
-  prev: z.number().nullable(),
+  next: z.string().nullable(),
 });
 
 export type CommandData = z.infer<typeof Command>;
@@ -106,7 +155,7 @@ export const Command = z.object({
   name: z.string(),
   args: z.array(z.string()),
   cwd: z.string(),
-  sandboxId: z.string(),
+  sessionId: z.string(),
   exitCode: z.number().nullable(),
   startedAt: z.number(),
 });
@@ -115,12 +164,17 @@ const CommandFinished = Command.extend({
   exitCode: z.number(),
 });
 
-export const SandboxResponse = z.object({
-  sandbox: Sandbox,
+export const SessionResponse = z.object({
+  session: Session.passthrough(),
 });
 
-export const SandboxAndRoutesResponse = SandboxResponse.extend({
+export const SessionAndRoutesResponse = SessionResponse.extend({
   routes: z.array(SandboxRoute),
+});
+
+export const SessionsResponse = z.object({
+  sessions: z.array(Session.passthrough()),
+  pagination: CursorPagination,
 });
 
 export const CommandResponse = z.object({
@@ -157,72 +211,64 @@ export const LogLine = z.discriminatedUnion("stream", [
   LogError,
 ]);
 
-export const SandboxesResponse = z.object({
-  sandboxes: z.array(Sandbox),
-  pagination: Pagination,
-});
-
 export const SnapshotsResponse = z.object({
   snapshots: z.array(Snapshot),
-  pagination: Pagination,
-});
-
-export const ExtendTimeoutResponse = z.object({
-  sandbox: Sandbox,
-});
-
-export const UpdateNetworkPolicyResponse = z.object({
-  sandbox: Sandbox,
+  pagination: CursorPagination,
 });
 
 export const CreateSnapshotResponse = z.object({
   snapshot: Snapshot,
-  sandbox: Sandbox,
+  session: Session.passthrough(),
 });
 
 export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
-export const NamedSandbox = z.object({
+export const Sandbox = z.object({
   name: z.string(),
   persistent: z.boolean(),
-  region: z.string(),
-  vcpus: z.number(),
-  memory: z.number(),
-  runtime: z.string(),
-  timeout: z.number(),
-  networkPolicy: NetworkPolicyValidator.optional(),
+  region: z.string().optional(),
+  vcpus: z.number().optional(),
+  memory: z.number().optional(),
+  runtime: z.string().optional(),
+  timeout: z.number().optional(),
+  networkPolicy: NetworkPolicyResponseValidator.optional(),
   totalEgressBytes: z.number().optional(),
   totalIngressBytes: z.number().optional(),
   totalActiveCpuDurationMs: z.number().optional(),
   totalDurationMs: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
-  currentSandboxId: z.string(),
+  currentSessionId: z.string(),
   currentSnapshotId: z.string().optional(),
-  status: Sandbox.shape.status,
+  status: Session.shape.status,
+  statusUpdatedAt: z.number().optional(),
+  cwd: z.string().optional(),
+  tags: z.record(z.string()).optional(),
+  snapshotExpiration: z.number().optional(),
 });
 
-export type NamedSandboxMetaData = z.infer<typeof NamedSandbox>;
+export type SandboxMetaData = z.infer<typeof Sandbox>;
 
-export const NamedSandboxAndSessionResponse = z.object({
-  namedSandbox: NamedSandbox,
+export const StopSessionResponse = z.object({
+  session: Session.passthrough(),
+  sandbox: Sandbox.optional(),
+  snapshot: Snapshot.optional(),
+});
+
+export const SandboxAndSessionResponse = z.object({
   sandbox: Sandbox,
+  session: Session.passthrough(),
   routes: z.array(SandboxRoute),
+  resumed: z.boolean().optional(),
 });
 
-export const CursorPagination = z.object({
-  count: z.number(),
-  next: z.string().nullable(),
-  total: z.number(),
-});
-
-export const NamedSandboxesPaginationResponse = z.object({
-  namedSandboxes: z.array(NamedSandbox),
+export const SandboxesPaginationResponse = z.object({
+  sandboxes: z.array(Sandbox),
   pagination: CursorPagination,
 });
 
-export const UpdateNamedSandboxResponse = z.object({
-  namedSandbox: NamedSandbox,
+export const UpdateSandboxResponse = z.object({
+  sandbox: Sandbox,
 });

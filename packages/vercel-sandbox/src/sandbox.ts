@@ -1,7 +1,9 @@
+import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import type {
-  NamedSandboxMetaData,
-  SandboxMetaData,
+  SessionMetaData,
   SandboxRouteData,
+  SandboxMetaData,
+  SnapshotMetadata,
 } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { APIError } from "./api-client/api-error.js";
@@ -13,12 +15,23 @@ import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
-import type { NetworkPolicy } from "./network-policy.js";
+import type {
+  NetworkPolicy,
+  NetworkPolicyKeyValueMatcher,
+  NetworkPolicyMatch,
+  NetworkPolicyMatcher,
+} from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
+import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
 
-export type { NetworkPolicy };
+export type {
+  NetworkPolicy,
+  NetworkPolicyKeyValueMatcher,
+  NetworkPolicyMatch,
+  NetworkPolicyMatcher,
+};
 
 /** @inline */
 export interface BaseCreateSandboxParams {
@@ -90,15 +103,31 @@ export interface BaseCreateSandboxParams {
    * await sandbox.runCommand("node", ["app.js"]);
    */
   env?: Record<string, string>;
+  /**
+   * Key-value tags to associate with the sandbox. Maximum 5 tags.
+   * @example { env: "staging", team: "infra" }
+   */
+  tags?: Record<string, string>;
 
   /**
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
   /**
-   * Whether to enable snapshots on shutdown. Defaults to true.
+   * Enable or disable automatic restore of the filesystem between sessions.
    */
   persistent?: boolean;
+  /**
+   * Default snapshot expiration in milliseconds.
+   * When set, snapshots created for this sandbox will expire after this duration.
+   * Use `0` for no expiration.
+   */
+  snapshotExpiration?: number;
+  /**
+   * Called when the sandbox session is resumed (e.g., after a snapshot restore).
+   * Use this to re-warm caches, restore transient state, or run other setup logic.
+   */
+  onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
 export type CreateSandboxParams =
@@ -121,10 +150,47 @@ interface GetSandboxParams {
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
+  /**
+   * Called when the sandbox session is resumed (e.g., after a snapshot restore).
+   * Use this to re-warm caches, restore transient state, or run other setup logic.
+   */
+  onResume?: (sandbox: Sandbox) => Promise<void>;
+}
+
+/**
+ * Extends both {@link BaseCreateSandboxParams} and {@link GetSandboxParams}
+ * (minus `name`, which is required on get but optional here) so that any
+ * new parameter added to either flow is picked up automatically. The
+ * structural overlap on `signal` / `onResume` is intentional — both
+ * interfaces declare them with identical optional types.
+ * @inline
+ */
+interface GetOrCreateSandboxParams
+  extends BaseCreateSandboxParams,
+    Omit<GetSandboxParams, "name"> {
+  /**
+   * Called once after a sandbox is freshly created (not when an existing
+   * sandbox is retrieved). Use this for one-time setup such as seeding
+   * files or warming caches. The returned promise is awaited before
+   * {@link Sandbox.getOrCreate} resolves.
+   */
+  onCreate?: (sandbox: Sandbox) => Promise<void>;
 }
 
 function isSandboxStoppedError(err: unknown): boolean {
   return err instanceof APIError && err.response.status === 410;
+}
+
+function isNotFoundError(err: unknown): boolean {
+  return err instanceof APIError && err.response.status === 404;
+}
+
+function isSnapshotNotFoundError(err: unknown): boolean {
+  return (
+    err instanceof APIError &&
+    err.response.status === 400 &&
+    (err.json as any)?.error?.code === "snapshot_not_found"
+  );
 }
 
 function isSandboxStoppingError(err: unknown): boolean {
@@ -133,6 +199,26 @@ function isSandboxStoppingError(err: unknown): boolean {
     err.response.status === 422 &&
     (err.json as any)?.error?.code === "sandbox_stopping"
   );
+}
+
+function isSandboxSnapshottingError(err: unknown): boolean {
+  return (
+    err instanceof APIError &&
+    err.response.status === 422 &&
+    (err.json as any)?.error?.code === "sandbox_snapshotting"
+  );
+}
+
+/**
+ * Serialized representation of a Sandbox for @workflow/serde.
+ * Fields `metadata` and `routes` are the original wire format from main.
+ * Fields `sandboxMetadata` and `projectId` are added for named-sandboxes.
+ */
+export interface SerializedSandbox {
+  metadata: SandboxSnapshot;
+  routes: SandboxRouteData[];
+  sandboxMetadata?: SandboxMetaData;
+  projectId?: string;
 }
 
 // ============================================================================
@@ -145,18 +231,28 @@ function isSandboxStoppingError(err: unknown): boolean {
  * @hideconstructor
  */
 export class Sandbox {
-  private readonly client: APIClient;
+  private _client: APIClient | null = null;
   private readonly projectId: string;
+
+  /**
+   * In-flight resume promise, used to deduplicate concurrent resume calls.
+   */
+  private resumePromise: Promise<void> | null = null;
 
   /**
    * Internal Session instance for the current VM.
    */
-  private session: Session;
+  private session: Session | undefined;
 
   /**
-   * Internal metadata about the named sandbox.
+   * Internal metadata about the sandbox.
    */
-  private namedSandbox: NamedSandboxMetaData;
+  private sandbox: SandboxMetaData;
+
+  /**
+   * Hook that will be executed when a new session is created during resume.
+   */
+  private readonly onResume?: (sandbox: Sandbox) => Promise<void>;
 
   /**
    * A `node:fs/promises`-compatible API for interacting with the sandbox filesystem.
@@ -170,10 +266,25 @@ export class Sandbox {
   public readonly fs: FileSystem;
 
   /**
+   * Lazily resolve credentials and construct an API client.
+   * @internal
+   */
+  private async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
+
+  /**
    * The name of this sandbox.
    */
   public get name(): string {
-    return this.namedSandbox.name;
+    return this.sandbox.name;
   }
 
   /**
@@ -181,111 +292,127 @@ export class Sandbox {
    * @hidden
    */
   public get routes(): SandboxRouteData[] {
-    return this.session.routes;
+    return this.currentSession().routes;
   }
 
   /**
    * Whether the sandbox persists the state.
    */
   public get persistent(): boolean {
-    return this.namedSandbox.persistent;
+    return this.sandbox.persistent;
   }
 
   /**
    * The region this sandbox runs in.
    */
-  public get region(): string {
-    return this.namedSandbox.region;
+  public get region(): string | undefined {
+    return this.sandbox.region;
   }
 
   /**
    * Number of virtual CPUs allocated.
    */
-  public get vcpus(): number {
-    return this.namedSandbox.vcpus;
+  public get vcpus(): number | undefined {
+    return this.sandbox.vcpus;
   }
 
   /**
    * Memory allocated in MB.
    */
-  public get memory(): number {
-    return this.namedSandbox.memory;
+  public get memory(): number | undefined {
+    return this.sandbox.memory;
   }
 
   /** Runtime identifier (e.g. "node24", "python3.13"). */
-  public get runtime(): string {
-    return this.namedSandbox.runtime;
+  public get runtime(): string | undefined {
+    return this.sandbox.runtime;
   }
 
   /**
    * Cumulative egress bytes across all sessions.
    */
   public get totalEgressBytes(): number | undefined {
-    return this.namedSandbox.totalEgressBytes;
+    return this.sandbox.totalEgressBytes;
   }
 
   /**
    * Cumulative ingress bytes across all sessions.
    */
   public get totalIngressBytes(): number | undefined {
-    return this.namedSandbox.totalIngressBytes;
+    return this.sandbox.totalIngressBytes;
   }
 
   /**
    * Cumulative active CPU duration in milliseconds across all sessions.
    */
   public get totalActiveCpuDurationMs(): number | undefined {
-    return this.namedSandbox.totalActiveCpuDurationMs;
+    return this.sandbox.totalActiveCpuDurationMs;
   }
 
   /**
    * Cumulative wall-clock duration in milliseconds across all sessions.
    */
   public get totalDurationMs(): number | undefined {
-    return this.namedSandbox.totalDurationMs;
+    return this.sandbox.totalDurationMs;
   }
 
   /**
    * When this sandbox was last updated.
    */
   public get updatedAt(): Date {
-    return new Date(this.namedSandbox.updatedAt);
+    return new Date(this.sandbox.updatedAt);
+  }
+
+  /**
+   * When the sandbox status was last updated.
+   */
+  public get statusUpdatedAt(): Date | undefined {
+    return this.sandbox.statusUpdatedAt
+      ? new Date(this.sandbox.statusUpdatedAt)
+      : undefined;
   }
 
   /**
    * When this sandbox was created.
    */
   public get createdAt(): Date {
-    return new Date(this.namedSandbox.createdAt);
+    return new Date(this.sandbox.createdAt);
   }
 
   /**
    * Interactive port.
    */
   public get interactivePort(): number | undefined {
-    return this.session.interactivePort;
+    return this.currentSession().interactivePort;
   }
 
   /**
    * The status of the current session.
    */
-  public get status(): SandboxMetaData["status"] {
-    return this.session.status;
+  public get status(): SessionMetaData["status"] {
+    return this.currentSession().status;
   }
 
   /**
    * The default timeout of this sandbox in milliseconds.
    */
-  public get timeout(): number {
-    return this.namedSandbox.timeout;
+  public get timeout(): number | undefined {
+    return this.sandbox.timeout;
+  }
+
+  /**
+   * Key-value tags attached to the sandbox.
+   */
+  public get tags(): Record<string, string> | undefined {
+    return this.sandbox.tags;
   }
 
   /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
-    return this.namedSandbox.networkPolicy
-      ? fromAPINetworkPolicy(this.namedSandbox.networkPolicy)
+    return this.sandbox.networkPolicy
+      ? fromAPINetworkPolicy(this.sandbox.networkPolicy)
       : undefined;
   }
 
@@ -293,37 +420,55 @@ export class Sandbox {
    * If the session was created from a snapshot, the ID of that snapshot.
    */
   public get sourceSnapshotId(): string | undefined {
-    return this.session.sourceSnapshotId;
+    return this.currentSession().sourceSnapshotId;
   }
 
   /**
    * The current snapshot ID of this sandbox, if any.
    */
   public get currentSnapshotId(): string | undefined {
-    return this.namedSandbox.currentSnapshotId;
+    return this.sandbox.currentSnapshotId;
+  }
+
+  /**
+   * The default snapshot expiration in milliseconds, if set.
+   */
+  public get snapshotExpiration(): number | undefined {
+    return this.sandbox.snapshotExpiration;
   }
 
   /**
    * The amount of CPU used by the session. Only reported once the VM is stopped.
    */
   public get activeCpuUsageMs(): number | undefined {
-    return this.session.activeCpuUsageMs;
+    return this.currentSession().activeCpuUsageMs;
   }
 
   /**
    * The amount of network data used by the session. Only reported once the VM is stopped.
    */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
-    return this.session.networkTransfer;
+  public get networkTransfer():
+    | { ingress: number; egress: number }
+    | undefined {
+    return this.currentSession().networkTransfer;
   }
 
   /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.
    * It returns both the sandboxes and the pagination metadata to allow getting
    * the next page of results.
+   *
+   * The returned object is async-iterable to auto-paginate through all pages:
+   *
+   * ```ts
+   * const result = await Sandbox.list({ namePrefix: "ci-" });
+   * for await (const sandbox of result) { ... }
+   * // or: await result.toArray();
+   * // or: for await (const page of result.pages()) { ... }
+   * ```
    */
   static async list(
-    params?: Partial<Parameters<APIClient["listNamedSandboxes"]>[0]> &
+    params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
       Partial<Credentials> &
       WithFetchOptions,
   ) {
@@ -334,10 +479,56 @@ export class Sandbox {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    return client.listNamedSandboxes({
-      ...credentials,
-      ...params,
+    const fetchPage = async (cursor?: string) => {
+      const response = await client.listSandboxes({
+        ...credentials,
+        ...params,
+        ...(cursor !== undefined && { cursor }),
+      });
+      return response.json;
+    };
+    const firstPage = await fetchPage(params?.cursor);
+    return attachPaginator(firstPage, {
+      itemsKey: "sandboxes",
+      fetchNext: fetchPage,
+      signal: params?.signal,
     });
+  }
+
+  /**
+   * Serialize a Sandbox instance to plain data for @workflow/serde.
+   *
+   * @param instance - The Sandbox instance to serialize
+   * @returns A plain object containing sandbox metadata and routes
+   */
+  static [WORKFLOW_SERIALIZE](instance: Sandbox): SerializedSandbox {
+    return {
+      metadata: instance.session?._sessionSnapshot!,
+      routes: instance.session?.routes ?? [],
+      sandboxMetadata: instance.sandbox,
+      projectId: instance.projectId,
+    };
+  }
+
+  /**
+   * Deserialize a Sandbox from serialized snapshot data.
+   *
+   * The deserialized instance uses the serialized metadata synchronously and
+   * lazily creates an API client only when methods perform API requests.
+   *
+   * @param data - The serialized sandbox data
+   * @returns The reconstructed Sandbox instance
+   */
+  static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Sandbox {
+    const sandbox = new Sandbox({
+      sandbox: data.sandboxMetadata!,
+      routes: data.routes,
+      projectId: data.projectId,
+    });
+    if (data.metadata) {
+      sandbox.session = new Session({ routes: data.routes, snapshot: data.metadata });
+    }
+    return sandbox;
   }
 
   /**
@@ -345,6 +536,10 @@ export class Sandbox {
    *
    * @param params - Creation parameters and optional credentials.
    * @returns A promise resolving to the created {@link Sandbox}.
+   * @example
+   * <caption>Create a sandbox with default options</caption>
+   * const sandbox = await Sandbox.create();
+   *
    * @example
    * <caption>Create a sandbox and drop it in the end of the block</caption>
    * async function fn() {
@@ -376,6 +571,8 @@ export class Sandbox {
       runtime: params && "runtime" in params ? params?.runtime : undefined,
       networkPolicy: params?.networkPolicy,
       env: params?.env,
+      tags: params?.tags,
+      snapshotExpiration: params?.snapshotExpiration,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -384,10 +581,11 @@ export class Sandbox {
 
     return new DisposableSandbox({
       client,
-      session: response.json.sandbox,
-      namedSandbox: response.json.namedSandbox,
+      session: response.json.session,
+      sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
+      onResume: params?.onResume,
     });
   }
 
@@ -409,20 +607,126 @@ export class Sandbox {
       fetch: params.fetch,
     });
 
-    const response = await client.getNamedSandbox({
+    const privateParams = getPrivateParams(params);
+    const response = await client.getSandbox({
       name: params.name,
       projectId: credentials.projectId,
       resume: params.resume,
       signal: params.signal,
+      ...privateParams,
     });
 
-    return new Sandbox({
+    const sandbox = new Sandbox({
       client,
-      session: response.json.sandbox,
-      namedSandbox: response.json.namedSandbox,
+      session: response.json.session,
+      sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
+      onResume: params.onResume,
     });
+
+    if (response.json.resumed && params.onResume) {
+      await params.onResume(sandbox);
+    }
+
+    return sandbox;
+  }
+
+  /**
+   * Retrieve an existing named sandbox, or create a new one if none exists.
+   *
+   * If `name` is omitted, this always creates a new sandbox and fires
+   * `onCreate`. If `name` is provided, it first tries {@link Sandbox.get};
+   * on `not_found` it creates a new sandbox with that name; on
+   * `snapshot_not_found` it deletes the stale named sandbox and creates
+   * a fresh one with the same name.
+   *
+   * @param params - Get/create parameters plus an optional `onCreate` hook.
+   * @returns A promise resolving to the {@link Sandbox}.
+   *
+   * @example
+   * <caption>Idempotent named sandbox with one-time setup</caption>
+   * const sandbox = await Sandbox.getOrCreate({
+   *   name: "my-workspace",
+   *   onCreate: async (sbx) => {
+   *     await sbx.writeFiles([
+   *       { path: "README.md", content: Buffer.from("# Hello") },
+   *     ]);
+   *   },
+   * });
+   *
+   * @example
+   * <caption>Unnamed — always creates</caption>
+   * const sandbox = await Sandbox.getOrCreate({
+   *   onCreate: async (sbx) => {
+   *     await sbx.runCommand("npm", ["install"]);
+   *   },
+   * });
+   */
+  static async getOrCreate(
+    params?: WithPrivate<
+      GetOrCreateSandboxParams | (GetOrCreateSandboxParams & Credentials)
+    > &
+      WithFetchOptions,
+  ): Promise<Sandbox> {
+    "use step";
+    // No name → always create, fire onCreate.
+    if (!params?.name) {
+      const sandbox = await Sandbox.create(params);
+      if (params?.onCreate) {
+        await params.onCreate(sandbox);
+      }
+      return sandbox;
+    }
+
+    try {
+      return await Sandbox.get(
+        params as unknown as Parameters<typeof Sandbox.get>[0],
+      );
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        // Sandbox does not exist: re-create it.
+        const sandbox = await Sandbox.create(params);
+        if (params.onCreate) {
+          await params.onCreate(sandbox);
+        }
+        return sandbox;
+      }
+
+      if (isSnapshotNotFoundError(err)) {
+        // Sandbox exists but the snapshot has expired. Delete it and create
+        // a new one.
+        const credentials = await getCredentials(params);
+        const client = new APIClient({
+          teamId: credentials.teamId,
+          token: credentials.token,
+          fetch: params.fetch,
+        });
+        const privateParams = getPrivateParams(params);
+        try {
+          await client.deleteSandbox({
+            name: params.name,
+            projectId: credentials.projectId,
+            signal: params.signal,
+            ...privateParams,
+          });
+        } catch (deleteErr) {
+          // Tolerate 404 — the named sandbox was already cleaned up by a
+          // concurrent request. Propagate anything else.
+          if (!isNotFoundError(deleteErr)) {
+            throw deleteErr;
+          }
+        }
+
+        const sandbox = await Sandbox.create(params);
+        if (params.onCreate) {
+          await params.onCreate(sandbox);
+        }
+        return sandbox;
+      }
+
+      throw err;
+    }
   }
 
   /**
@@ -436,19 +740,24 @@ export class Sandbox {
     client,
     routes,
     session,
-    namedSandbox,
+    sandbox,
     projectId,
+    onResume,
   }: {
-    client: APIClient;
+    client?: APIClient;
     routes: SandboxRouteData[];
-    session: SandboxMetaData;
-    namedSandbox: NamedSandboxMetaData;
-    projectId: string;
+    session?: SessionMetaData;
+    sandbox: SandboxMetaData;
+    projectId?: string;
+    onResume?: (sandbox: Sandbox) => Promise<void>;
   }) {
-    this.client = client;
-    this.session = new Session({ client, routes, session });
-    this.namedSandbox = namedSandbox;
-    this.projectId = projectId;
+    this._client = client ?? null;
+    if (session) {
+      this.session = new Session({ client: client!, routes, session });
+    }
+    this.sandbox = sandbox;
+    this.projectId = projectId ?? "";
+    this.onResume = onResume;
     this.fs = new FileSystem(this);
   }
 
@@ -458,53 +767,77 @@ export class Sandbox {
    * @returns The {@link Session} instance.
    */
   currentSession(): Session {
+    if (!this.session) {
+      throw new Error("No active session. Run a command or call resume first.");
+    }
     return this.session;
   }
 
   /**
-   * Resume this sandbox by creating a new session via `getNamedSandbox`.
+   * Resume this sandbox by creating a new session via `getSandbox`.
    */
   private async resume(signal?: AbortSignal): Promise<void> {
-    const response = await this.client.getNamedSandbox({
-      name: this.namedSandbox.name,
+    if (!this.resumePromise) {
+      this.resumePromise = this.doResume(signal).finally(() => {
+        this.resumePromise = null;
+      });
+    }
+    return this.resumePromise;
+  }
+
+  private async doResume(signal?: AbortSignal): Promise<void> {
+    const client = await this.ensureClient();
+    const response = await client.getSandbox({
+      name: this.sandbox.name,
       projectId: this.projectId,
       resume: true,
       signal,
     });
     this.session = new Session({
-      client: this.client,
+      client,
       routes: response.json.routes,
-      session: response.json.sandbox,
+      session: response.json.session,
     });
+    if (this.onResume && response.json.resumed) {
+      await this.onResume(this);
+    }
   }
 
   /**
    * Poll until the current session reaches a terminal state, then resume.
    */
   private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
+    "use step";
+    const client = await this.ensureClient();
     const pollingInterval = 500;
-    let status = this.session.status;
+    let status = this.session!.status;
 
     while (status === "stopping" || status === "snapshotting") {
       await setTimeout(pollingInterval, undefined, { signal });
-      const poll = await this.client.getSandbox({
-        sandboxId: this.session.sessionId,
+      const poll = await client.getSession({
+        sessionId: this.session!.sessionId,
         signal,
       });
       this.session = new Session({
-        client: this.client,
+        client,
         routes: poll.json.routes,
-        session: poll.json.sandbox,
+        session: poll.json.session,
       });
-      status = poll.json.sandbox.status;
+      status = poll.json.session.status;
     }
     await this.resume(signal);
   }
 
   /**
-   * Execute `fn`, and if the session is stopped/stopping, resume and retry.
+   * Execute `fn`, and if the session is stopped/stopping/snapshotting, resume and retry.
    */
-  private async withResume<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  private async withResume<T>(
+    fn: () => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    if (!this.session) {
+      await this.resume(signal);
+    }
     try {
       return await fn();
     } catch (err) {
@@ -512,7 +845,7 @@ export class Sandbox {
         await this.resume(signal);
         return fn();
       }
-      if (isSandboxStoppingError(err)) {
+      if (isSandboxStoppingError(err) || isSandboxSnapshottingError(err)) {
         await this.waitForStopAndResume(signal);
         return fn();
       }
@@ -558,9 +891,13 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    const signal = typeof commandOrParams === "string" ? opts?.signal : commandOrParams.signal;
+    "use step";
+    const signal =
+      typeof commandOrParams === "string"
+        ? opts?.signal
+        : commandOrParams.signal;
     return this.withResume(
-      () => this.session.runCommand(commandOrParams as any, args, opts),
+      () => this.session!.runCommand(commandOrParams as any, args, opts),
       signal,
     );
   }
@@ -576,9 +913,9 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
-
+    "use step";
     return this.withResume(
-      () => this.session.getCommand(cmdId, opts),
+      () => this.session!.getCommand(cmdId, opts),
       opts?.signal,
     );
   }
@@ -591,9 +928,9 @@ export class Sandbox {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-
+    "use step";
     return this.withResume(
-      () => this.session.mkDir(path, opts),
+      () => this.session!.mkDir(path, opts),
       opts?.signal,
     );
   }
@@ -610,9 +947,9 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-
+    "use step";
     return this.withResume(
-      () => this.session.readFile(file, opts),
+      () => this.session!.readFile(file, opts),
       opts?.signal,
     );
   }
@@ -629,9 +966,9 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-
+    "use step";
     return this.withResume(
-      () => this.session.readFileToBuffer(file, opts),
+      () => this.session!.readFileToBuffer(file, opts),
       opts?.signal,
     );
   }
@@ -651,9 +988,9 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
-
+    "use step";
     return this.withResume(
-      () => this.session.downloadFile(src, dst, opts),
+      () => this.session!.downloadFile(src, dst, opts),
       opts?.signal,
     );
   }
@@ -682,9 +1019,9 @@ export class Sandbox {
     }[],
     opts?: { signal?: AbortSignal },
   ) {
-
+    "use step";
     return this.withResume(
-      () => this.session.writeFiles(files, opts),
+      () => this.session!.writeFiles(files, opts),
       opts?.signal,
     );
   }
@@ -697,7 +1034,7 @@ export class Sandbox {
    * @throws If the port has no associated route
    */
   domain(p: number): string {
-    return this.session.domain(p);
+    return this.currentSession().domain(p);
   }
 
   /**
@@ -705,13 +1042,20 @@ export class Sandbox {
    *
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
-   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
+   * @returns The final session state after stopping, with optional snapshot metadata.
    */
-  async stop(
-    opts?: { signal?: AbortSignal; blocking?: boolean },
-  ): Promise<SandboxSnapshot> {
-    return this.session.stop(opts);
+  async stop(opts?: {
+    signal?: AbortSignal;
+  }): Promise<SandboxSnapshot & { snapshot?: SnapshotMetadata }> {
+    "use step";
+    if (!this.session) {
+      throw new Error("No active session to stop.");
+    }
+    const { session, sandbox, snapshot } = await this.session.stop(opts);
+    if (sandbox) {
+      this.sandbox = sandbox;
+    }
+    return Object.assign(session, { snapshot });
   }
 
   /**
@@ -751,12 +1095,13 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
+    "use step";
     await this.withResume(
-      () => this.session.update({ networkPolicy: networkPolicy }, opts),
+      () => this.session!.update({ networkPolicy: networkPolicy }, opts),
       opts?.signal,
     );
 
-    return this.session.networkPolicy!;
+    return this.session!.networkPolicy!;
   }
 
   /**
@@ -779,9 +1124,9 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-
+    "use step";
     return this.withResume(
-      () => this.session.extendTimeout(duration, opts),
+      () => this.session!.extendTimeout(duration, opts),
       opts?.signal,
     );
   }
@@ -801,15 +1146,15 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-
+    "use step";
     return this.withResume(
-      () => this.session.snapshot(opts),
+      () => this.session!.snapshot(opts),
       opts?.signal,
     );
   }
 
   /**
-   * Update the named sandbox configuration.
+   * Update the sandbox configuration.
    *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
@@ -817,33 +1162,47 @@ export class Sandbox {
   async update(
     params: {
       persistent?: boolean;
-      resources?: { vcpus?: number; };
+      resources?: { vcpus?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
+      tags?: Record<string, string>;
+      snapshotExpiration?: number;
+      currentSnapshotId?: string;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
+    const client = await this.ensureClient();
     let resources: { vcpus: number; memory: number } | undefined;
     if (params.resources?.vcpus) {
-      resources = { vcpus: params.resources.vcpus, memory: params.resources.vcpus * 2048 };
+      resources = {
+        vcpus: params.resources.vcpus,
+        memory: params.resources.vcpus * 2048,
+      };
     }
 
     // Update the sandbox config. This config will be used on the next session.
-    const response = await this.client.updateNamedSandbox({
-      name: this.namedSandbox.name,
+    const response = await client.updateSandbox({
+      name: this.sandbox.name,
       projectId: this.projectId,
       persistent: params.persistent,
       resources,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
+      tags: params.tags,
+      snapshotExpiration: params.snapshotExpiration,
+      currentSnapshotId: params.currentSnapshotId,
       signal: opts?.signal,
     });
-    this.namedSandbox = response.json.namedSandbox;
+    this.sandbox = response.json.sandbox;
 
     // Update the current session config. This only applies to network policy.
     if (params.networkPolicy) {
       try {
-        return await this.session.update({ networkPolicy: params.networkPolicy }, opts);
+        return await this.session?.update(
+          { networkPolicy: params.networkPolicy },
+          opts,
+        );
       } catch (err) {
         if (isSandboxStoppedError(err) || isSandboxStoppingError(err)) {
           return;
@@ -854,62 +1213,83 @@ export class Sandbox {
   }
 
   /**
-   * Delete this named sandbox.
+   * Delete this sandbox.
    *
    * After deletion the instance becomes inert — all further API calls will
    * throw immediately.
    */
-  async delete(opts?: { preserveSnapshots?: boolean; signal?: AbortSignal }): Promise<void> {
-    await this.client.deleteNamedSandbox({
-      name: this.namedSandbox.name,
+  async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
+    const client = await this.ensureClient();
+    await client.deleteSandbox({
+      name: this.sandbox.name,
       projectId: this.projectId,
-      preserveSnapshots: opts?.preserveSnapshots,
       signal: opts?.signal,
     });
   }
 
   /**
-   * List sessions (VMs) that have been created for this named sandbox.
+   * List sessions (VMs) that have been created for this sandbox.
    *
    * @param params - Optional pagination parameters.
    * @returns The list of sessions and pagination metadata.
    */
   async listSessions(params?: {
     limit?: number;
-    since?: number | Date;
-    until?: number | Date;
+    cursor?: string;
+    sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
-
-    return this.client.listSandboxes({
-      projectId: this.projectId,
-      name: this.namedSandbox.name,
-      limit: params?.limit,
-      since: params?.since,
-      until: params?.until,
+    "use step";
+    const client = await this.ensureClient();
+    const fetchPage = async (cursor?: string) => {
+      const response = await client.listSessions({
+        projectId: this.projectId,
+        name: this.sandbox.name,
+        limit: params?.limit,
+        cursor,
+        sortOrder: params?.sortOrder,
+        signal: params?.signal,
+      });
+      return response.json;
+    };
+    const firstPage = await fetchPage(params?.cursor);
+    return attachPaginator(firstPage, {
+      itemsKey: "sessions",
+      fetchNext: fetchPage,
       signal: params?.signal,
     });
   }
 
   /**
-   * List snapshots that belong to this named sandbox.
+   * List snapshots that belong to this sandbox.
    *
    * @param params - Optional pagination parameters.
    * @returns The list of snapshots and pagination metadata.
    */
   async listSnapshots(params?: {
     limit?: number;
-    since?: number | Date;
-    until?: number | Date;
+    cursor?: string;
+    sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
-
-    return this.client.listSnapshots({
-      projectId: this.projectId,
-      name: this.namedSandbox.name,
-      limit: params?.limit,
-      since: params?.since,
-      until: params?.until,
+    "use step";
+    const client = await this.ensureClient();
+    const fetchPage = async (cursor?: string) => {
+      const response = await client.listSnapshots({
+        projectId: this.projectId,
+        name: this.sandbox.name,
+        limit: params?.limit,
+        cursor,
+        sortOrder: params?.sortOrder,
+        signal: params?.signal,
+      });
+      return response.json;
+    };
+    const firstPage = await fetchPage(params?.cursor);
+    return attachPaginator(firstPage, {
+      itemsKey: "snapshots",
+      fetchNext: fetchPage,
       signal: params?.signal,
     });
   }
