@@ -30,7 +30,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
       const results: Array<{ stream: string; data: string }> = [];
 
       for await (const log of logs) {
@@ -51,7 +51,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
       const results: Array<{ stream: string; data: string }> = [];
 
       for await (const log of logs) {
@@ -72,7 +72,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
 
       await expect(async () => {
         for await (const _ of logs) {
@@ -88,7 +88,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
 
       try {
         for await (const _ of logs) {
@@ -110,7 +110,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
 
       await expect(async () => {
         for await (const _ of logs) {
@@ -136,7 +136,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
       const results: Array<{ stream: string; data: string }> = [];
 
       await expect(async () => {
@@ -149,14 +149,14 @@ describe("APIClient", () => {
       expect(results[0]).toEqual({ stream: "stdout", data: "some logs" });
     });
 
-    it("includes sandboxId in APIError", async () => {
+    it("includes sessionId in APIError", async () => {
       mockFetch.mockResolvedValue(
         new Response(null, {
           headers: { "content-type": "application/json" },
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
 
       try {
         for await (const _ of logs) {
@@ -164,11 +164,11 @@ describe("APIClient", () => {
         expect.fail("Expected APIError to be thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(APIError);
-        expect((err as APIError<unknown>).sandboxId).toBe("sbx_123");
+        expect((err as APIError<unknown>).sessionId).toBe("sbx_123");
       }
     });
 
-    it("includes sandboxId in StreamError", async () => {
+    it("includes sessionId in StreamError", async () => {
       const logLines = [
         {
           stream: "error",
@@ -185,7 +185,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const logs = client.getLogs({ sandboxId: "sbx_123", cmdId: "cmd_456" });
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
 
       try {
         for await (const _ of logs) {
@@ -193,7 +193,7 @@ describe("APIClient", () => {
         expect.fail("Expected StreamError to be thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(StreamError);
-        expect((err as StreamError).sandboxId).toBe("sbx_123");
+        expect((err as StreamError).sessionId).toBe("sbx_123");
       }
     });
   });
@@ -218,7 +218,7 @@ describe("APIClient", () => {
           name: "echo",
           args: ["hello"],
           cwd: "/",
-          sandboxId: "sbx_123",
+          sessionId: "sbx_123",
           exitCode: null,
           startedAt: 1,
         },
@@ -237,7 +237,7 @@ describe("APIClient", () => {
       );
 
       const result = await client.runCommand({
-        sandboxId: "sbx_123",
+        sessionId: "sbx_123",
         command: "echo",
         args: ["hello"],
         env: {},
@@ -259,7 +259,7 @@ describe("APIClient", () => {
 
       try {
         await client.runCommand({
-          sandboxId: "sbx_123",
+          sessionId: "sbx_123",
           command: "echo",
           args: ["hello"],
           env: {},
@@ -398,11 +398,11 @@ describe("APIClient", () => {
     });
   });
 
-  describe("stopSandbox", () => {
+  describe("stopSession", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
-    const makeSandbox = (status: string) => ({
+    const makeSession = (status: string) => ({
       id: "sbx_123",
       memory: 2048,
       vcpus: 1,
@@ -432,39 +432,39 @@ describe("APIClient", () => {
 
     it("returns immediately when blocking is not set", async () => {
       mockFetch.mockResolvedValue(
-        new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+        new Response(JSON.stringify({ session: makeSession("stopping") }), {
           headers: { "content-type": "application/json" },
         }),
       );
 
-      const result = await client.stopSandbox({ sandboxId: "sbx_123" });
+      const result = await client.stopSession({ sessionId: "sbx_123" });
 
-      expect(result.json.sandbox.status).toBe("stopping");
+      expect(result.json.session.status).toBe("stopping");
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it("polls until stopped when blocking is true", async () => {
       mockFetch
         .mockResolvedValueOnce(
-          new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+          new Response(JSON.stringify({ session: makeSession("stopping") }), {
             headers: { "content-type": "application/json" },
           }),
         )
         .mockResolvedValueOnce(
           new Response(
-            JSON.stringify({ sandbox: makeSandbox("stopping"), routes: [] }),
+            JSON.stringify({ session: makeSession("stopping"), routes: [] }),
             { headers: { "content-type": "application/json" } },
           ),
         )
         .mockResolvedValueOnce(
           new Response(
-            JSON.stringify({ sandbox: makeSandbox("stopped"), routes: [] }),
+            JSON.stringify({ session: makeSession("stopped"), routes: [] }),
             { headers: { "content-type": "application/json" } },
           ),
         );
 
-      const promise = client.stopSandbox({
-        sandboxId: "sbx_123",
+      const promise = client.stopSession({
+        sessionId: "sbx_123",
         blocking: true,
       });
 
@@ -473,68 +473,68 @@ describe("APIClient", () => {
       await vi.advanceTimersByTimeAsync(500);
 
       const result = await promise;
-      expect(result.json.sandbox.status).toBe("stopped");
+      expect(result.json.session.status).toBe("stopped");
       expect(mockFetch).toHaveBeenCalledTimes(3);
     });
 
     it("stops polling on failed status", async () => {
       mockFetch
         .mockResolvedValueOnce(
-          new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+          new Response(JSON.stringify({ session: makeSession("stopping") }), {
             headers: { "content-type": "application/json" },
           }),
         )
         .mockResolvedValueOnce(
           new Response(
-            JSON.stringify({ sandbox: makeSandbox("failed"), routes: [] }),
+            JSON.stringify({ session: makeSession("failed"), routes: [] }),
             { headers: { "content-type": "application/json" } },
           ),
         );
 
-      const promise = client.stopSandbox({
-        sandboxId: "sbx_123",
+      const promise = client.stopSession({
+        sessionId: "sbx_123",
         blocking: true,
       });
 
       await vi.advanceTimersByTimeAsync(500);
 
       const result = await promise;
-      expect(result.json.sandbox.status).toBe("failed");
+      expect(result.json.session.status).toBe("failed");
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it("stops polling on aborted status", async () => {
       mockFetch
         .mockResolvedValueOnce(
-          new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+          new Response(JSON.stringify({ session: makeSession("stopping") }), {
             headers: { "content-type": "application/json" },
           }),
         )
         .mockResolvedValueOnce(
           new Response(
-            JSON.stringify({ sandbox: makeSandbox("aborted"), routes: [] }),
+            JSON.stringify({ session: makeSession("aborted"), routes: [] }),
             { headers: { "content-type": "application/json" } },
           ),
         );
 
-      const promise = client.stopSandbox({
-        sandboxId: "sbx_123",
+      const promise = client.stopSession({
+        sessionId: "sbx_123",
         blocking: true,
       });
 
       await vi.advanceTimersByTimeAsync(500);
 
       const result = await promise;
-      expect(result.json.sandbox.status).toBe("aborted");
+      expect(result.json.session.status).toBe("aborted");
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
-  describe("getNamedSandbox", () => {
+  describe("getSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
-    const makeNamedSandbox = () => ({
+    const makeSandboxMetadata = () => ({
       name: "my-sandbox",
       persistent: true,
       region: "iad1",
@@ -545,10 +545,10 @@ describe("APIClient", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: "running" as const,
-      currentSandboxId: "sbx_123",
+      currentSessionId: "sbx_123",
     });
 
-    const makeSandbox = () => ({
+    const makeSession = () => ({
       id: "sbx_123",
       memory: 2048,
       vcpus: 1,
@@ -571,10 +571,10 @@ describe("APIClient", () => {
       });
     });
 
-    it("fetches a named sandbox by name and projectId", async () => {
+    it("fetches a sandbox by name and projectId", async () => {
       const body = {
-        namedSandbox: makeNamedSandbox(),
-        sandbox: makeSandbox(),
+        sandbox: makeSandboxMetadata(),
+        session: makeSession(),
         routes: [{ url: "https://example.com", subdomain: "sbx", port: 3000 }],
       };
       mockFetch.mockResolvedValue(
@@ -583,23 +583,23 @@ describe("APIClient", () => {
         }),
       );
 
-      const result = await client.getNamedSandbox({
+      const result = await client.getSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
       });
 
-      expect(result.json.namedSandbox.name).toBe("my-sandbox");
-      expect(result.json.sandbox.id).toBe("sbx_123");
+      expect(result.json.sandbox.name).toBe("my-sandbox");
+      expect(result.json.session.id).toBe("sbx_123");
 
       const [url] = mockFetch.mock.calls[0];
-      expect(url).toContain("/v1/sandboxes/named/my-sandbox");
+      expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
     });
 
     it("passes resume query param when provided", async () => {
       const body = {
-        namedSandbox: makeNamedSandbox(),
-        sandbox: makeSandbox(),
+        sandbox: makeSandboxMetadata(),
+        session: makeSession(),
         routes: [],
       };
       mockFetch.mockResolvedValue(
@@ -608,7 +608,7 @@ describe("APIClient", () => {
         }),
       );
 
-      await client.getNamedSandbox({
+      await client.getSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
         resume: true,
@@ -619,11 +619,11 @@ describe("APIClient", () => {
     });
   });
 
-  describe("listNamedSandboxes", () => {
+  describe("listSandboxes", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
-    const makeNamedSandbox = (name: string) => ({
+    const makeSandboxMetadata = (name: string) => ({
       name,
       persistent: false,
       region: "iad1",
@@ -634,7 +634,7 @@ describe("APIClient", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: "running" as const,
-      currentSandboxId: "sbx_123",
+      currentSessionId: "sbx_123",
     });
 
     beforeEach(() => {
@@ -646,9 +646,9 @@ describe("APIClient", () => {
       });
     });
 
-    it("lists named sandboxes with pagination", async () => {
+    it("lists sandboxes with pagination", async () => {
       const body = {
-        namedSandboxes: [makeNamedSandbox("sb-1"), makeNamedSandbox("sb-2")],
+        sandboxes: [makeSandboxMetadata("sb-1"), makeSandboxMetadata("sb-2")],
         pagination: { count: 2, next: null, total: 2 },
       };
       mockFetch.mockResolvedValue(
@@ -657,7 +657,7 @@ describe("APIClient", () => {
         }),
       );
 
-      const result = await client.listNamedSandboxes({
+      const result = await client.listSandboxes({
         projectId: "proj_123",
       });
 
@@ -668,7 +668,7 @@ describe("APIClient", () => {
 
     it("passes all query params", async () => {
       const body = {
-        namedSandboxes: [],
+        sandboxes: [],
         pagination: { count: 0, next: null, total: 0 },
       };
       mockFetch.mockResolvedValue(
@@ -677,7 +677,7 @@ describe("APIClient", () => {
         }),
       );
 
-      await client.listNamedSandboxes({
+      await client.listSandboxes({
         projectId: "proj_123",
         limit: 5,
         sortBy: "name",
@@ -694,11 +694,11 @@ describe("APIClient", () => {
     });
   });
 
-  describe("updateNamedSandbox", () => {
+  describe("updateSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
-    const makeNamedSandbox = () => ({
+    const makeSandboxMetadata = () => ({
       name: "my-sandbox",
       persistent: true,
       region: "iad1",
@@ -709,7 +709,7 @@ describe("APIClient", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: "running" as const,
-      currentSandboxId: "sbx_123",
+      currentSessionId: "sbx_123",
     });
 
     beforeEach(() => {
@@ -722,21 +722,21 @@ describe("APIClient", () => {
     });
 
     it("sends PATCH with update fields", async () => {
-      const body = { namedSandbox: makeNamedSandbox() };
+      const body = { sandbox: makeSandboxMetadata() };
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify(body), {
           headers: { "content-type": "application/json" },
         }),
       );
 
-      const result = await client.updateNamedSandbox({
+      const result = await client.updateSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
         persistent: true,
         timeout: 600000,
       });
 
-      expect(result.json.namedSandbox.name).toBe("my-sandbox");
+      expect(result.json.sandbox.name).toBe("my-sandbox");
 
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toContain("/v2/sandboxes/my-sandbox");
@@ -749,11 +749,11 @@ describe("APIClient", () => {
     });
   });
 
-  describe("deleteNamedSandbox", () => {
+  describe("deleteSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
-    const makeNamedSandbox = () => ({
+    const makeSandboxMetadata = () => ({
       name: "my-sandbox",
       persistent: false,
       region: "iad1",
@@ -764,7 +764,7 @@ describe("APIClient", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: "running" as const,
-      currentSandboxId: "sbx_123",
+      currentSessionId: "sbx_123",
     });
 
     beforeEach(() => {
@@ -776,44 +776,25 @@ describe("APIClient", () => {
       });
     });
 
-    it("sends DELETE with projectId and preserveSandboxes=false", async () => {
-      const body = { namedSandbox: makeNamedSandbox() };
+    it("sends DELETE with projectId", async () => {
+      const body = { sandbox: makeSandboxMetadata() };
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify(body), {
           headers: { "content-type": "application/json" },
         }),
       );
 
-      const result = await client.deleteNamedSandbox({
+      const result = await client.deleteSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
       });
 
-      expect(result.json.namedSandbox.name).toBe("my-sandbox");
+      expect(result.json.sandbox.name).toBe("my-sandbox");
 
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
-      expect(url).toContain("preserveSandboxes=false");
       expect(opts.method).toBe("DELETE");
-    });
-
-    it("passes preserveSnapshots when provided", async () => {
-      const body = { namedSandbox: makeNamedSandbox() };
-      mockFetch.mockResolvedValue(
-        new Response(JSON.stringify(body), {
-          headers: { "content-type": "application/json" },
-        }),
-      );
-
-      await client.deleteNamedSandbox({
-        name: "my-sandbox",
-        projectId: "proj_123",
-        preserveSnapshots: true,
-      });
-
-      const [url] = mockFetch.mock.calls[0];
-      expect(url).toContain("preserveSnapshots=true");
     });
   });
 
@@ -834,7 +815,7 @@ describe("APIClient", () => {
       mockFetch.mockResolvedValue(
         new Response(
           JSON.stringify({
-            sandbox: {
+            session: {
               id: "sbx_123",
               memory: 2048,
               vcpus: 1,
@@ -849,7 +830,7 @@ describe("APIClient", () => {
             },
             snapshot: {
               id: "snap_123",
-              sourceSandboxId: "sbx_123",
+              sourceSessionId: "sbx_123",
               region: "iad1",
               status: "created",
               sizeBytes: 1024,
@@ -862,7 +843,7 @@ describe("APIClient", () => {
       );
 
       await client.createSnapshot({
-        sandboxId: "sbx_123",
+        sessionId: "sbx_123",
         expiration: 0,
       });
 

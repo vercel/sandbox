@@ -73,11 +73,11 @@ export const list = cmd.command({
       CREATED: {
         value: (s) => timeAgo(s.createdAt),
       },
-      MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
-      VCPUS: { value: (s) => s.vcpus },
-      RUNTIME: { value: (s) => s.runtime },
+      MEMORY: { value: (s) => s.memory != null ? memoryFormatter.format(s.memory) : "-" },
+      VCPUS: { value: (s) => s.vcpus ?? "-" },
+      RUNTIME: { value: (s) => s.runtime ?? "-" },
       TIMEOUT: {
-        value: (s) => timeAgo(s.createdAt + s.timeout),
+        value: (s) => s.timeout != null ? timeAgo(s.createdAt + s.timeout) : "-",
       },
       SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" }
     };

@@ -64,9 +64,9 @@ export class Command {
   }
 
   /**
-   * ID of the sandbox this command is running in.
+   * ID of the session this command is running in.
    */
-  protected sandboxId: string;
+  private sessionId: string;
 
   /**
    * Data for the command execution.
@@ -104,25 +104,24 @@ export class Command {
   }
 
   /**
-   * @param params - Object containing the client, sandbox ID, and command data.
-   * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
-   * @param params.sandboxId - The ID of the sandbox where the command is running.
-   * @param params.cmd - The command data.
-   * @param params.output - Optional cached output to restore (used during deserialization).
+   * @param params - Object containing the client, session ID, and command ID.
+   * @param params.client - API client used to interact with the backend.
+   * @param params.sessionId - The ID of the session where the command is running.
+   * @param params.cmdId - The ID of the command execution.
    */
   constructor({
     client,
-    sandboxId,
+    sessionId,
     cmd,
     output,
   }: {
-    client?: APIClient;
-    sandboxId: string;
+    client: APIClient;
+    sessionId: string;
     cmd: CommandData;
     output?: CommandOutput;
   }) {
-    this._client = client ?? null;
-    this.sandboxId = sandboxId;
+    this.client = client;
+    this.sessionId = sessionId;
     this.cmd = cmd;
     this.exitCode = cmd.exitCode ?? null;
     if (output) {
@@ -192,13 +191,8 @@ export class Command {
    * to access output as a string.
    */
   logs(opts?: { signal?: AbortSignal }) {
-    if (!this._client) {
-      throw new Error(
-        "logs() requires an API client. Call an async method first to initialize the client.",
-      );
-    }
-    return this._client.getLogs({
-      sandboxId: this.sandboxId,
+    return this.client.getLogs({
+      sessionId: this.sessionId,
       cmdId: this.cmd.id,
       signal: opts?.signal,
     });
@@ -228,16 +222,16 @@ export class Command {
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
-    const command = await client.getCommand({
-      sandboxId: this.sandboxId,
+    const command = await this.client.getCommand({
+      sessionId: this.sessionId,
       cmdId: this.cmd.id,
       wait: true,
       signal: params?.signal,
     });
 
     return new CommandFinished({
-      client,
-      sandboxId: this.sandboxId,
+      client: this.client,
+      sessionId: this.sessionId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
     });
@@ -343,10 +337,8 @@ export class Command {
    * @returns Promise<void>.
    */
   async kill(signal?: Signal, opts?: { abortSignal?: AbortSignal }) {
-    "use step";
-    const client = await this.ensureClient();
-    await client.killCommand({
-      sandboxId: this.sandboxId,
+    await this.client.killCommand({
+      sessionId: this.sessionId,
       commandId: this.cmd.id,
       signal: resolveSignal(signal ?? "SIGTERM"),
       abortSignal: opts?.abortSignal,
@@ -371,16 +363,16 @@ export class CommandFinished extends Command {
   public exitCode: number;
 
   /**
-   * @param params - Object containing client, sandbox ID, command data, and exit code.
-   * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
-   * @param params.sandboxId - The ID of the sandbox where the command ran.
-   * @param params.cmd - The command data.
+   * @param params - Object containing client, session ID, command ID, and exit code.
+   * @param params.client - API client used to interact with the backend.
+   * @param params.sessionId - The ID of the session where the command ran.
+   * @param params.cmdId - The ID of the command execution.
    * @param params.exitCode - The exit code of the completed command.
    * @param params.output - Optional cached output to restore (used during deserialization).
    */
   constructor(params: {
-    client?: APIClient;
-    sandboxId: string;
+    client: APIClient;
+    sessionId: string;
     cmd: CommandData;
     exitCode: number;
     output?: CommandOutput;

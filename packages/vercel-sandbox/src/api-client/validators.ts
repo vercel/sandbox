@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type SandboxMetaData = z.infer<typeof Sandbox>;
+export type SessionMetaData = z.infer<typeof Session>;
 
 export const InjectionRuleValidator = z.object({
   domain: z.string(),
@@ -24,7 +24,7 @@ export const NetworkPolicyValidator = z.union([
     .passthrough(),
 ]);
 
-export const Sandbox = z.object({
+export const Session = z.object({
   id: z.string(),
   memory: z.number(),
   vcpus: z.number(),
@@ -72,7 +72,7 @@ export type SnapshotMetadata = z.infer<typeof Snapshot>;
 
 export const Snapshot = z.object({
   id: z.string(),
-  sourceSandboxId: z.string(),
+  sourceSessionId: z.string(),
   region: z.string(),
   status: z.enum(["created", "deleted", "failed"]),
   sizeBytes: z.number(),
@@ -106,7 +106,7 @@ export const Command = z.object({
   name: z.string(),
   args: z.array(z.string()),
   cwd: z.string(),
-  sandboxId: z.string(),
+  sessionId: z.string(),
   exitCode: z.number().nullable(),
   startedAt: z.number(),
 });
@@ -115,12 +115,17 @@ const CommandFinished = Command.extend({
   exitCode: z.number(),
 });
 
-export const SandboxResponse = z.object({
-  sandbox: Sandbox,
+export const SessionResponse = z.object({
+  session: Session.passthrough(),
 });
 
-export const SandboxAndRoutesResponse = SandboxResponse.extend({
+export const SessionAndRoutesResponse = SessionResponse.extend({
   routes: z.array(SandboxRoute),
+});
+
+export const SessionsResponse = z.object({
+  sessions: z.array(Session.passthrough()),
+  pagination: Pagination,
 });
 
 export const CommandResponse = z.object({
@@ -157,41 +162,28 @@ export const LogLine = z.discriminatedUnion("stream", [
   LogError,
 ]);
 
-export const SandboxesResponse = z.object({
-  sandboxes: z.array(Sandbox),
-  pagination: Pagination,
-});
-
 export const SnapshotsResponse = z.object({
   snapshots: z.array(Snapshot),
   pagination: Pagination,
 });
 
-export const ExtendTimeoutResponse = z.object({
-  sandbox: Sandbox,
-});
-
-export const UpdateNetworkPolicyResponse = z.object({
-  sandbox: Sandbox,
-});
-
 export const CreateSnapshotResponse = z.object({
   snapshot: Snapshot,
-  sandbox: Sandbox,
+  session: Session.passthrough(),
 });
 
 export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
-export const NamedSandbox = z.object({
+export const Sandbox = z.object({
   name: z.string(),
   persistent: z.boolean(),
-  region: z.string(),
-  vcpus: z.number(),
-  memory: z.number(),
-  runtime: z.string(),
-  timeout: z.number(),
+  region: z.string().optional(),
+  vcpus: z.number().optional(),
+  memory: z.number().optional(),
+  runtime: z.string().optional(),
+  timeout: z.number().optional(),
   networkPolicy: NetworkPolicyValidator.optional(),
   totalEgressBytes: z.number().optional(),
   totalIngressBytes: z.number().optional(),
@@ -199,16 +191,17 @@ export const NamedSandbox = z.object({
   totalDurationMs: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
-  currentSandboxId: z.string(),
+  currentSessionId: z.string(),
   currentSnapshotId: z.string().optional(),
-  status: Sandbox.shape.status,
+  status: Session.shape.status,
+  cwd: z.string().optional(),
 });
 
-export type NamedSandboxMetaData = z.infer<typeof NamedSandbox>;
+export type SandboxMetaData = z.infer<typeof Sandbox>;
 
-export const NamedSandboxAndSessionResponse = z.object({
-  namedSandbox: NamedSandbox,
+export const SandboxAndSessionResponse = z.object({
   sandbox: Sandbox,
+  session: Session.passthrough(),
   routes: z.array(SandboxRoute),
 });
 
@@ -218,11 +211,11 @@ export const CursorPagination = z.object({
   total: z.number(),
 });
 
-export const NamedSandboxesPaginationResponse = z.object({
-  namedSandboxes: z.array(NamedSandbox),
+export const SandboxesPaginationResponse = z.object({
+  sandboxes: z.array(Sandbox),
   pagination: CursorPagination,
 });
 
-export const UpdateNamedSandboxResponse = z.object({
-  namedSandbox: NamedSandbox,
+export const UpdateSandboxResponse = z.object({
+  sandbox: Sandbox,
 });

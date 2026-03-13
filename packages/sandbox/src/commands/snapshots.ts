@@ -55,7 +55,7 @@ const list = cmd.command({
                 : timeAgo(s.expiresAt),
           },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
-          ["SOURCE SESSION"]: { value: (s) => s.sourceSandboxId },
+          ["SOURCE SESSION"]: { value: (s) => s.sourceSessionId },
         },
       }),
     );
@@ -98,7 +98,7 @@ const get = cmd.command({
           CREATED: { value: (s) => timeAgo(s.createdAt) },
           EXPIRATION: { value: (s) => s.status === 'deleted' ? chalk.gray.dim('deleted') : timeAgo(s.expiresAt) },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
-          ["SOURCE SESSION"]: { value: (s) => s.sourceSandboxId },
+          ["SOURCE SESSION"]: { value: (s) => s.sourceSessionId },
         },
       }),
     );
