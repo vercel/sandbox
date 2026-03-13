@@ -30,6 +30,12 @@
 
 - Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
 
+## 1.8.1
+
+### Patch Changes
+
+- Fix unhandled promise rejection when running a command while the sandbox is stopping ([#82](https://github.com/vercel/sandbox/pull/82))
+
 ## 1.8.0
 
 ### Minor Changes
