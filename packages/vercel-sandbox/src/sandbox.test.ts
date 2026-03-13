@@ -15,7 +15,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      metadata: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -28,7 +28,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      metadata: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -41,7 +41,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      metadata: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -54,7 +54,7 @@ describe("downloadFile validation", () => {
       client: {} as any,
       routes: [],
       session: { id: "test" } as any,
-      metadata: { name: "test" } as any,
+      sandbox: { name: "test" } as any,
       projectId: "test-project",
     });
     await expect(
@@ -119,8 +119,8 @@ describe("_runCommand error handling", () => {
         getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
-      session: makeSandboxMetadata(),
-      namedSandbox: { name: "test" } as any,
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
       projectId: "test-project",
     });
 
@@ -163,7 +163,7 @@ describe("_runCommand error handling", () => {
         getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
-      metadata: makeSandboxMetadata(),
+      sandbox: makeSandboxMetadata(),
       session: {} as any,
       projectId: "test-project",
     });

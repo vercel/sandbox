@@ -551,7 +551,7 @@ export class Session {
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @param opts.blocking - If true, poll until the session has fully stopped and return the final state.
-   * @returns The session metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
+   * @returns The session at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSession> {
     const response = await this.client.stopSession({
@@ -611,7 +611,7 @@ export class Session {
         signal: opts?.signal,
       });
 
-      // Update the internal session metadata with the new network policy
+      // Update the internal session with the new network policy
       this.session = convertSession(response.json.session);
     }
   }
@@ -643,7 +643,7 @@ export class Session {
       signal: opts?.signal,
     });
 
-    // Update the internal session metadata with the new timeout value
+    // Update the internal session with the new timeout value
     this.session = convertSession(response.json.session);
   }
 

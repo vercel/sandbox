@@ -149,13 +149,13 @@ export class Sandbox {
   /**
    * Internal metadata about the sandbox.
    */
-  private metadata: SandboxMetaData;
+  private sandbox: SandboxMetaData;
 
   /**
    * The name of this sandbox.
    */
   public get name(): string {
-    return this.metadata.name;
+    return this.sandbox.name;
   }
 
   /**
@@ -170,75 +170,75 @@ export class Sandbox {
    * Whether the sandbox persists the state.
    */
   public get persistent(): boolean {
-    return this.metadata.persistent;
+    return this.sandbox.persistent;
   }
 
   /**
    * The region this sandbox runs in.
    */
   public get region(): string | undefined {
-    return this.metadata.region;
+    return this.sandbox.region;
   }
 
   /**
    * Number of virtual CPUs allocated.
    */
   public get vcpus(): number | undefined {
-    return this.metadata.vcpus;
+    return this.sandbox.vcpus;
   }
 
   /**
    * Memory allocated in MB.
    */
   public get memory(): number | undefined {
-    return this.metadata.memory;
+    return this.sandbox.memory;
   }
 
   /** Runtime identifier (e.g. "node24", "python3.13"). */
   public get runtime(): string | undefined {
-    return this.metadata.runtime;
+    return this.sandbox.runtime;
   }
 
   /**
    * Cumulative egress bytes across all sessions.
    */
   public get totalEgressBytes(): number | undefined {
-    return this.metadata.totalEgressBytes;
+    return this.sandbox.totalEgressBytes;
   }
 
   /**
    * Cumulative ingress bytes across all sessions.
    */
   public get totalIngressBytes(): number | undefined {
-    return this.metadata.totalIngressBytes;
+    return this.sandbox.totalIngressBytes;
   }
 
   /**
    * Cumulative active CPU duration in milliseconds across all sessions.
    */
   public get totalActiveCpuDurationMs(): number | undefined {
-    return this.metadata.totalActiveCpuDurationMs;
+    return this.sandbox.totalActiveCpuDurationMs;
   }
 
   /**
    * Cumulative wall-clock duration in milliseconds across all sessions.
    */
   public get totalDurationMs(): number | undefined {
-    return this.metadata.totalDurationMs;
+    return this.sandbox.totalDurationMs;
   }
 
   /**
    * When this sandbox was last updated.
    */
   public get updatedAt(): Date {
-    return new Date(this.metadata.updatedAt);
+    return new Date(this.sandbox.updatedAt);
   }
 
   /**
    * When this sandbox was created.
    */
   public get createdAt(): Date {
-    return new Date(this.metadata.createdAt);
+    return new Date(this.sandbox.createdAt);
   }
 
   /**
@@ -259,15 +259,15 @@ export class Sandbox {
    * The default timeout of this sandbox in milliseconds.
    */
   public get timeout(): number | undefined {
-    return this.metadata.timeout;
+    return this.sandbox.timeout;
   }
 
   /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
-    return this.metadata.networkPolicy
-      ? fromAPINetworkPolicy(this.metadata.networkPolicy)
+    return this.sandbox.networkPolicy
+      ? fromAPINetworkPolicy(this.sandbox.networkPolicy)
       : undefined;
   }
 
@@ -282,7 +282,7 @@ export class Sandbox {
    * The current snapshot ID of this sandbox, if any.
    */
   public get currentSnapshotId(): string | undefined {
-    return this.metadata.currentSnapshotId;
+    return this.sandbox.currentSnapshotId;
   }
 
   /**
@@ -408,18 +408,18 @@ export class Sandbox {
     client,
     routes,
     session,
-    metadata,
+    sandbox,
     projectId,
   }: {
     client: APIClient;
     routes: SandboxRouteData[];
     session: SessionMetaData;
-    metadata: SandboxMetaData;
+    sandbox: SandboxMetaData;
     projectId: string;
   }) {
     this.client = client;
     this.session = new Session({ client, routes, session });
-    this.metadata = metadata;
+    this.sandbox = sandbox;
     this.projectId = projectId;
   }
 
@@ -437,7 +437,7 @@ export class Sandbox {
    */
   private async resume(signal?: AbortSignal): Promise<void> {
     const response = await this.client.getSandbox({
-      name: this.metadata.name,
+      name: this.sandbox.name,
       projectId: this.projectId,
       resume: true,
       signal,
@@ -667,7 +667,7 @@ export class Sandbox {
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
-   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
+   * @returns The sandbox at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
   async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSession> {
     return this.session.stop(opts);
@@ -789,7 +789,7 @@ export class Sandbox {
 
     // Update the sandbox config. This config will be used on the next session.
     const response = await this.client.updateSandbox({
-      name: this.metadata.name,
+      name: this.sandbox.name,
       projectId: this.projectId,
       persistent: params.persistent,
       resources,
@@ -797,7 +797,7 @@ export class Sandbox {
       networkPolicy: params.networkPolicy,
       signal: opts?.signal,
     });
-    this.metadata = response.json.sandbox;
+    this.sandbox = response.json.sandbox;
 
     // Update the current session config. This only applies to network policy.
     if (params.networkPolicy) {
@@ -820,7 +820,7 @@ export class Sandbox {
    */
   async delete(opts?: { signal?: AbortSignal }): Promise<void> {
     await this.client.deleteSandbox({
-      name: this.metadata.name,
+      name: this.sandbox.name,
       projectId: this.projectId,
       signal: opts?.signal,
     });
@@ -841,7 +841,7 @@ export class Sandbox {
 
     return this.client.listSessions({
       projectId: this.projectId,
-      name: this.metadata.name,
+      name: this.sandbox.name,
       limit: params?.limit,
       since: params?.since,
       until: params?.until,
@@ -864,7 +864,7 @@ export class Sandbox {
 
     return this.client.listSnapshots({
       projectId: this.projectId,
-      name: this.metadata.name,
+      name: this.sandbox.name,
       limit: params?.limit,
       since: params?.since,
       until: params?.until,
