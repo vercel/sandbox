@@ -365,7 +365,7 @@ export class Sandbox {
     return new DisposableSandbox({
       client,
       session: response.json.session,
-      metadata: response.json.sandbox,
+      sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
     });
@@ -398,7 +398,7 @@ export class Sandbox {
     return new Sandbox({
       client,
       session: response.json.session,
-      metadata: response.json.sandbox,
+      sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
     });
