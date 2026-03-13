@@ -118,7 +118,9 @@ describe("_runCommand error handling", () => {
         getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
-      sandbox: makeSandboxMetadata(),
+      session: makeSandboxMetadata(),
+      namedSandbox: { name: "test" } as any,
+      projectId: "test-project",
     });
 
     await expect(
@@ -160,7 +162,9 @@ describe("_runCommand error handling", () => {
         getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
-      sandbox: makeSandboxMetadata(),
+      session: makeSandboxMetadata(),
+      namedSandbox: { name: "test" } as any,
+      projectId: "test-project",
     });
 
     const stdout = new PassThrough();
