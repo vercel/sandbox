@@ -203,6 +203,20 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
     expect((await consumeReadable(content2!)).toString()).toBe("Hello 2");
   });
 
+  it("allows to write files with custom mode (chmod)", async () => {
+    await sandbox.writeFiles([
+      { path: "script.sh", content: Buffer.from("#!/bin/bash\necho hello"), mode: 0o755 },
+    ]);
+
+    // Verify the file was written and has executable permissions
+    const result = await sandbox.runCommand("stat", ["-c", "%a", "script.sh"]);
+    expect(result.stdout.trim()).toBe("755");
+
+    // Also verify the script is actually executable
+    const execResult = await sandbox.runCommand("./script.sh");
+    expect(execResult.stdout.trim()).toBe("hello");
+  });
+
   it("allows to write files and then read them to a buffer", async () => {
     await sandbox.writeFiles([
       { path: "hello1.txt", content: Buffer.from("Hello 1") },
