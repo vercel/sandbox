@@ -100,8 +100,7 @@ This will:
 
 All while streaming logs to your local terminal.
 
-Sandboxes are persistent by default. To resume the previous sandbox without
-having to install the dependencies again:
+Sandboxes are persistent by default. To resume a sandbox with its previous state:
 
 Create a `resume.mts` file:
 
