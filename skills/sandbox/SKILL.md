@@ -160,6 +160,7 @@ const devServer = await sandbox.runCommand({
 
 // Later: wait for completion or kill
 const finished = await devServer.wait();
+// Supported signals: SIGHUP, SIGINT, SIGQUIT, SIGKILL, SIGTERM, SIGCONT, SIGSTOP (or numeric)
 await devServer.kill("SIGTERM");
 ```
 
@@ -291,7 +292,9 @@ const sandbox = await Sandbox.create({ runtime: "node24" });
 await sandbox.runCommand("npm", ["install"]);
 
 // Create snapshot (stops the sandbox)
-const snapshot = await sandbox.snapshot();
+const snapshot = await sandbox.snapshot({
+  expiration: ms("14d"), // Default: 30 days, use 0 for no expiration
+});
 console.log("Snapshot ID:", snapshot.snapshotId);
 ```
 
@@ -428,8 +431,9 @@ await sandbox.runCommand({
 # Install CLI
 pnpm i -g sandbox
 
-# Login
+# Login / Logout
 sandbox login
+sandbox logout
 
 # Create and connect
 sandbox create --connect
@@ -440,11 +444,26 @@ sandbox ls
 # Execute command
 sandbox exec <sandbox-id> -- npm install
 
+# Run a command in a new sandbox (create + exec in one step)
+sandbox run -- node -e "console.log('hello')"
+
+# Start an interactive shell
+sandbox connect <sandbox-id>
+
 # Copy files
 sandbox cp local-file.txt <sandbox-id>:/vercel/sandbox/
 
 # Stop sandbox
 sandbox stop <sandbox-id>
+
+# Snapshots
+sandbox snapshot <sandbox-id>
+sandbox snapshots ls
+sandbox snapshots get <snapshot-id>
+sandbox snapshots rm <snapshot-id>
+
+# Update network policy
+sandbox config network-policy <sandbox-id> --network-policy deny-all
 ```
 
 ## Common Patterns
