@@ -52,7 +52,9 @@ async function main() {
     resources: { vcpus: 4 },
     ports: [3000],
     runtime: "node24",
+    name: "vercel-sandbox-example",
   });
+  console.log(`Sandbox ${sandbox.name} created`);
 
   console.log(`Installing dependencies...`);
   const install = await sandbox.runCommand({
@@ -62,7 +64,7 @@ async function main() {
     stdout: process.stdout,
   });
 
-  if (install.exitCode != 0) {
+  if (install.exitCode !== 0) {
     console.log("installing packages failed");
     process.exit(1);
   }
@@ -97,6 +99,44 @@ This will:
 - Open it in your browser
 
 All while streaming logs to your local terminal.
+
+Sandboxes are persistent by default. To resume the previous sandbox, without
+having to install the dependencies again:
+
+Create a `resume.mts` file:
+
+```ts
+import { Sandbox } from "@vercel/sandbox";
+import { setTimeout } from "timers/promises";
+import { spawn } from "child_process";
+
+async function main() {
+  const sandbox = await Sandbox.get({
+    name: "vercel-sandbox-example",
+  });
+  console.log(`Sandbox ${sandbox.name} resumed`);
+
+  console.log(`Starting the development server...`);
+  await sandbox.runCommand({
+    cmd: "npm",
+    args: ["run", "dev"],
+    stderr: process.stderr,
+    stdout: process.stdout,
+    detached: true,
+  });
+
+  await setTimeout(500);
+  spawn("open", [sandbox.domain(3000)]);
+}
+
+main().catch(console.error);
+```
+
+Run it:
+
+```sh
+node --experimental-strip-types --env-file .env.local resume.mts
+```
 
 ## Authentication
 
