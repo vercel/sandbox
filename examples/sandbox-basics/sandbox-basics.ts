@@ -8,7 +8,7 @@ async function main() {
     timeout: 300000, // 5 minutes
   });
 
-  console.log('Sandbox created successfully!\n');
+  console.log(`Sandbox ${sandbox.name} created successfully!\n`);
 
   // 1. Check current working directory
   const pwdResult = await sandbox.runCommand('pwd');
@@ -155,23 +155,38 @@ echo "Process completed normally"
   console.log('Created files:');
   console.log(await treeResult.stdout());
 
-  // 10. Check resource usage
+  // 10. Stop the sandbox
+  console.log('Stopping the sandbox ...');
+  await sandbox.stop();
+
+  // 11. Modify the sandbox configuration
+  await sandbox.update({ resources: { vcpus: 2 }});
+
+  // 12. Resume the sandbox from where you left off
+  console.log('Resuming the sandbox with 2 vCPU');
+  const resumedSandbox = await Sandbox.get({ name: sandbox.name });
+  const treeResultAfterResume = await resumedSandbox.runCommand('find', ['test', '-type', 'f']);
+  console.log('Created files (after resuming the sandbox):');
+  console.log(await treeResultAfterResume.stdout());
+
+  // 13. Check resource usage
   console.log('Resource Usage:');
   
   // Check disk usage
-  const dfResult = await sandbox.runCommand('df', ['-h']);
+  const dfResult = await resumedSandbox.runCommand('df', ['-h']);
   console.log('Disk usage:');
   console.log(await dfResult.stdout());
   
   // Check memory usage
-  const freeResult = await sandbox.runCommand('free', ['-h']);
+  const freeResult = await resumedSandbox.runCommand('free', ['-h']);
   console.log('Memory usage:');
   console.log(await freeResult.stdout());
 
+  // 14. Delete the sandbox
+  console.log('Deleting the sandbox ...');
+  await resumedSandbox.delete();
+
   console.log('Sandbox basics completed!');
-  
-  // Clean up
-  await sandbox.stop();
 }
 
 main().catch(console.error); 
