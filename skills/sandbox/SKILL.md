@@ -3,10 +3,10 @@ name: sandbox
 description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
 metadata:
   author: Vercel Inc.
-  version: '1.0'
+  version: "1.0"
 ---
 
-## *CRITICAL*: Always Use Correct `@vercel/sandbox` Documentation
+## _CRITICAL_: Always Use Correct `@vercel/sandbox` Documentation
 
 Your knowledge of `@vercel/sandbox` may be outdated.
 Follow these instructions before starting on any sandbox-related tasks:
@@ -26,6 +26,9 @@ Follow these instructions before starting on any sandbox-related tasks:
 // Core SDK
 import { Sandbox, Snapshot, Command, CommandFinished } from "@vercel/sandbox";
 import { APIError, StreamError } from "@vercel/sandbox";
+
+// For advanced network policy with credential brokering
+import type { NetworkPolicyRule, NetworkTransformer } from "@vercel/sandbox";
 
 // For timeouts
 import ms from "ms"; // e.g., ms("5m"), ms("1h")
@@ -47,8 +50,9 @@ import { Sandbox } from "@vercel/sandbox";
 const sandbox = await Sandbox.create({
   runtime: "node24",
   resources: { vcpus: 4 }, // 2048 MB RAM per vCPU
-  ports: [3000], // Expose up to 4 ports
+  ports: [3000], // Expose up to 15 ports
   timeout: ms("10m"), // Default: 5 minutes
+  env: { NODE_ENV: "production" }, // Env vars inherited by all commands
 });
 ```
 
@@ -78,6 +82,19 @@ const sandbox = await Sandbox.create({
     password: process.env.GIT_TOKEN!, // Use PAT for password
   },
   runtime: "node24",
+});
+```
+
+### From Tarball
+
+```typescript
+const sandbox = await Sandbox.create({
+  source: {
+    type: "tarball",
+    url: "https://example.com/project.tar.gz",
+  },
+  runtime: "node24",
+  ports: [3000],
 });
 ```
 
@@ -177,10 +194,14 @@ await sandbox.writeFiles([
 
 ```typescript
 // As Buffer
-const buffer = await sandbox.readFileToBuffer({ path: "/vercel/sandbox/output.txt" });
+const buffer = await sandbox.readFileToBuffer({
+  path: "/vercel/sandbox/output.txt",
+});
 
 // As Stream
-const stream = await sandbox.readFile({ path: "/vercel/sandbox/large-file.bin" });
+const stream = await sandbox.readFile({
+  path: "/vercel/sandbox/large-file.bin",
+});
 ```
 
 ### Download Files
@@ -205,7 +226,7 @@ await sandbox.mkDir("/vercel/sandbox/my-app/src");
 
 ```typescript
 const sandbox = await Sandbox.create({
-  networkPolicy: { type: "internet-access" },
+  networkPolicy: "allow-all",
 });
 ```
 
@@ -213,26 +234,47 @@ const sandbox = await Sandbox.create({
 
 ```typescript
 const sandbox = await Sandbox.create({
-  networkPolicy: { type: "no-access" },
+  networkPolicy: "deny-all",
 });
 ```
 
-### Restricted Access
+### Restricted Access (Simple Domain List)
 
 ```typescript
 const sandbox = await Sandbox.create({
   networkPolicy: {
-    type: "restricted",
-    allowedDomains: ["*.npmjs.org", "github.com", "registry.yarnpkg.com"],
-    allowedCIDRs: ["10.0.0.0/8"],
-    deniedCIDRs: ["10.1.0.0/16"], // Takes precedence over allowed
+    allow: ["*.npmjs.org", "github.com", "registry.yarnpkg.com"],
+    subnets: {
+      allow: ["10.0.0.0/8"],
+      deny: ["10.1.0.0/16"], // Takes precedence over allowed
+    },
   },
 });
 
 // Update policy at runtime
 await sandbox.updateNetworkPolicy({
-  type: "restricted",
-  allowedDomains: ["api.openai.com"],
+  allow: ["api.openai.com"],
+});
+```
+
+### Restricted Access with Credential Brokering
+
+```typescript
+const sandbox = await Sandbox.create({
+  networkPolicy: {
+    allow: {
+      "ai-gateway.vercel.sh": [
+        {
+          transform: [
+            {
+              headers: { authorization: "Bearer ..." },
+            },
+          ],
+        },
+      ],
+      "*": [], // Allow all other domains without transforms
+    },
+  },
 });
 ```
 
@@ -257,7 +299,9 @@ console.log("Snapshot ID:", snapshot.snapshotId);
 
 ```typescript
 // List snapshots
-const { snapshots } = await Snapshot.list();
+const {
+  json: { snapshots, pagination },
+} = await Snapshot.list();
 
 // Get a specific snapshot
 const snapshot = await Snapshot.get({ snapshotId: "snap_abc123" });
@@ -354,15 +398,15 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation | Details |
-|------------|---------|
-| Max vCPUs | 8 vCPUs (2048 MB RAM per vCPU) |
-| Max ports | 4 exposed ports |
-| Max timeout | 5 hours (Pro/Enterprise), 45 minutes (Hobby) |
-| Default timeout | 5 minutes |
-| Base system | Amazon Linux 2023 |
-| User context | `vercel-sandbox` user |
-| Writable path | `/vercel/sandbox` |
+| Limitation      | Details                                      |
+| --------------- | -------------------------------------------- |
+| Max vCPUs       | 8 vCPUs (2048 MB RAM per vCPU)               |
+| Max ports       | 15 exposed ports                             |
+| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby) |
+| Default timeout | 5 minutes                                    |
+| Base system     | Amazon Linux 2023                            |
+| User context    | `vercel-sandbox` user                        |
+| Writable path   | `/vercel/sandbox`                            |
 
 ## System Packages
 
@@ -418,7 +462,7 @@ await sandbox.runCommand("npm", ["install"]);
 await sandbox.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
 
 // Wait for server to start
-await new Promise(r => setTimeout(r, 2000));
+await new Promise((r) => setTimeout(r, 2000));
 console.log("App running at:", sandbox.domain(3000));
 ```
 
