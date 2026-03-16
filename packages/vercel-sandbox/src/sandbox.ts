@@ -18,6 +18,7 @@ import {
   type NetworkTransformer,
 } from "./network-policy";
 import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+import { FileSystem } from "./filesystem";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -169,6 +170,17 @@ export class Sandbox {
   /* @hidden
    */
   public readonly routes: SandboxRouteData[];
+
+  /**
+   * A `node:fs/promises`-compatible API for interacting with the sandbox filesystem.
+   *
+   * @example
+   * const content = await sandbox.fs.readFile('/etc/hostname', 'utf8');
+   * await sandbox.fs.writeFile('/tmp/hello.txt', 'Hello, world!');
+   * const files = await sandbox.fs.readdir('/tmp');
+   * const stats = await sandbox.fs.stat('/tmp/hello.txt');
+   */
+  public readonly fs: FileSystem;
 
   /**
    * Unique ID of this sandbox.
@@ -346,6 +358,7 @@ export class Sandbox {
     this.client = client;
     this.routes = routes;
     this.sandbox = convertSandbox(sandbox);
+    this.fs = new FileSystem(this);
   }
 
   /**
