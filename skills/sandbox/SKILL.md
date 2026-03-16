@@ -524,3 +524,145 @@ async function runFromSnapshot(snapshotId: string, code: string) {
   return sandbox.runCommand("tsx", ["index.ts"]);
 }
 ```
+
+## Beta: Persistent Sandboxes (`@vercel/sandbox@beta` and `sandbox@beta`)
+
+The beta introduces **persistent, long-lived sandboxes** with a new **Session** layer. Install with:
+
+```bash
+pnpm i @vercel/sandbox@beta  # SDK 2.0.0-beta.x
+pnpm i -g sandbox@beta       # CLI 3.0.0-beta.x
+```
+
+### Key Concepts
+
+- **Sandbox** = a persistent, named entity that survives across multiple VM boots.
+- **Session** = a running VM instance within a sandbox. Sessions are created/resumed automatically and are identified by ID.
+- Sandboxes are identified by **name** (not ID). Names are unique per project.
+- When a sandbox stops, it will automatically snapshot and restore the state on the next resume (with `persistent: true`, the default).
+- **Migration**: Old V1 sandboxes are backfilled with `sandboxId` as their `name` (e.g., `sbx_123`), so the only change needed is using `name` instead of `sandboxId`.
+
+### New Exports
+
+```typescript
+import { Session } from "@vercel/sandbox";
+```
+
+### Migration from Stable (`1.x`) to Beta (`2.x`)
+
+#### Creating sandboxes — new `name` and `persistent` params
+
+```typescript
+// Stable (1.x): anonymous, ephemeral sandboxes identified by sandboxId
+const sandbox = await Sandbox.create({ runtime: "node24" });
+console.log(sandbox.sandboxId);
+
+// Beta (2.x): persistent sandboxes identified by name
+const sandbox = await Sandbox.create({
+  name: "my-dev-env", // Optional, random if omitted. Unique per project.
+  runtime: "node24",
+  persistent: true, // Default: true. Auto-snapshots on shutdown and restores on resume.
+});
+console.log(sandbox.name);
+```
+
+#### Retrieving sandboxes — `name` replaces `sandboxId`
+
+```typescript
+// Stable (1.x)
+const sandbox = await Sandbox.get({ sandboxId: "sbx_abc123" });
+
+// Beta (2.x) — retrieves by name.
+const sandbox = await Sandbox.get({ name: "my-dev-env" });
+// Pass `resume: true` to to automatically resume the sandbox. Otherwise, it will
+// be resumed when the next command is run.
+const sandbox = await Sandbox.get({ name: "my-dev-env", resume: false });
+```
+
+#### Listing sandboxes — pagination and filtering changes
+
+```typescript
+// Stable (1.x): used since/until for pagination
+const { json: { sandboxes } } = await Sandbox.list({ since, until });
+
+// Beta (2.x): cursor-based pagination, new filtering params
+const { json: { sandboxes, pagination } } = await Sandbox.list({
+  cursor: pagination.next, // string token (replaces since/until)
+  namePrefix: "my-app-",   // Filter by name prefix
+  sortBy: "name",          // "createdAt" (default) or "name"
+});
+```
+
+#### Listing snapshots — new `name` filter
+
+```typescript
+// Beta (2.x): filter snapshots by sandbox name
+const { json: { snapshots } } = await Snapshot.list({
+  name: "my-dev-env", // Only snapshots belonging to this sandbox
+});
+```
+
+#### Auto-resume: commands survive session stops
+
+In beta, if a sandbox is stopped and you call `runCommand`, `writeFiles`, etc., the SDK automatically resumes a new session and retry. No manual handling needed.
+
+#### New `Session` class
+
+```typescript
+// Access the current running VM session
+const session = sandbox.currentSession();
+console.log(session.sessionId);
+console.log(session.status); // "pending" | "running" | "stopping" | "stopped" | ...
+```
+
+#### New `sandbox.update()` method (replaces `updateNetworkPolicy`)
+
+```typescript
+// Stable (1.x)
+await sandbox.updateNetworkPolicy("deny-all");
+
+// Beta (2.x) — updateNetworkPolicy still works but is deprecated
+await sandbox.update({
+  networkPolicy: "deny-all",
+  persistent: false,
+  resources: { vcpus: 4 },
+  timeout: ms("30m"),
+});
+```
+
+#### New `sandbox.delete()` method
+
+```typescript
+// Permanently remove a sandbox and all its snapshots
+await sandbox.delete();
+```
+
+#### New `sandbox.listSessions()` and `sandbox.listSnapshots()`
+
+```typescript
+// List all VM sessions for this sandbox
+const sessions = await sandbox.listSessions();
+
+// List snapshots belonging to this sandbox
+const snapshots = await sandbox.listSnapshots();
+```
+
+### CLI Changes (3.0.0-beta)
+
+Key differences from the stable CLI:
+
+- All commands now use **sandbox name** instead of sandbox ID.
+- `sandbox rm` / `sandbox remove` **permanently deletes** the sandbox.
+- New: `sandbox sessions` command to manage sessions.
+- New: `sandbox create --name <name>` to set a sandbox name.
+- New: `sandbox create --non-persistent` to disable state persistence.
+- New: `sandbox run --stop` to stop the session when the command exits.
+- New: `sandbox run --name <name>` resumes from an existing sandbox if it exists.
+- Breaking: `sandbox run --rm` now **deletes** the sandbox (previously just stopped it).
+- New: `sandbox snapshots list --name <name>` to filter snapshots by sandbox name.
+- New: `sandbox config list <name>` to view sandbox configuration.
+- New: `sandbox config vcpus <name> <count>` to update vCPUs.
+- New: `sandbox config timeout <name> <duration>` to update timeout.
+- New: `sandbox config persistent <name> <true|false>` to toggle persistence.
+- `sandbox cp` now uses `<sandbox_name>:path` instead of `<sandbox_id>:path`.
+- `sandbox ls` supports `--name-prefix` and `--sort-by` filtering.
