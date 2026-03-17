@@ -739,7 +739,7 @@ export class APIClient extends BaseClient {
     sortBy?: "createdAt" | "name";
     namePrefix?: string;
     cursor?: string;
-    tags?: Record<string, string> | string[];
+    tags?: Record<string, string>;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -851,10 +851,9 @@ function mergeSignals(...signals: [AbortSignal, ...AbortSignal[]]) {
 }
 
 function toTagsFilter(
-  tags: Record<string, string> | string[] | undefined,
+  tags: Record<string, string> | undefined,
 ): string[] | undefined {
   if (tags === undefined) return undefined;
-  if (Array.isArray(tags)) return tags.length === 0 ? undefined : tags;
   const entries = Object.entries(tags);
   if (entries.length === 0) return undefined;
   return entries.map(([key, value]) => `${key}:${value}`);

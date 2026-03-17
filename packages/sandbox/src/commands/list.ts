@@ -6,6 +6,7 @@ import chalk, { ChalkInstance } from "chalk";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
 import { table, timeAgo, formatBytes, formatRunDuration } from "../util/output";
+import { ObjectFromKeyValue } from "../args/key-value-pair";
 
 export const list = cmd.command({
   name: "list",
@@ -31,8 +32,8 @@ export const list = cmd.command({
     }),
     tags: cmd.multioption({
       long: "tag",
-      description: 'Filter sandboxes by tag. Format: "key:value"',
-      type: cmd.array(cmd.string),
+      description: 'Filter sandboxes by tag. Format: "key=value"',
+      type: ObjectFromKeyValue,
     }),
     scope,
   },
@@ -50,7 +51,7 @@ export const list = cmd.command({
         limit: 100,
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
-        ...(tags.length > 0 && { tags }),
+        ...(Object.keys(tags).length > 0 && { tags }),
       });
 
       if (!all) {
