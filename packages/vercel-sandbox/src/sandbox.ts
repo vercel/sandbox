@@ -93,7 +93,7 @@ export interface BaseCreateSandboxParams {
    */
   signal?: AbortSignal;
   /**
-   * Whether to enable snapshots on shutdown. Defaults to true.
+   * Enable or disable automatic restore of the filesystem between sessions.
    */
   persistent?: boolean;
 }
