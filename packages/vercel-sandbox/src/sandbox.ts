@@ -142,6 +142,11 @@ export class Sandbox {
   private readonly projectId: string;
 
   /**
+   * In-flight resume promise, used to deduplicate concurrent resume calls.
+   */
+  private resumePromise: Promise<void> | null = null;
+
+  /**
    * Internal Session instance for the current VM.
    */
   private session: Session;
@@ -437,6 +442,15 @@ export class Sandbox {
    * Resume this sandbox by creating a new session via `getSandbox`.
    */
   private async resume(signal?: AbortSignal): Promise<void> {
+    if (!this.resumePromise) {
+      this.resumePromise = this.doResume(signal).finally(() => {
+        this.resumePromise = null;
+      });
+    }
+    return this.resumePromise;
+  }
+
+  private async doResume(signal?: AbortSignal): Promise<void> {
     const response = await this.client.getSandbox({
       name: this.sandbox.name,
       projectId: this.projectId,
