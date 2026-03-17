@@ -199,7 +199,7 @@ const buffer = await sandbox.readFileToBuffer({
   path: "/vercel/sandbox/output.txt",
 });
 
-// As Stream
+// Returns a NodeJS.ReadableStream
 const stream = await sandbox.readFile({
   path: "/vercel/sandbox/large-file.bin",
 });
