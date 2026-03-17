@@ -108,10 +108,11 @@ export class Snapshot {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    return client.listSnapshots({
+    const response = await client.listSnapshots({
       ...credentials,
       ...params,
     });
+    return response.json;
   }
 
   /**
