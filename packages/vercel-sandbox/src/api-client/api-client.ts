@@ -171,6 +171,7 @@ export class APIClient extends BaseClient {
       runtime?: RUNTIMES | (string & {});
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
+      tags?: Record<string, string>;
       signal?: AbortSignal;
     }>,
   ) {
@@ -192,6 +193,7 @@ export class APIClient extends BaseClient {
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
           env: params.env,
+          tags: params.tags,
           ...privateParams,
         }),
         signal: params.signal,
@@ -744,6 +746,7 @@ export class APIClient extends BaseClient {
     sortBy?: "createdAt" | "name";
     namePrefix?: string;
     cursor?: string;
+    tags?: Record<string, string>;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -755,6 +758,7 @@ export class APIClient extends BaseClient {
           sortBy: params.sortBy,
           namePrefix: params.namePrefix,
           cursor: params.cursor,
+          tags: toTagsFilter(params.tags),
         },
         method: "GET",
         signal: params.signal,
@@ -770,6 +774,7 @@ export class APIClient extends BaseClient {
     runtime?: RUNTIMES | (string & {});
     timeout?: number;
     networkPolicy?: NetworkPolicy;
+    tags?: Record<string, string>;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -787,6 +792,7 @@ export class APIClient extends BaseClient {
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
+          tags: params.tags,
         }),
         signal: params.signal,
       }),
@@ -884,4 +890,13 @@ function mergeSignals(...signals: [AbortSignal, ...AbortSignal[]]) {
     signal.addEventListener("abort", onAbort);
   }
   return controller.signal;
+}
+
+function toTagsFilter(
+  tags: Record<string, string> | undefined,
+): string[] | undefined {
+  if (tags === undefined) return undefined;
+  const entries = Object.entries(tags);
+  if (entries.length === 0) return undefined;
+  return entries.map(([key, value]) => `${key}:${value}`);
 }

@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.6
+
+### Minor Changes
+
+- Lists now unwrap the json and return the items and pagination fields directly ([#92](https://github.com/vercel/sandbox/pull/92))
+
+### Patch Changes
+
+- Add support for tags
+
 ## 2.0.0-beta.5
 
 ### Minor Changes
