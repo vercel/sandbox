@@ -194,7 +194,7 @@ await sandbox.writeFiles([
 ### Read Files
 
 ```typescript
-// As Buffer
+// Returns a Buffer object
 const buffer = await sandbox.readFileToBuffer({
   path: "/vercel/sandbox/output.txt",
 });
