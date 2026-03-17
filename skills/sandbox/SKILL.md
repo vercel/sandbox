@@ -209,8 +209,8 @@ const stream = await sandbox.readFile({
 
 ```typescript
 const localPath = await sandbox.downloadFile(
-  { path: "/vercel/sandbox/report.pdf" },
-  { path: "./downloads/report.pdf" },
+  { path: "/vercel/sandbox/report.pdf" }, // source path on the sandbox
+  { path: "./downloads/report.pdf" }, // destination path on the local machine
   { mkdirRecursive: true },
 );
 ```
