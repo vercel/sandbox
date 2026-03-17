@@ -45,6 +45,11 @@ const list = cmd.command({
       sessions = sessions.filter((x) => x.status === "running");
     }
 
+    const memoryFormatter = new Intl.NumberFormat(undefined, {
+      style: "unit",
+      unit: "megabyte",
+    });
+
     type SessionRow = (typeof sessions)[number];
     type Column = { value: (s: SessionRow) => string | number; color?: (s: SessionRow) => ChalkInstance };
 
@@ -55,7 +60,7 @@ const list = cmd.command({
         color: (s) => SessionStatusColor[s.status] ?? chalk.reset,
       },
       CREATED: { value: (s) => timeAgo(s.createdAt) },
-      MEMORY: { value: (s) => s.memory },
+      MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
       VCPUS: { value: (s) => s.vcpus },
       RUNTIME: { value: (s) => s.runtime },
       TIMEOUT: {
