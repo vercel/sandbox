@@ -712,14 +712,16 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async getSandbox(params: {
+  async getSandbox(params: WithPrivate<{
     name: string;
     projectId: string;
     resume?: boolean;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const privateParams = getPrivateParams(params);
     const query: Record<string, string | undefined> = {
       projectId: params.projectId,
+      ...privateParams,
     };
     if (params.resume !== undefined) {
       query.resume = String(params.resume);
