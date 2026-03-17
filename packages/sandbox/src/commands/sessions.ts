@@ -6,7 +6,7 @@ import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { table, timeAgo, formatRunDuration } from "../util/output";
+import { table, timeAgo, formatBytes, formatRunDuration } from "../util/output";
 import type { Sandbox } from "@vercel/sandbox";
 
 const list = cmd.command({
@@ -14,13 +14,18 @@ const list = cmd.command({
   aliases: ["ls"],
   description: "List sessions from a sandbox",
   args: {
+    all: cmd.flag({
+      long: "all",
+      short: "a",
+      description: "Show all sessions (default shows just running)",
+    }),
     sandbox: cmd.positional({
       type: sandboxName,
       description: "Sandbox name to list sessions for",
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, sandbox: name }) {
+  async handler({ scope: { token, team, project }, all, sandbox: name }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -28,7 +33,7 @@ const list = cmd.command({
       token,
     });
 
-    const sessionData = await (async () => {
+    let { sessions } = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sessions...").start(),
         (s) => s.stop(),
@@ -36,30 +41,45 @@ const list = cmd.command({
       return sandbox.listSessions();
     })();
 
-    const sessions = sessionData.sessions;
+    if (!all) {
+      sessions = sessions.filter((x) => x.status === "running");
+    }
 
-    console.log(
-      table({
-        rows: sessions,
-        columns: {
-          ID: { value: (s) => s.id },
-          STATUS: {
-            value: (s) => s.status,
-            color: (s) => SessionStatusColor[s.status] ?? chalk.reset,
-          },
-          CREATED: { value: (s) => timeAgo(s.createdAt) },
-          MEMORY: { value: (s) => s.memory },
-          VCPUS: { value: (s) => s.vcpus },
-          RUNTIME: { value: (s) => s.runtime },
-          TIMEOUT: {
-            value: (s) => timeAgo(s.createdAt + s.timeout),
-          },
-          DURATION: {
-            value: (s) => s.duration ? formatRunDuration(s.duration) : "-",
-          },
-        },
-      }),
-    );
+    const memoryFormatter = new Intl.NumberFormat(undefined, {
+      style: "unit",
+      unit: "megabyte",
+    });
+
+    type SessionRow = (typeof sessions)[number];
+    type Column = { value: (s: SessionRow) => string | number; color?: (s: SessionRow) => ChalkInstance };
+
+    const columns: Record<string, Column> = {
+      ID: { value: (s) => s.id },
+      STATUS: {
+        value: (s) => s.status,
+        color: (s) => SessionStatusColor[s.status] ?? chalk.reset,
+      },
+      CREATED: { value: (s) => timeAgo(s.createdAt) },
+      MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
+      VCPUS: { value: (s) => s.vcpus },
+      RUNTIME: { value: (s) => s.runtime },
+      TIMEOUT: {
+        value: (s) => timeAgo(s.createdAt + s.timeout),
+      },
+      DURATION: {
+        value: (s) => s.duration ? formatRunDuration(s.duration) : "-",
+      },
+      SNAPSHOT: { value: (s) => s.sourceSnapshotId ?? "-" },
+    };
+    if (all) {
+      columns.CPU = { value: (s) => s.activeCpuDurationMs ? formatRunDuration(s.activeCpuDurationMs) : "-" };
+      columns["NETWORK (OUT/IN)"] = {
+        value: (s) => (s.networkTransfer?.egress || s.networkTransfer?.ingress) ?
+          `${formatBytes(s.networkTransfer?.egress ?? 0)} / ${formatBytes(s.networkTransfer?.ingress ?? 0)}` : "- / -",
+      };
+    }
+
+    console.log(table({ rows: sessions, columns }));
   },
 });
 
