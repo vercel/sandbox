@@ -281,7 +281,7 @@ const sandbox = await Sandbox.create({
 
 ## Snapshots
 
-Snapshots save sandbox state for fast restarts (~100ms cold start).
+Snapshots save the entire sandbox filesystem to be reused later on, for any number of sandboxes.
 
 ### Create a Snapshot
 
