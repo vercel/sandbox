@@ -2,6 +2,7 @@ import * as cmd from "cmd-ts";
 import { runtime } from "../args/runtime";
 import ms from "ms";
 import { timeout } from "../args/timeout";
+import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
@@ -10,11 +11,12 @@ import ora from "ora";
 import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
+import { ObjectFromKeyValue } from "../args/key-value-pair";
 
 export const args = {
-  scope,
   runtime,
   timeout,
+  vcpus,
   ports: cmd.multioption({
     long: "publish-port",
     short: "p",
@@ -49,23 +51,39 @@ export const args = {
   }),
   connect: cmd.flag({
     long: "connect",
-    description: "Start an interactive shell session after creating the sandbox",
+    description:
+      "Start an interactive shell session after creating the sandbox",
+  }),
+  envVars: cmd.multioption({
+    long: "env",
+    short: "e",
+    type: ObjectFromKeyValue,
+    description: "Default environment variables for sandbox commands",
   }),
   ...networkPolicyArgs,
+  scope,
 } as const;
 
 export const create = cmd.command({
   name: "create",
   description: "Create a sandbox in the specified account and project.",
   args,
+  examples: [
+    {
+      description: "Create and connect to a sandbox without a network access",
+      command: `sandbox run --network-policy=none --connect`,
+    },
+  ],
   async handler({
     ports,
     scope,
     runtime,
     timeout,
+    vcpus,
     silent,
     snapshot,
     connect,
+    envVars,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -78,6 +96,7 @@ export const create = cmd.command({
       deniedCIDRs,
     });
 
+    const resources = vcpus ? { vcpus } : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -87,7 +106,9 @@ export const create = cmd.command({
           token: scope.token,
           ports,
           timeout: ms(timeout),
+          resources,
           networkPolicy,
+          env: envVars,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -97,7 +118,9 @@ export const create = cmd.command({
           ports,
           runtime,
           timeout: ms(timeout),
+          resources,
           networkPolicy,
+          env: envVars,
           __interactive: true,
         });
     spinner?.stop();
@@ -159,7 +182,7 @@ export const create = cmd.command({
         command: "sh",
         interactive: true,
         tty: true,
-        sandbox
+        sandbox,
       });
     }
 

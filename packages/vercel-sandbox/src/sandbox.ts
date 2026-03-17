@@ -13,11 +13,13 @@ import { RUNTIMES } from "./constants";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import {
-  toAPINetworkPolicy,
   type NetworkPolicy,
-} from "./utils/network-policy";
+  type NetworkPolicyRule,
+  type NetworkTransformer,
+} from "./network-policy";
+import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
 
-export type { NetworkPolicy };
+export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
 /** @inline */
 export interface BaseCreateSandboxParams {
@@ -74,6 +76,20 @@ export interface BaseCreateSandboxParams {
    * Defaults to full internet access if not specified.
    */
   networkPolicy?: NetworkPolicy;
+
+  /**
+   * Default environment variables for the sandbox.
+   * These are inherited by all commands unless overridden with
+   * the `env` option in `runCommand`.
+   *
+   * @example
+   * const sandbox = await Sandbox.create({
+   *   env: { NODE_ENV: "production", API_KEY: "secret" },
+   * });
+   * // All commands will have NODE_ENV and API_KEY set
+   * await sandbox.runCommand("node", ["app.js"]);
+   */
+  env?: Record<string, string>;
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -187,6 +203,13 @@ export class Sandbox {
   }
 
   /**
+   * The network policy of the sandbox.
+   */
+  public get networkPolicy(): NetworkPolicy | undefined {
+    return this.sandbox.networkPolicy;
+  }
+
+  /**
    * If the sandbox was created from a snapshot, the ID of that snapshot.
    */
   public get sourceSnapshotId(): string | undefined {
@@ -194,9 +217,23 @@ export class Sandbox {
   }
 
   /**
+   * The amount of CPU used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get activeCpuUsageMs(): number | undefined {
+    return this.sandbox.activeCpuDurationMs;
+  }
+
+  /**
+   * The amount of network data used by the sandbox. Only reported once the VM is stopped.
+   */
+  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+    return this.sandbox.networkTransfer;
+  }
+
+  /**
    * Internal metadata about this sandbox.
    */
-  private sandbox: SandboxMetaData;
+  private sandbox: ConvertedSandbox;
 
   /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.
@@ -253,7 +290,8 @@ export class Sandbox {
       timeout: params?.timeout,
       resources: params?.resources,
       runtime: params && "runtime" in params ? params?.runtime : undefined,
-      networkPolicy: toAPINetworkPolicy(params?.networkPolicy),
+      networkPolicy: params?.networkPolicy,
+      env: params?.env,
       signal: params?.signal,
       ...privateParams,
     });
@@ -296,13 +334,6 @@ export class Sandbox {
     });
   }
 
-  /**
-   * Create a new Sandbox instance.
-   *
-   * @param client - API client used to communicate with the backend
-   * @param routes - Port-to-subdomain mappings for exposed ports
-   * @param sandboxId - Unique identifier for the sandbox
-   */
   constructor({
     client,
     routes,
@@ -314,7 +345,7 @@ export class Sandbox {
   }) {
     this.client = client;
     this.routes = routes;
-    this.sandbox = sandbox;
+    this.sandbox = convertSandbox(sandbox);
   }
 
   /**
@@ -394,26 +425,26 @@ export class Sandbox {
    */
   async _runCommand(params: RunCommandParams) {
     const wait = params.detached ? false : true;
-    const getLogs = (command: Command) => {
-      if (params.stdout || params.stderr) {
-        (async () => {
-          try {
-            for await (const log of command.logs({ signal: params.signal })) {
-              if (log.stream === "stdout") {
-                params.stdout?.write(log.data);
-              } else if (log.stream === "stderr") {
-                params.stderr?.write(log.data);
-              }
-            }
-          } catch (err) {
-            if (params.signal?.aborted) {
-              return;
-            }
-            throw err;
-          }
-        })();
+    const pipeLogs = async (command: Command): Promise<void> => {
+      if (!params.stdout && !params.stderr) {
+        return;
       }
-    }
+
+      try {
+        for await (const log of command.logs({ signal: params.signal })) {
+          if (log.stream === "stdout") {
+            params.stdout?.write(log.data);
+          } else if (log.stream === "stderr") {
+            params.stderr?.write(log.data);
+          }
+        }
+      } catch (err) {
+        if (params.signal?.aborted) {
+          return;
+        }
+        throw err;
+      }
+    };
 
     if (wait) {
       const commandStream = await this.client.runCommand({
@@ -433,9 +464,10 @@ export class Sandbox {
         cmd: commandStream.command,
       });
 
-      getLogs(command); 
-
-      const finished = await commandStream.finished;
+      const [finished] = await Promise.all([
+        commandStream.finished,
+        pipeLogs(command),
+      ]);
       return new CommandFinished({
         client: this.client,
         sandboxId: this.sandbox.id,
@@ -460,7 +492,12 @@ export class Sandbox {
       cmd: commandResponse.json.command,
     });
 
-    getLogs(command);
+    void pipeLogs(command).catch((err) => {
+      if (params.signal?.aborted) {
+        return;
+      }
+      (params.stderr ?? params.stdout)?.emit('error', err)
+    });
 
     return command;
   }
@@ -541,6 +578,14 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    if (!src?.path) {
+      throw new Error("downloadFile: source path is required");
+    }
+
+    if (!dst?.path) {
+      throw new Error("downloadFile: destination path is required");
+    }
+
     const stream = await this.client.readFile({
       sandboxId: this.sandbox.id,
       path: src.path,
@@ -610,13 +655,17 @@ export class Sandbox {
    *
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @returns A promise that resolves when the sandbox is stopped
+   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
+   * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal }) {
-    await this.client.stopSandbox({
+  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+    const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
+      blocking: opts?.blocking,
     });
+    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.sandbox;
   }
 
   /**
@@ -630,27 +679,39 @@ export class Sandbox {
    * @example
    * // Restrict to specific domains
    * await sandbox.updateNetworkPolicy({
-   *   type: "restricted",
-   *   allowedDomains: ["*.npmjs.org", "github.com"],
+   *   allow: ["*.npmjs.org", "github.com"],
+   * });
+   *
+   * @example
+   * // Inject credentials with per-domain transformers
+   * await sandbox.updateNetworkPolicy({
+   *   allow: {
+   *     "ai-gateway.vercel.sh": [{
+   *       transform: [{
+   *         headers: { authorization: "Bearer ..." }
+   *       }]
+   *     }],
+   *     "*": []
+   *   }
    * });
    *
    * @example
    * // Deny all network access
-   * await sandbox.updateNetworkPolicy({ type: "no-access" });
+   * await sandbox.updateNetworkPolicy("deny-all");
    */
   async updateNetworkPolicy(
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
-  ): Promise<void> {
-    const apiNetworkPolicy = toAPINetworkPolicy(networkPolicy);
-    if (!apiNetworkPolicy) {
-      throw new Error("Invalid network policy");
-    }
-    await this.client.updateNetworkPolicy({
+  ): Promise<NetworkPolicy> {
+    const response = await this.client.updateNetworkPolicy({
       sandboxId: this.sandbox.id,
-      networkPolicy: apiNetworkPolicy,
+      networkPolicy: networkPolicy,
       signal: opts?.signal,
     });
+
+    // Update the internal sandbox metadata with the new timeout value
+    this.sandbox = convertSandbox(response.json.sandbox);
+    return this.sandbox.networkPolicy!;
   }
 
   /**
@@ -680,7 +741,7 @@ export class Sandbox {
     });
 
     // Update the internal sandbox metadata with the new timeout value
-    this.sandbox = response.json.sandbox;
+    this.sandbox = convertSandbox(response.json.sandbox);
   }
 
   /**
@@ -690,16 +751,21 @@ export class Sandbox {
    * Note: this sandbox will be stopped as part of the snapshot creation process.
    *
    * @param opts - Optional parameters.
+   * @param opts.expiration - Optional expiration time in milliseconds. Use 0 for no expiration at all.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves to the Snapshot instance
    */
-  async snapshot(opts?: { signal?: AbortSignal }): Promise<Snapshot> {
+  async snapshot(opts?: {
+    expiration?: number;
+    signal?: AbortSignal;
+  }): Promise<Snapshot> {
     const response = await this.client.createSnapshot({
       sandboxId: this.sandbox.id,
+      expiration: opts?.expiration,
       signal: opts?.signal,
     });
 
-    this.sandbox = response.json.sandbox;
+    this.sandbox = convertSandbox(response.json.sandbox);
 
     return new Snapshot({
       client: this.client,

@@ -10,13 +10,8 @@ import { sandboxClient } from "../client";
 import chalk from "chalk";
 
 export const args = {
-  scope,
   sandbox: cmd.positional({
     type: sandboxId as cmd.Type<string, string | Sandbox>,
-  }),
-  asSudo: cmd.flag({
-    long: "sudo",
-    description: "Give extended privileges to the command.",
   }),
   command: cmd.positional({
     displayName: "command",
@@ -26,13 +21,10 @@ export const args = {
     displayName: "args",
     description: "arguments to pass to the command",
   }),
-  cwd: cmd.option({
-    long: "workdir",
-    short: "w",
-    description: "The working directory to run the command in",
-    type: cmd.optional(cmd.string),
+  asSudo: cmd.flag({
+    long: "sudo",
+    description: "Give extended privileges to the command.",
   }),
-
   interactive: cmd.flag({
     long: "interactive",
     short: "i",
@@ -54,24 +46,29 @@ export const args = {
       },
     }),
   }),
-
   skipExtendingTimeout: cmd.flag({
     long: "no-extend-timeout",
     description:
       "Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions.",
-  }),
-
-  envVars: cmd.multioption({
-    long: "env",
-    short: "e",
-    type: ObjectFromKeyValue,
-    description: "Environment variables to set for the command",
   }),
   tty: cmd.flag({
     long: "tty",
     short: "t",
     description: "Allocate a tty for an interactive command. This is a no-op.",
   }),
+  cwd: cmd.option({
+    long: "workdir",
+    short: "w",
+    description: "The working directory to run the command in",
+    type: cmd.optional(cmd.string),
+  }),
+  envVars: cmd.multioption({
+    long: "env",
+    short: "e",
+    type: ObjectFromKeyValue,
+    description: "Environment variables to set for the command",
+  }),
+  scope,
 } as const;
 
 export const exec = cmd.command({

@@ -34,4 +34,18 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
         logout,
       }),
     },
+    examples: [
+      {
+        description: "Create a sandbox and start a shell",
+        command: "sandbox create --connect",
+      },
+      {
+        description: "Run a command in a new sandbox",
+        command: `sandbox run -- node -e "console.log('hello')"`,
+      },
+      {
+        description: "Execute command in an existing sandbox",
+        command: `sandbox exec <sandbox-id> -- npm test`,
+      },
+    ],
   });

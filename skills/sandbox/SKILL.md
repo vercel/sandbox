@@ -3,10 +3,10 @@ name: sandbox
 description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
 metadata:
   author: Vercel Inc.
-  version: '1.0'
+  version: "1.0"
 ---
 
-## *CRITICAL*: Always Use Correct `@vercel/sandbox` Documentation
+## _CRITICAL_: Always Use Correct `@vercel/sandbox` Documentation
 
 Your knowledge of `@vercel/sandbox` may be outdated.
 Follow these instructions before starting on any sandbox-related tasks:
@@ -26,6 +26,9 @@ Follow these instructions before starting on any sandbox-related tasks:
 // Core SDK
 import { Sandbox, Snapshot, Command, CommandFinished } from "@vercel/sandbox";
 import { APIError, StreamError } from "@vercel/sandbox";
+
+// For advanced network policy with credential brokering
+import type { NetworkPolicyRule, NetworkTransformer } from "@vercel/sandbox";
 
 // For timeouts
 import ms from "ms"; // e.g., ms("5m"), ms("1h")
@@ -47,8 +50,9 @@ import { Sandbox } from "@vercel/sandbox";
 const sandbox = await Sandbox.create({
   runtime: "node24",
   resources: { vcpus: 4 }, // 2048 MB RAM per vCPU
-  ports: [3000], // Expose up to 4 ports
+  ports: [3000], // Expose up to 15 ports
   timeout: ms("10m"), // Default: 5 minutes
+  env: { NODE_ENV: "production" }, // Env vars inherited by all commands
 });
 ```
 
@@ -81,7 +85,20 @@ const sandbox = await Sandbox.create({
 });
 ```
 
-### From Snapshot (Fast Cold Start)
+### From Tarball
+
+```typescript
+const sandbox = await Sandbox.create({
+  source: {
+    type: "tarball",
+    url: "https://example.com/project.tar.gz",
+  },
+  runtime: "node24",
+  ports: [3000],
+});
+```
+
+### From Snapshot
 
 ```typescript
 const sandbox = await Sandbox.create({
@@ -143,6 +160,7 @@ const devServer = await sandbox.runCommand({
 
 // Later: wait for completion or kill
 const finished = await devServer.wait();
+// Supported signals: SIGHUP, SIGINT, SIGQUIT, SIGKILL, SIGTERM, SIGCONT, SIGSTOP (or numeric)
 await devServer.kill("SIGTERM");
 ```
 
@@ -176,19 +194,23 @@ await sandbox.writeFiles([
 ### Read Files
 
 ```typescript
-// As Buffer
-const buffer = await sandbox.readFileToBuffer({ path: "/vercel/sandbox/output.txt" });
+// Returns a Buffer object
+const buffer = await sandbox.readFileToBuffer({
+  path: "/vercel/sandbox/output.txt",
+});
 
-// As Stream
-const stream = await sandbox.readFile({ path: "/vercel/sandbox/large-file.bin" });
+// Returns a NodeJS.ReadableStream
+const stream = await sandbox.readFile({
+  path: "/vercel/sandbox/large-file.bin",
+});
 ```
 
 ### Download Files
 
 ```typescript
 const localPath = await sandbox.downloadFile(
-  { path: "/vercel/sandbox/report.pdf" },
-  { path: "./downloads/report.pdf" },
+  { path: "/vercel/sandbox/report.pdf" }, // source path on the sandbox
+  { path: "./downloads/report.pdf" }, // destination path on the local machine
   { mkdirRecursive: true },
 );
 ```
@@ -205,7 +227,7 @@ await sandbox.mkDir("/vercel/sandbox/my-app/src");
 
 ```typescript
 const sandbox = await Sandbox.create({
-  networkPolicy: { type: "internet-access" },
+  networkPolicy: "allow-all",
 });
 ```
 
@@ -213,32 +235,53 @@ const sandbox = await Sandbox.create({
 
 ```typescript
 const sandbox = await Sandbox.create({
-  networkPolicy: { type: "no-access" },
+  networkPolicy: "deny-all",
 });
 ```
 
-### Restricted Access
+### Restricted Access (Simple Domain List)
 
 ```typescript
 const sandbox = await Sandbox.create({
   networkPolicy: {
-    type: "restricted",
-    allowedDomains: ["*.npmjs.org", "github.com", "registry.yarnpkg.com"],
-    allowedCIDRs: ["10.0.0.0/8"],
-    deniedCIDRs: ["10.1.0.0/16"], // Takes precedence over allowed
+    allow: ["*.npmjs.org", "github.com", "registry.yarnpkg.com"],
+    subnets: {
+      allow: ["10.0.0.0/8"],
+      deny: ["10.1.0.0/16"], // Takes precedence over allowed
+    },
   },
 });
 
 // Update policy at runtime
 await sandbox.updateNetworkPolicy({
-  type: "restricted",
-  allowedDomains: ["api.openai.com"],
+  allow: ["api.openai.com"],
+});
+```
+
+### Restricted Access with Credential Brokering
+
+```typescript
+const sandbox = await Sandbox.create({
+  networkPolicy: {
+    allow: {
+      "ai-gateway.vercel.sh": [
+        {
+          transform: [
+            {
+              headers: { authorization: "Bearer ..." },
+            },
+          ],
+        },
+      ],
+      "*": [], // Allow all other domains without transforms
+    },
+  },
 });
 ```
 
 ## Snapshots
 
-Snapshots save sandbox state for fast restarts (~100ms cold start).
+Snapshots save the entire sandbox filesystem to be reused later on, for any number of sandboxes.
 
 ### Create a Snapshot
 
@@ -249,7 +292,9 @@ const sandbox = await Sandbox.create({ runtime: "node24" });
 await sandbox.runCommand("npm", ["install"]);
 
 // Create snapshot (stops the sandbox)
-const snapshot = await sandbox.snapshot();
+const snapshot = await sandbox.snapshot({
+  expiration: ms("14d"), // Default: 30 days, use 0 for no expiration
+});
 console.log("Snapshot ID:", snapshot.snapshotId);
 ```
 
@@ -257,7 +302,7 @@ console.log("Snapshot ID:", snapshot.snapshotId);
 
 ```typescript
 // List snapshots
-const { snapshots } = await Snapshot.list();
+const { snapshots, pagination } = await Snapshot.list();
 
 // Get a specific snapshot
 const snapshot = await Snapshot.get({ snapshotId: "snap_abc123" });
@@ -285,7 +330,7 @@ spawn("open", [url]);
 
 ```typescript
 const sandbox = await Sandbox.create({
-  timeout: ms("10m"), // Initial timeout
+  timeout: ms("10m"), // Initial timeout, default of 5 minutes
 });
 
 // Extend timeout by 5 more minutes
@@ -354,15 +399,15 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation | Details |
-|------------|---------|
-| Max vCPUs | 8 vCPUs (2048 MB RAM per vCPU) |
-| Max ports | 4 exposed ports |
-| Max timeout | 5 hours (Pro/Enterprise), 45 minutes (Hobby) |
-| Default timeout | 5 minutes |
-| Base system | Amazon Linux 2023 |
-| User context | `vercel-sandbox` user |
-| Writable path | `/vercel/sandbox` |
+| Limitation      | Details                                      |
+| --------------- | -------------------------------------------- |
+| Max vCPUs       | 8 vCPUs (2048 MB RAM per vCPU)               |
+| Max ports       | 15 exposed ports                             |
+| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby) |
+| Default timeout | 5 minutes                                    |
+| Base system     | Amazon Linux 2023                            |
+| User context    | `vercel-sandbox` user                        |
+| Writable path   | `/vercel/sandbox`                            |
 
 ## System Packages
 
@@ -384,8 +429,9 @@ await sandbox.runCommand({
 # Install CLI
 pnpm i -g sandbox
 
-# Login
+# Login / Logout
 sandbox login
+sandbox logout
 
 # Create and connect
 sandbox create --connect
@@ -396,11 +442,26 @@ sandbox ls
 # Execute command
 sandbox exec <sandbox-id> -- npm install
 
+# Run a command in a new sandbox (create + exec in one step)
+sandbox run -- node -e "console.log('hello')"
+
+# Start an interactive shell
+sandbox connect <sandbox-id>
+
 # Copy files
 sandbox cp local-file.txt <sandbox-id>:/vercel/sandbox/
 
 # Stop sandbox
 sandbox stop <sandbox-id>
+
+# Snapshots
+sandbox snapshot <sandbox-id>
+sandbox snapshots ls
+sandbox snapshots get <snapshot-id>
+sandbox snapshots rm <snapshot-id>
+
+# Update network policy
+sandbox config network-policy <sandbox-id> --network-policy deny-all
 ```
 
 ## Common Patterns
@@ -418,7 +479,7 @@ await sandbox.runCommand("npm", ["install"]);
 await sandbox.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
 
 // Wait for server to start
-await new Promise(r => setTimeout(r, 2000));
+await new Promise((r) => setTimeout(r, 2000));
 console.log("App running at:", sandbox.domain(3000));
 ```
 
@@ -461,3 +522,147 @@ async function runFromSnapshot(snapshotId: string, code: string) {
   return sandbox.runCommand("tsx", ["index.ts"]);
 }
 ```
+
+## Beta: Persistent Sandboxes (`@vercel/sandbox@beta` and `sandbox@beta`)
+
+The beta introduces **persistent, long-lived sandboxes** with a new **Session** layer. Install with:
+
+```bash
+pnpm i @vercel/sandbox@beta  # SDK 2.0.0-beta.x
+pnpm i -g sandbox@beta       # CLI 3.0.0-beta.x
+```
+
+### Key Concepts
+
+- **Sandbox** = a persistent, named entity that survives across multiple VM boots.
+- **Session** = a running VM instance within a sandbox. Sessions are created/resumed automatically and are identified by ID.
+- Sandboxes are identified by **name** (not ID). Names are unique per project.
+- When a sandbox stops, it will automatically snapshot and restore the state on the next resume (with `persistent: true`, the default).
+- **Migration**: Old V1 sandboxes are backfilled with `sandboxId` as their `name` (e.g., `sbx_123`), so the only change needed is using `name` instead of `sandboxId`.
+
+### New Exports
+
+```typescript
+import { Session } from "@vercel/sandbox";
+```
+
+### Migration from Stable (`1.x`) to Beta (`2.x`)
+
+#### Creating sandboxes — new `name` and `persistent` params
+
+```typescript
+// Stable (1.x): anonymous, ephemeral sandboxes identified by sandboxId
+const sandbox = await Sandbox.create({ runtime: "node24" });
+console.log(sandbox.sandboxId);
+
+// Beta (2.x): persistent sandboxes identified by name
+const sandbox = await Sandbox.create({
+  name: "my-dev-env", // Optional, random if omitted. Unique per project.
+  runtime: "node24",
+  persistent: true, // Default: true. Auto-snapshots on shutdown and restores on resume.
+});
+console.log(sandbox.name);
+```
+
+#### Retrieving sandboxes — `name` replaces `sandboxId`
+
+```typescript
+// Stable (1.x)
+const sandbox = await Sandbox.get({ sandboxId: "sbx_abc123" });
+
+// Beta (2.x) — retrieves by name.
+const sandbox = await Sandbox.get({ name: "my-dev-env" });
+// Pass `resume: true` to to automatically resume the sandbox. Otherwise, it will
+// be resumed when the next command is run.
+const sandbox = await Sandbox.get({ name: "my-dev-env", resume: false });
+```
+
+#### Listing sandboxes — pagination and filtering changes
+
+```typescript
+// Stable (1.x): used since/until for pagination
+const {
+  json: { sandboxes },
+} = await Sandbox.list({ since, until });
+
+// Beta (2.x): cursor-based pagination, new filtering params
+const { sandboxes, pagination } = await Sandbox.list({
+  cursor: pagination.next, // string token (replaces since/until)
+  namePrefix: "my-app-", // Filter by name prefix
+  sortBy: "name", // "createdAt" (default) or "name"
+});
+```
+
+#### Listing snapshots — new `name` filter
+
+```typescript
+// Beta (2.x): filter snapshots by sandbox name
+const { snapshots } = await Snapshot.list({
+  name: "my-dev-env", // Only snapshots belonging to this sandbox
+});
+```
+
+#### Auto-resume: commands survive session stops
+
+In beta, if a sandbox is stopped and you call `runCommand`, `writeFiles`, etc., the SDK automatically resumes a new session and retry. No manual handling needed.
+
+#### New `Session` class
+
+```typescript
+// Access the current running VM session
+const session = sandbox.currentSession();
+console.log(session.sessionId);
+console.log(session.status); // "pending" | "running" | "stopping" | "stopped" | ...
+```
+
+#### New `sandbox.update()` method (replaces `updateNetworkPolicy`)
+
+```typescript
+// Stable (1.x)
+await sandbox.updateNetworkPolicy("deny-all");
+
+// Beta (2.x) — updateNetworkPolicy still works but is deprecated
+await sandbox.update({
+  networkPolicy: "deny-all",
+  persistent: false,
+  resources: { vcpus: 4 },
+  timeout: ms("30m"),
+});
+```
+
+#### New `sandbox.delete()` method
+
+```typescript
+// Permanently remove a sandbox and all its snapshots
+await sandbox.delete();
+```
+
+#### New `sandbox.listSessions()` and `sandbox.listSnapshots()`
+
+```typescript
+// List all VM sessions for this sandbox
+const sessions = await sandbox.listSessions();
+
+// List snapshots belonging to this sandbox
+const snapshots = await sandbox.listSnapshots();
+```
+
+### CLI Changes (3.0.0-beta)
+
+Key differences from the stable CLI:
+
+- All commands now use **sandbox name** instead of sandbox ID.
+- `sandbox rm` / `sandbox remove` **permanently deletes** the sandbox.
+- New: `sandbox sessions` command to manage sessions.
+- New: `sandbox create --name <name>` to set a sandbox name.
+- New: `sandbox create --non-persistent` to disable state persistence.
+- New: `sandbox run --stop` to stop the session when the command exits.
+- New: `sandbox run --name <name>` resumes from an existing sandbox if it exists.
+- Breaking: `sandbox run --rm` now **deletes** the sandbox (previously just stopped it).
+- New: `sandbox snapshots list --name <name>` to filter snapshots by sandbox name.
+- New: `sandbox config list <name>` to view sandbox configuration.
+- New: `sandbox config vcpus <name> <count>` to update vCPUs.
+- New: `sandbox config timeout <name> <duration>` to update timeout.
+- New: `sandbox config persistent <name> <true|false>` to toggle persistence.
+- `sandbox cp` now uses `<sandbox_name>:path` instead of `<sandbox_id>:path`.
+- `sandbox ls` supports `--name-prefix` and `--sort-by` filtering.

@@ -17,6 +17,7 @@ CommandFinishedData,
   SandboxesResponse,
   SnapshotsResponse,
   ExtendTimeoutResponse,
+  UpdateNetworkPolicyResponse,
   SnapshotResponse,
   CreateSnapshotResponse,
   type CommandData,
@@ -30,24 +31,43 @@ import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath";
-import { JwtExpiry } from "../utils/jwt-expiry";
+import { getVercelOidcToken } from "@vercel/oidc";
+import { NetworkPolicy } from "../network-policy";
+import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
 import { getPrivateParams, WithPrivate } from "../utils/types";
 import { RUNTIMES } from "../constants";
+import { setTimeout } from "node:timers/promises";
+
+interface Claims {
+  owner_id: string;
+  project_id?: string;
+}
+
+function decodeUnverifiedToken(token: string): Claims | null {
+  if (token.split(".").length !== 3) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
+    );
+    if (payload.owner_id) {
+      return { owner_id: payload.owner_id, project_id: payload.project_id };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
 }
 
-export interface APINetworkPolicy {
-  mode: "default-allow" | "default-deny";
-  allowedDomains?: string[];
-  allowedCIDRs?: string[];
-  deniedCIDRs?: string[];
-}
-
 export class APIClient extends BaseClient {
   private teamId: string;
-  private tokenExpiry: JwtExpiry | null;
+  private projectId: string | undefined;
+  private isJwtToken: boolean;
 
   constructor(params: {
     baseUrl?: string;
@@ -63,23 +83,40 @@ export class APIClient extends BaseClient {
     });
 
     this.teamId = params.teamId;
-    this.tokenExpiry = JwtExpiry.fromToken(params.token);
+    this.isJwtToken = false;
+
+    const claims = decodeUnverifiedToken(params.token);
+    if (claims) {
+      this.isJwtToken = true;
+      this.projectId = claims.project_id;
+      this.teamId = claims.owner_id;
+    }
   }
 
   private async ensureValidToken(): Promise<void> {
-    if (!this.tokenExpiry) {
+    if (!this.isJwtToken) {
       return;
     }
 
-    const newExpiry = await this.tokenExpiry.tryRefresh();
-    if (!newExpiry) {
-      return;
-    }
+    try {
+      // Use getVercelOidcToken to refresh the token with team/project scope
+      const freshToken = await getVercelOidcToken({
+        expirationBufferMs: 5 * 60 * 1000, // 5 minutes
+        team: this.teamId,
+        project: this.projectId,
+      });
 
-    this.tokenExpiry = newExpiry;
-    this.token = this.tokenExpiry.token;
-    if (this.tokenExpiry.payload) {
-      this.teamId = this.tokenExpiry.payload?.owner_id;
+      // Update token if it changed
+      if (freshToken !== this.token) {
+        this.token = freshToken;
+
+        const claims = decodeUnverifiedToken(freshToken);
+        if (claims) {
+          this.teamId = claims.owner_id;
+        }
+      }
+    } catch {
+      // Ignore refresh errors and continue with current token
     }
   }
 
@@ -129,7 +166,8 @@ export class APIClient extends BaseClient {
       timeout?: number;
       resources?: { vcpus: number };
       runtime?: RUNTIMES | (string & {});
-      networkPolicy?: APINetworkPolicy;
+      networkPolicy?: NetworkPolicy;
+      env?: Record<string, string>;
       signal?: AbortSignal;
     }>,
   ) {
@@ -145,7 +183,10 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
-          networkPolicy: params.networkPolicy,
+          networkPolicy: params.networkPolicy
+            ? toAPINetworkPolicy(params.networkPolicy)
+            : undefined,
+          env: params.env,
           ...privateParams,
         }),
         signal: params.signal,
@@ -556,25 +597,41 @@ export class APIClient extends BaseClient {
   async stopSandbox(params: {
     sandboxId: string;
     signal?: AbortSignal;
+    blocking?: boolean;
   }): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/stop`;
-    return parseOrThrow(
+    const response = await parseOrThrow(
       SandboxResponse,
       await this.request(url, { method: "POST", signal: params.signal }),
     );
+
+    if (params.blocking) {
+      let sandbox = response.json.sandbox;
+      while (sandbox.status !== "stopped" && sandbox.status !== "failed" && sandbox.status !== "aborted") {
+        await setTimeout(500, undefined, { signal: params.signal });
+        const poll = await this.getSandbox({
+          sandboxId: params.sandboxId,
+          signal: params.signal,
+        });
+        sandbox = poll.json.sandbox;
+        response.json.sandbox = sandbox;
+      }
+    }
+
+    return response;
   }
 
   async updateNetworkPolicy(params: {
     sandboxId: string;
-    networkPolicy: APINetworkPolicy;
+    networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof EmptyResponse>>> {
+  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
     return parseOrThrow(
-      EmptyResponse,
+      UpdateNetworkPolicyResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify(params.networkPolicy),
+        body: JSON.stringify(toAPINetworkPolicy(params.networkPolicy)),
         signal: params.signal,
       }),
     );
@@ -598,12 +655,21 @@ export class APIClient extends BaseClient {
 
   async createSnapshot(params: {
     sandboxId: string;
+    expiration?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
     const url = `/v1/sandboxes/${params.sandboxId}/snapshot`;
+    const body =
+      params.expiration === undefined
+        ? undefined
+        : JSON.stringify({ expiration: params.expiration });
     return parseOrThrow(
       CreateSnapshotResponse,
-      await this.request(url, { method: "POST", signal: params.signal }),
+      await this.request(url, {
+        method: "POST",
+        body,
+        signal: params.signal,
+      }),
     );
   }
 

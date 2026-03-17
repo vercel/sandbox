@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { APIClient } from "./api-client";
 import { APIError, StreamError } from "./api-error";
 import { createNdjsonStream } from "../../test-utils/mock-response";
@@ -278,5 +278,193 @@ describe("APIClient", () => {
         });
       }
     });
+  });
+
+  describe("stopSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeSandbox = (status: string) => ({
+      id: "sbx_123",
+      memory: 2048,
+      vcpus: 1,
+      region: "iad1",
+      runtime: "node24",
+      timeout: 300000,
+      status,
+      requestedAt: Date.now(),
+      createdAt: Date.now(),
+      cwd: "/",
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns immediately when blocking is not set", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.stopSandbox({ sandboxId: "sbx_123" });
+
+      expect(result.json.sandbox.status).toBe("stopping");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("polls until stopped when blocking is true", async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+            headers: { "content-type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ sandbox: makeSandbox("stopping"), routes: [] }),
+            { headers: { "content-type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ sandbox: makeSandbox("stopped"), routes: [] }),
+            { headers: { "content-type": "application/json" } },
+          ),
+        );
+
+      const promise = client.stopSandbox({
+        sandboxId: "sbx_123",
+        blocking: true,
+      });
+
+      // Advance past the two polling delays
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
+
+      const result = await promise;
+      expect(result.json.sandbox.status).toBe("stopped");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("stops polling on failed status", async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+            headers: { "content-type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ sandbox: makeSandbox("failed"), routes: [] }),
+            { headers: { "content-type": "application/json" } },
+          ),
+        );
+
+      const promise = client.stopSandbox({
+        sandboxId: "sbx_123",
+        blocking: true,
+      });
+
+      await vi.advanceTimersByTimeAsync(500);
+
+      const result = await promise;
+      expect(result.json.sandbox.status).toBe("failed");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops polling on aborted status", async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+            headers: { "content-type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ sandbox: makeSandbox("aborted"), routes: [] }),
+            { headers: { "content-type": "application/json" } },
+          ),
+        );
+
+      const promise = client.stopSandbox({
+        sandboxId: "sbx_123",
+        blocking: true,
+      });
+
+      await vi.advanceTimersByTimeAsync(500);
+
+      const result = await promise;
+      expect(result.json.sandbox.status).toBe("aborted");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("createSnapshot", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("sends zero expiration for no expiration", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            sandbox: {
+              id: "sbx_123",
+              memory: 2048,
+              vcpus: 1,
+              region: "iad1",
+              runtime: "node24",
+              timeout: 300000,
+              status: "running",
+              requestedAt: Date.now(),
+              createdAt: Date.now(),
+              cwd: "/",
+              updatedAt: Date.now(),
+            },
+            snapshot: {
+              id: "snap_123",
+              sourceSandboxId: "sbx_123",
+              region: "iad1",
+              status: "created",
+              sizeBytes: 1024,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+
+      await client.createSnapshot({
+        sandboxId: "sbx_123",
+        expiration: 0,
+      });
+
+      expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({ expiration: 0 }),
+      );
+    });
+
   });
 });

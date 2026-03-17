@@ -14,7 +14,7 @@ const list = cmd.command({
   aliases: ["ls"],
   description: "List snapshots for the specified account and project.",
   args: {
-    scope,
+    scope, // only arg, position doesn't matter
   },
   async handler({ scope: { token, team, project } }) {
     const snapshots = await (async () => {
@@ -41,6 +41,54 @@ const list = cmd.command({
             color: (s) => SnapshotStatusColor.get(s.status) ?? chalk.reset,
           },
           CREATED: { value: (s) => timeAgo(s.createdAt) },
+          EXPIRATION: {
+            value: (s) =>
+              s.status === "deleted"
+                ? chalk.gray.dim("deleted")
+                : timeAgo(s.expiresAt),
+          },
+          SIZE: { value: (s) => formatBytes(s.sizeBytes) },
+          ["SOURCE SANDBOX"]: { value: (s) => s.sourceSandboxId },
+        },
+      }),
+    );
+  },
+});
+
+const get = cmd.command({
+  name: "get",
+  description: "Get details of a snapshot.",
+  args: {
+    scope,
+    snapshotId: cmd.positional({
+      type: snapshotId,
+      description: "snapshot ID to retrieve",
+    }),
+  },
+  async handler({ scope: { token, team, project }, snapshotId: id }) {
+    const snapshot = await (async () => {
+      using _spinner = acquireRelease(
+        () => ora("Fetching snapshot...").start(),
+        (s) => s.stop(),
+      );
+      return snapshotClient.get({
+        token,
+        teamId: team,
+        projectId: project,
+        snapshotId: id,
+      });
+    })();
+
+    console.log(
+      table({
+        rows: [snapshot],
+        columns: {
+          ID: { value: (s) => s.snapshotId },
+          STATUS: {
+            value: (s) => s.status,
+            color: (s) => SnapshotStatusColor.get(s.status) ?? chalk.reset,
+          },
+          CREATED: { value: (s) => timeAgo(s.createdAt) },
           EXPIRATION: { value: (s) => s.status === 'deleted' ? chalk.gray.dim('deleted') : timeAgo(s.expiresAt) },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
           ["SOURCE SANDBOX"]: { value: (s) => s.sourceSandboxId },
@@ -55,7 +103,6 @@ const remove = cmd.command({
   aliases: ["rm", "remove"],
   description: "Delete one or more snapshots.",
   args: {
-    scope,
     snapshotId: cmd.positional({
       type: snapshotId,
       description: "snapshot ID to delete",
@@ -64,6 +111,7 @@ const remove = cmd.command({
       type: snapshotId,
       description: "More snapshots IDs to delete",
     }),
+    scope,
   },
   async handler({ scope: { team, token, project }, snapshotId, snapshotIds }) {
     const tasks = Array.from(
@@ -97,6 +145,7 @@ export const snapshots = subcommands({
   description: "Manage sandbox snapshots",
   cmds: {
     list,
+    get,
     delete: remove,
   },
 });

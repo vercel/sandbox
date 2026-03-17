@@ -1,5 +1,47 @@
 # sandbox-filesystem-snapshots
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [[`ac49096ea505d658d6e255780c663765e7a309af`](https://github.com/vercel/sandbox/commit/ac49096ea505d658d6e255780c663765e7a309af)]:
+  - @vercel/sandbox@1.8.1
+
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`3aee2c734fc470fe41ee0c1fd9f4db6b83b3dcdc`](https://github.com/vercel/sandbox/commit/3aee2c734fc470fe41ee0c1fd9f4db6b83b3dcdc)]:
+  - @vercel/sandbox@1.8.0
+
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [[`b35a70030c0c58da49410aa599e1b2eecaad0438`](https://github.com/vercel/sandbox/commit/b35a70030c0c58da49410aa599e1b2eecaad0438)]:
+  - @vercel/sandbox@1.7.1
+
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [[`376a098243dddcee56c657b97856a0cd199113e0`](https://github.com/vercel/sandbox/commit/376a098243dddcee56c657b97856a0cd199113e0), [`46f0ed22f7128355942037321df70dc93481a50d`](https://github.com/vercel/sandbox/commit/46f0ed22f7128355942037321df70dc93481a50d), [`659c40e719b21740024ede84c176257714f0086b`](https://github.com/vercel/sandbox/commit/659c40e719b21740024ede84c176257714f0086b), [`35195578e5b5f68e7f9574b728ca7ff350bbad64`](https://github.com/vercel/sandbox/commit/35195578e5b5f68e7f9574b728ca7ff350bbad64)]:
+  - @vercel/sandbox@1.7.0
+
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [[`5b5f488db3fe7b8a7dad5d784617c5787e9ac1c0`](https://github.com/vercel/sandbox/commit/5b5f488db3fe7b8a7dad5d784617c5787e9ac1c0)]:
+  - @vercel/sandbox@1.6.0
+
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [[`d36a202fbfa227d1b31b3bab83de510caad9afc9`](https://github.com/vercel/sandbox/commit/d36a202fbfa227d1b31b3bab83de510caad9afc9), [`8a2d58d5a87a7a53bae1fad705538bbbbc1cffef`](https://github.com/vercel/sandbox/commit/8a2d58d5a87a7a53bae1fad705538bbbbc1cffef), [`be9a26007aa51c735f6513f9bd78acceec6aec1c`](https://github.com/vercel/sandbox/commit/be9a26007aa51c735f6513f9bd78acceec6aec1c), [`863637edae310f867c224cbd60958edda51f51a5`](https://github.com/vercel/sandbox/commit/863637edae310f867c224cbd60958edda51f51a5)]:
+  - @vercel/sandbox@1.5.0
+
 ## 0.0.4
 
 ### Patch Changes

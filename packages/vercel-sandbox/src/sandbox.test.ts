@@ -1,11 +1,183 @@
-import { it, beforeEach, afterEach, expect, describe } from "vitest";
+import { it, beforeEach, afterEach, expect, describe, vi } from "vitest";
+import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable";
 import { Sandbox } from "./sandbox";
 import { APIError } from "./api-client/api-error";
+import type { APIClient, CommandData, SandboxMetaData } from "./api-client";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 import ms from "ms";
+
+describe("downloadFile validation", () => {
+  it("throws when src is undefined", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile(undefined as any, { path: "/tmp/out" }),
+    ).rejects.toThrow("downloadFile: source path is required");
+  });
+
+  it("throws when src.path is empty", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile({ path: "" }, { path: "/tmp/out" }),
+    ).rejects.toThrow("downloadFile: source path is required");
+  });
+
+  it("throws when dst is undefined", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile({ path: "file.txt" }, undefined as any),
+    ).rejects.toThrow("downloadFile: destination path is required");
+  });
+
+  it("throws when dst.path is empty", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    await expect(
+      sandbox.downloadFile({ path: "file.txt" }, { path: "" }),
+    ).rejects.toThrow("downloadFile: destination path is required");
+  });
+});
+
+const makeSandboxMetadata = (): SandboxMetaData => ({
+  id: "sbx_123",
+  memory: 2048,
+  vcpus: 1,
+  region: "iad1",
+  runtime: "node24",
+  timeout: 300_000,
+  status: "running",
+  requestedAt: 1,
+  createdAt: 1,
+  cwd: "/",
+  updatedAt: 1,
+});
+
+const makeCommand = (): CommandData => ({
+  id: "cmd_123",
+  name: "echo",
+  args: ["hello"],
+  cwd: "/",
+  sandboxId: "sbx_123",
+  exitCode: null,
+  startedAt: 1,
+});
+
+describe("_runCommand error handling", () => {
+  it("rejects non-detached runCommand when log streaming fails", async () => {
+    const command = makeCommand();
+    const logsError = new APIError(new Response("failed", { status: 500 }), {
+      message: "Failed to stream logs",
+      sandboxId: "sbx_123",
+    });
+
+    const runCommandMock = vi.fn(async ({ wait }: { wait?: boolean }) => {
+      if (wait) {
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      }
+
+      return { json: { command } };
+    });
+
+    const getLogsMock = vi.fn(() =>
+      (async function* () {
+        throw logsError;
+      })(),
+    );
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+        getLogs: getLogsMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+    });
+
+    await expect(
+      sandbox.runCommand({
+        cmd: "echo",
+        args: ["hello"],
+        stdout: new PassThrough(),
+      }),
+    ).rejects.toBe(logsError);
+  });
+
+  it("emits detached log streaming errors on the provided output stream", async () => {
+    const command = makeCommand();
+    const logsError = new APIError(new Response("failed", { status: 500 }), {
+      message: "Failed to stream logs",
+      sandboxId: "sbx_123",
+    });
+
+    const runCommandMock = vi.fn(async ({ wait }: { wait?: boolean }) => {
+      if (wait) {
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      }
+
+      return { json: { command } };
+    });
+
+    const getLogsMock = vi.fn(() =>
+      (async function* () {
+        throw logsError;
+      })(),
+    );
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+        getLogs: getLogsMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+    });
+
+    const stdout = new PassThrough();
+    const errorEvent = new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Expected stdout error event")),
+        100,
+      );
+      stdout.once("error", (err) => {
+        clearTimeout(timer);
+        resolve(err);
+      });
+    });
+
+    const detached = await sandbox.runCommand({
+      cmd: "echo",
+      args: ["hello"],
+      detached: true,
+      stdout,
+    });
+
+    expect(detached.cmdId).toBe("cmd_123");
+    await expect(errorEvent).resolves.toBe(logsError);
+  });
+});
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   const PORTS = [3000, 4000];

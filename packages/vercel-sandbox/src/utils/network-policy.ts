@@ -1,70 +1,92 @@
-import type { APINetworkPolicy } from "../api-client/api-client";
+import { z } from "zod";
+import { NetworkPolicy, NetworkPolicyRule } from "../network-policy";
+import { NetworkPolicyValidator, InjectionRuleValidator } from "../api-client/validators";
 
-/**
- * Network policy to define network restrictions for the sandbox.
- *
- * - `internet-access`: Full internet access (default). All traffic is allowed.
- * - `no-access`: No internet access. All traffic is denied.
- * - `restricted`: Restricted access with explicit allow/deny lists.
- *
- * @example
- * // Full internet access (default)
- * { type: "internet-access" }
- *
- * @example
- * // No internet access
- * { type: "no-access" }
- *
- * @example
- * // Restricted access with specific domains
- * // All traffic not explicitly allowed is denied.
- * {
- *   type: "restricted",
- *   allowedDomains: ["*.npmjs.org", "github.com"],
- *   allowedCIDRs: ["10.0.0.0/8"],
- *   deniedCIDRs: ["10.1.0.0/16"]
- * }
- */
-export type NetworkPolicy =
-  | { type: "internet-access" } & Record<string, unknown>
-  | { type: "no-access" } & Record<string, unknown>
-  | ({
-      type: "restricted";
-      /**
-       * List of domains to allow traffic to.
-       * Use "*" prefix for wildcard matching (e.g., "*.npmjs.org").
-       */
-      allowedDomains?: string[];
-      /**
-       * List of CIDRs to allow traffic to.
-       * Traffic to these addresses will bypass the domain allowlist.
-       */
-      allowedCIDRs?: string[];
-      /**
-       * List of CIDRs to deny traffic to.
-       * These take precedence over allowed domains and CIDRs.
-       */
-      deniedCIDRs?: string[];
-    } & Record<string, unknown>);
+type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
 
-/**
- * Converts the SDK NetworkPolicy to the API format.
- */
-export function toAPINetworkPolicy(
-  policy: NetworkPolicy | undefined,
-): APINetworkPolicy | undefined {
-  if (!policy) {
-    return undefined;
-  }
+export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
+  if (policy === "allow-all") return { mode: "allow-all" };
+  if (policy === "deny-all") return { mode: "deny-all" };
 
-  const { type, ...rest } = policy;
-  switch (policy.type) {
-    case "internet-access":
-      return { ...rest, mode: "default-allow" };
-    case "no-access":
-      return { ...rest, mode: "default-deny" };
-    case "restricted": {
-      return { ...rest, mode: "default-deny" };
+  if (policy.allow && !Array.isArray(policy.allow)) {
+    const allowedDomains = Object.keys(policy.allow);
+    const injectionRules: z.infer<typeof InjectionRuleValidator>[] = [];
+
+    for (const [domain, rules] of Object.entries(policy.allow)) {
+      const merged: Record<string, string> = {};
+      for (const rule of rules) {
+        for (const t of rule.transform ?? []) {
+          Object.assign(merged, t.headers);
+        }
+      }
+      if (Object.keys(merged).length > 0) {
+        injectionRules.push({ domain, headers: merged });
+      }
     }
+
+    return {
+      mode: "custom",
+      ...(allowedDomains.length > 0 && { allowedDomains }),
+      ...(injectionRules.length > 0 && { injectionRules }),
+      ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
+      ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
+    };
   }
+
+  return {
+    mode: "custom",
+    ...(policy.allow && { allowedDomains: policy.allow }),
+    ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
+    ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
+  };
+}
+
+export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
+  if (api.mode === "allow-all") return "allow-all";
+  if (api.mode === "deny-all") return "deny-all";
+
+  const subnets = (api.allowedCIDRs || api.deniedCIDRs)
+    ? {
+        subnets: {
+          ...(api.allowedCIDRs && { allow: api.allowedCIDRs }),
+          ...(api.deniedCIDRs && { deny: api.deniedCIDRs }),
+        },
+      }
+    : undefined;
+
+  // If injectionRules are present, reconstruct the record form.
+  // The API returns headerNames (secret values are stripped), so we
+  // populate each header value with "<redacted>".
+  if (api.injectionRules && api.injectionRules.length > 0) {
+    const rulesByDomain = new Map(
+      api.injectionRules.map((r) => [r.domain, r.headerNames ?? []]),
+    );
+
+    const allow: Record<string, NetworkPolicyRule[]> = {};
+    for (const domain of api.allowedDomains ?? []) {
+      const headerNames = rulesByDomain.get(domain);
+      if (headerNames && headerNames.length > 0) {
+        const headers = Object.fromEntries(headerNames.map((n) => [n, "<redacted>"]));
+        allow[domain] = [{ transform: [{ headers }] }];
+      } else {
+        allow[domain] = [];
+      }
+    }
+    // Include injection rules for domains not in allowedDomains
+    for (const rule of api.injectionRules) {
+      if (!(rule.domain in allow)) {
+        const headers = Object.fromEntries(
+          (rule.headerNames ?? []).map((n) => [n, "<redacted>"]),
+        );
+        allow[rule.domain] = [{ transform: [{ headers }] }];
+      }
+    }
+
+    return { allow, ...subnets };
+  }
+
+  return {
+    ...(api.allowedDomains && { allow: api.allowedDomains }),
+    ...subnets,
+  };
 }

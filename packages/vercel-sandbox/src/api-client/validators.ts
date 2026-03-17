@@ -2,6 +2,28 @@ import { z } from "zod";
 
 export type SandboxMetaData = z.infer<typeof Sandbox>;
 
+export const InjectionRuleValidator = z.object({
+  domain: z.string(),
+  // headers are only sent in requests
+  headers: z.record(z.string()).optional(),
+  // headerNames are returned in responses
+  headerNames: z.array(z.string()).optional(),
+});
+
+export const NetworkPolicyValidator = z.union([
+  z.object({ mode: z.literal("allow-all") }).passthrough(),
+  z.object({ mode: z.literal("deny-all") }).passthrough(),
+  z
+    .object({
+      mode: z.literal("custom"),
+      allowedDomains: z.array(z.string()).optional(),
+      allowedCIDRs: z.array(z.string()).optional(),
+      deniedCIDRs: z.array(z.string()).optional(),
+      injectionRules: z.array(InjectionRuleValidator).optional(),
+    })
+    .passthrough(),
+]);
+
 export const Sandbox = z.object({
   id: z.string(),
   memory: z.number(),
@@ -15,12 +37,14 @@ export const Sandbox = z.object({
     "stopping",
     "stopped",
     "failed",
+    "aborted",
     "snapshotting",
   ]),
   requestedAt: z.number(),
   startedAt: z.number().optional(),
   requestedStopAt: z.number().optional(),
   stoppedAt: z.number().optional(),
+  abortedAt: z.number().optional(),
   duration: z.number().optional(),
   sourceSnapshotId: z.string().optional(),
   snapshottedAt: z.number().optional(),
@@ -28,6 +52,12 @@ export const Sandbox = z.object({
   cwd: z.string(),
   updatedAt: z.number(),
   interactivePort: z.number().optional(),
+  networkPolicy: NetworkPolicyValidator.optional(),
+  activeCpuDurationMs: z.number().optional(),
+  networkTransfer: z.object({
+    ingress: z.number(),
+    egress: z.number(),
+  }).optional(),
 });
 
 export type SandboxRouteData = z.infer<typeof SandboxRoute>;
@@ -46,7 +76,7 @@ export const Snapshot = z.object({
   region: z.string(),
   status: z.enum(["created", "deleted", "failed"]),
   sizeBytes: z.number(),
-  expiresAt: z.number(),
+  expiresAt: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -138,6 +168,10 @@ export const SnapshotsResponse = z.object({
 });
 
 export const ExtendTimeoutResponse = z.object({
+  sandbox: Sandbox,
+});
+
+export const UpdateNetworkPolicyResponse = z.object({
   sandbox: Sandbox,
 });
 
