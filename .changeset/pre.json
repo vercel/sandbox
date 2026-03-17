@@ -15,6 +15,7 @@
     "@vercel/sandbox": "1.7.1"
   },
   "changesets": [
+    "cold-falcons-read",
     "common-corners-leave",
     "cyan-bats-clap",
     "dirty-cows-talk",
@@ -23,8 +24,10 @@
     "legal-rings-work",
     "light-results-change",
     "open-planets-joke",
+    "seven-olives-mate",
     "stale-hotels-grow",
     "tangy-schools-like",
-    "wet-goats-jam"
+    "wet-goats-jam",
+    "whole-berries-juggle"
   ]
 }
