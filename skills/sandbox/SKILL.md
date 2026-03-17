@@ -602,9 +602,12 @@ const { snapshots } = await Snapshot.list({
 });
 ```
 
-#### Auto-resume: commands survive session stops
+#### Auto-resume for persistent sandboxes
 
-In beta, if a sandbox is stopped and you call `runCommand`, `writeFiles`, etc., the SDK automatically resumes a new session and retry. No manual handling needed.
+If a sandbox created with `persistent: true` is stopped and you call
+`runCommand`, `writeFiles`, or similar SDK methods, the SDK automatically
+starts a new session and retries the operation. You do not need to resume
+manually.
 
 #### New `Session` class
 
