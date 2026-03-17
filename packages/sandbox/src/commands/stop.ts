@@ -23,7 +23,7 @@ export const stop = cmd.command({
       new Set([sandboxName, ...sandboxNames]),
       (sandboxName) => {
         return {
-          title: `Stopping sandbox ${sandboxName}`,
+          title: `Stopping active session from ${sandboxName}`,
           async task() {
             const sandbox = await sandboxClient.get({
               token,
@@ -36,6 +36,11 @@ export const stop = cmd.command({
         };
       },
     );
-    await new Listr(tasks, { concurrent: true }).run();
+    try {
+      await new Listr(tasks, { concurrent: true }).run();
+    } catch {
+      // Listr already rendered the error; just set exit code
+      process.exitCode = 1;
+    }
   },
 });
