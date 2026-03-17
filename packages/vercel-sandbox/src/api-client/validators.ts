@@ -195,6 +195,7 @@ export const Sandbox = z.object({
   currentSnapshotId: z.string().optional(),
   status: Session.shape.status,
   cwd: z.string().optional(),
+  tags: z.record(z.string()).optional(),
 });
 
 export type SandboxMetaData = z.infer<typeof Sandbox>;

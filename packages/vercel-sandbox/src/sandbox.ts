@@ -87,6 +87,11 @@ export interface BaseCreateSandboxParams {
    * await sandbox.runCommand("node", ["app.js"]);
    */
   env?: Record<string, string>;
+  /**
+   * Key-value tags to associate with the sandbox. Maximum 5 tags.
+   * @example { env: "staging", team: "infra" }
+   */
+  tags?: Record<string, string>;
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -268,6 +273,13 @@ export class Sandbox {
   }
 
   /**
+   * Key-value tags attached to the sandbox.
+   */
+  public get tags(): Record<string, string> | undefined {
+    return this.sandbox.tags;
+  }
+
+  /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
@@ -362,6 +374,7 @@ export class Sandbox {
       runtime: params && "runtime" in params ? params?.runtime : undefined,
       networkPolicy: params?.networkPolicy,
       env: params?.env,
+      tags: params?.tags,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -794,6 +807,7 @@ export class Sandbox {
       resources?: { vcpus?: number; };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
+      tags?: Record<string, string>;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -810,6 +824,7 @@ export class Sandbox {
       resources,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
+      tags: params.tags,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;
