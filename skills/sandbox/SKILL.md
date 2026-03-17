@@ -604,8 +604,8 @@ const { snapshots } = await Snapshot.list({
 
 #### Auto-resume for persistent sandboxes
 
-If a sandbox created with `persistent: true` is stopped and you call
-`runCommand`, `writeFiles`, or similar SDK methods, the SDK automatically
+If a sandbox created with `persistent: true` is stopped, and you call
+`runCommand`, `writeFiles`, or similar SDK methods with the same sandbox name, the SDK automatically
 starts a new session and retries the operation. You do not need to resume
 manually.
 
