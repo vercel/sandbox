@@ -39,6 +39,11 @@ export const remove = cmd.command({
         },
       }),
     );
-    await new Listr(tasks, { concurrent: true }).run();
+    try {
+      await new Listr(tasks, { concurrent: true }).run();
+    } catch {
+      // Listr already rendered the error; just set exit code
+      process.exitCode = 1;
+    }
   },
 });
