@@ -1,5 +1,18 @@
 # sandbox
 
+## 3.0.0-beta.7
+
+### Patch Changes
+
+- Fix resume race-condition ([#97](https://github.com/vercel/sandbox/pull/97))
+
+- Fix bug where the first ssh connection hang ([#98](https://github.com/vercel/sandbox/pull/98))
+
+- Fix JsDocs, messages and double-error message bug ([#94](https://github.com/vercel/sandbox/pull/94))
+
+- Updated dependencies [[`d4ac7da0362f06e9095261eb36f802cf2c862b6d`](https://github.com/vercel/sandbox/commit/d4ac7da0362f06e9095261eb36f802cf2c862b6d), [`851f5106054adb4ff61806dded1712bf9c917451`](https://github.com/vercel/sandbox/commit/851f5106054adb4ff61806dded1712bf9c917451)]:
+  - @vercel/sandbox@2.0.0-beta.7
+
 ## 3.0.0-beta.6
 
 ### Minor Changes
