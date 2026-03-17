@@ -69,6 +69,12 @@ export const args = {
     type: ObjectFromKeyValue,
     description: "Default environment variables for sandbox commands",
   }),
+  tags: cmd.multioption({
+    long: "tag",
+    short: "t",
+    type: ObjectFromKeyValue,
+    description: "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
+  }),
   ...networkPolicyArgs,
   scope,
 } as const;
@@ -95,6 +101,7 @@ export const create = cmd.command({
     snapshot,
     connect,
     envVars,
+    tags,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -109,6 +116,7 @@ export const create = cmd.command({
 
     const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
+    const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -122,6 +130,7 @@ export const create = cmd.command({
           resources,
           networkPolicy,
           env: envVars,
+          tags: tagsObj,
           persistent,
           __interactive: true,
         })
@@ -136,6 +145,7 @@ export const create = cmd.command({
           resources,
           networkPolicy,
           env: envVars,
+          tags: tagsObj,
           persistent,
           __interactive: true,
         });

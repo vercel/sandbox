@@ -29,9 +29,14 @@ export const list = cmd.command({
         cmd.oneOf(["createdAt", "name"] as const),
       ),
     }),
+    tags: cmd.multioption({
+      long: "tag",
+      description: 'Filter sandboxes by tag. Format: "key:value"',
+      type: cmd.array(cmd.string),
+    }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, namePrefix, sortBy }) {
+  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, tags }) {
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
@@ -45,6 +50,7 @@ export const list = cmd.command({
         limit: 100,
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
+        ...(tags.length > 0 && { tags }),
       });
 
       if (!all) {
@@ -77,7 +83,8 @@ export const list = cmd.command({
       TIMEOUT: {
         value: (s) => s.timeout != null ? timeAgo(s.createdAt + s.timeout) : "-",
       },
-      SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" }
+      SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" },
+      TAGS: { value: (s) => s.tags && Object.keys(s.tags).length > 0 ? Object.entries(s.tags).map(([k, v]) => `${k}:${v}`).join(", ") : "-" }
     };
     if (all) {
       columns.CPU = { value: (s) => s.totalActiveCpuDurationMs ? formatRunDuration(s.totalActiveCpuDurationMs) : "-" };
