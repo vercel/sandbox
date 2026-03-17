@@ -207,16 +207,22 @@ export async function startInteractiveShell(options: {
     options.envVars,
     options.cwd,
   );
+  debug("startServerCommand completed, cmdId=%s, interactivePort=%s", command.cmdId, options.sandbox.interactivePort);
 
   using waitForProcess = createAbortController(
     "Connection established successfully",
   );
   listener.connection.then(() => {
+    debug("listener.connection resolved");
     waitForProcess.abort();
   });
-  connect(command, listener, waitForProcess.signal).catch(
-    waitForProcess.ignoreInterruptions,
-  );
+  connect(command, listener, waitForProcess.signal).catch((err) => {
+    if (waitForProcess.signal.aborted) return;
+    // If connect() fails before the connection is established,
+    // propagate the error into the listener stream so attach() sees it
+    // instead of hanging forever.
+    listener.stdoutStream.destroy(err instanceof Error ? err : new Error(String(err)));
+  });
 
   await Promise.all([
     throwIfCommandPrematurelyExited(command, waitForProcess.signal),
@@ -378,6 +384,7 @@ async function connect(
       stderrStream.write(chunk.data);
     }
   }
+  listener.stdoutStream.end();
 }
 
 function getStderrStream() {
