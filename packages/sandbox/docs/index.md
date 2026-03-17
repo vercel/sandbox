@@ -57,6 +57,7 @@ Options:
 
     --name-prefix <str>  Filter sandboxes by name prefix [optional]
     --sort-by <value>    Sort sandboxes by field. Options: createdAt (default), name [optional]
+    --tag <key=value>    Filter sandboxes by tag. Format: "key=value"
 
 Auth & Scope:
 
@@ -83,6 +84,7 @@ Options:
     --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
+    --tag <key=value>, -t=<key=value>  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
@@ -135,6 +137,7 @@ Options:
     --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>  Default environment variables for sandbox commands
+    --tag <key=value>, -t=<key=value>  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
