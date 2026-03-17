@@ -330,7 +330,7 @@ spawn("open", [url]);
 
 ```typescript
 const sandbox = await Sandbox.create({
-  timeout: ms("10m"), // Initial timeout
+  timeout: ms("10m"), // Initial timeout, default of 5 minutes
 });
 
 // Extend timeout by 5 more minutes
