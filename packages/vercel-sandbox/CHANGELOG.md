@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.8
+
+### Patch Changes
+
+- Fix an error with resuming while reading a file
+
 ## 2.0.0-beta.7
 
 ### Patch Changes
