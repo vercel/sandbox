@@ -347,6 +347,16 @@ for (const port of ports) {
     expect(await result.stdout()).toContain("resumed!");
   });
 
+  it("auto-resumes a stopped session when reading a file", async () => {
+    await sandbox.writeFiles([
+      { path: "persist.txt", content: Buffer.from("persisted content") },
+    ]);
+    await sandbox.stop({ blocking: true });
+
+    const content = await sandbox.readFileToBuffer({ path: "persist.txt" });
+    expect(content?.toString()).toBe("persisted content");
+  });
+
   it("raises an error when the timeout cannot be updated", async () => {
     try {
       await sandbox.extendTimeout(ms("5d"));

@@ -518,6 +518,10 @@ export class APIClient extends BaseClient {
       return null;
     }
 
+    if (!response.ok) {
+      await parseOrThrow(z.any(), response);
+    }
+
     if (response.body === null) {
       return null;
     }
