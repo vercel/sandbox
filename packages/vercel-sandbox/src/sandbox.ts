@@ -315,10 +315,11 @@ export class Sandbox {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    return client.listSandboxes({
+    const response = await client.listSandboxes({
       ...credentials,
       ...params,
     });
+    return response.json;
   }
 
   /**
@@ -839,7 +840,7 @@ export class Sandbox {
     signal?: AbortSignal;
   }) {
 
-    return this.client.listSessions({
+    const response = await this.client.listSessions({
       projectId: this.projectId,
       name: this.sandbox.name,
       limit: params?.limit,
@@ -847,6 +848,7 @@ export class Sandbox {
       until: params?.until,
       signal: params?.signal,
     });
+    return response.json;
   }
 
   /**
@@ -862,7 +864,7 @@ export class Sandbox {
     signal?: AbortSignal;
   }) {
 
-    return this.client.listSnapshots({
+    const response = await this.client.listSnapshots({
       projectId: this.projectId,
       name: this.sandbox.name,
       limit: params?.limit,
@@ -870,6 +872,7 @@ export class Sandbox {
       until: params?.until,
       signal: params?.signal,
     });
+    return response.json;
   }
 }
 

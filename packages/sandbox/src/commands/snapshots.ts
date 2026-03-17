@@ -28,14 +28,14 @@ const list = cmd.command({
         () => ora("Fetching snapshots...").start(),
         (s) => s.stop(),
       );
-      const { json } = await snapshotClient.list({
+      const { snapshots } = await snapshotClient.list({
         token,
         teamId: team,
         projectId: project,
         name,
         limit: 100,
       });
-      return json.snapshots;
+      return snapshots;
     })();
 
     console.log(

@@ -382,13 +382,13 @@ for (const port of ports) {
     const sandbox = await Sandbox.create();
     await sandbox.stop({ blocking: true });
 
-    const resumed = await Sandbox.get({ name: sandbox.name });
-    const { json } = await resumed.listSessions();
+    const resumed = await Sandbox.get({ name: sandbox.name, resume: true });
+    const { sessions } = await resumed.listSessions();
 
-    expect(json.sessions).toHaveLength(2);
+    expect(sessions).toHaveLength(2);
 
     const currentSessionId = resumed.currentSession().sessionId;
-    const match = json.sessions.find((s) => s.id === currentSessionId);
+    const match = sessions.find((s) => s.id === currentSessionId);
     expect(match).toBeDefined();
   });
 
@@ -396,8 +396,8 @@ for (const port of ports) {
     const sandbox = await Sandbox.create();
     await sandbox.snapshot();
 
-    const { json } = await sandbox.listSnapshots();
-    expect(json.snapshots).toHaveLength(1);
+    const { snapshots } = await sandbox.listSnapshots();
+    expect(snapshots).toHaveLength(1);
   });
 
   it("reflects updated resources after update", async () => {
@@ -419,8 +419,8 @@ for (const port of ports) {
   it("appears in the sandbox list after creation", async () => {
     const sandbox = await Sandbox.create();
     await sandbox.stop();
-    const { json } = await Sandbox.list({ limit: 1 });
-    expect(json.sandboxes).toHaveLength(1);
-    expect(json.sandboxes[0].name).toBe(sandbox.name);
+    const { sandboxes } = await Sandbox.list({ limit: 1 });
+    expect(sandboxes).toHaveLength(1);
+    expect(sandboxes[0].name).toBe(sandbox.name);
   });
 });
