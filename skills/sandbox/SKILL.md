@@ -302,9 +302,7 @@ console.log("Snapshot ID:", snapshot.snapshotId);
 
 ```typescript
 // List snapshots
-const {
-  json: { snapshots, pagination },
-} = await Snapshot.list();
+const { snapshots, pagination } = await Snapshot.list();
 
 // Get a specific snapshot
 const snapshot = await Snapshot.get({ snapshotId: "snap_abc123" });
@@ -583,13 +581,15 @@ const sandbox = await Sandbox.get({ name: "my-dev-env", resume: false });
 
 ```typescript
 // Stable (1.x): used since/until for pagination
-const { json: { sandboxes } } = await Sandbox.list({ since, until });
+const {
+  json: { sandboxes },
+} = await Sandbox.list({ since, until });
 
 // Beta (2.x): cursor-based pagination, new filtering params
-const { json: { sandboxes, pagination } } = await Sandbox.list({
+const { sandboxes, pagination } = await Sandbox.list({
   cursor: pagination.next, // string token (replaces since/until)
-  namePrefix: "my-app-",   // Filter by name prefix
-  sortBy: "name",          // "createdAt" (default) or "name"
+  namePrefix: "my-app-", // Filter by name prefix
+  sortBy: "name", // "createdAt" (default) or "name"
 });
 ```
 
@@ -597,7 +597,7 @@ const { json: { sandboxes, pagination } } = await Sandbox.list({
 
 ```typescript
 // Beta (2.x): filter snapshots by sandbox name
-const { json: { snapshots } } = await Snapshot.list({
+const { snapshots } = await Snapshot.list({
   name: "my-dev-env", // Only snapshots belonging to this sandbox
 });
 ```
