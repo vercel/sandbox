@@ -38,7 +38,7 @@ export const list = cmd.command({
         (s) => s.stop(),
       );
 
-      const { json } = await sandboxClient.list({
+      let { sandboxes } = await sandboxClient.list({
         token,
         teamId: team,
         projectId: project,
@@ -46,8 +46,6 @@ export const list = cmd.command({
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
       });
-
-      let sandboxes = json.sandboxes;
 
       if (!all) {
         sandboxes = sandboxes.filter((x) => x.status === "running");

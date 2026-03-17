@@ -36,7 +36,7 @@ const list = cmd.command({
       return sandbox.listSessions();
     })();
 
-    const sessions = sessionData.json.sessions;
+    const sessions = sessionData.sessions;
 
     console.log(
       table({

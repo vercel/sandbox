@@ -20,8 +20,8 @@ async function main() {
   console.log('Created snapshot successfully!\n');
 
   console.log('Listing all snapshots:');
-  const snapshots = await Snapshot.list();
-  for (const snapshot of snapshots.json.snapshots) {
+  const { snapshots } = await Snapshot.list();
+  for (const snapshot of snapshots) {
     console.log(`- ${snapshot.id}`);
     console.log(`  Created at: ${new Date(snapshot.createdAt).toISOString()}`);
     console.log(`  Size: ${Math.round(snapshot.sizeBytes / 1024 / 1024)} MB\n`);
