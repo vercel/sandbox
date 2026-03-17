@@ -1,5 +1,13 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.7
+
+### Patch Changes
+
+- Fix bug where the first ssh connection hang ([#98](https://github.com/vercel/sandbox/pull/98))
+
+- Fix JsDocs, messages and double-error message bug ([#94](https://github.com/vercel/sandbox/pull/94))
+
 ## 2.0.0-beta.6
 
 ### Minor Changes
