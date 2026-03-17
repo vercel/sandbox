@@ -98,7 +98,7 @@ const sandbox = await Sandbox.create({
 });
 ```
 
-### From Snapshot (Fast Cold Start)
+### From Snapshot
 
 ```typescript
 const sandbox = await Sandbox.create({
