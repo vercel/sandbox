@@ -394,11 +394,13 @@ export class Sandbox {
       fetch: params.fetch,
     });
 
+    const privateParams = getPrivateParams(params);
     const response = await client.getSandbox({
       name: params.name,
       projectId: credentials.projectId,
       resume: params.resume,
       signal: params.signal,
+      ...privateParams,
     });
 
     return new Sandbox({
