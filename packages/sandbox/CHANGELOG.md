@@ -1,5 +1,12 @@
 # sandbox
 
+## 3.0.0-beta.8
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.8
+
 ## 3.0.0-beta.7
 
 ### Patch Changes
