@@ -616,13 +616,19 @@ export class Sandbox {
    * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
    * Writes files using the `vercel-sandbox` user.
    *
-   * @param files - Array of files with path and stream/buffer contents
+   * @param files - Array of files with path, content, and optional mode (permissions)
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves when the files are written
+   *
+   * @example
+   * // Write an executable script
+   * await sandbox.writeFiles([
+   *   { path: "/usr/local/bin/myscript", content: Buffer.from("#!/bin/bash\necho hello"), mode: 0o755 }
+   * ]);
    */
   async writeFiles(
-    files: { path: string; content: Buffer }[],
+    files: { path: string; content: Buffer; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
     return this.client.writeFiles({

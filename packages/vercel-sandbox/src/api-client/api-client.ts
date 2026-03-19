@@ -457,7 +457,7 @@ export class APIClient extends BaseClient {
   async writeFiles(params: {
     sandboxId: string;
     cwd: string;
-    files: { path: string; content: Buffer }[];
+    files: { path: string; content: Buffer; mode?: number }[];
     extractDir: string;
     signal?: AbortSignal;
   }) {
@@ -475,6 +475,7 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
         }),
         content: file.content,
+        mode: file.mode,
       });
     }
 
