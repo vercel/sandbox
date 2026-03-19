@@ -13,12 +13,12 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
     },
-    "./dist/*.js": {
-      "import": "./dist/*.js",
-      "require": "./dist/*.cjs",
-      "default": "./dist/*.cjs"
+    "./dist/auth/index.js": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js",
+      "require": "./dist/auth/index.cjs",
+      "default": "./dist/auth/index.cjs"
     },
-    "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
   "files": [

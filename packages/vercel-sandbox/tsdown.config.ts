@@ -7,7 +7,6 @@ export default defineConfig({
   outExtensions: ({ format }) => ({
     js: format === "cjs" ? ".cjs" : ".js",
   }),
-  unbundle: true,
   sourcemap: true,
   dts: true,
   target: "es2020",

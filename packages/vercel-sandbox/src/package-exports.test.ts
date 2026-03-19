@@ -11,9 +11,15 @@ it("defines import/require export targets", () => {
   expect(packageJson.exports?.["."]?.import).toBe("./dist/index.js");
   expect(packageJson.exports?.["."]?.require).toBe("./dist/index.cjs");
   expect(packageJson.exports?.["."]?.types).toBe("./dist/index.d.ts");
-  expect(packageJson.exports?.["./dist/*.js"]?.import).toBe("./dist/*.js");
-  expect(packageJson.exports?.["./dist/*.js"]?.require).toBe("./dist/*.cjs");
-  expect(packageJson.exports?.["./dist/*"]).toBe("./dist/*");
+  expect(packageJson.exports?.["./dist/auth/index.js"]?.import).toBe(
+    "./dist/auth/index.js",
+  );
+  expect(packageJson.exports?.["./dist/auth/index.js"]?.require).toBe(
+    "./dist/auth/index.cjs",
+  );
+  expect(packageJson.exports?.["./dist/auth/index.js"]?.types).toBe(
+    "./dist/auth/index.d.ts",
+  );
 });
 
 it("resolves import and require to different entrypoints", () => {
@@ -41,7 +47,7 @@ it("resolves import and require to different entrypoints", () => {
   expect(esmResolution).toBe(resolve(packageRoot, "dist/index.js"));
 });
 
-it("resolves deep dist imports with format-appropriate files", () => {
+it("resolves auth subpath with format-appropriate files", () => {
   const packageRoot = resolve(__dirname, "..");
 
   const cjsResolution = execFileSync(
