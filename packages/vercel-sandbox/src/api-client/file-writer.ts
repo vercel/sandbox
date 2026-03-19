@@ -11,6 +11,11 @@ interface FileBuffer {
    * The content of the file as a Buffer.
    */
   content: Buffer;
+  /**
+   * The file mode (permissions) to set on the file.
+   * For example, 0o755 for executable files.
+   */
+  mode?: number;
 }
 
 interface FileStream {
@@ -27,6 +32,11 @@ interface FileStream {
    * the header of the compressed file.
    */
   size: number;
+  /**
+   * The file mode (permissions) to set on the file.
+   * For example, 0o755 for executable files.
+   */
+  mode?: number;
 }
 
 /**
@@ -56,8 +66,8 @@ export class FileWriter {
     return new Promise<void>((resolve, reject) => {
       const entry = this.pack.entry(
         "size" in file
-          ? { name: file.name, size: file.size }
-          : { name: file.name, size: file.content.length },
+          ? { name: file.name, size: file.size, mode: file.mode }
+          : { name: file.name, size: file.content.length, mode: file.mode },
         (error) => {
           if (error) {
             return reject(error);
