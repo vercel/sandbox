@@ -1,5 +1,21 @@
 # @vercel/sandbox
 
+## 1.9.0
+
+### Minor Changes
+
+- Add support for setting file permissions (mode) in the `writeFiles` API. Files can now include an optional `mode` property to set permissions on the tarball, avoiding the need for a separate `chmod` command. ([#90](https://github.com/vercel/sandbox/pull/90))
+
+  ```ts
+  await sandbox.writeFiles([
+    {
+      path: "/usr/local/bin/myscript",
+      content: Buffer.from("#!/bin/bash\necho hello"),
+      mode: 0o755,
+    },
+  ]);
+  ```
+
 ## 1.8.1
 
 ### Patch Changes
