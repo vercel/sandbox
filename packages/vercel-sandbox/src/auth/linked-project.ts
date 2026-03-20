@@ -1,7 +1,7 @@
 import { z } from "zod";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { json } from "./zod";
+import { json } from "./zod.js";
 
 const LinkedProjectSchema = json.pipe(
   z.object({

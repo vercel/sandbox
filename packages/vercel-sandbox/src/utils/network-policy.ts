@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { NetworkPolicy, NetworkPolicyRule } from "../network-policy";
-import { NetworkPolicyValidator, InjectionRuleValidator } from "../api-client/validators";
+import { NetworkPolicy, NetworkPolicyRule } from "../network-policy.js";
+import { NetworkPolicyValidator, InjectionRuleValidator } from "../api-client/validators.js";
 
 type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
 

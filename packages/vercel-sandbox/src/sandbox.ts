@@ -1,30 +1,30 @@
-import type { SandboxMetaData, SandboxRouteData } from "./api-client";
+import type { SandboxMetaData, SandboxRouteData } from "./api-client/index.js";
 import { type Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
 import { mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
-import { APIClient } from "./api-client";
-import { Command, CommandFinished } from "./command";
-import { type Credentials, getCredentials } from "./utils/get-credentials";
-import { getPrivateParams, WithPrivate } from "./utils/types";
-import { WithFetchOptions } from "./api-client/api-client";
-import { RUNTIMES } from "./constants";
-import { Snapshot } from "./snapshot";
-import { consumeReadable } from "./utils/consume-readable";
+import { APIClient } from "./api-client/index.js";
+import { Command, CommandFinished } from "./command.js";
+import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import { getPrivateParams, WithPrivate } from "./utils/types.js";
+import { WithFetchOptions } from "./api-client/api-client.js";
+import { RUNTIMES } from "./constants.js";
+import { Snapshot } from "./snapshot.js";
+import { consumeReadable } from "./utils/consume-readable.js";
 import {
   setSandboxCredentials,
   getSandboxCredentials,
-} from "./utils/sandbox-credentials";
+} from "./utils/sandbox-credentials.js";
 import {
   type NetworkPolicy,
   type NetworkPolicyRule,
   type NetworkTransformer,
-} from "./network-policy";
+} from "./network-policy.js";
 import {
   toSandboxSnapshot,
   type SandboxSnapshot,
-} from "./utils/sandbox-snapshot";
+} from "./utils/sandbox-snapshot.js";
 import { WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE } from "@workflow/serde";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
@@ -172,7 +172,7 @@ interface RunCommandParams {
 }
 
 // Re-export for public API
-export { setSandboxCredentials } from "./utils/sandbox-credentials";
+export { setSandboxCredentials } from "./utils/sandbox-credentials.js";
 
 // ============================================================================
 // Sandbox class

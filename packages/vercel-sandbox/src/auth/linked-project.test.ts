@@ -1,4 +1,4 @@
-import { readLinkedProject } from "./linked-project";
+import { readLinkedProject } from "./linked-project.js";
 import { describe, test, expect } from "vitest";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

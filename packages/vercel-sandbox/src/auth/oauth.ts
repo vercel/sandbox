@@ -1,6 +1,6 @@
 import os from "os";
 import { z } from "zod";
-import { VERSION } from "../version";
+import { VERSION } from "../version.js";
 
 const USER_AGENT = `${os.hostname()} @ vercel/sandbox/${VERSION} node-${
   process.version
