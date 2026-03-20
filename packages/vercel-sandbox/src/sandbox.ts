@@ -122,6 +122,11 @@ interface GetSandboxParams {
    */
   resume?: boolean;
   /**
+   * A command to execute after the sandbox is resumed.
+   * When set, `resume` is automatically set to `true`.
+   */
+  onResume?: { command: string; args?: string[] };
+  /**
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
@@ -421,21 +426,32 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
+    const resume = !!params.onResume ? true : params.resume;
     const response = await client.getSandbox({
       name: params.name,
       projectId: credentials.projectId,
-      resume: params.resume,
+      resume,
       signal: params.signal,
       ...privateParams,
     });
 
-    return new Sandbox({
+    const sandbox = new Sandbox({
       client,
       session: response.json.session,
       sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
     });
+
+    if (params.onResume) {
+      await sandbox.runCommand({
+        cmd: params.onResume.command,
+        args: params.onResume.args,
+        detached: true,
+      });
+    }
+
+    return sandbox;
   }
 
   constructor({
