@@ -1,4 +1,4 @@
-import { NotOk } from "./error";
+import { NotOk } from "./error.js";
 
 export async function fetchApi(opts: {
   token: string;

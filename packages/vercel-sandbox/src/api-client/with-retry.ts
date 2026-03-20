@@ -1,5 +1,5 @@
 import type { Options as RetryOptions } from "async-retry";
-import { APIError } from "./api-error";
+import { APIError } from "./api-error.js";
 import { setTimeout } from "node:timers/promises";
 import retry from "async-retry";
 

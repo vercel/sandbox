@@ -3,7 +3,7 @@ import {
   getCredentials,
   LocalOidcContextError,
   VercelOidcContextError,
-} from "./get-credentials";
+} from "./get-credentials.js";
 
 beforeEach(() => {
   delete process.env.VERCEL_OIDC_TOKEN;
