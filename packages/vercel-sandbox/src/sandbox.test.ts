@@ -408,7 +408,7 @@ for (const port of ports) {
 
     const resumed = await Sandbox.get({
       name: sandbox.name,
-      onResume: { command: "touch", args: ["/tmp/on-resume-test"] },
+      onResume: { cmd: "touch", args: ["/tmp/on-resume-test"] },
     });
 
     // onResume fires in detached mode, give it a moment to execute
