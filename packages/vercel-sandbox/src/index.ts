@@ -1,13 +1,13 @@
 export {
   type NetworkPolicy,
   Sandbox,
-} from "./sandbox";
+} from "./sandbox.js";
 export {
   Session,
   type NetworkPolicyRule,
   type NetworkTransformer,
-} from "./session";
-export { Snapshot } from "./snapshot";
-export { Command, CommandFinished } from "./command";
-export { StreamError } from "./api-client/api-error";
-export { APIError } from "./api-client/api-error";
+} from "./session.js";
+export { Snapshot } from "./snapshot.js";
+export { Command, CommandFinished } from "./command.js";
+export { StreamError } from "./api-client/api-error.js";
+export { APIError } from "./api-client/api-error.js";

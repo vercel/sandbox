@@ -3,7 +3,7 @@ import {
   parseOrThrow,
   type Parsed,
   type RequestParams,
-} from "./base-client";
+} from "./base-client.js";
 import {
 type CommandFinishedData,
   SessionAndRoutesResponse,
@@ -22,21 +22,21 @@ type CommandFinishedData,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
   type CommandData,
-} from "./validators";
-import { APIError, StreamError } from "./api-error";
-import { FileWriter } from "./file-writer";
-import { VERSION } from "../version";
-import { consumeReadable } from "../utils/consume-readable";
+} from "./validators.js";
+import { APIError, StreamError } from "./api-error.js";
+import { FileWriter } from "./file-writer.js";
+import { VERSION } from "../version.js";
+import { consumeReadable } from "../utils/consume-readable.js";
 import { z } from "zod";
 import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
-import { normalizePath } from "../utils/normalizePath";
+import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
-import type { NetworkPolicy } from "../network-policy";
-import { toAPINetworkPolicy } from "../utils/network-policy";
-import { getPrivateParams, type WithPrivate } from "../utils/types";
-import type { RUNTIMES } from "../constants";
+import { NetworkPolicy } from "../network-policy.js";
+import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy.js";
+import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import { RUNTIMES } from "../constants.js";
 import { setTimeout } from "node:timers/promises";
 
 interface Claims {

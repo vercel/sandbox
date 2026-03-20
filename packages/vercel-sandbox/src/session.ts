@@ -1,19 +1,18 @@
-import type { SessionMetaData, SandboxRouteData } from "./api-client";
+import type { SessionMetaData, SandboxRouteData, APIClient } from "./api-client/index.js";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
 import { mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
-import type { APIClient } from "./api-client";
-import { Command, CommandFinished } from "./command";
-import { Snapshot } from "./snapshot";
-import { consumeReadable } from "./utils/consume-readable";
+import { Command, CommandFinished } from "./command.js";
+import { Snapshot } from "./snapshot.js";
+import { consumeReadable } from "./utils/consume-readable.js";
 import type {
   NetworkPolicy,
   NetworkPolicyRule,
   NetworkTransformer,
-} from "./network-policy";
-import { convertSession, type ConvertedSession } from "./utils/convert-sandbox";
+} from "./network-policy.js";
+import { convertSession, type ConvertedSession } from "./utils/convert-sandbox.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 

@@ -1,10 +1,10 @@
 import { getVercelOidcToken } from "@vercel/oidc";
-import { decodeBase64Url } from "./decode-base64-url";
+import { decodeBase64Url } from "./decode-base64-url.js";
 import { z } from "zod";
 import {
   cachedGenerateCredentials,
   shouldPromptForCredentials,
-} from "./dev-credentials";
+} from "./dev-credentials.js";
 
 export interface Credentials {
   /**

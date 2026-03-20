@@ -1,6 +1,6 @@
-import type { SessionMetaData } from "../api-client";
-import type { NetworkPolicy } from "../network-policy";
-import { fromAPINetworkPolicy } from "./network-policy";
+import type { SessionMetaData } from "../api-client/index.js";
+import type { NetworkPolicy } from "../network-policy.js";
+import { fromAPINetworkPolicy } from "./network-policy.js";
 
 export type ConvertedSession = Omit<SessionMetaData, "networkPolicy"> & {
   networkPolicy?: NetworkPolicy;

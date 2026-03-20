@@ -1,8 +1,8 @@
 import type { Options as RetryOptions } from "async-retry";
-import { APIError } from "./api-error";
+import { APIError } from "./api-error.js";
 import { ZodType } from "zod";
-import { array } from "../utils/array";
-import { withRetry, type RequestOptions } from "./with-retry";
+import { array } from "../utils/array.js";
+import { withRetry, type RequestOptions } from "./with-retry.js";
 import { Agent } from "undici";
 
 export interface RequestParams extends RequestInit {

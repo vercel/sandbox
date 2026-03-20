@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { APIClient } from "./api-client";
-import { APIError, StreamError } from "./api-error";
-import { createNdjsonStream } from "../../test-utils/mock-response";
+import { APIClient } from "./api-client.js";
+import { APIError, StreamError } from "./api-error.js";
+import { createNdjsonStream } from "../../test-utils/mock-response.js";
 
 describe("APIClient", () => {
   describe("getLogs", () => {

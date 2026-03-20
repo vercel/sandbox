@@ -1,7 +1,7 @@
-import type { SnapshotMetadata } from "./api-client";
-import { APIClient } from "./api-client";
-import { WithFetchOptions } from "./api-client/api-client";
-import { Credentials, getCredentials } from "./utils/get-credentials";
+import type { SnapshotMetadata } from "./api-client/index.js";
+import { APIClient } from "./api-client/index.js";
+import { WithFetchOptions } from "./api-client/api-client.js";
+import { Credentials, getCredentials } from "./utils/get-credentials.js";
 
 /** @inline */
 interface GetSnapshotParams {
