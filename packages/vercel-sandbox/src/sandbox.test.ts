@@ -402,6 +402,22 @@ for (const port of ports) {
     expect(match).toBeDefined();
   });
 
+  it("executes onResume command after resuming", async () => {
+    const sandbox = await Sandbox.create({ persistent: true });
+    await sandbox.stop({ blocking: true });
+
+    const resumed = await Sandbox.get({
+      name: sandbox.name,
+      onResume: { cmd: "touch", args: ["/tmp/on-resume-test"] },
+    });
+
+    // onResume fires in detached mode, give it a moment to execute
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const result = await resumed.runCommand("test", ["-f", "/tmp/on-resume-test"]);
+    expect(result.exitCode).toBe(0);
+  });
+
   it("lists one snapshot after creating one", async () => {
     const sandbox = await Sandbox.create();
     await sandbox.snapshot();
