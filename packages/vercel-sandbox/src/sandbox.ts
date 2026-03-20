@@ -125,7 +125,7 @@ interface GetSandboxParams {
    * A command to execute after the sandbox is resumed.
    * When set, `resume` is automatically set to `true`.
    */
-  onResume?: { command: string; args?: string[] };
+  onResume?: RunCommandParams;
   /**
    * An AbortSignal to cancel the operation.
    */
