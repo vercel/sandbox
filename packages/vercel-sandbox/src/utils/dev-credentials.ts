@@ -1,10 +1,10 @@
 import pico from "picocolors";
-import type { Credentials } from "./get-credentials";
+import type { Credentials } from "./get-credentials.js";
 import ms from "ms";
-import * as Log from "./log";
+import * as Log from "./log.js";
 
 async function importAuth() {
-  const auth = await import("../auth/index");
+  const auth = await import("../auth/index.js");
   return auth;
 }
 

@@ -1,23 +1,26 @@
-import type { SandboxMetaData, SandboxRouteData } from "./api-client";
+import type { SandboxMetaData, SandboxRouteData } from "./api-client/index.js";
 import { type Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
 import { mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
-import { APIClient } from "./api-client";
-import { Command, CommandFinished } from "./command";
-import { type Credentials, getCredentials } from "./utils/get-credentials";
-import { getPrivateParams, WithPrivate } from "./utils/types";
-import { WithFetchOptions } from "./api-client/api-client";
-import { RUNTIMES } from "./constants";
-import { Snapshot } from "./snapshot";
-import { consumeReadable } from "./utils/consume-readable";
+import { APIClient } from "./api-client/index.js";
+import { Command, CommandFinished } from "./command.js";
+import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import { getPrivateParams, WithPrivate } from "./utils/types.js";
+import { WithFetchOptions } from "./api-client/api-client.js";
+import { RUNTIMES } from "./constants.js";
+import { Snapshot } from "./snapshot.js";
+import { consumeReadable } from "./utils/consume-readable.js";
 import {
   type NetworkPolicy,
   type NetworkPolicyRule,
   type NetworkTransformer,
-} from "./network-policy";
-import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
+} from "./network-policy.js";
+import {
+  convertSandbox,
+  type ConvertedSandbox,
+} from "./utils/convert-sandbox.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -226,7 +229,9 @@ export class Sandbox {
   /**
    * The amount of network data used by the sandbox. Only reported once the VM is stopped.
    */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+  public get networkTransfer():
+    | { ingress: number; egress: number }
+    | undefined {
     return this.sandbox.networkTransfer;
   }
 
@@ -607,7 +612,7 @@ export class Sandbox {
       });
       return dstPath;
     } finally {
-      stream.destroy()
+      stream.destroy();
     }
   }
 
@@ -664,7 +669,10 @@ export class Sandbox {
    * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
    * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+  async stop(opts?: {
+    signal?: AbortSignal;
+    blocking?: boolean;
+  }): Promise<ConvertedSandbox> {
     const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,

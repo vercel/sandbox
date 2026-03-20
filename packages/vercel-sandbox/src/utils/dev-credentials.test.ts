@@ -1,8 +1,8 @@
-import { signInAndGetToken, generateCredentials } from "./dev-credentials";
+import { signInAndGetToken, generateCredentials } from "./dev-credentials.js";
 import { describe, expect, test, vi, beforeEach, type Mock } from "vitest";
 import { factory } from "factoree";
 import { setTimeout } from "node:timers/promises";
-import { DeviceAuthorizationRequest, OAuth } from "../auth";
+import { DeviceAuthorizationRequest, OAuth } from "../auth.js";
 
 vi.mock("picocolors");
 
@@ -14,7 +14,7 @@ vi.mock("../auth/index", () => ({
   pollForToken: vi.fn(),
 }));
 
-import * as auth from "../auth/index";
+import * as auth from "../auth/index.js";
 
 describe("signInAndGetToken", () => {
   test("times out after provided timeout", async () => {

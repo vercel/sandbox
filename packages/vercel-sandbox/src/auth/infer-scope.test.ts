@@ -1,4 +1,4 @@
-import { inferScope, selectTeam } from "./project";
+import { inferScope, selectTeam } from "./project.js";
 import {
   beforeEach,
   describe,
@@ -8,8 +8,8 @@ import {
   expect,
   onTestFinished,
 } from "vitest";
-import { fetchApi } from "./api";
-import { NotOk } from "./error";
+import { fetchApi } from "./api.js";
+import { NotOk } from "./error.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
