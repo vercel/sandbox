@@ -9,9 +9,9 @@ import { Command, CommandFinished } from "./command";
 import { Snapshot } from "./snapshot";
 import { consumeReadable } from "./utils/consume-readable";
 import type {
-    NetworkPolicy,
-    NetworkPolicyRule,
-    NetworkTransformer,
+  NetworkPolicy,
+  NetworkPolicyRule,
+  NetworkTransformer,
 } from "./network-policy";
 import { convertSession, type ConvertedSession } from "./utils/convert-sandbox";
 
@@ -168,28 +168,36 @@ export class Session {
    * When this session started running.
    */
   public get startedAt(): Date | undefined {
-    return this.session.startedAt != null ? new Date(this.session.startedAt) : undefined;
+    return this.session.startedAt != null
+      ? new Date(this.session.startedAt)
+      : undefined;
   }
 
   /**
    * When this session was requested to stop.
    */
   public get requestedStopAt(): Date | undefined {
-    return this.session.requestedStopAt != null ? new Date(this.session.requestedStopAt) : undefined;
+    return this.session.requestedStopAt != null
+      ? new Date(this.session.requestedStopAt)
+      : undefined;
   }
 
   /**
    * When this session was stopped.
    */
   public get stoppedAt(): Date | undefined {
-    return this.session.stoppedAt != null ? new Date(this.session.stoppedAt) : undefined;
+    return this.session.stoppedAt != null
+      ? new Date(this.session.stoppedAt)
+      : undefined;
   }
 
   /**
    * When this session was aborted.
    */
   public get abortedAt(): Date | undefined {
-    return this.session.abortedAt != null ? new Date(this.session.abortedAt) : undefined;
+    return this.session.abortedAt != null
+      ? new Date(this.session.abortedAt)
+      : undefined;
   }
 
   /**
@@ -203,7 +211,9 @@ export class Session {
    * When a snapshot was requested for this session.
    */
   public get snapshottedAt(): Date | undefined {
-    return this.session.snapshottedAt != null ? new Date(this.session.snapshottedAt) : undefined;
+    return this.session.snapshottedAt != null
+      ? new Date(this.session.snapshottedAt)
+      : undefined;
   }
 
   /**
@@ -225,7 +235,9 @@ export class Session {
    * The amount of network data used by the session. Only reported once the VM
    * is stopped.
    */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+  public get networkTransfer():
+    | { ingress: number; egress: number }
+    | undefined {
     return this.session.networkTransfer;
   }
 
@@ -391,7 +403,7 @@ export class Session {
       if (params.signal?.aborted) {
         return;
       }
-      (params.stderr ?? params.stdout)?.emit('error', err)
+      (params.stderr ?? params.stdout)?.emit("error", err);
     });
 
     return command;
@@ -553,7 +565,10 @@ export class Session {
    * @param opts.blocking - If true, poll until the session has fully stopped and return the final state.
    * @returns The session at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSession> {
+  async stop(opts?: {
+    signal?: AbortSignal;
+    blocking?: boolean;
+  }): Promise<ConvertedSession> {
     const response = await this.client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
@@ -570,7 +585,7 @@ export class Session {
    * @param params.networkPolicy - The new network policy to apply.
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * 
+   *
    * @example
    * // Restrict to specific domains
    * await session.update({

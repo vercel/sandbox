@@ -66,6 +66,22 @@
 
 - Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
 
+## 1.9.0
+
+### Minor Changes
+
+- Add support for setting file permissions (mode) in the `writeFiles` API. Files can now include an optional `mode` property to set permissions on the tarball, avoiding the need for a separate `chmod` command. ([#90](https://github.com/vercel/sandbox/pull/90))
+
+  ```ts
+  await sandbox.writeFiles([
+    {
+      path: "/usr/local/bin/myscript",
+      content: Buffer.from("#!/bin/bash\necho hello"),
+      mode: 0o755,
+    },
+  ]);
+  ```
+
 ## 1.8.1
 
 ### Patch Changes

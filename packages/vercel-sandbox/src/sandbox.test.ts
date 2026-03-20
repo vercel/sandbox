@@ -67,7 +67,7 @@ const makeSandboxMetadata = (): SandboxMetaData => ({
   name: "test-name",
   currentSessionId: "sbx_123",
   persistent: true,
-  status: 'running',
+  status: "running",
   memory: 2048,
   vcpus: 1,
   region: "iad1",
@@ -414,7 +414,11 @@ for (const port of ports) {
     const sandbox = await Sandbox.create({ timeout: 60_000, persistent: true });
     await sandbox.stop({ blocking: true });
 
-    await sandbox.update({ resources: { vcpus: 4 }, timeout: 30_000, persistent: false });
+    await sandbox.update({
+      resources: { vcpus: 4 },
+      timeout: 30_000,
+      persistent: false,
+    });
 
     const updated = await Sandbox.get({
       name: sandbox.name,
