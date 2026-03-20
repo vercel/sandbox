@@ -81,22 +81,9 @@ export const Snapshot = z.object({
   updatedAt: z.number(),
 });
 
-export const Pagination = z.object({
-  /**
-   * Amount of items in the current page.
-   * @example 20
-   */
+export const CursorPagination = z.object({
   count: z.number(),
-  /**
-   * Timestamp that must be used to request the next page.
-   * @example 1540095775951
-   */
-  next: z.number().nullable(),
-  /**
-   * Timestamp that must be used to request the previous page.
-   * @example 1540095775951
-   */
-  prev: z.number().nullable(),
+  next: z.string().nullable(),
 });
 
 export type CommandData = z.infer<typeof Command>;
@@ -125,7 +112,7 @@ export const SessionAndRoutesResponse = SessionResponse.extend({
 
 export const SessionsResponse = z.object({
   sessions: z.array(Session.passthrough()),
-  pagination: Pagination,
+  pagination: CursorPagination,
 });
 
 export const CommandResponse = z.object({
@@ -164,7 +151,7 @@ export const LogLine = z.discriminatedUnion("stream", [
 
 export const SnapshotsResponse = z.object({
   snapshots: z.array(Snapshot),
-  pagination: Pagination,
+  pagination: CursorPagination,
 });
 
 export const CreateSnapshotResponse = z.object({
@@ -194,6 +181,7 @@ export const Sandbox = z.object({
   currentSessionId: z.string(),
   currentSnapshotId: z.string().optional(),
   status: Session.shape.status,
+  statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
   tags: z.record(z.string()).optional(),
 });
@@ -204,12 +192,6 @@ export const SandboxAndSessionResponse = z.object({
   sandbox: Sandbox,
   session: Session.passthrough(),
   routes: z.array(SandboxRoute),
-});
-
-export const CursorPagination = z.object({
-  count: z.number(),
-  next: z.string().nullable(),
-  total: z.number(),
 });
 
 export const SandboxesPaginationResponse = z.object({

@@ -1,6 +1,6 @@
 {
   "name": "@vercel/sandbox",
-  "version": "2.0.0-beta.8",
+  "version": "2.0.0-beta.9",
   "description": "Software Development Kit for Vercel Sandbox",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

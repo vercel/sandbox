@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.8
+sandbox 3.0.0-beta.9
 
 ▲ sandbox [options] <command>
 
@@ -55,9 +55,10 @@ Flags:
 
 Options:
 
-    --name-prefix <str>  Filter sandboxes by name prefix [optional]
-    --sort-by <value>    Sort sandboxes by field. Options: createdAt (default), name [optional]
-    --tag <key=value>    Filter sandboxes by tag. Format: "key=value"
+    --name-prefix <str>   Filter sandboxes by name prefix [optional]
+    --sort-by <value>     Sort sandboxes by field. Options: createdAt (default), name, statusUpdatedAt [optional]
+    --sort-order <value>  Sort order. Options: asc, desc (default) [optional]
+    --tag <key=value>     Filter sandboxes by tag. Format: "key=value"
 
 Auth & Scope:
 

@@ -245,6 +245,13 @@ export class Sandbox {
   }
 
   /**
+   * When the sandbox status was last updated.
+   */
+  public get statusUpdatedAt(): Date | undefined {
+    return this.sandbox.statusUpdatedAt ? new Date(this.sandbox.statusUpdatedAt) : undefined;
+  }
+
+  /**
    * When this sandbox was created.
    */
   public get createdAt(): Date {
@@ -866,8 +873,8 @@ export class Sandbox {
    */
   async listSessions(params?: {
     limit?: number;
-    since?: number | Date;
-    until?: number | Date;
+    cursor?: string;
+    sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
 
@@ -875,8 +882,8 @@ export class Sandbox {
       projectId: this.projectId,
       name: this.sandbox.name,
       limit: params?.limit,
-      since: params?.since,
-      until: params?.until,
+      cursor: params?.cursor,
+      sortOrder: params?.sortOrder,
       signal: params?.signal,
     });
     return response.json;
@@ -890,8 +897,8 @@ export class Sandbox {
    */
   async listSnapshots(params?: {
     limit?: number;
-    since?: number | Date;
-    until?: number | Date;
+    cursor?: string;
+    sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
 
@@ -899,8 +906,8 @@ export class Sandbox {
       projectId: this.projectId,
       name: this.sandbox.name,
       limit: params?.limit,
-      since: params?.since,
-      until: params?.until,
+      cursor: params?.cursor,
+      sortOrder: params?.sortOrder,
       signal: params?.signal,
     });
     return response.json;

@@ -21,8 +21,13 @@ const list = cmd.command({
       long: "name",
       description: "Filter snapshots by sandbox.",
     }),
+    sortOrder: cmd.option({
+      long: "sort-order",
+      description: "Sort order. Options: asc, desc (default)",
+      type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
+    }),
   },
-  async handler({ scope: { token, team, project }, name }) {
+  async handler({ scope: { token, team, project }, name, sortOrder }) {
     const snapshots = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching snapshots...").start(),
@@ -33,7 +38,8 @@ const list = cmd.command({
         teamId: team,
         projectId: project,
         name,
-        limit: 100,
+        limit: 50,
+        ...(sortOrder && { sortOrder }),
       });
       return snapshots;
     })();

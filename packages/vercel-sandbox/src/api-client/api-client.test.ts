@@ -531,7 +531,7 @@ describe("APIClient", () => {
     it("lists sandboxes with pagination", async () => {
       const body = {
         sandboxes: [makeSandboxMetadata("sb-1"), makeSandboxMetadata("sb-2")],
-        pagination: { count: 2, next: null, total: 2 },
+        pagination: { count: 2, next: null },
       };
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify(body), {
@@ -545,13 +545,13 @@ describe("APIClient", () => {
 
       expect(result.json.sandboxes).toHaveLength(2);
       expect(result.json.sandboxes[0].name).toBe("sb-1");
-      expect(result.json.pagination.total).toBe(2);
+      expect(result.json.pagination.count).toBe(2);
     });
 
     it("passes all query params", async () => {
       const body = {
         sandboxes: [],
-        pagination: { count: 0, next: null, total: 0 },
+        pagination: { count: 0, next: null },
       };
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify(body), {
@@ -573,6 +573,164 @@ describe("APIClient", () => {
       expect(url).toContain("sortBy=name");
       expect(url).toContain("namePrefix=test-");
       expect(url).toContain("cursor=abc");
+    });
+
+    it("passes sortOrder and sortBy statusUpdatedAt", async () => {
+      const body = {
+        sandboxes: [makeSandboxMetadata("sb-1")],
+        pagination: { count: 1, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSandboxes({
+        projectId: "proj_123",
+        sortBy: "statusUpdatedAt",
+        sortOrder: "desc",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("sortBy=statusUpdatedAt");
+      expect(url).toContain("sortOrder=desc");
+    });
+  });
+
+  describe("listSessions", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeSession = () => ({
+      id: "sbx_123",
+      memory: 2048,
+      vcpus: 1,
+      region: "iad1",
+      runtime: "node24",
+      timeout: 300000,
+      status: "running",
+      requestedAt: Date.now(),
+      createdAt: Date.now(),
+      cwd: "/",
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("lists sessions with cursor pagination", async () => {
+      const body = {
+        sessions: [makeSession()],
+        pagination: { count: 1, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.listSessions({
+        projectId: "proj_123",
+      });
+
+      expect(result.json.sessions).toHaveLength(1);
+      expect(result.json.pagination.count).toBe(1);
+      expect(result.json.pagination.next).toBeNull();
+    });
+
+    it("passes cursor and sortOrder params", async () => {
+      const body = {
+        sessions: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSessions({
+        projectId: "proj_123",
+        cursor: "cursor_abc",
+        sortOrder: "asc",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("cursor=cursor_abc");
+      expect(url).toContain("sortOrder=asc");
+    });
+  });
+
+  describe("listSnapshots", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeSnapshot = () => ({
+      id: "snap_123",
+      sourceSessionId: "sbx_123",
+      region: "iad1",
+      status: "created",
+      sizeBytes: 1024,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("lists snapshots with cursor pagination", async () => {
+      const body = {
+        snapshots: [makeSnapshot()],
+        pagination: { count: 1, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.listSnapshots({
+        projectId: "proj_123",
+      });
+
+      expect(result.json.snapshots).toHaveLength(1);
+      expect(result.json.pagination.count).toBe(1);
+      expect(result.json.pagination.next).toBeNull();
+    });
+
+    it("passes cursor and sortOrder params", async () => {
+      const body = {
+        snapshots: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSnapshots({
+        projectId: "proj_123",
+        cursor: "cursor_xyz",
+        sortOrder: "desc",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("cursor=cursor_xyz");
+      expect(url).toContain("sortOrder=desc");
     });
   });
 
