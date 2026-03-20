@@ -389,15 +389,13 @@ export class APIClient extends BaseClient {
      */
     limit?: number;
     /**
-     * Get sessions created after this JavaScript timestamp.
-     * @example 1540095775941
+     * Cursor for pagination.
      */
-    since?: number | Date;
+    cursor?: string;
     /**
-     * Get sessions created before this JavaScript timestamp.
-     * @example 1540095775951
+     * Sort order for results.
      */
-    until?: number | Date;
+    sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -407,14 +405,8 @@ export class APIClient extends BaseClient {
           project: params.projectId,
           name: params.name,
           limit: params.limit,
-          since:
-            typeof params.since === "number"
-              ? params.since
-              : params.since?.getTime(),
-          until:
-            typeof params.until === "number"
-              ? params.until
-              : params.until?.getTime(),
+          cursor: params.cursor,
+          sortOrder: params.sortOrder,
         },
         method: "GET",
         signal: params.signal,
@@ -438,15 +430,13 @@ export class APIClient extends BaseClient {
      */
     limit?: number;
     /**
-     * Get snapshots created after this JavaScript timestamp.
-     * @example 1540095775941
+     * Cursor for pagination.
      */
-    since?: number | Date;
+    cursor?: string;
     /**
-     * Get snapshots created before this JavaScript timestamp.
-     * @example 1540095775951
+     * Sort order for results.
      */
-    until?: number | Date;
+    sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -456,14 +446,8 @@ export class APIClient extends BaseClient {
           project: params.projectId,
           name: params.name,
           limit: params.limit,
-          since:
-            typeof params.since === "number"
-              ? params.since
-              : params.since?.getTime(),
-          until:
-            typeof params.until === "number"
-              ? params.until
-              : params.until?.getTime(),
+          cursor: params.cursor,
+          sortOrder: params.sortOrder,
         },
         method: "GET",
         signal: params.signal,
@@ -742,7 +726,8 @@ export class APIClient extends BaseClient {
   async listSandboxes(params: {
     projectId: string;
     limit?: number;
-    sortBy?: "createdAt" | "name";
+    sortBy?: "createdAt" | "name" | "statusUpdatedAt";
+    sortOrder?: "asc" | "desc";
     namePrefix?: string;
     cursor?: string;
     tags?: Record<string, string>;
@@ -755,6 +740,7 @@ export class APIClient extends BaseClient {
           project: params.projectId,
           limit: params.limit,
           sortBy: params.sortBy,
+          sortOrder: params.sortOrder,
           namePrefix: params.namePrefix,
           cursor: params.cursor,
           tags: toTagsFilter(params.tags),
