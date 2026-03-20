@@ -2,4 +2,4 @@
 "@vercel/sandbox": patch
 ---
 
-Support useworkflow serialization for sandboxes and commands
+Add `"use step"` annotations to all API-calling methods for durable execution compatibility with the Workflow DevKit

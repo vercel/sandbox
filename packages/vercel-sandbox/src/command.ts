@@ -217,6 +217,7 @@ export class Command {
    * @returns A {@link CommandFinished} instance with populated exit code.
    */
   async wait(params?: { signal?: AbortSignal }) {
+    "use step";
     params?.signal?.throwIfAborted();
 
     const command = await this.client.getCommand({
@@ -286,6 +287,7 @@ export class Command {
     stream: "stdout" | "stderr" | "both" = "both",
     opts?: { signal?: AbortSignal }
   ) {
+    "use step";
     const cached = await this.getCachedOutput(opts);
     return cached[stream];
   }
@@ -301,6 +303,7 @@ export class Command {
    * @returns The standard output of the command.
    */
   async stdout(opts?: { signal?: AbortSignal }) {
+    "use step";
     return this.output("stdout", opts);
   }
 
@@ -315,6 +318,7 @@ export class Command {
    * @returns The standard error output of the command.
    */
   async stderr(opts?: { signal?: AbortSignal }) {
+    "use step";
     return this.output("stderr", opts);
   }
 
@@ -327,6 +331,7 @@ export class Command {
    * @returns Promise<void>.
    */
   async kill(signal?: Signal, opts?: { abortSignal?: AbortSignal }) {
+    "use step";
     await this.client.killCommand({
       sandboxId: this.sandboxId,
       commandId: this.cmd.id,

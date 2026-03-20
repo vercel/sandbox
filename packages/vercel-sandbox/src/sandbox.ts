@@ -309,6 +309,7 @@ export class Sandbox {
       Partial<Credentials> &
       WithFetchOptions,
   ) {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -368,6 +369,7 @@ export class Sandbox {
     > &
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -406,6 +408,7 @@ export class Sandbox {
     params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
       WithFetchOptions,
   ): Promise<Sandbox> {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -460,6 +463,7 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
+    "use step";
     const command = await this.client.getCommand({
       sandboxId: this.sandbox.id,
       cmdId,
@@ -511,6 +515,7 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
+    "use step";
     const params: RunCommandParams =
       typeof commandOrParams === "string"
         ? { cmd: commandOrParams, args, signal: opts?.signal }
@@ -602,6 +607,7 @@ export class Sandbox {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
     await this.client.mkDir({
       sandboxId: this.sandbox.id,
       path: path,
@@ -621,6 +627,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
+    "use step";
     return this.client.readFile({
       sandboxId: this.sandbox.id,
       path: file.path,
@@ -641,6 +648,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
+    "use step";
     const stream = await this.client.readFile({
       sandboxId: this.sandbox.id,
       path: file.path,
@@ -670,6 +678,7 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    "use step";
     if (!src?.path) {
       throw new Error("downloadFile: source path is required");
     }
@@ -723,6 +732,7 @@ export class Sandbox {
     files: { path: string; content: Buffer; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
+    "use step";
     return this.client.writeFiles({
       sandboxId: this.sandbox.id,
       cwd: this.sandbox.cwd,
@@ -760,6 +770,7 @@ export class Sandbox {
     signal?: AbortSignal;
     blocking?: boolean;
   }): Promise<SandboxSnapshot> {
+    "use step";
     const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
@@ -804,6 +815,7 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
+    "use step";
     const response = await this.client.updateNetworkPolicy({
       sandboxId: this.sandbox.id,
       networkPolicy: networkPolicy,
@@ -835,6 +847,7 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const response = await this.client.extendTimeout({
       sandboxId: this.sandbox.id,
       duration,
@@ -860,6 +873,7 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
+    "use step";
     const response = await this.client.createSnapshot({
       sandboxId: this.sandbox.id,
       expiration: opts?.expiration,

@@ -102,6 +102,7 @@ export class Snapshot {
       Partial<Credentials> &
       WithFetchOptions,
   ) {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -123,6 +124,7 @@ export class Snapshot {
   static async get(
     params: GetSnapshotParams | (GetSnapshotParams & Credentials),
   ): Promise<Snapshot> {
+    "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -148,6 +150,7 @@ export class Snapshot {
    * @returns A promise that resolves once the snapshot has been deleted.
    */
   async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
     const response = await this.client.deleteSnapshot({
       snapshotId: this.snapshot.id,
       signal: opts?.signal,
