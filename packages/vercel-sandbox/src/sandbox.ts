@@ -445,7 +445,7 @@ export class Sandbox {
 
     if (params.onResume) {
       await sandbox.runCommand({
-        cmd: params.onResume.command,
+        cmd: params.onResume.cmd,
         args: params.onResume.args,
         detached: true,
       });
