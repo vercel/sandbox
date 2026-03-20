@@ -517,24 +517,24 @@ export class Sandbox {
         : commandOrParams;
 
     const wait = params.detached ? false : true;
-    const getLogs = (command: Command) => {
-      if (params.stdout || params.stderr) {
-        (async () => {
-          try {
-            for await (const log of command.logs({ signal: params.signal })) {
-              if (log.stream === "stdout") {
-                params.stdout?.write(log.data);
-              } else if (log.stream === "stderr") {
-                params.stderr?.write(log.data);
-              }
-            }
-          } catch (err) {
-            if (params.signal?.aborted) {
-              return;
-            }
-            throw err;
+    const pipeLogs = async (command: Command): Promise<void> => {
+      if (!params.stdout && !params.stderr) {
+        return;
+      }
+
+      try {
+        for await (const log of command.logs({ signal: params.signal })) {
+          if (log.stream === "stdout") {
+            params.stdout?.write(log.data);
+          } else if (log.stream === "stderr") {
+            params.stderr?.write(log.data);
           }
-        })();
+        }
+      } catch (err) {
+        if (params.signal?.aborted) {
+          return;
+        }
+        throw err;
       }
     };
 
@@ -556,9 +556,10 @@ export class Sandbox {
         cmd: commandStream.command,
       });
 
-      getLogs(command);
-
-      const finished = await commandStream.finished;
+      const [finished] = await Promise.all([
+        commandStream.finished,
+        pipeLogs(command),
+      ]);
       return new CommandFinished({
         client: this.client,
         sandboxId: this.sandbox.id,
@@ -583,7 +584,12 @@ export class Sandbox {
       cmd: commandResponse.json.command,
     });
 
-    getLogs(command);
+    void pipeLogs(command).catch((err) => {
+      if (params.signal?.aborted) {
+        return;
+      }
+      (params.stderr ?? params.stdout)?.emit('error', err)
+    });
 
     return command;
   }
@@ -702,13 +708,19 @@ export class Sandbox {
    * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
    * Writes files using the `vercel-sandbox` user.
    *
-   * @param files - Array of files with path and stream/buffer contents
+   * @param files - Array of files with path, content, and optional mode (permissions)
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves when the files are written
+   *
+   * @example
+   * // Write an executable script
+   * await sandbox.writeFiles([
+   *   { path: "/usr/local/bin/myscript", content: Buffer.from("#!/bin/bash\necho hello"), mode: 0o755 }
+   * ]);
    */
   async writeFiles(
-    files: { path: string; content: Buffer }[],
+    files: { path: string; content: Buffer; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
     return this.client.writeFiles({
