@@ -532,6 +532,11 @@ pnpm i @vercel/sandbox@beta  # SDK 2.0.0-beta.x
 pnpm i -g sandbox@beta       # CLI 3.0.0-beta.x
 ```
 
+IMPORTANT:
+
+- This is a beta, not a stable version. Do not use for production.
+- If the user had installed a previous major version (`@vercel/sandbox@1`, `sandbox@1`, `sandbox@2`), make it clear that sandboxes are by default persistent: they will automatically create snapshots to preserve the state.
+
 ### Key Concepts
 
 - **Sandbox** = a persistent, named entity that survives across multiple VM boots.
