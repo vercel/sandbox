@@ -1,4 +1,8 @@
-import type { SessionMetaData, SandboxRouteData, SandboxMetaData } from "./api-client";
+import type {
+  SessionMetaData,
+  SandboxRouteData,
+  SandboxMetaData,
+} from "./api-client";
 import { APIClient } from "./api-client";
 import { APIError } from "./api-client/api-error";
 import { type Credentials, getCredentials } from "./utils/get-credentials";
@@ -9,9 +13,7 @@ import { Session, type RunCommandParams } from "./session";
 import type { Command, CommandFinished } from "./command";
 import type { Snapshot } from "./snapshot";
 import type { ConvertedSession } from "./utils/convert-sandbox";
-import type {
-    NetworkPolicy,
-} from "./network-policy";
+import type { NetworkPolicy } from "./network-policy";
 import { fromAPINetworkPolicy } from "./utils/network-policy";
 import { setTimeout } from "node:timers/promises";
 
@@ -248,7 +250,9 @@ export class Sandbox {
    * When the sandbox status was last updated.
    */
   public get statusUpdatedAt(): Date | undefined {
-    return this.sandbox.statusUpdatedAt ? new Date(this.sandbox.statusUpdatedAt) : undefined;
+    return this.sandbox.statusUpdatedAt
+      ? new Date(this.sandbox.statusUpdatedAt)
+      : undefined;
   }
 
   /**
@@ -319,7 +323,9 @@ export class Sandbox {
   /**
    * The amount of network data used by the session. Only reported once the VM is stopped.
    */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+  public get networkTransfer():
+    | { ingress: number; egress: number }
+    | undefined {
     return this.session.networkTransfer;
   }
 
@@ -512,7 +518,10 @@ export class Sandbox {
   /**
    * Execute `fn`, and if the session is stopped/stopping, resume and retry.
    */
-  private async withResume<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  private async withResume<T>(
+    fn: () => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> {
     try {
       return await fn();
     } catch (err) {
@@ -566,7 +575,10 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    const signal = typeof commandOrParams === "string" ? opts?.signal : commandOrParams.signal;
+    const signal =
+      typeof commandOrParams === "string"
+        ? opts?.signal
+        : commandOrParams.signal;
     return this.withResume(
       () => this.session.runCommand(commandOrParams as any, args, opts),
       signal,
@@ -584,7 +596,6 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
-
     return this.withResume(
       () => this.session.getCommand(cmdId, opts),
       opts?.signal,
@@ -599,11 +610,7 @@ export class Sandbox {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-
-    return this.withResume(
-      () => this.session.mkDir(path, opts),
-      opts?.signal,
-    );
+    return this.withResume(() => this.session.mkDir(path, opts), opts?.signal);
   }
 
   /**
@@ -618,7 +625,6 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-
     return this.withResume(
       () => this.session.readFile(file, opts),
       opts?.signal,
@@ -637,7 +643,6 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-
     return this.withResume(
       () => this.session.readFileToBuffer(file, opts),
       opts?.signal,
@@ -659,7 +664,6 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
-
     return this.withResume(
       () => this.session.downloadFile(src, dst, opts),
       opts?.signal,
@@ -671,16 +675,21 @@ export class Sandbox {
    * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
    * Writes files using the `vercel-sandbox` user.
    *
-   * @param files - Array of files with path and stream/buffer contents
+   * @param files - Array of files with path, content, and optional mode (permissions)
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves when the files are written
+   *
+   * @example
+   * // Write an executable script
+   * await sandbox.writeFiles([
+   *   { path: "/usr/local/bin/myscript", content: Buffer.from("#!/bin/bash\necho hello"), mode: 0o755 }
+   * ]);
    */
   async writeFiles(
-    files: { path: string; content: Buffer }[],
+    files: { path: string; content: Buffer; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
-
     return this.withResume(
       () => this.session.writeFiles(files, opts),
       opts?.signal,
@@ -706,7 +715,10 @@ export class Sandbox {
    * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
    * @returns The sandbox at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSession> {
+  async stop(opts?: {
+    signal?: AbortSignal;
+    blocking?: boolean;
+  }): Promise<ConvertedSession> {
     return this.session.stop(opts);
   }
 
@@ -775,7 +787,6 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-
     return this.withResume(
       () => this.session.extendTimeout(duration, opts),
       opts?.signal,
@@ -797,11 +808,7 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-
-    return this.withResume(
-      () => this.session.snapshot(opts),
-      opts?.signal,
-    );
+    return this.withResume(() => this.session.snapshot(opts), opts?.signal);
   }
 
   /**
@@ -813,7 +820,7 @@ export class Sandbox {
   async update(
     params: {
       persistent?: boolean;
-      resources?: { vcpus?: number; };
+      resources?: { vcpus?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
       tags?: Record<string, string>;
@@ -822,7 +829,10 @@ export class Sandbox {
   ): Promise<void> {
     let resources: { vcpus: number; memory: number } | undefined;
     if (params.resources?.vcpus) {
-      resources = { vcpus: params.resources.vcpus, memory: params.resources.vcpus * 2048 };
+      resources = {
+        vcpus: params.resources.vcpus,
+        memory: params.resources.vcpus * 2048,
+      };
     }
 
     // Update the sandbox config. This config will be used on the next session.
@@ -841,7 +851,10 @@ export class Sandbox {
     // Update the current session config. This only applies to network policy.
     if (params.networkPolicy) {
       try {
-        return await this.session.update({ networkPolicy: params.networkPolicy }, opts);
+        return await this.session.update(
+          { networkPolicy: params.networkPolicy },
+          opts,
+        );
       } catch (err) {
         if (isSandboxStoppedError(err) || isSandboxStoppingError(err)) {
           return;
@@ -877,7 +890,6 @@ export class Sandbox {
     sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
-
     const response = await this.client.listSessions({
       projectId: this.projectId,
       name: this.sandbox.name,
@@ -901,7 +913,6 @@ export class Sandbox {
     sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
-
     const response = await this.client.listSnapshots({
       projectId: this.projectId,
       name: this.sandbox.name,

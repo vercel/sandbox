@@ -1,0 +1,10 @@
+{
+  "outputDirectory": "public",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://vercel.com/docs/vercel-sandbox",
+      "permanent": true
+    }
+  ]
+}

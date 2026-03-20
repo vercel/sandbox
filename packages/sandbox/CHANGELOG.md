@@ -98,6 +98,13 @@
 
 - Support named sandboxes
 
+## 2.5.6
+
+### Patch Changes
+
+- Updated dependencies [[`957eda3c1b03035a672bfdeb0addf52c3c78f837`](https://github.com/vercel/sandbox/commit/957eda3c1b03035a672bfdeb0addf52c3c78f837)]:
+  - @vercel/sandbox@1.9.0
+
 ## 2.5.5
 
 ### Patch Changes
