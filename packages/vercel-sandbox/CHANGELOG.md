@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.10
+
+### Minor Changes
+
+- Support onResume property in the Sandbox.get() method
+
 ## 2.0.0-beta.9
 
 ### Minor Changes
