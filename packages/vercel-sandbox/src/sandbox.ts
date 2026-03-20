@@ -426,7 +426,7 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
-    const resume = !!params.onResume ? true : params.resume;
+    const resume = Boolean(params.resume || params.onResume);
     const response = await client.getSandbox({
       name: params.name,
       projectId: credentials.projectId,
