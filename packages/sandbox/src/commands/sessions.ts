@@ -23,9 +23,14 @@ const list = cmd.command({
       type: sandboxName,
       description: "Sandbox name to list sessions for",
     }),
+    sortOrder: cmd.option({
+      long: "sort-order",
+      description: "Sort order. Options: asc, desc (default)",
+      type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
+    }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, sandbox: name }) {
+  async handler({ scope: { token, team, project }, all, sandbox: name, sortOrder }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -38,7 +43,9 @@ const list = cmd.command({
         () => ora("Fetching sessions...").start(),
         (s) => s.stop(),
       );
-      return sandbox.listSessions();
+      return sandbox.listSessions({
+        ...(sortOrder && { sortOrder }),
+      });
     })();
 
     if (!all) {

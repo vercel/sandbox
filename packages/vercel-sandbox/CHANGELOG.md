@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.9
+
+### Minor Changes
+
+- Move to cursor pagination. Support new sortyBy parameter for lists. Support new statusUpdatedAt filter
+
 ## 2.0.0-beta.8
 
 ### Patch Changes

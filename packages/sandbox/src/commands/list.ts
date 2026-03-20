@@ -25,10 +25,15 @@ export const list = cmd.command({
     }),
     sortBy: cmd.option({
       long: "sort-by",
-      description: "Sort sandboxes by field. Options: createdAt (default), name",
+      description: "Sort sandboxes by field. Options: createdAt (default), name, statusUpdatedAt",
       type: cmd.optional(
-        cmd.oneOf(["createdAt", "name"] as const),
+        cmd.oneOf(["createdAt", "name", "statusUpdatedAt"] as const),
       ),
+    }),
+    sortOrder: cmd.option({
+      long: "sort-order",
+      description: "Sort order. Options: asc, desc (default)",
+      type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
     }),
     tags: cmd.multioption({
       long: "tag",
@@ -37,7 +42,7 @@ export const list = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, tags }) {
+  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, sortOrder, tags }) {
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
@@ -48,9 +53,10 @@ export const list = cmd.command({
         token,
         teamId: team,
         projectId: project,
-        limit: 100,
+        limit: 50,
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
+        ...(sortOrder && { sortOrder }),
         ...(Object.keys(tags).length > 0 && { tags }),
       });
 
