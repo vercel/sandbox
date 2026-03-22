@@ -1,7 +1,7 @@
-import type { SnapshotMetadata } from "./api-client/index.js";
-import { APIClient } from "./api-client/index.js";
-import { WithFetchOptions } from "./api-client/api-client.js";
-import { Credentials, getCredentials } from "./utils/get-credentials.js";
+import type { WithFetchOptions } from './api-client/api-client.js';
+import type { SnapshotMetadata } from './api-client/index.js';
+import { APIClient } from './api-client/index.js';
+import { type Credentials, getCredentials } from './utils/get-credentials.js';
 
 /** @inline */
 interface GetSnapshotParams {
@@ -41,7 +41,7 @@ export class Snapshot {
   /**
    * The status of the snapshot.
    */
-  public get status(): SnapshotMetadata["status"] {
+  public get status(): SnapshotMetadata['status'] {
     return this.snapshot.status;
   }
 
@@ -98,10 +98,11 @@ export class Snapshot {
    * the next page of results.
    */
   static async list(
-    params?: Partial<Parameters<APIClient["listSnapshots"]>[0]> &
+    params?: Partial<Parameters<APIClient['listSnapshots']>[0]> &
       Partial<Credentials> &
-      WithFetchOptions,
+      WithFetchOptions
   ) {
+    'use step';
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -121,8 +122,9 @@ export class Snapshot {
    * @returns A promise resolving to the {@link Sandbox}.
    */
   static async get(
-    params: GetSnapshotParams | (GetSnapshotParams & Credentials),
+    params: GetSnapshotParams | (GetSnapshotParams & Credentials)
   ): Promise<Snapshot> {
+    'use step';
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -148,7 +150,8 @@ export class Snapshot {
    * @returns A promise that resolves once the snapshot has been deleted.
    */
   async delete(opts?: { signal?: AbortSignal }): Promise<void> {
-    const response = await this.client.deleteSnapshot({
+    'use step';
+    const response = await this.client!.deleteSnapshot({
       snapshotId: this.snapshot.id,
       signal: opts?.signal,
     });
