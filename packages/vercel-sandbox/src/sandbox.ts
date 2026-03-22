@@ -191,12 +191,14 @@ export class Sandbox {
    * Lazily resolve credentials and construct an API client.
    * This is used in step contexts where the Sandbox was deserialized
    * without a client (e.g. when crossing workflow/step boundaries).
+   * Uses getCredentials() which resolves from OIDC, env vars, or
+   * setSandboxCredentials() — works across isolated step contexts.
    * @internal
    */
   private async ensureClient(): Promise<APIClient> {
     'use step';
     if (this._client) return this._client;
-    const credentials = getSandboxCredentials();
+    const credentials = await getCredentials();
     this._client = new APIClient({
       teamId: credentials.teamId,
       token: credentials.token,

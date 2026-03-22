@@ -1,7 +1,7 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from '@workflow/serde';
 import { APIClient, type CommandData } from './api-client/index.js';
+import { getCredentials } from './utils/get-credentials.js';
 import { resolveSignal, type Signal } from './utils/resolveSignal.js';
-import { getSandboxCredentials } from './utils/sandbox-credentials.js';
 
 /**
  * Cached output from a command execution.
@@ -55,7 +55,7 @@ export class Command {
   protected async ensureClient(): Promise<APIClient> {
     'use step';
     if (this._client) return this._client;
-    const credentials = getSandboxCredentials();
+    const credentials = await getCredentials();
     this._client = new APIClient({
       teamId: credentials.teamId,
       token: credentials.token,
