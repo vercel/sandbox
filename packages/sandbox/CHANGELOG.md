@@ -1,5 +1,11 @@
 # sandbox
 
+## 3.0.0-beta.10
+
+### Patch Changes
+
+- Add support for updating tags and display tags in config
+
 ## 3.0.0-beta.9
 
 ### Minor Changes

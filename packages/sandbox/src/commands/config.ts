@@ -10,6 +10,7 @@ import {
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
 import { Duration } from "../types/duration";
+import { ObjectFromKeyValue } from "../args/key-value-pair";
 import ora from "ora";
 import chalk from "chalk";
 import ms from "ms";
@@ -176,11 +177,15 @@ const listCommand = cmd.command({
     })();
 
     const networkPolicy = typeof sandbox.networkPolicy === "string" ? sandbox.networkPolicy : "restricted";
+    const tagsDisplay = sandbox.tags && Object.keys(sandbox.tags).length > 0
+      ? Object.entries(sandbox.tags).map(([k, v]) => `${k}=${v}`).join(", ")
+      : "-";
     const rows = [
       { field: "vCPUs", value: String(sandbox.vcpus ?? "-") },
       { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
+      { field: "Tags", value: tagsDisplay },
     ];
 
     console.log(
@@ -268,6 +273,58 @@ const networkPolicyCommand = cmd.command({
   },
 });
 
+const tagsCommand = cmd.command({
+  name: "tags",
+  description: "Update the tags of a sandbox. Replaces all existing tags with the provided tags.",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    tags: cmd.multioption({
+      long: "tag",
+      short: "t",
+      type: ObjectFromKeyValue,
+      description: "Key-value tags to set (e.g. --tag env=staging). Omit to clear all tags.",
+    }),
+    scope,
+  },
+  async handler({ scope: { token, team, project }, sandbox: name, tags }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const tagsObj = Object.keys(tags).length > 0 ? tags : {};
+
+    const spinner = ora("Updating sandbox tags...").start();
+    try {
+      await sandbox.update({ tags: tagsObj });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Tags updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      const entries = Object.entries(tagsObj);
+      if (entries.length === 0) {
+        process.stderr.write(chalk.dim("   ╰ ") + "all tags cleared\n");
+      } else {
+        for (let i = 0; i < entries.length; i++) {
+          const [k, v] = entries[i];
+          const isLast = i === entries.length - 1;
+          const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
+          process.stderr.write(prefix + chalk.cyan(k) + "=" + chalk.cyan(v) + "\n");
+        }
+      }
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
 export const config = cmd.subcommands({
   name: "config",
   description: "View and update sandbox configuration",
@@ -277,5 +334,6 @@ export const config = cmd.subcommands({
     timeout: timeoutCommand,
     persistent: persistentCommand,
     "network-policy": networkPolicyCommand,
+    tags: tagsCommand,
   },
 });
