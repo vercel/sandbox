@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.9
+sandbox 3.0.0-beta.10
 
 ▲ sandbox [options] <command>
 
@@ -345,6 +345,7 @@ Commands:
     timeout         <name> <num UNIT>    Update the timeout of a sandbox (will be applied to all new sessions)
     persistent      <name> <true|false>  Enable or disable automatic restore of the filesystem between sessions
     network-policy  <name>               Update the network policy of a sandbox
+    tags            <name>               Update the tags of a sandbox. Replaces all existing tags with the provided tags.
 ```
 
 ## `sandbox login`
