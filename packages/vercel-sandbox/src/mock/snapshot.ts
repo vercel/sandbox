@@ -56,28 +56,14 @@ export class MockSnapshot {
     return new Date(this._expiresAt);
   }
 
-  /**
-   * Delete this snapshot.
-   * Transitions the internal status to "deleted" and resolves.
-   */
   async delete(): Promise<void> {
     this._status = "deleted";
   }
 
-  /**
-   * Retrieve a mock snapshot.
-   * @param params - Optional parameters with snapshot configuration
-   * @returns A promise resolving to a MockSnapshot instance
-   */
   static async get(params?: { snapshot?: MockSnapshotOptions }): Promise<MockSnapshot> {
     return new MockSnapshot(params?.snapshot);
   }
 
-  /**
-   * Retrieve a list of mock snapshots.
-   * @param params - Optional parameters with snapshots configuration
-   * @returns A promise resolving to snapshots and pagination metadata
-   */
   static async list(params?: {
     snapshots?: MockSnapshotOptions[];
   }): Promise<{

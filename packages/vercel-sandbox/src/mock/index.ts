@@ -23,8 +23,9 @@ import type { Snapshot as RealSnapshot } from "../snapshot.js";
 import type { MockSandbox } from "./sandbox.js";
 import type { MockCommand, MockCommandFinished } from "./command.js";
 import type { MockSnapshot } from "./snapshot.js";
+import type { PublicOf } from "./types.js";
 
-type StablePublicKeys<T> = Exclude<keyof T, `_${string}`>;
+type StablePublicKeys<T> = Exclude<keyof PublicOf<T>, `_${string}`>;
 
 type _AssertSandbox = StablePublicKeys<RealSandbox> extends keyof MockSandbox
   ? true
