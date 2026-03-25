@@ -3,7 +3,7 @@ import {
   parseOrThrow,
   type Parsed,
   type RequestParams,
-} from "./base-client";
+} from "./base-client.js";
 import {
 CommandFinishedData,
   SandboxAndRoutesResponse,
@@ -21,21 +21,21 @@ CommandFinishedData,
   SnapshotResponse,
   CreateSnapshotResponse,
   type CommandData,
-} from "./validators";
-import { APIError, StreamError } from "./api-error";
-import { FileWriter } from "./file-writer";
-import { VERSION } from "../version";
-import { consumeReadable } from "../utils/consume-readable";
+} from "./validators.js";
+import { APIError, StreamError } from "./api-error.js";
+import { FileWriter } from "./file-writer.js";
+import { VERSION } from "../version.js";
+import { consumeReadable } from "../utils/consume-readable.js";
 import { z } from "zod";
 import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
-import { normalizePath } from "../utils/normalizePath";
+import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
-import { NetworkPolicy } from "../network-policy";
-import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy";
-import { getPrivateParams, WithPrivate } from "../utils/types";
-import { RUNTIMES } from "../constants";
+import { NetworkPolicy } from "../network-policy.js";
+import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy.js";
+import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import { RUNTIMES } from "../constants.js";
 import { setTimeout } from "node:timers/promises";
 
 interface Claims {
@@ -457,7 +457,7 @@ export class APIClient extends BaseClient {
   async writeFiles(params: {
     sandboxId: string;
     cwd: string;
-    files: { path: string; content: Buffer }[];
+    files: { path: string; content: Buffer; mode?: number }[];
     extractDir: string;
     signal?: AbortSignal;
   }) {
@@ -475,6 +475,7 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
         }),
         content: file.content,
+        mode: file.mode,
       });
     }
 

@@ -1,24 +1,27 @@
-import type { SandboxMetaData, SandboxRouteData } from "./api-client";
+import type { SandboxMetaData, SandboxRouteData } from "./api-client/index.js";
 import { type Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
 import { mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
-import { APIClient } from "./api-client";
-import { Command, CommandFinished } from "./command";
-import { type Credentials, getCredentials } from "./utils/get-credentials";
-import { getPrivateParams, WithPrivate } from "./utils/types";
-import { WithFetchOptions } from "./api-client/api-client";
-import { RUNTIMES } from "./constants";
-import { Snapshot } from "./snapshot";
-import { consumeReadable } from "./utils/consume-readable";
+import { APIClient } from "./api-client/index.js";
+import { Command, CommandFinished } from "./command.js";
+import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import { getPrivateParams, WithPrivate } from "./utils/types.js";
+import { WithFetchOptions } from "./api-client/api-client.js";
+import { RUNTIMES } from "./constants.js";
+import { Snapshot } from "./snapshot.js";
+import { consumeReadable } from "./utils/consume-readable.js";
 import {
   type NetworkPolicy,
   type NetworkPolicyRule,
   type NetworkTransformer,
-} from "./network-policy";
-import { convertSandbox, type ConvertedSandbox } from "./utils/convert-sandbox";
-import { FileSystem } from "./filesystem";
+} from "./network-policy.js";
+import {
+  convertSandbox,
+  type ConvertedSandbox,
+} from "./utils/convert-sandbox.js";
+import { FileSystem } from "./filesystem.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -238,7 +241,9 @@ export class Sandbox {
   /**
    * The amount of network data used by the sandbox. Only reported once the VM is stopped.
    */
-  public get networkTransfer(): {ingress: number, egress: number} | undefined {
+  public get networkTransfer():
+    | { ingress: number; egress: number }
+    | undefined {
     return this.sandbox.networkTransfer;
   }
 
@@ -620,7 +625,7 @@ export class Sandbox {
       });
       return dstPath;
     } finally {
-      stream.destroy()
+      stream.destroy();
     }
   }
 
@@ -629,13 +634,19 @@ export class Sandbox {
    * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
    * Writes files using the `vercel-sandbox` user.
    *
-   * @param files - Array of files with path and stream/buffer contents
+   * @param files - Array of files with path, content, and optional mode (permissions)
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves when the files are written
+   *
+   * @example
+   * // Write an executable script
+   * await sandbox.writeFiles([
+   *   { path: "/usr/local/bin/myscript", content: Buffer.from("#!/bin/bash\necho hello"), mode: 0o755 }
+   * ]);
    */
   async writeFiles(
-    files: { path: string; content: Buffer }[],
+    files: { path: string; content: Buffer; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
     return this.client.writeFiles({
@@ -671,7 +682,10 @@ export class Sandbox {
    * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
    * @returns The sandbox metadata at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
    */
-  async stop(opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
+  async stop(opts?: {
+    signal?: AbortSignal;
+    blocking?: boolean;
+  }): Promise<ConvertedSandbox> {
     const response = await this.client.stopSandbox({
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
