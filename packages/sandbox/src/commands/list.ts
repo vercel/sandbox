@@ -43,6 +43,15 @@ export const list = cmd.command({
     scope,
   },
   async handler({ scope: { token, team, project }, all, namePrefix, sortBy, sortOrder, tags }) {
+    if (namePrefix) {
+      if (sortBy && sortBy !== "name") {
+        console.error(chalk.red("Error: --sort-by must be 'name' when using --name-prefix"));
+        return;
+      }
+
+      sortBy = 'name';
+    }
+
     const sandboxes = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
