@@ -13,6 +13,12 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
     },
+    "./mock": {
+      "types": "./dist/mock/index.d.ts",
+      "import": "./dist/mock/index.js",
+      "require": "./dist/mock/index.cjs",
+      "default": "./dist/mock/index.cjs"
+    },
     "./dist/auth/index.js": {
       "types": "./dist/auth/index.d.ts",
       "import": "./dist/auth/index.js",
