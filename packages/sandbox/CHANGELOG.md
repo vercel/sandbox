@@ -1,5 +1,11 @@
 # sandbox
 
+## 3.0.0-beta.11
+
+### Patch Changes
+
+- Default to `--sort-by=name` when using `--name-prefix` in `sandbox ls` ([#113](https://github.com/vercel/sandbox/pull/113))
+
 ## 3.0.0-beta.10
 
 ### Patch Changes
