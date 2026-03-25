@@ -16,6 +16,7 @@
     "@vercel/sandbox": "1.10.2"
   },
   "changesets": [
+    "clean-jeans-build",
     "cold-falcons-read",
     "common-corners-leave",
     "cyan-bats-clap",
