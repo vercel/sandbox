@@ -20,6 +20,9 @@ it("defines import/require export targets", () => {
   expect(packageJson.exports?.["./dist/auth/index.js"]?.types).toBe(
     "./dist/auth/index.d.ts",
   );
+  expect(packageJson.exports?.["./mock"]?.import).toBe("./dist/mock/index.js");
+  expect(packageJson.exports?.["./mock"]?.require).toBe("./dist/mock/index.cjs");
+  expect(packageJson.exports?.["./mock"]?.types).toBe("./dist/mock/index.d.ts");
 });
 
 it("resolves import and require to different entrypoints", () => {
@@ -73,4 +76,29 @@ it("resolves auth subpath with format-appropriate files", () => {
 
   expect(cjsResolution).toBe(resolve(packageRoot, "dist/auth/index.cjs"));
   expect(esmResolution).toBe(resolve(packageRoot, "dist/auth/index.js"));
+});
+
+it("resolves mock subpath with format-appropriate files", () => {
+  const packageRoot = resolve(__dirname, "..");
+
+  const cjsResolution = execFileSync(
+    process.execPath,
+    ["-e", "console.log(require.resolve('@vercel/sandbox/mock'))"],
+    { cwd: packageRoot, encoding: "utf8" },
+  ).trim();
+
+  const esmResolutionUrl = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      "console.log(await import.meta.resolve('@vercel/sandbox/mock'))",
+    ],
+    { cwd: packageRoot, encoding: "utf8" },
+  ).trim();
+
+  const esmResolution = fileURLToPath(esmResolutionUrl);
+
+  expect(cjsResolution).toBe(resolve(packageRoot, "dist/mock/index.cjs"));
+  expect(esmResolution).toBe(resolve(packageRoot, "dist/mock/index.js"));
 });
