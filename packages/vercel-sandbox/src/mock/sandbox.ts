@@ -1,7 +1,5 @@
 import { Readable, type Writable } from "stream";
-import { pipeline } from "stream/promises";
-import { createWriteStream } from "fs";
-import { mkdir } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
 import { dirname, resolve, isAbsolute, join } from "path";
 import type {
   SandboxMetaData,
@@ -228,9 +226,7 @@ export class MockSandbox {
     if (opts?.mkdirRecursive) {
       await mkdir(dirname(dstPath), { recursive: true });
     }
-    await pipeline(Readable.from(buf), createWriteStream(dstPath), {
-      signal: opts?.signal,
-    });
+    await writeFile(dstPath, buf, { signal: opts?.signal });
     return dstPath;
   }
 

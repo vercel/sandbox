@@ -9,7 +9,7 @@ interface MockSnapshotOptions {
   status?: "created" | "deleted" | "failed";
   sizeBytes?: number;
   createdAt?: Date;
-  expiresAt?: Date | undefined;
+  expiresAt?: Date;
 }
 
 export class MockSnapshot {

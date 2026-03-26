@@ -1,8 +1,6 @@
 import type { Signal } from "../utils/resolveSignal.js";
 
-type LogLineStdout = { stream: "stdout"; data: string };
-type LogLineStderr = { stream: "stderr"; data: string };
-type LogLine = LogLineStdout | LogLineStderr;
+type LogLine = { stream: "stdout" | "stderr"; data: string };
 
 export interface MockCommandOptions {
   cmdId?: string;
@@ -48,7 +46,7 @@ export class MockCommand {
 
   logs(
     _opts?: { signal?: AbortSignal },
-  ): AsyncGenerator<LogLineStdout | LogLineStderr, void, void> &
+  ): AsyncGenerator<LogLine, void, void> &
     Disposable & { close(): void } {
     const items = this._logs;
     async function* gen() {
