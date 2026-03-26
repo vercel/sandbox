@@ -17,8 +17,10 @@ import {
 import type { CommandHandler, CommandResponse } from "./handlers.js";
 import { MockSnapshot } from "./snapshot.js";
 
-let defaultHandlers: CommandHandler[] = [];
-let runtimeHandlers: CommandHandler[] = [];
+const handlerState = {
+  defaults: [] as CommandHandler[],
+  runtime: [] as CommandHandler[],
+};
 
 interface RunCommandParams {
   cmd: string;
@@ -61,9 +63,8 @@ export class MockSandbox {
   private _sourceSnapshotId: string | undefined;
   private _runtime: string;
   private _commands: Record<string, MockCommandOptions>;
-  private _handlers: CommandHandler[];
+  private _instanceHandlers: CommandHandler[];
   private _files = new Map<string, Buffer>();
-  private _dirs = new Set<string>();
 
   get sandboxId(): string {
     return this._sandboxId;
@@ -111,11 +112,7 @@ export class MockSandbox {
     this._sourceSnapshotId = opts?.sourceSnapshotId;
     this._runtime = opts?.runtime ?? "node24";
     this._commands = opts?.commands ?? {};
-    this._handlers = [
-      ...runtimeHandlers,
-      ...(opts?.handlers ?? []),
-      ...defaultHandlers,
-    ];
+    this._instanceHandlers = opts?.handlers ?? [];
 
     this.routes = (opts?.ports ?? []).map((port) => ({
       url: `https://mock-port-${port}.vercel.run`,
@@ -151,35 +148,21 @@ export class MockSandbox {
     args?: string[],
     _opts?: { signal?: AbortSignal },
   ): Promise<MockCommand | MockCommandFinished> {
-    if (typeof commandOrParams === "string") {
-      const handlerResponse = await this.resolveHandler(commandOrParams, args ?? []);
-      if (handlerResponse) {
-        return new MockCommandFinished({
-          ...handlerResponse,
-          exitCode: handlerResponse.exitCode ?? 0,
-        });
-      }
-    }
-
     const params: RunCommandParams =
       typeof commandOrParams === "string"
         ? { cmd: commandOrParams, args, signal: _opts?.signal }
         : commandOrParams;
 
-    if (typeof commandOrParams !== "string") {
-      const handlerResponse = await this.resolveHandler(params.cmd, params.args ?? []);
-      if (handlerResponse) {
-        if (params.detached) {
-          return new MockCommand({
-            ...handlerResponse,
-            exitCode: handlerResponse.exitCode ?? 0,
-          });
-        }
-        return new MockCommandFinished({
-          ...handlerResponse,
-          exitCode: handlerResponse.exitCode ?? 0,
-        });
-      }
+    const handlerResponse = await this.resolveHandler(
+      params.cmd,
+      params.args ?? [],
+    );
+    if (handlerResponse) {
+      if (params.detached) return new MockCommand(handlerResponse);
+      return new MockCommandFinished({
+        ...handlerResponse,
+        exitCode: handlerResponse.exitCode ?? 0,
+      });
     }
 
     const commandOpts = this._commands[params.cmd] ?? {
@@ -188,9 +171,7 @@ export class MockSandbox {
       stderr: "",
     };
 
-    if (params.detached) {
-      return new MockCommand(commandOpts);
-    }
+    if (params.detached) return new MockCommand(commandOpts);
     return new MockCommandFinished({
       ...commandOpts,
       exitCode: commandOpts.exitCode ?? 0,
@@ -201,7 +182,12 @@ export class MockSandbox {
     cmd: string,
     args: string[],
   ): Promise<CommandResponse | null> {
-    for (const handler of this._handlers) {
+    const handlers = [
+      ...handlerState.runtime,
+      ...this._instanceHandlers,
+      ...handlerState.defaults,
+    ];
+    for (const handler of handlers) {
       if (handler.matches(cmd, args)) {
         return handler.resolve(cmd, args, { stdin: "" });
       }
@@ -209,9 +195,7 @@ export class MockSandbox {
     return null;
   }
 
-  async mkDir(path: string, _opts?: { signal?: AbortSignal }): Promise<void> {
-    this._dirs.add(normalizePath(path));
-  }
+  async mkDir(_path: string, _opts?: { signal?: AbortSignal }): Promise<void> {}
 
   async readFile(
     file: { path: string; cwd?: string },
@@ -350,15 +334,15 @@ export type SandboxServer = {
 };
 
 export function setupSandbox(...handlers: CommandHandler[]): SandboxServer {
-  defaultHandlers = handlers;
-  runtimeHandlers = [];
+  handlerState.defaults = handlers;
+  handlerState.runtime = [];
 
   return {
     use(...handlers: CommandHandler[]) {
-      runtimeHandlers.unshift(...handlers);
+      handlerState.runtime.unshift(...handlers);
     },
     resetHandlers() {
-      runtimeHandlers = [];
+      handlerState.runtime = [];
     },
   };
 }

@@ -8,8 +8,6 @@ export type CommandHandlerContext = {
   stdin: string;
 };
 
-export type CommandMatcher = string | RegExp;
-
 export interface CommandHandler {
   matches(cmd: string, args: string[]): boolean;
   resolve(
@@ -43,6 +41,18 @@ export function command(
   return createRegexHandler(pattern, resolved);
 }
 
+function createHandler(
+  matchFn: (cmd: string, args: string[]) => boolean,
+  response: CommandResponse | ResponseFn,
+): CommandHandler {
+  return {
+    matches: matchFn,
+    async resolve(_cmd, args, ctx) {
+      return typeof response === "function" ? response(args, ctx) : response;
+    },
+  };
+}
+
 function createStringHandler(
   pattern: string,
   response: CommandResponse | ResponseFn,
@@ -55,49 +65,25 @@ function createStringHandler(
   const tokens = normalizedPattern.split(/\s+/);
   const cmdName = tokens[0];
 
-  return {
-    matches(cmd: string, args: string[]): boolean {
-      if (cmd !== cmdName) return false;
-      for (let i = 1; i < tokens.length; i++) {
-        if (args[i - 1] !== tokens[i]) return false;
-      }
-      return true;
-    },
-    async resolve(
-      _cmd: string,
-      args: string[],
-      ctx: CommandHandlerContext,
-    ): Promise<CommandResponse> {
-      if (typeof response === "function") {
-        return response(args, ctx);
-      }
-      return response;
-    },
-  };
+  return createHandler((cmd, args) => {
+    if (cmd !== cmdName) return false;
+    for (let i = 1; i < tokens.length; i++) {
+      if (args[i - 1] !== tokens[i]) return false;
+    }
+    return true;
+  }, response);
 }
 
 function createRegexHandler(
   pattern: RegExp,
   response: CommandResponse | ResponseFn,
 ): CommandHandler {
-  return {
-    matches(cmd: string, args: string[]): boolean {
-      const fullCmd = args.length ? `${cmd} ${args.join(" ")}` : cmd;
-      const isStatefulRegex = pattern.global || pattern.sticky;
-      if (isStatefulRegex) pattern.lastIndex = 0;
-      const matches = pattern.test(fullCmd);
-      if (isStatefulRegex) pattern.lastIndex = 0;
-      return matches;
-    },
-    async resolve(
-      _cmd: string,
-      args: string[],
-      ctx: CommandHandlerContext,
-    ): Promise<CommandResponse> {
-      if (typeof response === "function") {
-        return response(args, ctx);
-      }
-      return response;
-    },
-  };
+  return createHandler((cmd, args) => {
+    const fullCmd = args.length ? `${cmd} ${args.join(" ")}` : cmd;
+    const isStatefulRegex = pattern.global || pattern.sticky;
+    if (isStatefulRegex) pattern.lastIndex = 0;
+    const result = pattern.test(fullCmd);
+    if (isStatefulRegex) pattern.lastIndex = 0;
+    return result;
+  }, response);
 }

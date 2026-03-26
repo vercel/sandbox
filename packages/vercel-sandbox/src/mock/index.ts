@@ -10,7 +10,6 @@ export { command } from "./handlers.js";
 export type {
   CommandHandler,
   CommandHandlerContext,
-  CommandMatcher,
   CommandResponse,
 } from "./handlers.js";
 

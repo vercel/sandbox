@@ -24,15 +24,15 @@ export class MockCommand {
   private readonly _stderr: string;
   private readonly _logs: LogLine[];
 
-  get cmdId(): string {
+  get cmdId() {
     return this._cmdId;
   }
 
-  get cwd(): string {
+  get cwd() {
     return this._cwd;
   }
 
-  get startedAt(): number {
+  get startedAt() {
     return this._startedAt;
   }
 
