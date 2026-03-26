@@ -14,7 +14,11 @@ import {
   MockCommandFinished,
   type MockCommandOptions,
 } from "./command.js";
+import type { CommandHandler, CommandResponse } from "./handlers.js";
 import { MockSnapshot } from "./snapshot.js";
+
+let defaultHandlers: CommandHandler[] = [];
+let runtimeHandlers: CommandHandler[] = [];
 
 interface RunCommandParams {
   cmd: string;
@@ -39,6 +43,7 @@ export interface MockSandboxOptions {
   sourceSnapshotId?: string;
   createdAt?: Date;
   runtime?: string;
+  handlers?: CommandHandler[];
 }
 
 function normalizePath(p: string, cwd?: string): string {
@@ -56,6 +61,7 @@ export class MockSandbox {
   private _sourceSnapshotId: string | undefined;
   private _runtime: string;
   private _commands: Record<string, MockCommandOptions>;
+  private _handlers: CommandHandler[];
   private _files = new Map<string, Buffer>();
   private _dirs = new Set<string>();
 
@@ -105,6 +111,11 @@ export class MockSandbox {
     this._sourceSnapshotId = opts?.sourceSnapshotId;
     this._runtime = opts?.runtime ?? "node24";
     this._commands = opts?.commands ?? {};
+    this._handlers = [
+      ...runtimeHandlers,
+      ...(opts?.handlers ?? []),
+      ...defaultHandlers,
+    ];
 
     this.routes = (opts?.ports ?? []).map((port) => ({
       url: `https://mock-port-${port}.vercel.run`,
@@ -140,10 +151,36 @@ export class MockSandbox {
     args?: string[],
     _opts?: { signal?: AbortSignal },
   ): Promise<MockCommand | MockCommandFinished> {
+    if (typeof commandOrParams === "string") {
+      const handlerResponse = await this.resolveHandler(commandOrParams, args ?? []);
+      if (handlerResponse) {
+        return new MockCommandFinished({
+          ...handlerResponse,
+          exitCode: handlerResponse.exitCode ?? 0,
+        });
+      }
+    }
+
     const params: RunCommandParams =
       typeof commandOrParams === "string"
         ? { cmd: commandOrParams, args, signal: _opts?.signal }
         : commandOrParams;
+
+    if (typeof commandOrParams !== "string") {
+      const handlerResponse = await this.resolveHandler(params.cmd, params.args ?? []);
+      if (handlerResponse) {
+        if (params.detached) {
+          return new MockCommand({
+            ...handlerResponse,
+            exitCode: handlerResponse.exitCode ?? 0,
+          });
+        }
+        return new MockCommandFinished({
+          ...handlerResponse,
+          exitCode: handlerResponse.exitCode ?? 0,
+        });
+      }
+    }
 
     const commandOpts = this._commands[params.cmd] ?? {
       exitCode: 0,
@@ -158,6 +195,18 @@ export class MockSandbox {
       ...commandOpts,
       exitCode: commandOpts.exitCode ?? 0,
     });
+  }
+
+  private async resolveHandler(
+    cmd: string,
+    args: string[],
+  ): Promise<CommandResponse | null> {
+    for (const handler of this._handlers) {
+      if (handler.matches(cmd, args)) {
+        return handler.resolve(cmd, args, { stdin: "" });
+      }
+    }
+    return null;
   }
 
   async mkDir(path: string, _opts?: { signal?: AbortSignal }): Promise<void> {
@@ -293,4 +342,23 @@ class MockDisposableSandbox extends MockSandbox implements AsyncDisposable {
   async [Symbol.asyncDispose]() {
     await this.stop();
   }
+}
+
+export type SandboxServer = {
+  use: (...handlers: CommandHandler[]) => void;
+  resetHandlers: () => void;
+};
+
+export function setupSandbox(...handlers: CommandHandler[]): SandboxServer {
+  defaultHandlers = handlers;
+  runtimeHandlers = [];
+
+  return {
+    use(...handlers: CommandHandler[]) {
+      runtimeHandlers.unshift(...handlers);
+    },
+    resetHandlers() {
+      runtimeHandlers = [];
+    },
+  };
 }

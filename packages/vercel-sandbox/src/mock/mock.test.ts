@@ -1,4 +1,4 @@
-import { it, describe, expect } from "vitest";
+import { afterEach, it, describe, expect } from "vitest";
 import { mkdtemp, rm, readFile } from "fs/promises";
 import { join, resolve } from "path";
 import { tmpdir } from "os";
@@ -6,6 +6,8 @@ import { consumeReadable } from "../utils/consume-readable.js";
 import { MockSandbox } from "./sandbox.js";
 import { MockCommand, MockCommandFinished } from "./command.js";
 import { MockSnapshot } from "./snapshot.js";
+import { command } from "./handlers.js";
+import { setupSandbox } from "./sandbox.js";
 
 describe(MockSandbox, () => {
   it("writeFiles and readFileToBuffer roundtrip", async () => {
@@ -246,6 +248,94 @@ describe(MockCommand, () => {
     expect(typeof cmd.cmdId).toBe("string");
     expect(cmd.cwd).toBe("/");
     expect(typeof cmd.startedAt).toBe("number");
+  });
+});
+
+describe(setupSandbox, () => {
+  const sandboxMock = setupSandbox(
+    command("npm install", { stdout: "default\n" }),
+  );
+
+  afterEach(() => sandboxMock.resetHandlers());
+
+  it("use() overrides default handlers", async () => {
+    sandboxMock.use(command("npm install", { stdout: "override\n" }));
+
+    const sandbox = await MockSandbox.create();
+    const result = await sandbox.runCommand("npm", ["install"]);
+    await expect(result.stdout()).resolves.toBe("override\n");
+  });
+
+  it("use() overrides per-create handlers", async () => {
+    sandboxMock.use(command("npm install", { stdout: "runtime\n" }));
+
+    const sandbox = await MockSandbox.create({
+      handlers: [command("npm install", { stdout: "per-create\n" })],
+    });
+    const result = await sandbox.runCommand("npm", ["install"]);
+    await expect(result.stdout()).resolves.toBe("runtime\n");
+  });
+
+  it("per-create handlers override default handlers", async () => {
+    const sandbox = await MockSandbox.create({
+      handlers: [command("npm install", { stdout: "per-create\n" })],
+    });
+    const result = await sandbox.runCommand("npm", ["install"]);
+    await expect(result.stdout()).resolves.toBe("per-create\n");
+  });
+
+  it("resetHandlers() clears use() overrides but keeps defaults", async () => {
+    sandboxMock.use(command("npm install", { stdout: "override\n" }));
+    sandboxMock.resetHandlers();
+
+    const sandbox = await MockSandbox.create();
+    const result = await sandbox.runCommand("npm", ["install"]);
+    await expect(result.stdout()).resolves.toBe("default\n");
+  });
+
+  it("multiple use() calls stack with last taking priority", async () => {
+    sandboxMock.use(command("npm install", { stdout: "first\n" }));
+    sandboxMock.use(command("npm install", { stdout: "second\n" }));
+
+    const sandbox = await MockSandbox.create();
+    const result = await sandbox.runCommand("npm", ["install"]);
+    await expect(result.stdout()).resolves.toBe("second\n");
+  });
+});
+
+describe(command, () => {
+  it("string pattern prefix matches", () => {
+    const handler = command("npm install", { stdout: "ok\n" });
+    expect(handler.matches("npm", ["install"])).toBe(true);
+    expect(handler.matches("npm", ["install", "--save"])).toBe(true);
+    expect(handler.matches("npm", ["test"])).toBe(false);
+  });
+
+  it("regex pattern matches", () => {
+    const handler = command(/^npm\s+install/, { stdout: "ok\n" });
+    expect(handler.matches("npm", ["install"])).toBe(true);
+    expect(handler.matches("npm", ["test"])).toBe(false);
+  });
+
+  it("dynamic response function", async () => {
+    const handler = command("echo", (args) => ({ stdout: `${args.join(" ")}\n` }));
+    const result = await handler.resolve("echo", ["hello", "world"], { stdin: "" });
+    expect(result).toEqual({ stdout: "hello world\n" });
+  });
+
+  it("unmatched command falls back to commands map", async () => {
+    const sandbox = await MockSandbox.create({
+      handlers: [command("npm install", { stdout: "handler\n" })],
+      commands: { npm: { stdout: "fallback\n", exitCode: 0 } },
+    });
+    const result = await sandbox.runCommand("npm", ["test"]);
+    await expect(result.stdout()).resolves.toBe("fallback\n");
+  });
+
+  it("empty string pattern throws", () => {
+    expect(() => command("", { stdout: "x" })).toThrow(
+      "Command pattern must not be empty",
+    );
   });
 });
 
