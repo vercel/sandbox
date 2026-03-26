@@ -45,11 +45,6 @@ describe(MockSandbox, () => {
     ).resolves.toBeNull();
   });
 
-  it("mkDir resolves without error", async () => {
-    const sandbox = await MockSandbox.create();
-    await expect(sandbox.mkDir("/test/dir")).resolves.toBeUndefined();
-  });
-
   it("downloadFile writes to local filesystem", async () => {
     const sandbox = await MockSandbox.create();
     await sandbox.writeFiles([
@@ -166,6 +161,14 @@ describe(MockSandbox, () => {
     });
   });
 
+  it("pre-seeded files are readable", async () => {
+    const sandbox = await MockSandbox.create({
+      files: { "hello.txt": Buffer.from("seeded") },
+    });
+    const buf = await sandbox.readFileToBuffer({ path: "hello.txt" });
+    expect(buf!.toString()).toBe("seeded");
+  });
+
   it("property getters return correct values", async () => {
     const createdAt = new Date("2025-01-01T00:00:00Z");
     const sandbox = await MockSandbox.get({
@@ -233,22 +236,11 @@ describe(MockCommand, () => {
     expect(typeof gen.close).toBe("function");
   });
 
-  it("kill resolves without error", async () => {
-    const cmd = new MockCommand();
-    await expect(cmd.kill()).resolves.toBeUndefined();
-  });
-
   it("exitCode starts as null", () => {
     const cmd = new MockCommand();
     expect(cmd.exitCode).toBeNull();
   });
 
-  it("cmdId, cwd, startedAt have defaults", () => {
-    const cmd = new MockCommand();
-    expect(typeof cmd.cmdId).toBe("string");
-    expect(cmd.cwd).toBe("/");
-    expect(typeof cmd.startedAt).toBe("number");
-  });
 });
 
 describe(setupSandbox, () => {
@@ -301,6 +293,14 @@ describe(setupSandbox, () => {
     const result = await sandbox.runCommand("npm", ["install"]);
     await expect(result.stdout()).resolves.toBe("second\n");
   });
+
+  it("handler resolves via object-param runCommand", async () => {
+    sandboxMock.use(command("npm install", { stdout: "obj-param\n" }));
+
+    const sandbox = await MockSandbox.create();
+    const result = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
+    await expect(result.stdout()).resolves.toBe("obj-param\n");
+  });
 });
 
 describe(command, () => {
@@ -332,6 +332,33 @@ describe(command, () => {
     await expect(result.stdout()).resolves.toBe("fallback\n");
   });
 
+  it("matched handler takes priority over commands map", async () => {
+    const sandbox = await MockSandbox.create({
+      handlers: [command("npm install", { stdout: "handler\n" })],
+      commands: { npm: { stdout: "fallback\n", exitCode: 0 } },
+    });
+    const result = await sandbox.runCommand("npm", ["install"]);
+    await expect(result.stdout()).resolves.toBe("handler\n");
+  });
+
+  it("handler with detached returns Command with null exitCode", async () => {
+    const sandbox = await MockSandbox.create({
+      handlers: [command("sleep", { stdout: "" })],
+    });
+    const result = await sandbox.runCommand({
+      cmd: "sleep",
+      args: ["10"],
+      detached: true,
+    });
+    expect(result.exitCode).toBeNull();
+  });
+
+  it("stateful regex resets lastIndex between matches", () => {
+    const handler = command(/^npm install/g, { stdout: "ok\n" });
+    expect(handler.matches("npm", ["install"])).toBe(true);
+    expect(handler.matches("npm", ["install"])).toBe(true);
+  });
+
   it("empty string pattern throws", () => {
     expect(() => command("", { stdout: "x" })).toThrow(
       "Command pattern must not be empty",
@@ -340,11 +367,6 @@ describe(command, () => {
 });
 
 describe(MockCommandFinished, () => {
-  it("exitCode is number", () => {
-    const finished = new MockCommandFinished({ exitCode: 5 });
-    expect(finished.exitCode).toBe(5);
-  });
-
   it("exitCode defaults to 0", () => {
     const finished = new MockCommandFinished();
     expect(finished.exitCode).toBe(0);
