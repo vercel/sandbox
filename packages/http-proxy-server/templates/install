@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)  BINARY="linux-x86_64" ;;
+  aarch64) BINARY="linux-arm64" ;;
+  arm64)   BINARY="linux-arm64" ;;
+  *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+URL="https://{{VERCEL_URL}}/public/$BINARY"
+DEST="/usr/local/bin/vc-http-proxy-server"
+
+curl -fsSL "$URL" -o "$DEST"
+chmod +x "$DEST"
+echo "Installed vc-http-proxy-server to $DEST"

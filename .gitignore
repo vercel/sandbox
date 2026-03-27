@@ -3,3 +3,9 @@ node_modules
 .env.local
 .vercel
 .env*.local
+todo/
+dist/
+
+# Go compiled binaries
+packages/http-proxy-server/http-proxy-server
+packages/http-proxy-server/public/

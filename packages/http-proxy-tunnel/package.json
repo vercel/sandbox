@@ -1,0 +1,45 @@
+{
+  "name": "@vercel/http-proxy-tunnel",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "@types/node": "22.15.12",
+    "@vercel/http-proxy-server": "workspace:*",
+    "@vercel/sandbox": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "5.8.3",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@vercel/sandbox": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@vercel/sandbox": {
+      "optional": true
+    }
+  }
+}
