@@ -584,7 +584,10 @@ export class Sandbox {
       if (params.signal?.aborted) {
         return;
       }
-      (params.stderr ?? params.stdout)?.emit("error", err);
+      const errStream = params.stderr ?? params.stdout;
+      if (errStream && "emit" in errStream) {
+        errStream.emit("error", err);
+      }
     });
 
     return command;
