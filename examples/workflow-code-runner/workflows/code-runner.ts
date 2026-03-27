@@ -36,9 +36,7 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
 
       await updateStatus(status, "running", attempt);
 
-      await sandbox.writeFiles([
-        { path: "script.js", content: Buffer.from(code) },
-      ]);
+      await sandbox.writeFiles([{ path: "script.js", content: code }]);
 
       const cmd = await sandbox.runCommand({
         cmd: "node",

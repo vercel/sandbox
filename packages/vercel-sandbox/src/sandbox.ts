@@ -727,7 +727,7 @@ export class Sandbox {
    * ]);
    */
   async writeFiles(
-    files: { path: string; content: Buffer; mode?: number }[],
+    files: { path: string; content: Buffer | string; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
     "use step";
@@ -736,7 +736,10 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       cwd: this.sandbox.cwd,
       extractDir: "/",
-      files: files,
+      files: files.map((f) => ({
+        ...f,
+        content: typeof f.content === "string" ? Buffer.from(f.content) : f.content,
+      })),
       signal: opts?.signal,
     });
   }
