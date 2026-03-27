@@ -54,8 +54,6 @@ export async function runCode(prompt: string) {
       `Code failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}`,
     );
   } finally {
-    stdout.close();
-    stderr.close();
     await sandbox.stop();
   }
 }
