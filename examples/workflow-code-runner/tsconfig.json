@@ -13,10 +13,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      { "name": "next" },
-      { "name": "workflow" }
-    ],
+    "plugins": [{ "name": "next" }, { "name": "workflow" }],
     "paths": {
       "@/*": ["./*"]
     }

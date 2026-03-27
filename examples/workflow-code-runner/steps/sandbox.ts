@@ -1,4 +1,4 @@
-import { Sandbox, setSandboxCredentials } from '@vercel/sandbox';
+import { Sandbox, setSandboxCredentials } from "@vercel/sandbox";
 
 // Set credentials at module scope so they're available in every step
 // context, including nested steps from SDK methods like writeFiles(),
@@ -10,17 +10,17 @@ setSandboxCredentials({
 });
 
 export async function createSandbox() {
-  'use step';
+  "use step";
 
-  console.log('[Sandbox] Creating...');
+  console.log("[Sandbox] Creating...");
 
   const sandbox = await Sandbox.create({
     resources: { vcpus: 1 },
     timeout: 5 * 60 * 1000,
-    runtime: 'node22',
+    runtime: "node22",
   });
 
-  console.log('[Sandbox] Created:', sandbox.sandboxId);
+  console.log("[Sandbox] Created:", sandbox.sandboxId);
 
   // Return the full Sandbox object — workflow serialization
   // automatically dehydrates it via WORKFLOW_SERIALIZE
@@ -30,13 +30,13 @@ export async function createSandbox() {
 // The Sandbox object is deserialized via WORKFLOW_DESERIALIZE when
 // it crosses the step boundary — no need for Sandbox.get(id)
 export async function execute(sandbox: Sandbox, code: string) {
-  'use step';
+  "use step";
 
-  console.log('[Sandbox] Executing code...');
+  console.log("[Sandbox] Executing code...");
 
-  await sandbox.writeFiles([{ path: 'script.js', content: Buffer.from(code) }]);
+  await sandbox.writeFiles([{ path: "script.js", content: Buffer.from(code) }]);
 
-  const finished = await sandbox.runCommand('node', ['script.js']);
+  const finished = await sandbox.runCommand("node", ["script.js"]);
   const stdout = await finished.stdout();
   const stderr = await finished.stderr();
 
@@ -48,8 +48,8 @@ export async function execute(sandbox: Sandbox, code: string) {
 }
 
 export async function stopSandbox(sandbox: Sandbox) {
-  'use step';
+  "use step";
 
-  console.log('[Sandbox] Stopping...');
+  console.log("[Sandbox] Stopping...");
   await sandbox.stop();
 }

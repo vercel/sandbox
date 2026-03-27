@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { NetworkPolicy, NetworkPolicyRule } from "../network-policy.js";
-import { NetworkPolicyValidator, InjectionRuleValidator } from "../api-client/validators.js";
+import {
+  NetworkPolicyValidator,
+  InjectionRuleValidator,
+} from "../api-client/validators.js";
 
 type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
 
@@ -45,14 +48,15 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
   if (api.mode === "allow-all") return "allow-all";
   if (api.mode === "deny-all") return "deny-all";
 
-  const subnets = (api.allowedCIDRs || api.deniedCIDRs)
-    ? {
-        subnets: {
-          ...(api.allowedCIDRs && { allow: api.allowedCIDRs }),
-          ...(api.deniedCIDRs && { deny: api.deniedCIDRs }),
-        },
-      }
-    : undefined;
+  const subnets =
+    api.allowedCIDRs || api.deniedCIDRs
+      ? {
+          subnets: {
+            ...(api.allowedCIDRs && { allow: api.allowedCIDRs }),
+            ...(api.deniedCIDRs && { deny: api.deniedCIDRs }),
+          },
+        }
+      : undefined;
 
   // If injectionRules are present, reconstruct the record form.
   // The API returns headerNames (secret values are stripped), so we
@@ -66,7 +70,9 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
     for (const domain of api.allowedDomains ?? []) {
       const headerNames = rulesByDomain.get(domain);
       if (headerNames && headerNames.length > 0) {
-        const headers = Object.fromEntries(headerNames.map((n) => [n, "<redacted>"]));
+        const headers = Object.fromEntries(
+          headerNames.map((n) => [n, "<redacted>"]),
+        );
         allow[domain] = [{ transform: [{ headers }] }];
       } else {
         allow[domain] = [];

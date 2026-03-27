@@ -1,7 +1,7 @@
-import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from '@workflow/serde';
-import { APIClient, type CommandData } from './api-client/index.js';
-import { getCredentials } from './utils/get-credentials.js';
-import { resolveSignal, type Signal } from './utils/resolveSignal.js';
+import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
+import { APIClient, type CommandData } from "./api-client/index.js";
+import { getCredentials } from "./utils/get-credentials.js";
+import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
 
 /**
  * Cached output from a command execution.
@@ -53,7 +53,7 @@ export class Command {
    * @internal
    */
   protected async ensureClient(): Promise<APIClient> {
-    'use step';
+    "use step";
     if (this._client) return this._client;
     const credentials = await getCredentials();
     this._client = new APIClient({
@@ -194,7 +194,7 @@ export class Command {
   logs(opts?: { signal?: AbortSignal }) {
     if (!this._client) {
       throw new Error(
-        'logs() requires an API client. Call an async method first to initialize the client.'
+        "logs() requires an API client. Call an async method first to initialize the client.",
       );
     }
     return this._client.getLogs({
@@ -224,7 +224,7 @@ export class Command {
    * @returns A {@link CommandFinished} instance with populated exit code.
    */
   async wait(params?: { signal?: AbortSignal }) {
-    'use step';
+    "use step";
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
@@ -255,12 +255,12 @@ export class Command {
     if (!this.outputCache) {
       this.outputCache = (async () => {
         try {
-          let stdout = '';
-          let stderr = '';
-          let both = '';
+          let stdout = "";
+          let stderr = "";
+          let both = "";
           for await (const log of this.logs({ signal: opts?.signal })) {
             both += log.data;
-            if (log.stream === 'stdout') {
+            if (log.stream === "stdout") {
               stdout += log.data;
             } else {
               stderr += log.data;
@@ -292,10 +292,10 @@ export class Command {
    * @returns The output of the specified stream(s) as a string.
    */
   async output(
-    stream: 'stdout' | 'stderr' | 'both' = 'both',
-    opts?: { signal?: AbortSignal }
+    stream: "stdout" | "stderr" | "both" = "both",
+    opts?: { signal?: AbortSignal },
   ) {
-    'use step';
+    "use step";
     const cached = await this.getCachedOutput(opts);
     return cached[stream];
   }
@@ -311,8 +311,8 @@ export class Command {
    * @returns The standard output of the command.
    */
   async stdout(opts?: { signal?: AbortSignal }) {
-    'use step';
-    return this.output('stdout', opts);
+    "use step";
+    return this.output("stdout", opts);
   }
 
   /**
@@ -326,8 +326,8 @@ export class Command {
    * @returns The standard error output of the command.
    */
   async stderr(opts?: { signal?: AbortSignal }) {
-    'use step';
-    return this.output('stderr', opts);
+    "use step";
+    return this.output("stderr", opts);
   }
 
   /**
@@ -339,12 +339,12 @@ export class Command {
    * @returns Promise<void>.
    */
   async kill(signal?: Signal, opts?: { abortSignal?: AbortSignal }) {
-    'use step';
+    "use step";
     const client = await this.ensureClient();
     await client.killCommand({
       sandboxId: this.sandboxId,
       commandId: this.cmd.id,
-      signal: resolveSignal(signal ?? 'SIGTERM'),
+      signal: resolveSignal(signal ?? "SIGTERM"),
       abortSignal: opts?.abortSignal,
     });
   }
@@ -392,7 +392,7 @@ export class CommandFinished extends Command {
    * @returns A plain object containing the sandbox ID, command data, exit code, and output if fetched
    */
   static [WORKFLOW_SERIALIZE](
-    instance: CommandFinished
+    instance: CommandFinished,
   ): SerializedCommandFinished {
     return {
       ...Command[WORKFLOW_SERIALIZE](instance),
@@ -410,7 +410,7 @@ export class CommandFinished extends Command {
    * @returns The reconstructed CommandFinished instance
    */
   static [WORKFLOW_DESERIALIZE](
-    data: SerializedCommandFinished
+    data: SerializedCommandFinished,
   ): CommandFinished {
     return new CommandFinished({
       sandboxId: data.sandboxId,

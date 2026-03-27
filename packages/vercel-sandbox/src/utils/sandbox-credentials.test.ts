@@ -27,7 +27,9 @@ describe("sandbox-credentials", () => {
       "./sandbox-credentials"
     );
 
-    expect(() => freshGet()).toThrowError(/Global credentials have not been set/);
+    expect(() => freshGet()).toThrowError(
+      /Global credentials have not been set/,
+    );
     expect(() => freshGet()).toThrowError(/setSandboxCredentials/);
   });
 
