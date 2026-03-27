@@ -1,6 +1,7 @@
 import { getWritable } from "workflow";
 import { Sandbox } from "@vercel/sandbox";
 import { generateCode, fixCode } from "@/steps/ai";
+import { updateStatus } from "@/steps/status";
 
 const MAX_ATTEMPTS = 3;
 
@@ -21,26 +22,19 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
   const stdout = getWritable<string>({ namespace: "stdout" });
   const stderr = getWritable<string>({ namespace: "stderr" });
   const status = getWritable<string>({ namespace: "status" });
-  const statusWriter = status.getWriter();
 
   try {
-    await statusWriter.write(
-      JSON.stringify({ phase: "generating", attempt: 1 }),
-    );
+    await updateStatus(status, "generating", 1);
     let code = await generateCode(prompt);
     let lastError = "";
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       if (lastError) {
-        await statusWriter.write(
-          JSON.stringify({ phase: "fixing", attempt }),
-        );
+        await updateStatus(status, "fixing", attempt);
         code = await fixCode(prompt, code, lastError);
       }
 
-      await statusWriter.write(
-        JSON.stringify({ phase: "running", attempt }),
-      );
+      await updateStatus(status, "running", attempt);
 
       await sandbox.writeFiles([
         { path: "script.js", content: Buffer.from(code) },
