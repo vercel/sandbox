@@ -4,6 +4,7 @@ export {
   type NetworkPolicyRule,
   type NetworkTransformer,
 } from "./sandbox.js";
+export { SandboxUser } from "./sandbox-user.js";
 export { Snapshot } from "./snapshot.js";
 export { Command, CommandFinished } from "./command.js";
 export { StreamError } from "./api-client/api-error.js";

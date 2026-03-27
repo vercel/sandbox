@@ -21,6 +21,8 @@ import {
   convertSandbox,
   type ConvertedSandbox,
 } from "./utils/convert-sandbox.js";
+import { SandboxUser } from "./sandbox-user.js";
+import { validateName } from "./utils/validate-name.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -756,6 +758,238 @@ export class Sandbox {
 
     // Update the internal sandbox metadata with the new timeout value
     this.sandbox = convertSandbox(response.json.sandbox);
+  }
+
+  /**
+   * Create a new Linux user in this sandbox with an isolated home directory.
+   *
+   * The home directory is group-owned by `vercel-sandbox` with `770` permissions,
+   * so the SDK's HTTP file API can read/write directly. Other users cannot access
+   * this user's home directory since they are not in the `vercel-sandbox` group.
+   *
+   * @param username - Linux username (lowercase letters, digits, hyphens, underscores)
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A {@link SandboxUser} instance for the created user.
+   *
+   * @example
+   * const alice = await sandbox.createUser("alice");
+   * await alice.runCommand("whoami"); // "alice"
+   * await alice.writeFiles([{ path: "hello.txt", content: Buffer.from("hi") }]);
+   */
+  async createUser(
+    username: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<SandboxUser> {
+    validateName(username, "username");
+
+    // Create user with home directory and default shell
+    const useradd = await this._runCommand({
+      cmd: "useradd",
+      args: ["-m", "-s", "/bin/bash", username],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (useradd.exitCode !== 0) {
+      const stderr = await useradd.stderr();
+      throw new Error(`Failed to create user "${username}": ${stderr}`);
+    }
+
+    // Set home directory group to vercel-sandbox so the HTTP file API
+    // (which runs as the vercel-sandbox process) can read/write directly.
+    // This avoids the stale-group problem that occurs with usermod -aG,
+    // since vercel-sandbox already has gid=1000 in its process credentials.
+    const chown = await this._runCommand({
+      cmd: "chown",
+      args: [`${username}:vercel-sandbox`, `/home/${username}`],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chown.exitCode !== 0) {
+      const stderr = await chown.stderr();
+      throw new Error(
+        `Failed to set ownership on /home/${username}: ${stderr}`,
+      );
+    }
+
+    // Set home directory permissions: owner full, group (vercel-sandbox)
+    // read+write+execute, others none. Other users can't access because
+    // they are not in the vercel-sandbox group.
+    const chmod = await this._runCommand({
+      cmd: "chmod",
+      args: ["770", `/home/${username}`],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chmod.exitCode !== 0) {
+      const stderr = await chmod.stderr();
+      throw new Error(
+        `Failed to set permissions on /home/${username}: ${stderr}`,
+      );
+    }
+
+    return new SandboxUser({ sandbox: this, username });
+  }
+
+  /**
+   * Get a user handle without creating the user.
+   * Assumes the user already exists in the sandbox.
+   *
+   * @param username - Linux username
+   * @returns A {@link SandboxUser} instance.
+   *
+   * @example
+   * const root = sandbox.asUser("root");
+   * await root.runCommand("whoami"); // "root"
+   */
+  asUser(username: string): SandboxUser {
+    validateName(username, "username");
+    return new SandboxUser({ sandbox: this, username });
+  }
+
+  /**
+   * Create a new Linux group with a shared directory.
+   *
+   * Creates a shared directory at `/shared/<groupname>` with setgid permissions
+   * (`2770`), so files created inside it automatically inherit the group.
+   * All group members can read and write files in the shared directory.
+   *
+   * @param groupname - Group name (lowercase letters, digits, hyphens, underscores)
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns An object with the group name and shared directory path.
+   *
+   * @example
+   * const devs = await sandbox.createGroup("devs");
+   * console.log(devs.sharedDir); // "/shared/devs"
+   * await sandbox.addUserToGroup("alice", "devs");
+   */
+  async createGroup(
+    groupname: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<{ groupname: string; sharedDir: string }> {
+    validateName(groupname, "group name");
+
+    const sharedDir = `/shared/${groupname}`;
+
+    // Create the group
+    const groupadd = await this._runCommand({
+      cmd: "groupadd",
+      args: [groupname],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (groupadd.exitCode !== 0) {
+      const stderr = await groupadd.stderr();
+      throw new Error(`Failed to create group "${groupname}": ${stderr}`);
+    }
+
+    // Create shared directory
+    const mkdirResult = await this._runCommand({
+      cmd: "mkdir",
+      args: ["-p", sharedDir],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (mkdirResult.exitCode !== 0) {
+      const stderr = await mkdirResult.stderr();
+      throw new Error(`Failed to create shared directory ${sharedDir}: ${stderr}`);
+    }
+
+    // Set ownership: vercel-sandbox user, group-owned by the new group
+    const chown = await this._runCommand({
+      cmd: "chown",
+      args: [`vercel-sandbox:${groupname}`, sharedDir],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chown.exitCode !== 0) {
+      const stderr = await chown.stderr();
+      throw new Error(`Failed to set ownership on ${sharedDir}: ${stderr}`);
+    }
+
+    // Set permissions: setgid (2) + rwx for owner and group, none for others
+    const chmod = await this._runCommand({
+      cmd: "chmod",
+      args: ["2770", sharedDir],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chmod.exitCode !== 0) {
+      const stderr = await chmod.stderr();
+      throw new Error(`Failed to set permissions on ${sharedDir}: ${stderr}`);
+    }
+
+    return { groupname, sharedDir };
+  }
+
+  /**
+   * Add a user to a group.
+   *
+   * After joining, the user can read and write files in the group's
+   * shared directory at `/shared/<groupname>`.
+   *
+   * @param username - The user to add
+   * @param groupname - The group to add the user to
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   *
+   * @example
+   * await sandbox.addUserToGroup("alice", "devs");
+   */
+  async addUserToGroup(
+    username: string,
+    groupname: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<void> {
+    validateName(username, "username");
+    validateName(groupname, "group name");
+
+    const result = await this._runCommand({
+      cmd: "usermod",
+      args: ["-aG", groupname, username],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(
+        `Failed to add "${username}" to group "${groupname}": ${stderr}`,
+      );
+    }
+  }
+
+  /**
+   * Remove a user from a group.
+   *
+   * @param username - The user to remove
+   * @param groupname - The group to remove the user from
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   *
+   * @example
+   * await sandbox.removeUserFromGroup("alice", "devs");
+   */
+  async removeUserFromGroup(
+    username: string,
+    groupname: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<void> {
+    validateName(username, "username");
+    validateName(groupname, "group name");
+
+    const result = await this._runCommand({
+      cmd: "gpasswd",
+      args: ["-d", username, groupname],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(
+        `Failed to remove "${username}" from group "${groupname}": ${stderr}`,
+      );
+    }
   }
 
   /**
