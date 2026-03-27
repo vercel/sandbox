@@ -13,7 +13,7 @@
     "next": "16.0.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "workflow": "https://workflow-docs-icbxgvngi.vercel.sh/workflow.tgz",
+    "workflow": "4.2.0-beta.73",
     "zod": "^4.1.9"
   },
   "devDependencies": {
