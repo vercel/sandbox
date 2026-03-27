@@ -291,7 +291,7 @@ describe(command, () => {
 
   it("dynamic response function", async () => {
     const handler = command("echo", (args) => ({ stdout: `${args.join(" ")}\n` }));
-    const result = await handler.resolve("echo", ["hello", "world"], { stdin: "" });
+    const result = await handler.resolve("echo", ["hello", "world"]);
     expect(result).toEqual({ stdout: "hello world\n" });
   });
 

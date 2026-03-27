@@ -41,7 +41,6 @@ export interface MockSandboxOptions {
   networkPolicy?: NetworkPolicy;
   sourceSnapshotId?: string;
   createdAt?: Date;
-  runtime?: string;
   handlers?: CommandHandler[];
 }
 
@@ -64,7 +63,18 @@ export class MockSandbox {
     return this._bash.fs;
   }
 
-  private _runtime: string;
+  get interactivePort(): number | undefined {
+    return undefined;
+  }
+
+  get activeCpuUsageMs(): number | undefined {
+    return undefined;
+  }
+
+  get networkTransfer(): { ingress: number; egress: number } | undefined {
+    return undefined;
+  }
+
   private _instanceHandlers: CommandHandler[];
   private _bash: Bash;
 
@@ -75,7 +85,6 @@ export class MockSandbox {
     this.timeout = opts?.timeout ?? 300_000;
     this.networkPolicy = opts?.networkPolicy;
     this.sourceSnapshotId = opts?.sourceSnapshotId;
-    this._runtime = opts?.runtime ?? "node24";
     this._instanceHandlers = opts?.handlers ?? [];
 
     const seedFiles: Record<string, string | Uint8Array> = {};
@@ -91,6 +100,13 @@ export class MockSandbox {
       subdomain: `mock-port-${port}`,
       port,
     }));
+  }
+
+  async getCommand(
+    cmdId: string,
+    _opts?: { signal?: AbortSignal },
+  ): Promise<MockCommand> {
+    return new MockCommand({ cmdId });
   }
 
   async runCommand(
@@ -160,7 +176,7 @@ export class MockSandbox {
     ];
     for (const handler of handlers) {
       if (handler.matches(cmd, args)) {
-        return handler.resolve(cmd, args, { stdin: "" });
+        return handler.resolve(cmd, args);
       }
     }
     return null;
@@ -226,9 +242,23 @@ export class MockSandbox {
     throw new Error(`No route for port ${p}`);
   }
 
-  async stop(): Promise<{ id: string; status: SandboxStatus }> {
+  async stop(_opts?: { signal?: AbortSignal; blocking?: boolean }) {
     this.status = "stopped";
-    return { id: this.sandboxId, status: "stopped" };
+    return {
+      id: this.sandboxId,
+      memory: 2048,
+      vcpus: 1,
+      region: "iad1",
+      runtime: "node24",
+      timeout: this.timeout,
+      status: this.status,
+      requestedAt: this.createdAt.getTime(),
+      createdAt: this.createdAt.getTime(),
+      cwd: CWD,
+      updatedAt: Date.now(),
+      sourceSnapshotId: this.sourceSnapshotId,
+      networkPolicy: this.networkPolicy,
+    };
   }
 
   async extendTimeout(duration: number): Promise<void> {
@@ -236,7 +266,6 @@ export class MockSandbox {
   }
 
   async snapshot(): Promise<MockSnapshot> {
-    this.status = "snapshotting";
     return new MockSnapshot({ sourceSandboxId: this.sandboxId });
   }
 

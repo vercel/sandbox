@@ -4,41 +4,19 @@ export type CommandResponse = {
   exitCode?: number;
 };
 
-export type CommandHandlerContext = {
-  stdin: string;
-};
-
 export interface CommandHandler {
   matches(cmd: string, args: string[]): boolean;
-  resolve(
-    cmd: string,
-    args: string[],
-    ctx: CommandHandlerContext,
-  ): Promise<CommandResponse>;
+  resolve(cmd: string, args: string[]): Promise<CommandResponse>;
 }
 
-type ResponseFn = (
-  args: string[],
-  ctx: CommandHandlerContext,
-) => CommandResponse | Promise<CommandResponse>;
+type ResponseFn = (args: string[]) => CommandResponse | Promise<CommandResponse>;
 
 export function command(
-  pattern: string,
-  response?: CommandResponse | ResponseFn,
-): CommandHandler;
-export function command(
-  pattern: RegExp,
-  response?: CommandResponse | ResponseFn,
-): CommandHandler;
-export function command(
   pattern: string | RegExp,
-  response?: CommandResponse | ResponseFn,
+  response: CommandResponse | ResponseFn = {},
 ): CommandHandler {
-  const resolved = response ?? {};
-  if (typeof pattern === "string") {
-    return createStringHandler(pattern, resolved);
-  }
-  return createRegexHandler(pattern, resolved);
+  if (typeof pattern === "string") return createStringHandler(pattern, response);
+  return createRegexHandler(pattern, response);
 }
 
 function createHandler(
@@ -47,8 +25,8 @@ function createHandler(
 ): CommandHandler {
   return {
     matches: matchFn,
-    async resolve(_cmd, args, ctx) {
-      return typeof response === "function" ? response(args, ctx) : response;
+    async resolve(_cmd, args) {
+      return typeof response === "function" ? response(args) : response;
     },
   };
 }
