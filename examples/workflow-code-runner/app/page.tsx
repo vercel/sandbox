@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<{
     code: string;
-    stdout: string;
-    stderr: string;
     iterations: number;
   } | null>(null);
+  const [stdout, setStdout] = useState("");
+  const [stderr, setStderr] = useState("");
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">(
     "idle",
   );
   const [error, setError] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,38 +22,69 @@ export default function Home() {
 
     setStatus("running");
     setResult(null);
+    setStdout("");
+    setStderr("");
     setError("");
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     try {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
+        signal: abortRef.current.signal,
       });
 
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
+      if (!res.ok) throw new Error(await res.text());
 
-      const data = await res.json();
+      const { runId } = await res.json();
 
-      const pollResult = async (runId: string) => {
+      // Subscribe to stdout and stderr streams
+      const stdoutSource = new EventSource(
+        `/api/run?runId=${runId}&stream=stdout`,
+      );
+      const stderrSource = new EventSource(
+        `/api/run?runId=${runId}&stream=stderr`,
+      );
+
+      stdoutSource.onmessage = (e) => {
+        setStdout((prev) => prev + JSON.parse(e.data));
+      };
+      stderrSource.onmessage = (e) => {
+        setStderr((prev) => prev + JSON.parse(e.data));
+      };
+
+      const cleanup = () => {
+        stdoutSource.close();
+        stderrSource.close();
+      };
+
+      stdoutSource.addEventListener("done", cleanup);
+      stderrSource.addEventListener("done", cleanup);
+
+      // Poll for completion
+      const pollResult = async () => {
         const poll = await fetch(`/api/run?runId=${runId}`);
-        const pollData = await poll.json();
+        const data = await poll.json();
 
-        if (pollData.status === "completed") {
-          setResult(pollData.output);
+        if (data.status === "completed") {
+          cleanup();
+          setResult(data.output);
           setStatus("done");
-        } else if (pollData.status === "failed") {
-          setError(pollData.error ?? "Workflow failed");
+        } else if (data.status === "failed") {
+          cleanup();
+          setError(data.error ?? "Workflow failed");
           setStatus("error");
         } else {
-          setTimeout(() => pollResult(runId), 1000);
+          setTimeout(pollResult, 1000);
         }
       };
 
-      await pollResult(data.runId);
+      await pollResult();
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Unknown error");
       setStatus("error");
     }
@@ -101,39 +133,41 @@ export default function Home() {
           </div>
         )}
 
-        {result && (
+        {(stdout || stderr || result) && (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-zinc-300">
-                  Generated Code
-                </h2>
-                {result.iterations > 1 && (
-                  <span className="text-xs text-zinc-500">
-                    {result.iterations} attempt
-                    {result.iterations > 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
-              <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-zinc-300">
-                {result.code}
-              </pre>
-            </div>
-
-            {result.stdout && (
+            {result && (
               <div className="flex flex-col gap-2">
-                <h2 className="text-sm font-medium text-zinc-300">Output</h2>
-                <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-green-400">
-                  {result.stdout}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-medium text-zinc-300">
+                    Generated Code
+                  </h2>
+                  {result.iterations > 1 && (
+                    <span className="text-xs text-zinc-500">
+                      {result.iterations} attempt
+                      {result.iterations > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+                <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-zinc-300">
+                  {result.code}
                 </pre>
               </div>
             )}
 
-            {result.stderr && (
+            {stdout && (
+              <div className="flex flex-col gap-2">
+                <h2 className="text-sm font-medium text-zinc-300">Output</h2>
+                <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-green-400">
+                  {stdout}
+                </pre>
+              </div>
+            )}
+
+            {stderr && (
               <div className="flex flex-col gap-2">
                 <h2 className="text-sm font-medium text-zinc-300">Stderr</h2>
                 <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-yellow-400">
-                  {result.stderr}
+                  {stderr}
                 </pre>
               </div>
             )}
