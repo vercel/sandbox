@@ -5,7 +5,7 @@ import {
   type RequestParams,
 } from "./base-client.js";
 import {
-type CommandFinishedData,
+  type CommandFinishedData,
   SessionAndRoutesResponse,
   SessionResponse,
   SessionsResponse,
@@ -34,7 +34,10 @@ import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
-import { toAPINetworkPolicy, fromAPINetworkPolicy } from "../utils/network-policy.js";
+import {
+  toAPINetworkPolicy,
+  fromAPINetworkPolicy,
+} from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { RUNTIMES } from "../constants.js";
 import { setTimeout } from "node:timers/promises";
@@ -615,7 +618,11 @@ export class APIClient extends BaseClient {
 
     if (params.blocking) {
       let session = response.json.session;
-      while (session.status !== "stopped" && session.status !== "failed" && session.status !== "aborted") {
+      while (
+        session.status !== "stopped" &&
+        session.status !== "failed" &&
+        session.status !== "aborted"
+      ) {
         await setTimeout(500, undefined, { signal: params.signal });
         const poll = await this.getSession({
           sessionId: params.sessionId,

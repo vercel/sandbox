@@ -1,5 +1,32 @@
+import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { APIClient, type CommandData } from "./api-client/index.js";
-import { Signal, resolveSignal } from "./utils/resolveSignal.js";
+import { getCredentials } from "./utils/get-credentials.js";
+import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
+
+/**
+ * Cached output from a command execution.
+ */
+export interface CommandOutput {
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Serialized representation of a Command for @workflow/serde.
+ */
+export interface SerializedCommand {
+  sandboxId: string;
+  cmd: CommandData;
+  /** Cached output, included if output was fetched before serialization */
+  output?: CommandOutput;
+}
+
+/**
+ * Serialized representation of a CommandFinished for @workflow/serde.
+ */
+export interface SerializedCommandFinished extends SerializedCommand {
+  exitCode: number;
+}
 
 /**
  * A command executed in a Sandbox.
@@ -16,28 +43,50 @@ import { Signal, resolveSignal } from "./utils/resolveSignal.js";
  */
 export class Command {
   /**
+   * Cached API client instance.
    * @internal
-   * @private
    */
-  protected client: APIClient;
+  protected _client: APIClient | null = null;
+
+  /**
+   * Lazily resolve credentials and construct an API client.
+   * @internal
+   */
+  protected async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
 
   /**
    * ID of the session this command is running in.
    */
-  private sessionId: string;
+  protected sessionId: string;
 
   /**
    * Data for the command execution.
    */
-  private cmd: CommandData;
+  protected cmd: CommandData;
 
   public exitCode: number | null;
 
-  private outputCache: Promise<{
+  protected outputCache: Promise<{
     stdout: string;
     stderr: string;
     both: string;
   }> | null = null;
+
+  /**
+   * Synchronously accessible resolved output, populated after output is fetched.
+   * Used for serialization.
+   * @internal
+   */
+  protected _resolvedOutput: CommandOutput | null = null;
 
   /**
    * ID of the command execution.
@@ -55,24 +104,71 @@ export class Command {
   }
 
   /**
-   * @param params - Object containing the client, session ID, and command ID.
-   * @param params.client - API client used to interact with the backend.
+   * @param params - Object containing the client, sandbox ID, and command data.
+   * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
    * @param params.sessionId - The ID of the session where the command is running.
-   * @param params.cmdId - The ID of the command execution.
+   * @param params.cmd - The command data.
+   * @param params.output - Optional cached output to restore (used during deserialization).
    */
   constructor({
     client,
     sessionId,
     cmd,
+    output,
   }: {
-    client: APIClient;
+    client?: APIClient;
     sessionId: string;
     cmd: CommandData;
+    output?: CommandOutput;
   }) {
-    this.client = client;
+    this._client = client ?? null;
     this.sessionId = sessionId;
     this.cmd = cmd;
     this.exitCode = cmd.exitCode ?? null;
+    if (output) {
+      this._resolvedOutput = output;
+      // Note: `both` is reconstructed as stdout + stderr concatenation,
+      // which loses the original interleaved order of the streams.
+      this.outputCache = Promise.resolve({
+        stdout: output.stdout,
+        stderr: output.stderr,
+        both: output.stdout + output.stderr,
+      });
+    }
+  }
+
+  /**
+   * Serialize a Command instance to plain data for @workflow/serde.
+   *
+   * @param instance - The Command instance to serialize
+   * @returns A plain object containing the sandbox ID, command data, and output if fetched
+   */
+  static [WORKFLOW_SERIALIZE](instance: Command): SerializedCommand {
+    const serialized: SerializedCommand = {
+      sandboxId: instance.sessionId,
+      cmd: instance.cmd,
+    };
+    if (instance._resolvedOutput) {
+      serialized.output = instance._resolvedOutput;
+    }
+    return serialized;
+  }
+
+  /**
+   * Deserialize plain data back into a Command instance for @workflow/serde.
+   *
+   * The deserialized instance will lazily create an API client using
+   * OIDC or environment credentials when needed.
+   *
+   * @param data - The serialized command data
+   * @returns The reconstructed Command instance
+   */
+  static [WORKFLOW_DESERIALIZE](data: SerializedCommand): Command {
+    return new Command({
+      sessionId: data.sandboxId,
+      cmd: data.cmd,
+      output: data.output,
+    });
   }
 
   /**
@@ -96,7 +192,12 @@ export class Command {
    * to access output as a string.
    */
   logs(opts?: { signal?: AbortSignal }) {
-    return this.client.getLogs({
+    if (!this._client) {
+      throw new Error(
+        "logs() requires an API client. Call an async method first to initialize the client.",
+      );
+    }
+    return this._client.getLogs({
       sessionId: this.sessionId,
       cmdId: this.cmd.id,
       signal: opts?.signal,
@@ -123,9 +224,11 @@ export class Command {
    * @returns A {@link CommandFinished} instance with populated exit code.
    */
   async wait(params?: { signal?: AbortSignal }) {
+    "use step";
+    const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
-    const command = await this.client.getCommand({
+    const command = await client.getCommand({
       sessionId: this.sessionId,
       cmdId: this.cmd.id,
       wait: true,
@@ -133,7 +236,7 @@ export class Command {
     });
 
     return new CommandFinished({
-      client: this.client,
+      client,
       sessionId: this.sessionId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
@@ -144,7 +247,7 @@ export class Command {
    * Get cached output, fetching logs only once and reusing for concurrent calls.
    * This prevents race conditions when stdout() and stderr() are called in parallel.
    */
-  private async getCachedOutput(opts?: { signal?: AbortSignal }): Promise<{
+  protected async getCachedOutput(opts?: { signal?: AbortSignal }): Promise<{
     stdout: string;
     stderr: string;
     both: string;
@@ -163,6 +266,8 @@ export class Command {
               stderr += log.data;
             }
           }
+          // Store resolved output for serialization
+          this._resolvedOutput = { stdout, stderr };
           return { stdout, stderr, both };
         } catch (err) {
           // Clear the promise so future calls can retry
@@ -190,6 +295,7 @@ export class Command {
     stream: "stdout" | "stderr" | "both" = "both",
     opts?: { signal?: AbortSignal },
   ) {
+    "use step";
     const cached = await this.getCachedOutput(opts);
     return cached[stream];
   }
@@ -205,6 +311,7 @@ export class Command {
    * @returns The standard output of the command.
    */
   async stdout(opts?: { signal?: AbortSignal }) {
+    "use step";
     return this.output("stdout", opts);
   }
 
@@ -219,6 +326,7 @@ export class Command {
    * @returns The standard error output of the command.
    */
   async stderr(opts?: { signal?: AbortSignal }) {
+    "use step";
     return this.output("stderr", opts);
   }
 
@@ -231,7 +339,9 @@ export class Command {
    * @returns Promise<void>.
    */
   async kill(signal?: Signal, opts?: { abortSignal?: AbortSignal }) {
-    await this.client.killCommand({
+    "use step";
+    const client = await this.ensureClient();
+    await client.killCommand({
       sessionId: this.sessionId,
       commandId: this.cmd.id,
       signal: resolveSignal(signal ?? "SIGTERM"),
@@ -257,20 +367,57 @@ export class CommandFinished extends Command {
   public exitCode: number;
 
   /**
-   * @param params - Object containing client, session ID, command ID, and exit code.
-   * @param params.client - API client used to interact with the backend.
+   * @param params - Object containing client, sandbox ID, command data, and exit code.
+   * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
    * @param params.sessionId - The ID of the session where the command ran.
-   * @param params.cmdId - The ID of the command execution.
+   * @param params.cmd - The command data.
    * @param params.exitCode - The exit code of the completed command.
+   * @param params.output - Optional cached output to restore (used during deserialization).
    */
   constructor(params: {
-    client: APIClient;
+    client?: APIClient;
     sessionId: string;
     cmd: CommandData;
     exitCode: number;
+    output?: CommandOutput;
   }) {
     super({ ...params });
     this.exitCode = params.exitCode;
+  }
+
+  /**
+   * Serialize a CommandFinished instance to plain data for @workflow/serde.
+   *
+   * @param instance - The CommandFinished instance to serialize
+   * @returns A plain object containing the sandbox ID, command data, exit code, and output if fetched
+   */
+  static [WORKFLOW_SERIALIZE](
+    instance: CommandFinished,
+  ): SerializedCommandFinished {
+    return {
+      ...Command[WORKFLOW_SERIALIZE](instance),
+      exitCode: instance.exitCode,
+    };
+  }
+
+  /**
+   * Deserialize plain data back into a CommandFinished instance for @workflow/serde.
+   *
+   * The deserialized instance will lazily create an API client using
+   * OIDC or environment credentials when needed.
+   *
+   * @param data - The serialized command finished data
+   * @returns The reconstructed CommandFinished instance
+   */
+  static [WORKFLOW_DESERIALIZE](
+    data: SerializedCommandFinished,
+  ): CommandFinished {
+    return new CommandFinished({
+      sessionId: data.sandboxId,
+      cmd: data.cmd,
+      exitCode: data.exitCode,
+      output: data.output,
+    });
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { SessionMetaData, SandboxRouteData, APIClient } from "./api-client/index.js";
+import { type SessionMetaData, type SandboxRouteData, APIClient } from "./api-client/index.js";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
@@ -12,7 +12,8 @@ import type {
   NetworkPolicyRule,
   NetworkTransformer,
 } from "./network-policy.js";
-import { convertSession, type ConvertedSession } from "./utils/convert-sandbox.js";
+import { toSandboxSnapshot, type SandboxSnapshot } from "./utils/sandbox-snapshot.js";
+import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -62,7 +63,25 @@ export interface RunCommandParams {
  * Obtain a session via {@link Sandbox.currentSession}.
  */
 export class Session {
-  private readonly client: APIClient;
+  private _client: APIClient | null = null;
+
+  /**
+   * Lazily resolve credentials and construct an API client.
+   * This is used in step contexts where the Sandbox was deserialized
+   * without a client (e.g. when crossing workflow/step boundaries).
+   * Uses getCredentials() which resolves from OIDC or env vars.
+   * @internal
+   */
+  private async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
 
   /**
    * Routes from ports to subdomains.
@@ -73,7 +92,17 @@ export class Session {
   /**
    * Internal metadata about the current session.
    */
-  private session: ConvertedSession;
+  private session: SandboxSnapshot;
+
+  private get client(): APIClient {
+    if (!this._client) throw new Error("API client not initialized");
+    return this._client;
+  }
+
+  /** @internal */
+  get _sessionSnapshot(): SandboxSnapshot {
+    return this.session;
+  }
 
   /**
    * Unique ID of this session.
@@ -249,9 +278,9 @@ export class Session {
     routes: SandboxRouteData[];
     session: SessionMetaData;
   }) {
-    this.client = client;
+    this._client = client;
     this.routes = routes;
-    this.session = convertSession(session);
+    this.session = toSandboxSnapshot(session);
   }
 
   /**
@@ -567,13 +596,13 @@ export class Session {
   async stop(opts?: {
     signal?: AbortSignal;
     blocking?: boolean;
-  }): Promise<ConvertedSession> {
+  }): Promise<SandboxSnapshot> {
     const response = await this.client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
     });
-    this.session = convertSession(response.json.session);
+    this.session = toSandboxSnapshot(response.json.session);
     return this.session;
   }
 
@@ -626,7 +655,7 @@ export class Session {
       });
 
       // Update the internal session with the new network policy
-      this.session = convertSession(response.json.session);
+      this.session = toSandboxSnapshot(response.json.session);
     }
   }
 
@@ -651,14 +680,16 @@ export class Session {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
-    const response = await this.client.extendTimeout({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.extendTimeout({
       sessionId: this.session.id,
       duration,
       signal: opts?.signal,
     });
 
-    // Update the internal session with the new timeout value
-    this.session = convertSession(response.json.session);
+    // Update the internal sandbox metadata with the new timeout value
+    this.session = toSandboxSnapshot(response.json.session);
   }
 
   /**
@@ -682,7 +713,7 @@ export class Session {
       signal: opts?.signal,
     });
 
-    this.session = convertSession(response.json.session);
+    this.session = toSandboxSnapshot(response.json.session);
 
     return new Snapshot({
       client: this.client,
