@@ -1,19 +1,19 @@
 import { Readable, type Writable } from "stream";
 import { mkdir, writeFile } from "fs/promises";
 import { dirname, resolve, isAbsolute, join } from "path";
-import type {
-  SandboxMetaData,
-  SandboxRouteData,
-} from "../api-client/validators.js";
+import { Bash, type IFileSystem } from "just-bash";
 import type { NetworkPolicy } from "../network-policy.js";
-import type { ConvertedSandbox } from "../utils/convert-sandbox.js";
-import {
-  MockCommand,
-  MockCommandFinished,
-  type MockCommandOptions,
-} from "./command.js";
+import { MockCommand, MockCommandFinished } from "./command.js";
 import type { CommandHandler, CommandResponse } from "./handlers.js";
 import { MockSnapshot } from "./snapshot.js";
+
+type SandboxStatus =
+  | "pending" | "running" | "stopping" | "stopped"
+  | "failed" | "aborted" | "snapshotting";
+
+type RouteData = { url: string; subdomain: string; port: number };
+
+const CWD = "/vercel/sandbox";
 
 const handlerState = {
   defaults: [] as CommandHandler[],
@@ -34,11 +34,10 @@ interface RunCommandParams {
 
 export interface MockSandboxOptions {
   sandboxId?: string;
-  status?: SandboxMetaData["status"];
+  status?: SandboxStatus;
   timeout?: number;
   ports?: number[];
-  files?: Record<string, Buffer>;
-  commands?: Record<string, MockCommandOptions>;
+  files?: Record<string, string | Uint8Array>;
   networkPolicy?: NetworkPolicy;
   sourceSnapshotId?: string;
   createdAt?: Date;
@@ -47,89 +46,51 @@ export interface MockSandboxOptions {
 }
 
 function normalizePath(p: string, cwd?: string): string {
-  return isAbsolute(p) ? p : join(cwd ?? "/vercel/sandbox", p);
+  return isAbsolute(p) ? p : join(cwd ?? CWD, p);
 }
 
 export class MockSandbox {
-  public readonly routes: SandboxRouteData[];
+  readonly sandboxId: string;
+  readonly createdAt: Date;
+  readonly sourceSnapshotId: string | undefined;
+  readonly routes: RouteData[];
 
-  private _sandboxId: string;
-  private _status: SandboxMetaData["status"];
-  private _createdAt: Date;
-  private _timeout: number;
-  private _networkPolicy: NetworkPolicy | undefined;
-  private _sourceSnapshotId: string | undefined;
+  status: SandboxStatus;
+  timeout: number;
+  networkPolicy: NetworkPolicy | undefined;
+
+  /** The in-memory filesystem backing this sandbox. */
+  get fs(): IFileSystem {
+    return this._bash.fs;
+  }
+
   private _runtime: string;
-  private _commands: Record<string, MockCommandOptions>;
   private _instanceHandlers: CommandHandler[];
-  private _files = new Map<string, Buffer>();
-
-  get sandboxId(): string {
-    return this._sandboxId;
-  }
-
-  get status(): SandboxMetaData["status"] {
-    return this._status;
-  }
-
-  get createdAt(): Date {
-    return new Date(this._createdAt);
-  }
-
-  get timeout(): number {
-    return this._timeout;
-  }
-
-  get networkPolicy(): NetworkPolicy | undefined {
-    return this._networkPolicy;
-  }
-
-  get sourceSnapshotId(): string | undefined {
-    return this._sourceSnapshotId;
-  }
-
-  get activeCpuUsageMs(): number | undefined {
-    return undefined;
-  }
-
-  get networkTransfer(): { ingress: number; egress: number } | undefined {
-    return undefined;
-  }
-
-  get interactivePort(): number | undefined {
-    return undefined;
-  }
+  private _bash: Bash;
 
   protected constructor(opts?: MockSandboxOptions) {
-    this._sandboxId =
-      opts?.sandboxId ?? "sbx_" + Math.random().toString(36).slice(2);
-    this._status = opts?.status ?? "running";
-    this._createdAt = opts?.createdAt ?? new Date();
-    this._timeout = opts?.timeout ?? 300_000;
-    this._networkPolicy = opts?.networkPolicy;
-    this._sourceSnapshotId = opts?.sourceSnapshotId;
+    this.sandboxId = opts?.sandboxId ?? "sbx_" + Math.random().toString(36).slice(2);
+    this.status = opts?.status ?? "running";
+    this.createdAt = opts?.createdAt ?? new Date();
+    this.timeout = opts?.timeout ?? 300_000;
+    this.networkPolicy = opts?.networkPolicy;
+    this.sourceSnapshotId = opts?.sourceSnapshotId;
     this._runtime = opts?.runtime ?? "node24";
-    this._commands = opts?.commands ?? {};
     this._instanceHandlers = opts?.handlers ?? [];
+
+    const seedFiles: Record<string, string | Uint8Array> = {};
+    if (opts?.files) {
+      for (const [p, content] of Object.entries(opts.files)) {
+        seedFiles[normalizePath(p)] = content;
+      }
+    }
+    this._bash = new Bash({ cwd: CWD, files: seedFiles });
 
     this.routes = (opts?.ports ?? []).map((port) => ({
       url: `https://mock-port-${port}.vercel.run`,
       subdomain: `mock-port-${port}`,
       port,
     }));
-
-    if (opts?.files) {
-      for (const [p, buf] of Object.entries(opts.files)) {
-        this._files.set(normalizePath(p), buf);
-      }
-    }
-  }
-
-  async getCommand(
-    cmdId: string,
-    _opts?: { signal?: AbortSignal },
-  ): Promise<MockCommand> {
-    return new MockCommand({ cmdId });
   }
 
   async runCommand(
@@ -156,6 +117,11 @@ export class MockSandbox {
       params.args ?? [],
     );
     if (handlerResponse) {
+      if (params.stdout && handlerResponse.stdout)
+        params.stdout.write(handlerResponse.stdout);
+      if (params.stderr && handlerResponse.stderr)
+        params.stderr.write(handlerResponse.stderr);
+
       if (params.detached) return new MockCommand(handlerResponse);
       return new MockCommandFinished({
         ...handlerResponse,
@@ -163,17 +129,24 @@ export class MockSandbox {
       });
     }
 
-    const commandOpts = this._commands[params.cmd] ?? {
-      exitCode: 0,
-      stdout: "",
-      stderr: "",
+    const result = await this._bash.exec(params.cmd, {
+      args: params.args,
+      cwd: params.cwd,
+      env: params.env,
+      signal: params.signal,
+    });
+
+    if (params.stdout && result.stdout) params.stdout.write(result.stdout);
+    if (params.stderr && result.stderr) params.stderr.write(result.stderr);
+
+    const cmdOpts = {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
     };
 
-    if (params.detached) return new MockCommand(commandOpts);
-    return new MockCommandFinished({
-      ...commandOpts,
-      exitCode: commandOpts.exitCode ?? 0,
-    });
+    if (params.detached) return new MockCommand(cmdOpts);
+    return new MockCommandFinished(cmdOpts);
   }
 
   private async resolveHandler(
@@ -193,24 +166,25 @@ export class MockSandbox {
     return null;
   }
 
-  async mkDir(_path: string, _opts?: { signal?: AbortSignal }): Promise<void> {}
+  async mkDir(path: string): Promise<void> {
+    await this._bash.fs.mkdir(normalizePath(path), { recursive: true });
+  }
 
   async readFile(
     file: { path: string; cwd?: string },
-    _opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
     const fullPath = normalizePath(file.path, file.cwd);
-    const buf = this._files.get(fullPath);
-    if (buf === undefined) return null;
-    return Readable.from(buf);
+    if (!(await this._bash.fs.exists(fullPath))) return null;
+    const data = await this._bash.fs.readFileBuffer(fullPath);
+    return Readable.from(Buffer.from(data));
   }
 
   async readFileToBuffer(
     file: { path: string; cwd?: string },
-    _opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
     const fullPath = normalizePath(file.path, file.cwd);
-    return this._files.get(fullPath) ?? null;
+    if (!(await this._bash.fs.exists(fullPath))) return null;
+    return Buffer.from(await this._bash.fs.readFileBuffer(fullPath));
   }
 
   async downloadFile(
@@ -219,23 +193,30 @@ export class MockSandbox {
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
     const srcPath = normalizePath(src.path, src.cwd);
-    const buf = this._files.get(srcPath);
-    if (buf === undefined) return null;
+    if (!(await this._bash.fs.exists(srcPath))) return null;
+    const data = await this._bash.fs.readFileBuffer(srcPath);
 
     const dstPath = resolve(dst.cwd ?? "", dst.path);
     if (opts?.mkdirRecursive) {
       await mkdir(dirname(dstPath), { recursive: true });
     }
-    await writeFile(dstPath, buf, { signal: opts?.signal });
+    await writeFile(dstPath, data, { signal: opts?.signal });
     return dstPath;
   }
 
   async writeFiles(
-    files: { path: string; content: Buffer; mode?: number }[],
-    _opts?: { signal?: AbortSignal },
+    files: { path: string; content: string | Uint8Array; mode?: number }[],
   ): Promise<void> {
     for (const file of files) {
-      this._files.set(normalizePath(file.path), file.content);
+      const fullPath = normalizePath(file.path);
+      const dir = dirname(fullPath);
+      if (!(await this._bash.fs.exists(dir))) {
+        await this._bash.fs.mkdir(dir, { recursive: true });
+      }
+      await this._bash.fs.writeFile(fullPath, file.content);
+      if (file.mode !== undefined) {
+        await this._bash.fs.chmod(fullPath, file.mode);
+      }
     }
   }
 
@@ -245,47 +226,23 @@ export class MockSandbox {
     throw new Error(`No route for port ${p}`);
   }
 
-  async stop(
-    _opts?: { signal?: AbortSignal; blocking?: boolean },
-  ): Promise<ConvertedSandbox> {
-    this._status = "stopped";
-    const now = Date.now();
-    return {
-      id: this._sandboxId,
-      memory: 2048,
-      vcpus: 1,
-      region: "iad1",
-      runtime: this._runtime,
-      timeout: this._timeout,
-      status: "stopped",
-      requestedAt: this._createdAt.getTime(),
-      createdAt: this._createdAt.getTime(),
-      cwd: "/vercel/sandbox",
-      updatedAt: now,
-      networkPolicy: this._networkPolicy,
-    };
+  async stop(): Promise<{ id: string; status: SandboxStatus }> {
+    this.status = "stopped";
+    return { id: this.sandboxId, status: "stopped" };
   }
 
-  async extendTimeout(
-    duration: number,
-    _opts?: { signal?: AbortSignal },
-  ): Promise<void> {
-    this._timeout += duration;
+  async extendTimeout(duration: number): Promise<void> {
+    this.timeout += duration;
   }
 
-  async snapshot(
-    _opts?: { expiration?: number; signal?: AbortSignal },
-  ): Promise<MockSnapshot> {
-    this._status = "snapshotting";
-    return new MockSnapshot({ sourceSandboxId: this._sandboxId });
+  async snapshot(): Promise<MockSnapshot> {
+    this.status = "snapshotting";
+    return new MockSnapshot({ sourceSandboxId: this.sandboxId });
   }
 
-  async updateNetworkPolicy(
-    networkPolicy: NetworkPolicy,
-    _opts?: { signal?: AbortSignal },
-  ): Promise<NetworkPolicy> {
-    this._networkPolicy = networkPolicy;
-    return this._networkPolicy;
+  async updateNetworkPolicy(networkPolicy: NetworkPolicy): Promise<NetworkPolicy> {
+    this.networkPolicy = networkPolicy;
+    return this.networkPolicy;
   }
 
   static async create(
@@ -309,11 +266,7 @@ export class MockSandbox {
     );
     return {
       sandboxes,
-      pagination: {
-        count: sandboxes.length,
-        next: null,
-        prev: null,
-      },
+      pagination: { count: sandboxes.length, next: null, prev: null },
     };
   }
 }

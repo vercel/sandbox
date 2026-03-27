@@ -13,6 +13,8 @@ export type {
   CommandResponse,
 } from "./handlers.js";
 
+export type { IFileSystem } from "just-bash";
+
 export { APIError, StreamError } from "../api-client/api-error.js";
 
 export type {
