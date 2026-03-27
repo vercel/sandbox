@@ -186,6 +186,62 @@ describe(MockSandbox, () => {
     const content = await sandbox.fs.readFile("/vercel/sandbox/direct.txt");
     expect(content).toBe("via-fs");
   });
+
+  it("interactivePort / activeCpuUsageMs / networkTransfer return undefined", async () => {
+    const sandbox = await MockSandbox.create();
+    expect(sandbox.interactivePort).toBeUndefined();
+    expect(sandbox.activeCpuUsageMs).toBeUndefined();
+    expect(sandbox.networkTransfer).toBeUndefined();
+  });
+
+  it("getCommand returns MockCommand with given cmdId", async () => {
+    const sandbox = await MockSandbox.create();
+    const cmd = await sandbox.getCommand("cmd_abc");
+    expect(cmd).toBeInstanceOf(MockCommand);
+    expect(cmd.cmdId).toBe("cmd_abc");
+  });
+
+  it("Sandbox.get returns sandbox with options", async () => {
+    const sandbox = await MockSandbox.get({ sandboxId: "sbx_get" });
+    expect(sandbox.sandboxId).toBe("sbx_get");
+  });
+
+  it("Sandbox.list returns sandboxes with pagination", async () => {
+    const result = await MockSandbox.list({
+      sandboxes: [{ sandboxId: "sbx_a" }, { sandboxId: "sbx_b" }],
+    });
+    expect(result.sandboxes).toHaveLength(2);
+    expect(result.sandboxes[0]!.sandboxId).toBe("sbx_a");
+    expect(result.pagination).toEqual({ count: 2, next: null, prev: null });
+  });
+
+  it("stop returns full sandbox metadata", async () => {
+    const sandbox = await MockSandbox.create({ sandboxId: "sbx_stop" });
+    const result = await sandbox.stop();
+    expect(result).toMatchObject({
+      id: "sbx_stop",
+      status: "stopped",
+      cwd: "/vercel/sandbox",
+      memory: 2048,
+      vcpus: 1,
+      region: "iad1",
+      runtime: "node24",
+    });
+    expect(result.createdAt).toBeTypeOf("number");
+    expect(result.updatedAt).toBeTypeOf("number");
+  });
+
+  it("sandboxId / createdAt / sourceSnapshotId accept custom values", async () => {
+    const date = new Date("2025-01-01");
+    const sandbox = await MockSandbox.create({
+      sandboxId: "sbx_custom",
+      createdAt: date,
+      sourceSnapshotId: "snap_src",
+    });
+    expect(sandbox.sandboxId).toBe("sbx_custom");
+    expect(sandbox.createdAt).toEqual(date);
+    expect(sandbox.sourceSnapshotId).toBe("snap_src");
+  });
 });
 
 describe(MockCommand, () => {
@@ -215,6 +271,13 @@ describe(MockCommand, () => {
   it("output('both') concatenates stdout and stderr", async () => {
     const cmd = new MockCommand({ stdout: "out", stderr: "err" });
     await expect(cmd.output("both")).resolves.toBe("outerr");
+  });
+
+  it("stdout() / stderr() / kill() work directly", async () => {
+    const cmd = new MockCommand({ stdout: "out", stderr: "err" });
+    await expect(cmd.stdout()).resolves.toBe("out");
+    await expect(cmd.stderr()).resolves.toBe("err");
+    await expect(cmd.kill()).resolves.toBeUndefined();
   });
 });
 
