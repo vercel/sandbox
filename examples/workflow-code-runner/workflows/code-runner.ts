@@ -20,15 +20,27 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
   // Named writable streams — the UI can read these via run.getReadable()
   const stdout = getWritable<string>({ namespace: "stdout" });
   const stderr = getWritable<string>({ namespace: "stderr" });
+  const status = getWritable<string>({ namespace: "status" });
+  const statusWriter = status.getWriter();
 
   try {
+    await statusWriter.write(
+      JSON.stringify({ phase: "generating", attempt: 1 }),
+    );
     let code = await generateCode(prompt);
     let lastError = "";
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       if (lastError) {
+        await statusWriter.write(
+          JSON.stringify({ phase: "fixing", attempt }),
+        );
         code = await fixCode(prompt, code, lastError);
       }
+
+      await statusWriter.write(
+        JSON.stringify({ phase: "running", attempt }),
+      );
 
       await sandbox.writeFiles([
         { path: "script.js", content: Buffer.from(code) },

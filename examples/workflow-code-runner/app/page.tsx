@@ -3,11 +3,22 @@
 import { useState, useRef } from "react";
 import type { RunCodeResult } from "@/workflows/code-runner";
 
+type Phase = "generating" | "fixing" | "running";
+
+const PHASE_LABELS: Record<Phase, string> = {
+  generating: "Generating code",
+  fixing: "Fixing code",
+  running: "Running in sandbox",
+};
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<RunCodeResult | null>(null);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
+  const [phase, setPhase] = useState<{ phase: Phase; attempt: number } | null>(
+    null,
+  );
   const [status, setStatus] = useState<
     "idle" | "running" | "done" | "failed" | "error"
   >("idle");
@@ -22,6 +33,7 @@ export default function Home() {
     setResult(null);
     setStdout("");
     setStderr("");
+    setPhase(null);
     setError("");
 
     abortRef.current?.abort();
@@ -39,12 +51,15 @@ export default function Home() {
 
       const { runId } = await res.json();
 
-      // Subscribe to stdout and stderr streams
+      // Subscribe to stdout, stderr, and status streams
       const stdoutSource = new EventSource(
         `/api/run?runId=${runId}&stream=stdout`,
       );
       const stderrSource = new EventSource(
         `/api/run?runId=${runId}&stream=stderr`,
+      );
+      const statusSource = new EventSource(
+        `/api/run?runId=${runId}&stream=status`,
       );
 
       stdoutSource.onmessage = (e) => {
@@ -53,14 +68,19 @@ export default function Home() {
       stderrSource.onmessage = (e) => {
         setStderr((prev) => prev + JSON.parse(e.data));
       };
+      statusSource.onmessage = (e) => {
+        setPhase(JSON.parse(JSON.parse(e.data)));
+      };
 
       const cleanup = () => {
         stdoutSource.close();
         stderrSource.close();
+        statusSource.close();
       };
 
       stdoutSource.addEventListener("done", cleanup);
       stderrSource.addEventListener("done", cleanup);
+      statusSource.addEventListener("done", cleanup);
 
       // Poll for completion
       const pollResult = async () => {
@@ -71,9 +91,11 @@ export default function Home() {
           cleanup();
           const output = data.output as RunCodeResult;
           setResult(output);
+          setPhase(null);
           setStatus(output.success ? "done" : "failed");
         } else if (data.status === "failed") {
           cleanup();
+          setPhase(null);
           setError("Workflow failed unexpectedly");
           setStatus("error");
         } else {
@@ -122,7 +144,9 @@ export default function Home() {
         {status === "running" && (
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
-            Generating and executing code in sandbox...
+            {phase
+              ? `${PHASE_LABELS[phase.phase]}... (attempt ${phase.attempt}/${3})`
+              : "Starting..."}
           </div>
         )}
 
