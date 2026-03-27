@@ -6,7 +6,9 @@ import {
   hydrateStepReturnValue,
 } from "@workflow/core/serialization";
 import {
+  Command,
   CommandFinished,
+  SerializedCommand,
   SerializedCommandFinished,
   CommandOutput,
 } from "./command";
@@ -486,6 +488,200 @@ describe("CommandFinished serialization", () => {
       expect(rehydrated.exitCode).toBe(42);
       expect(await rehydrated.stdout()).toBe(mockOutput.stdout);
       expect(await rehydrated.stderr()).toBe(mockOutput.stderr);
+    });
+  });
+});
+
+describe("Command serialization", () => {
+  const mockCommandData: CommandData = {
+    id: "cmd_detached123",
+    name: "sleep",
+    args: ["60"],
+    cwd: "/vercel/sandbox",
+    sandboxId: "sbx_detached456",
+    exitCode: null,
+    startedAt: 1700000000000,
+  };
+
+  const mockSandboxId = "sbx_detached456";
+
+  const mockOutput: CommandOutput = {
+    stdout: "running...\n",
+    stderr: "",
+  };
+
+  const createMockCommand = (
+    cmd: CommandData = mockCommandData,
+    sandboxId: string = mockSandboxId,
+    output?: CommandOutput,
+  ): Command => {
+    const client = new APIClient({
+      teamId: "team_test",
+      token: "test_token",
+    });
+
+    return new Command({
+      client,
+      sandboxId,
+      cmd,
+      output,
+    });
+  };
+
+  describe("WORKFLOW_SERIALIZE", () => {
+    it("serializes a Command instance with output", () => {
+      const command = createMockCommand(
+        mockCommandData,
+        mockSandboxId,
+        mockOutput,
+      );
+
+      const serialized = Command[WORKFLOW_SERIALIZE](command);
+
+      expect(serialized).toEqual({
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+        output: mockOutput,
+      });
+    });
+
+    it("serializes without output if not fetched", () => {
+      const command = createMockCommand();
+
+      const serialized = Command[WORKFLOW_SERIALIZE](command);
+
+      expect(serialized.sandboxId).toBe(mockSandboxId);
+      expect(serialized.cmd).toEqual(mockCommandData);
+      expect(serialized.output).toBeUndefined();
+    });
+
+    it("does not include the API client", () => {
+      const command = createMockCommand(
+        mockCommandData,
+        mockSandboxId,
+        mockOutput,
+      );
+
+      const serialized = Command[WORKFLOW_SERIALIZE](command);
+
+      expect(serialized).not.toHaveProperty("client");
+      expect(JSON.stringify(serialized)).not.toContain("test_token");
+    });
+
+    it("returns JSON-serializable data", () => {
+      const command = createMockCommand(
+        mockCommandData,
+        mockSandboxId,
+        mockOutput,
+      );
+
+      const serialized = Command[WORKFLOW_SERIALIZE](command);
+      const jsonString = JSON.stringify(serialized);
+      const parsed = JSON.parse(jsonString);
+
+      expect(parsed.sandboxId).toBe(mockSandboxId);
+      expect(parsed.output).toEqual(mockOutput);
+    });
+  });
+
+  describe("WORKFLOW_DESERIALIZE", () => {
+    it("creates a Command instance from serialized data", () => {
+      const serializedData: SerializedCommand = {
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+        output: mockOutput,
+      };
+
+      const command = Command[WORKFLOW_DESERIALIZE](serializedData);
+
+      expect(command).toBeInstanceOf(Command);
+      expect(command.cmdId).toBe(mockCommandData.id);
+    });
+
+    it("returns synchronously (not a promise)", () => {
+      const serializedData: SerializedCommand = {
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+      };
+
+      const result = Command[WORKFLOW_DESERIALIZE](serializedData);
+
+      expect(result).toBeInstanceOf(Command);
+      expect(result).not.toBeInstanceOf(Promise);
+    });
+
+    it("restores output for stdout() and stderr() methods", async () => {
+      const serializedData: SerializedCommand = {
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+        output: mockOutput,
+      };
+
+      const command = Command[WORKFLOW_DESERIALIZE](serializedData);
+
+      expect(await command.stdout()).toBe(mockOutput.stdout);
+      expect(await command.stderr()).toBe(mockOutput.stderr);
+    });
+
+    it("deserialized instance has no client until accessed", () => {
+      const serializedData: SerializedCommand = {
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+      };
+
+      const command = Command[WORKFLOW_DESERIALIZE](serializedData);
+
+      expect(Reflect.get(command, "_client")).toBeNull();
+    });
+  });
+
+  describe("roundtrip serialization", () => {
+    it("serializes and deserializes a Command", async () => {
+      const originalCommand = createMockCommand(
+        mockCommandData,
+        mockSandboxId,
+        mockOutput,
+      );
+
+      const serialized = Command[WORKFLOW_SERIALIZE](originalCommand);
+      const deserialized = Command[WORKFLOW_DESERIALIZE](serialized);
+
+      expect(deserialized.cmdId).toBe(originalCommand.cmdId);
+      expect(await deserialized.stdout()).toBe(mockOutput.stdout);
+      expect(await deserialized.stderr()).toBe(mockOutput.stderr);
+    });
+  });
+
+  describe("workflow runtime integration", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("Command survives a step boundary roundtrip", async () => {
+      registerSerializationClass("Command", Command);
+
+      const command = createMockCommand(
+        mockCommandData,
+        mockSandboxId,
+        mockOutput,
+      );
+
+      const dehydrated = await dehydrateStepReturnValue(
+        command,
+        "run_cmd_123",
+        undefined,
+      );
+      expect(dehydrated).toBeInstanceOf(Uint8Array);
+
+      const rehydrated = await hydrateStepReturnValue(
+        dehydrated,
+        "run_cmd_123",
+        undefined,
+      );
+
+      expect(rehydrated).toBeInstanceOf(Command);
+      expect(rehydrated.cmdId).toBe(mockCommandData.id);
+      expect(await rehydrated.stdout()).toBe(mockOutput.stdout);
     });
   });
 });

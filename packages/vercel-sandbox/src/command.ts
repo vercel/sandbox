@@ -127,6 +127,8 @@ export class Command {
     this.exitCode = cmd.exitCode ?? null;
     if (output) {
       this._resolvedOutput = output;
+      // Note: `both` is reconstructed as stdout + stderr concatenation,
+      // which loses the original interleaved order of the streams.
       this.outputCache = Promise.resolve({
         stdout: output.stdout,
         stderr: output.stderr,
@@ -156,7 +158,7 @@ export class Command {
    * Deserialize plain data back into a Command instance for @workflow/serde.
    *
    * The deserialized instance will lazily create an API client using global credentials
-   * when needed. Call {@link Sandbox.setCredentials} before using the deserialized instance.
+   * when needed. Call {@link setSandboxCredentials} before using the deserialized instance.
    *
    * @param data - The serialized command data
    * @returns The reconstructed Command instance
@@ -392,22 +394,17 @@ export class CommandFinished extends Command {
   static [WORKFLOW_SERIALIZE](
     instance: CommandFinished
   ): SerializedCommandFinished {
-    const serialized: SerializedCommandFinished = {
-      sandboxId: instance.sandboxId,
-      cmd: instance.cmd,
+    return {
+      ...Command[WORKFLOW_SERIALIZE](instance),
       exitCode: instance.exitCode,
     };
-    if (instance._resolvedOutput) {
-      serialized.output = instance._resolvedOutput;
-    }
-    return serialized;
   }
 
   /**
    * Deserialize plain data back into a CommandFinished instance for @workflow/serde.
    *
    * The deserialized instance will lazily create an API client using global credentials
-   * when needed. Call {@link Sandbox.setCredentials} before using the deserialized instance.
+   * when needed. Call {@link setSandboxCredentials} before using the deserialized instance.
    *
    * @param data - The serialized command finished data
    * @returns The reconstructed CommandFinished instance

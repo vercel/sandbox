@@ -17,10 +17,7 @@ import type {
 import { Snapshot } from './snapshot.js';
 import { consumeReadable } from './utils/consume-readable.js';
 import { type Credentials, getCredentials } from './utils/get-credentials.js';
-import {
-  getSandboxCredentials,
-  setSandboxCredentials,
-} from './utils/sandbox-credentials.js';
+import { getSandboxCredentials } from './utils/sandbox-credentials.js';
 import {
   type SandboxSnapshot,
   toSandboxSnapshot,
@@ -172,7 +169,10 @@ interface RunCommandParams {
 }
 
 // Re-export for public API
-export { setSandboxCredentials } from './utils/sandbox-credentials.js';
+export {
+  setSandboxCredentials,
+  type SandboxCredentials,
+} from './utils/sandbox-credentials.js';
 
 // ============================================================================
 // Sandbox class
@@ -278,30 +278,6 @@ export class Sandbox {
    * Internal metadata about this sandbox.
    */
   private sandbox: SandboxSnapshot;
-
-  /**
-   * Set global credentials for Sandbox and Command instances.
-   * These credentials are used when lazily creating API clients for deserialized instances.
-   *
-   * If not called, deserialized instances will use OIDC authentication by default.
-   *
-   * @param credentials - The credentials to use globally
-   *
-   * @example
-   * // Set credentials once at application startup
-   * Sandbox.setCredentials({
-   *   teamId: 'team_xxx',
-   *   token: 'token_xxx',
-   *   projectId: 'prj_xxx'
-   * });
-   *
-   * // Now deserialized sandboxes can make API calls
-   * const sandbox = Sandbox[WORKFLOW_DESERIALIZE](serializedData);
-   * await sandbox.runCommand('echo', ['hello']);
-   */
-  static setCredentials(credentials: Credentials): void {
-    setSandboxCredentials(credentials);
-  }
 
   /**
    * Allow to get a list of sandboxes for a team narrowed to the given params.

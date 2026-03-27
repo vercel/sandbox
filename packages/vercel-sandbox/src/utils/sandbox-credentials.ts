@@ -1,7 +1,15 @@
 import pico from "picocolors";
 import type { Credentials } from "./get-credentials";
 
-let sandboxCredentials: Credentials | null = null;
+/**
+ * Credentials accepted by {@link setSandboxCredentials}.
+ * `projectId` is optional because deserialized instances typically
+ * don't need a project context.
+ */
+export type SandboxCredentials = Pick<Credentials, "token" | "teamId"> &
+  Partial<Pick<Credentials, "projectId">>;
+
+let sandboxCredentials: SandboxCredentials | null = null;
 
 /**
  * Set global credentials for Sandbox and Command instances.
@@ -12,7 +20,7 @@ let sandboxCredentials: Credentials | null = null;
  *
  * @param credentials - The credentials to use globally
  */
-export function setSandboxCredentials(credentials: Credentials): void {
+export function setSandboxCredentials(credentials: SandboxCredentials): void {
   sandboxCredentials = credentials;
 }
 
@@ -21,7 +29,7 @@ export function setSandboxCredentials(credentials: Credentials): void {
  * Throws if {@link setSandboxCredentials} has not been called.
  * @internal
  */
-export function getSandboxCredentials(): Credentials {
+export function getSandboxCredentials(): SandboxCredentials {
   if (!sandboxCredentials) {
     throw new Error(
       [
