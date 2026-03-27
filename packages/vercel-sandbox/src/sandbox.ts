@@ -17,7 +17,6 @@ import type {
 import { Snapshot } from "./snapshot.js";
 import { consumeReadable } from "./utils/consume-readable.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
-import { getSandboxCredentials } from "./utils/sandbox-credentials.js";
 import {
   type SandboxSnapshot,
   toSandboxSnapshot,
@@ -168,12 +167,6 @@ interface RunCommandParams {
   signal?: AbortSignal;
 }
 
-// Re-export for public API
-export {
-  setSandboxCredentials,
-  type SandboxCredentials,
-} from "./utils/sandbox-credentials.js";
-
 // ============================================================================
 // Sandbox class
 // ============================================================================
@@ -191,8 +184,7 @@ export class Sandbox {
    * Lazily resolve credentials and construct an API client.
    * This is used in step contexts where the Sandbox was deserialized
    * without a client (e.g. when crossing workflow/step boundaries).
-   * Uses getCredentials() which resolves from OIDC, env vars, or
-   * setSandboxCredentials() — works across isolated step contexts.
+   * Uses getCredentials() which resolves from OIDC or env vars.
    * @internal
    */
   private async ensureClient(): Promise<APIClient> {

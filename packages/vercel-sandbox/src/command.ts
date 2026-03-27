@@ -157,8 +157,8 @@ export class Command {
   /**
    * Deserialize plain data back into a Command instance for @workflow/serde.
    *
-   * The deserialized instance will lazily create an API client using global credentials
-   * when needed. Call {@link setSandboxCredentials} before using the deserialized instance.
+   * The deserialized instance will lazily create an API client using
+   * OIDC or environment credentials when needed.
    *
    * @param data - The serialized command data
    * @returns The reconstructed Command instance
@@ -403,8 +403,8 @@ export class CommandFinished extends Command {
   /**
    * Deserialize plain data back into a CommandFinished instance for @workflow/serde.
    *
-   * The deserialized instance will lazily create an API client using global credentials
-   * when needed. Call {@link setSandboxCredentials} before using the deserialized instance.
+   * The deserialized instance will lazily create an API client using
+   * OIDC or environment credentials when needed.
    *
    * @param data - The serialized command finished data
    * @returns The reconstructed CommandFinished instance

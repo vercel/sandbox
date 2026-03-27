@@ -1,6 +1,5 @@
 export {
   Sandbox,
-  setSandboxCredentials,
   type NetworkPolicy,
   type NetworkPolicyRule,
   type NetworkTransformer,

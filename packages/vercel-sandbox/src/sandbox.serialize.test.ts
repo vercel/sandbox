@@ -7,11 +7,7 @@ import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SandboxMetaData, SandboxRouteData } from "./api-client";
 import { APIClient } from "./api-client";
-import {
-  Sandbox,
-  type SerializedSandbox,
-  setSandboxCredentials,
-} from "./sandbox";
+import { Sandbox, type SerializedSandbox } from "./sandbox";
 import { toSandboxSnapshot } from "./utils/sandbox-snapshot";
 
 describe("Sandbox serialization", () => {
@@ -180,51 +176,6 @@ describe("Sandbox serialization", () => {
       // The deserialized instance has no client until an API method is called
       // (which triggers ensureClient()). Verify the internal state is null.
       expect((deserialized as any)._client).toBeNull();
-    });
-  });
-
-  describe("deserialized instance with credentials", () => {
-    it("creates a working APIClient after setSandboxCredentials", async () => {
-      vi.resetModules();
-      const { Sandbox: FreshSandbox, setSandboxCredentials: freshSetCreds } =
-        await import("./sandbox");
-
-      freshSetCreds({
-        token: "test_token",
-        teamId: "team_test",
-      });
-
-      const serializedData: SerializedSandbox = {
-        metadata: {
-          id: "sbx_test123",
-          memory: 2048,
-          vcpus: 1,
-          region: "us-east-1",
-          runtime: "node24",
-          timeout: 300000,
-          status: "running",
-          requestedAt: 1700000000000,
-          startedAt: 1700000001000,
-          createdAt: 1700000000000,
-          cwd: "/vercel/sandbox",
-          updatedAt: 1700000002000,
-          networkPolicy: "allow-all",
-        },
-        routes: mockRoutes,
-      };
-
-      const deserialized = FreshSandbox[WORKFLOW_DESERIALIZE](
-        serializedData,
-      ) as Sandbox;
-
-      // The internal _client should be null before any API call
-      expect((deserialized as any)._client).toBeNull();
-
-      // After calling ensureClient (via any async method), the client should be created.
-      // We can't actually make an API call, but we can verify the lazy init
-      // pattern works by checking that the getter exists and metadata is accessible.
-      expect(deserialized.sandboxId).toBe("sbx_test123");
-      expect(deserialized.status).toBe("running");
     });
   });
 

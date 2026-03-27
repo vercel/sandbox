@@ -1,13 +1,4 @@
-import { Sandbox, setSandboxCredentials } from "@vercel/sandbox";
-
-// Set credentials at module scope so they're available in every step
-// context, including nested steps from SDK methods like writeFiles(),
-// runCommand(), etc. which are each executed as their own step.
-setSandboxCredentials({
-  token: process.env.VERCEL_TOKEN!,
-  teamId: process.env.VERCEL_TEAM_ID!,
-  projectId: process.env.VERCEL_PROJECT_ID!,
-});
+import { Sandbox } from "@vercel/sandbox";
 
 export async function createSandbox() {
   "use step";
