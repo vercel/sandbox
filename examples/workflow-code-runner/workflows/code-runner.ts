@@ -1,26 +1,8 @@
 import { FatalError, getWritable } from "workflow";
 import { Sandbox } from "@vercel/sandbox";
-import { Writable } from "stream";
 import { generateCode, fixCode } from "@/steps/ai";
 
 const MAX_ATTEMPTS = 3;
-
-/**
- * Convert a Web WritableStream<string> into a Node.js Writable stream
- * so it can be passed to sandbox.runCommand({ stdout, stderr }).
- */
-function toNodeWritable(webStream: WritableStream<string>): Writable {
-  const writer = webStream.getWriter();
-  return new Writable({
-    write(chunk, _encoding, callback) {
-      const text = typeof chunk === "string" ? chunk : chunk.toString();
-      writer.write(text).then(() => callback(), callback);
-    },
-    final(callback) {
-      writer.close().then(() => callback(), callback);
-    },
-  });
-}
 
 export async function runCode(prompt: string) {
   "use workflow";
@@ -32,11 +14,8 @@ export async function runCode(prompt: string) {
   });
 
   // Named writable streams — the UI can read these via run.getReadable()
-  const stdoutStream = getWritable<string>({ namespace: "stdout" });
-  const stderrStream = getWritable<string>({ namespace: "stderr" });
-
-  const stdout = toNodeWritable(stdoutStream);
-  const stderr = toNodeWritable(stderrStream);
+  const stdout = getWritable<string>({ namespace: "stdout" });
+  const stderr = getWritable<string>({ namespace: "stderr" });
 
   try {
     let code = await generateCode(prompt);
@@ -75,8 +54,8 @@ export async function runCode(prompt: string) {
       `Code failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}`,
     );
   } finally {
-    stdout.end();
-    stderr.end();
+    stdout.close();
+    stderr.close();
     await sandbox.stop();
   }
 }

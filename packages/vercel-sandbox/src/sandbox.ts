@@ -154,13 +154,15 @@ interface RunCommandParams {
    */
   detached?: boolean;
   /**
-   * A `Writable` stream where `stdout` from the command will be piped
+   * A stream where `stdout` from the command will be piped.
+   * Accepts a Node.js `Writable` or a Web `WritableStream`.
    */
-  stdout?: Writable;
+  stdout?: Writable | WritableStream;
   /**
-   * A `Writable` stream where `stderr` from the command will be piped
+   * A stream where `stderr` from the command will be piped.
+   * Accepts a Node.js `Writable` or a Web `WritableStream`.
    */
-  stderr?: Writable;
+  stderr?: Writable | WritableStream;
   /**
    * An AbortSignal to cancel the command execution
    */
@@ -501,12 +503,27 @@ export class Sandbox {
         return;
       }
 
+      // Resolve writers: support both Node.js Writable and Web WritableStream
+      const getWriter = (
+        stream: Writable | WritableStream | undefined,
+      ): { write: (data: string) => void } | undefined => {
+        if (!stream) return undefined;
+        if ("getWriter" in stream) {
+          const writer = stream.getWriter();
+          return { write: (data: string) => writer.write(data) };
+        }
+        return stream;
+      };
+
+      const stdoutWriter = getWriter(params.stdout);
+      const stderrWriter = getWriter(params.stderr);
+
       try {
         for await (const log of command.logs({ signal: params.signal })) {
           if (log.stream === "stdout") {
-            params.stdout?.write(log.data);
+            stdoutWriter?.write(log.data);
           } else if (log.stream === "stderr") {
-            params.stderr?.write(log.data);
+            stderrWriter?.write(log.data);
           }
         }
       } catch (err) {
