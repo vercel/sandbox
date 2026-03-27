@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {
@@ -13,7 +13,7 @@
     "next": "16.0.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "workflow": "^4.2.0-beta.71",
+    "workflow": "4.2.0-beta.73",
     "zod": "^4.1.9"
   },
   "devDependencies": {
