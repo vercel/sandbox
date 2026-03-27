@@ -1,7 +1,7 @@
-import type { WithFetchOptions } from './api-client/api-client.js';
-import type { SnapshotMetadata } from './api-client/index.js';
-import { APIClient } from './api-client/index.js';
-import { type Credentials, getCredentials } from './utils/get-credentials.js';
+import type { WithFetchOptions } from "./api-client/api-client.js";
+import type { SnapshotMetadata } from "./api-client/index.js";
+import { APIClient } from "./api-client/index.js";
+import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 
 /** @inline */
 interface GetSnapshotParams {
@@ -41,7 +41,7 @@ export class Snapshot {
   /**
    * The status of the snapshot.
    */
-  public get status(): SnapshotMetadata['status'] {
+  public get status(): SnapshotMetadata["status"] {
     return this.snapshot.status;
   }
 
@@ -98,7 +98,7 @@ export class Snapshot {
    * the next page of results.
    */
   static async list(
-    params?: Partial<Parameters<APIClient['listSnapshots']>[0]> &
+    params?: Partial<Parameters<APIClient["listSnapshots"]>[0]> &
       Partial<Credentials> &
       WithFetchOptions
   ) {
