@@ -430,9 +430,6 @@ importers:
       '@workflow/core':
         specifier: 4.2.0-beta.73
         version: 4.2.0-beta.73(@opentelemetry/api@1.9.0)
-      '@workflow/vitest':
-        specifier: 4.0.1-beta.10
-        version: 4.0.1-beta.10(@opentelemetry/api@1.9.0)(vite@7.1.4(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1))(vitest@3.2.1(@types/debug@4.1.12)(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1))(zod@3.24.4)
       dotenv:
         specifier: 16.5.0
         version: 16.5.0
@@ -451,9 +448,6 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 3.2.1(@types/debug@4.1.12)(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1)
-      workflow:
-        specifier: 4.2.0-beta.73
-        version: 4.2.0-beta.73(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)
 
 packages:
 
@@ -2664,15 +2658,6 @@ packages:
 
   '@workflow/vite@4.0.0-beta.23':
     resolution: {integrity: sha512-EM5rDgrkwWN5vAY2YteuL8/bELEv6g2dckTHiEl4SuYNYZK/NLvQV7b57ypMNafWAc2hZ/euplE1fBqsuQEC3Q==}
-
-  '@workflow/vitest@4.0.1-beta.10':
-    resolution: {integrity: sha512-ingiF26t6gTJL2IkhaMVn/gN7rFw65ZwuS9h6mD8puvyp1XoRomufe++sa1B3T1a0QPc1cH2bBOkZJVTpxqhjA==}
-    peerDependencies:
-      vite: '>=6.0.0'
-      vitest: '>=3.0.0'
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   '@workflow/web@4.1.0-beta.45':
     resolution: {integrity: sha512-ITqHjQMS5QPj0lx4vGdyhASz/IrqKQcgnv97OBiKvnwcWCH+nszmP59LJ/BL9DTb0AR2ugFWh2FlGe1GJxTTZg==}
@@ -8206,23 +8191,6 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/vitest@4.0.1-beta.10(@opentelemetry/api@1.9.0)(vite@7.1.4(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1))(vitest@3.2.1(@types/debug@4.1.12)(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1))(zod@3.24.4)':
-    dependencies:
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
-      '@workflow/core': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
-      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)
-      '@workflow/world': 4.1.0-beta.14(zod@3.24.4)
-      '@workflow/world-local': 4.1.0-beta.46(@opentelemetry/api@1.9.0)
-      vitest: 3.2.1(@types/debug@4.1.12)(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1)
-    optionalDependencies:
-      vite: 7.1.4(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.8.1)
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - '@swc/helpers'
-      - aws-crt
-      - supports-color
-      - zod
-
   '@workflow/web@4.1.0-beta.45':
     dependencies:
       express: 4.22.1
@@ -8253,11 +8221,6 @@ snapshots:
       zod: 4.3.6
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
-
-  '@workflow/world@4.1.0-beta.14(zod@3.24.4)':
-    dependencies:
-      ulid: 3.0.1
-      zod: 3.24.4
 
   '@workflow/world@4.1.0-beta.14(zod@4.3.6)':
     dependencies:

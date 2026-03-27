@@ -65,13 +65,11 @@
     "@types/node": "22.15.12",
     "@types/tar-stream": "3.1.4",
     "@workflow/core": "4.2.0-beta.73",
-    "@workflow/vitest": "4.0.1-beta.10",
     "dotenv": "16.5.0",
     "factoree": "^0.1.2",
     "tsdown": "catalog:",
     "typedoc": "0.28.5",
     "typescript": "5.8.3",
-    "vitest": "catalog:",
-    "workflow": "4.2.0-beta.73"
+    "vitest": "catalog:"
   }
 }
