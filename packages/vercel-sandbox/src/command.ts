@@ -255,6 +255,8 @@ export class Command {
     if (!this.outputCache) {
       this.outputCache = (async () => {
         try {
+          // Ensure client is initialized before calling logs()
+          await this.ensureClient();
           let stdout = "";
           let stderr = "";
           let both = "";
