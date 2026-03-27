@@ -1,10 +1,14 @@
-import { FatalError, getWritable } from "workflow";
+import { getWritable } from "workflow";
 import { Sandbox } from "@vercel/sandbox";
 import { generateCode, fixCode } from "@/steps/ai";
 
 const MAX_ATTEMPTS = 3;
 
-export async function runCode(prompt: string) {
+export type RunCodeResult =
+  | { success: true; code: string; iterations: number }
+  | { success: false; code: string; error: string; iterations: number };
+
+export async function runCode(prompt: string): Promise<RunCodeResult> {
   "use workflow";
 
   const sandbox = await Sandbox.create({
@@ -41,7 +45,7 @@ export async function runCode(prompt: string) {
       const finished = await cmd.wait();
 
       if (finished.exitCode === 0) {
-        return { code, iterations: attempt };
+        return { success: true, code, iterations: attempt };
       }
 
       const stderrOutput = await finished.stderr();
@@ -50,9 +54,12 @@ export async function runCode(prompt: string) {
       console.log(`[Attempt ${attempt}] Failed:`, lastError);
     }
 
-    throw new FatalError(
-      `Code failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}`,
-    );
+    return {
+      success: false,
+      code,
+      error: lastError,
+      iterations: MAX_ATTEMPTS,
+    };
   } finally {
     await sandbox.stop();
   }

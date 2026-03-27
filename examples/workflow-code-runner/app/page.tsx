@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
+import type { RunCodeResult } from "@/workflows/code-runner";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [result, setResult] = useState<{
-    code: string;
-    iterations: number;
-  } | null>(null);
+  const [result, setResult] = useState<RunCodeResult | null>(null);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
-  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<
+    "idle" | "running" | "done" | "failed" | "error"
+  >("idle");
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
@@ -71,11 +69,12 @@ export default function Home() {
 
         if (data.status === "completed") {
           cleanup();
-          setResult(data.output);
-          setStatus("done");
+          const output = data.output as RunCodeResult;
+          setResult(output);
+          setStatus(output.success ? "done" : "failed");
         } else if (data.status === "failed") {
           cleanup();
-          setError(data.error ?? "Workflow failed");
+          setError("Workflow failed unexpectedly");
           setStatus("error");
         } else {
           setTimeout(pollResult, 1000);
@@ -127,9 +126,16 @@ export default function Home() {
           </div>
         )}
 
-        {error && (
+        {status === "error" && (
           <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-400">
             {error}
+          </div>
+        )}
+
+        {result && !result.success && (
+          <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-400">
+            Code failed after {result.iterations} attempt
+            {result.iterations > 1 ? "s" : ""}: {result.error}
           </div>
         )}
 
@@ -141,12 +147,15 @@ export default function Home() {
                   <h2 className="text-sm font-medium text-zinc-300">
                     Generated Code
                   </h2>
-                  {result.iterations > 1 && (
-                    <span className="text-xs text-zinc-500">
-                      {result.iterations} attempt
-                      {result.iterations > 1 ? "s" : ""}
-                    </span>
-                  )}
+                  <span className="text-xs text-zinc-500">
+                    {result.iterations} attempt
+                    {result.iterations > 1 ? "s" : ""}
+                    {result.success ? (
+                      <span className="ml-2 text-green-500">passed</span>
+                    ) : (
+                      <span className="ml-2 text-red-500">failed</span>
+                    )}
+                  </span>
                 </div>
                 <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-zinc-300">
                   {result.code}
