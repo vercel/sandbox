@@ -133,13 +133,13 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col font-sans">
       {/* Top bar: prompt + status */}
-      <div className="border-b border-zinc-800 px-6 py-8">
+      <div className="border-b border-border px-6 py-8">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="text-xl font-semibold tracking-tight">
               Sandbox Code Runner
             </h1>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted">
               Describe a program and AI will generate and execute it in a
               sandbox.
             </p>
@@ -157,7 +157,7 @@ export default function Home() {
               }}
               placeholder="Describe a program to run..."
               rows={1}
-              className="flex-1 resize-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-zinc-600"
+              className="flex-1 resize-none rounded-lg border border-border bg-black px-4 py-2.5 text-sm text-foreground placeholder-zinc-600 outline-none focus:border-zinc-600"
             />
             <button
               type="submit"
@@ -169,8 +169,8 @@ export default function Home() {
           </form>
 
           {status === "running" && phase && (
-            <div className="flex items-center gap-2 text-sm text-zinc-400">
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-t-foreground" />
               {PHASE_LABELS[phase.phase]}
               {phase.attempt > 0 && ` (attempt ${phase.attempt}/3)`}
             </div>
@@ -195,13 +195,13 @@ export default function Home() {
       {showPanes && (
         <div className="flex flex-1">
           {/* Left pane: code */}
-          <div className="flex w-1/2 flex-col border-r border-zinc-800">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
-              <span className="text-xs font-medium text-zinc-400">
+          <div className="flex w-1/2 flex-col border-r border-border">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2">
+              <span className="text-xs font-medium text-muted">
                 script.js
               </span>
               {result && (
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-muted">
                   {result.iterations} attempt
                   {result.iterations > 1 ? "s" : ""}
                   {result.success ? (
@@ -212,7 +212,7 @@ export default function Home() {
                 </span>
               )}
               {!result && phase && phase.attempt > 0 && (
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-muted">
                   attempt {phase.attempt}/3
                 </span>
               )}
@@ -225,7 +225,7 @@ export default function Home() {
           {/* Right pane: terminal output */}
           <div className="flex w-1/2 flex-col">
             {stdout && (
-              <div className="flex flex-1 flex-col border-b border-zinc-800">
+              <div className="flex flex-1 flex-col border-b border-border">
                 <Terminal title="stdout">{stdout}</Terminal>
               </div>
             )}
@@ -237,7 +237,7 @@ export default function Home() {
               </div>
             )}
             {!stdout && !stderr && status === "running" && (
-              <div className="flex flex-1 items-center justify-center text-sm text-zinc-600">
+              <div className="flex flex-1 items-center justify-center text-sm text-muted">
                 Waiting for output...
               </div>
             )}

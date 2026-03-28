@@ -16,7 +16,7 @@ export function CodeBlock({
     let cancelled = false;
     codeToHtml(code, {
       lang,
-      theme: "github-dark",
+      theme: "github-dark-default",
     }).then((result) => {
       if (!cancelled) setHtml(result);
     });
@@ -27,15 +27,22 @@ export function CodeBlock({
 
   if (!html) {
     return (
-      <pre className="bg-[#0d1117] p-4 font-mono text-sm leading-relaxed text-zinc-300">
-        {code}
+      <pre className="line-numbers bg-black p-4 font-mono text-sm leading-relaxed text-[#e6edf3]">
+        {code.split("\n").map((line, i) => (
+          <div key={i} className="table-row">
+            <span className="table-cell w-8 select-none pr-4 text-right tabular-nums text-[#484f58]">
+              {i + 1}
+            </span>
+            <span className="table-cell">{line}</span>
+          </div>
+        ))}
       </pre>
     );
   }
 
   return (
     <div
-      className="[&_pre]:!bg-[#0d1117] [&_pre]:p-4 [&_pre]:leading-relaxed [&_pre]:text-sm [&_code]:text-sm"
+      className="code-block [&_pre]:!bg-black [&_pre]:p-4 [&_pre]:leading-relaxed [&_pre]:text-sm [&_code]:text-sm [&_code]:leading-relaxed"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
