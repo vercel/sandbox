@@ -1,4 +1,4 @@
-import { getWritable } from "workflow";
+import { createWebhook, getWritable } from "workflow";
 import { Sandbox } from "@vercel/sandbox";
 import { generateCode, fixCode } from "@/steps/ai";
 import { updateStatus } from "@/steps/status";
@@ -12,16 +12,18 @@ export type RunCodeResult =
 export async function runCode(prompt: string): Promise<RunCodeResult> {
   "use workflow";
 
+  // Named writable streams — the UI can read these via run.getReadable()
+  const stdout = getWritable<string>({ namespace: "stdout" });
+  const stderr = getWritable<string>({ namespace: "stderr" });
+  const status = getWritable<string>({ namespace: "status" });
+
+  await updateStatus(status, "creating-sandbox", 0);
+
   const sandbox = await Sandbox.create({
     resources: { vcpus: 1 },
     timeout: 5 * 60 * 1000,
     runtime: "node22",
   });
-
-  // Named writable streams — the UI can read these via run.getReadable()
-  const stdout = getWritable<string>({ namespace: "stdout" });
-  const stderr = getWritable<string>({ namespace: "stderr" });
-  const status = getWritable<string>({ namespace: "status" });
 
   try {
     await updateStatus(status, "generating", 1);
@@ -34,9 +36,10 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
         code = await fixCode(prompt, code, lastError);
       }
 
-      await updateStatus(status, "running", attempt, code);
-
+      await updateStatus(status, "writing", attempt, code);
       await sandbox.writeFiles([{ path: "script.js", content: code }]);
+
+      await updateStatus(status, "running", attempt);
 
       // In workflow context, runCommand automatically creates a webhook
       // and wraps the command to POST the exit code on completion.
@@ -53,6 +56,7 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
       const finished = await cmd.wait();
 
       if (finished.exitCode === 0) {
+        await updateStatus(status, "stopping", attempt);
         return { success: true, code, iterations: attempt };
       }
 
@@ -60,6 +64,7 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
       console.log(`[Attempt ${attempt}] Failed:`, lastError);
     }
 
+    await updateStatus(status, "stopping", MAX_ATTEMPTS);
     return {
       success: false,
       code,

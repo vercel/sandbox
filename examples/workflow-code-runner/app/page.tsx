@@ -3,12 +3,21 @@
 import { useState, useRef } from "react";
 import type { RunCodeResult } from "@/workflows/code-runner";
 
-type Phase = "generating" | "fixing" | "running";
+type Phase =
+  | "creating-sandbox"
+  | "generating"
+  | "fixing"
+  | "writing"
+  | "running"
+  | "stopping";
 
 const PHASE_LABELS: Record<Phase, string> = {
+  "creating-sandbox": "Creating sandbox",
   generating: "Generating code",
   fixing: "Fixing code",
+  writing: "Writing files to sandbox",
   running: "Running in sandbox",
+  stopping: "Stopping sandbox",
 };
 
 export default function Home() {
@@ -153,7 +162,7 @@ export default function Home() {
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
             {phase
-              ? `${PHASE_LABELS[phase.phase]}... (attempt ${phase.attempt}/${3})`
+              ? `${PHASE_LABELS[phase.phase]}...${phase.attempt > 0 ? ` (attempt ${phase.attempt}/${3})` : ""}`
               : "Starting..."}
           </div>
         )}
