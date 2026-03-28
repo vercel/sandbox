@@ -3,14 +3,10 @@ import { fetchApi } from "./api.js";
 import { NotOk } from "./error.js";
 import { readLinkedProject } from "./linked-project.js";
 
-const TeamsSchema = z.object({
-  teams: z
-    .array(
-      z.object({
-        slug: z.string(),
-      }),
-    )
-    .min(1, `No teams found. Please create a team first.`),
+const UserSchema = z.object({
+  user: z.object({
+    username: z.string(),
+  }),
 });
 
 const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
@@ -21,16 +17,17 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
  * First checks for a locally linked project in `.vercel/project.json`.
  * If found, uses the `projectId` and `orgId` from there.
  *
- * Otherwise, if `teamId` is not provided, selects the first available team for the account.
- * Ensures a default project exists within the team, creating it if necessary.
+ * Otherwise, if `teamId` is not provided, falls back to the authenticated user's
+ * personal team (their username). Ensures a default project exists within the team,
+ * creating it if necessary.
  *
  * @param opts.token - Vercel API authentication token.
- * @param opts.teamId - Optional team slug. If omitted, the first team is selected.
+ * @param opts.teamId - Optional team slug. If omitted, the user's personal team is used.
  * @param opts.cwd - Optional directory to search for `.vercel/project.json`. Defaults to `process.cwd()`.
  * @returns The resolved scope with `projectId`, `teamId`, and whether the project was `created`.
  *
  * @throws {NotOk} If the API returns an error other than 404 when checking the project.
- * @throws {ZodError} If no teams exist for the account.
+ * @throws {ZodError} If the user API response is missing a username.
  *
  * @example
  * ```ts
@@ -76,17 +73,17 @@ export async function inferScope(opts: {
 }
 
 /**
- * Selects a team for the current token by querying the Teams API and
- * returning the slug of the first team in the result set.
+ * Falls back to the authenticated user's personal team by fetching
+ * their username from the `/v2/user` endpoint.
  *
  * @param token - Authentication token used to call the Vercel API.
- * @returns A promise that resolves to the first team's slug.
+ * @returns A promise that resolves to the user's username (their personal team slug).
  */
 export async function selectTeam(token: string) {
   const {
-    teams: [team],
-  } = await fetchApi({ token, endpoint: "/v2/teams?limit=1" }).then(
-    TeamsSchema.parse,
+    user,
+  } = await fetchApi({ token, endpoint: "/v2/user" }).then(
+    UserSchema.parse,
   );
-  return team.slug;
+  return user.username;
 }

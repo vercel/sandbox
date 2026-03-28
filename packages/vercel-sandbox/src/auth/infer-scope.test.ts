@@ -28,16 +28,16 @@ async function getTempDir(): Promise<string> {
 }
 
 describe("selectTeam", () => {
-  test("returns the first team", async () => {
+  test("returns the user's username as the personal team slug", async () => {
     fetchApiMock.mockResolvedValue({
-      teams: [{ slug: "one" }, { slug: "two" }],
+      user: { username: "my-user" },
     });
     const team = await selectTeam("token");
     expect(fetchApiMock).toHaveBeenCalledWith({
-      endpoint: "/v2/teams?limit=1",
+      endpoint: "/v2/user",
       token: "token",
     });
-    expect(team).toBe("one");
+    expect(team).toBe("my-user");
   });
 });
 
@@ -95,10 +95,10 @@ describe("inferScope", () => {
     });
   });
 
-  test("infers the team", async () => {
+  test("infers the team from the user's username", async () => {
     fetchApiMock.mockImplementation(async ({ endpoint }) => {
-      if (endpoint === "/v2/teams?limit=1") {
-        return { teams: [{ slug: "inferred-team" }] };
+      if (endpoint === "/v2/user") {
+        return { user: { username: "inferred-user" } };
       }
       return {};
     });
@@ -106,7 +106,7 @@ describe("inferScope", () => {
     expect(scope).toEqual({
       created: false,
       projectId: "vercel-sandbox-default-project",
-      teamId: "inferred-team",
+      teamId: "inferred-user",
     });
   });
 
