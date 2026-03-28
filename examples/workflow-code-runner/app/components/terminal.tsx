@@ -20,11 +20,8 @@ export function Terminal({
     }
   }, [children]);
 
-  const borderColor =
-    variant === "error" ? "border-red-900/50" : "border-zinc-800";
-
   return (
-    <div className={`overflow-hidden rounded-lg border ${borderColor}`}>
+    <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2">
         <div className="flex gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
@@ -35,7 +32,7 @@ export function Terminal({
       </div>
       <pre
         ref={scrollRef}
-        className={`max-h-80 overflow-auto bg-[#0d1117] p-4 font-mono text-sm leading-relaxed ${
+        className={`flex-1 overflow-auto bg-[#0d1117] p-4 font-mono text-sm leading-relaxed ${
           variant === "error" ? "text-red-400" : "text-zinc-300"
         }`}
       >

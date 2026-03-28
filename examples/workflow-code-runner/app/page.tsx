@@ -25,12 +25,12 @@ const PHASE_LABELS: Record<Phase, string> = {
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<RunCodeResult | null>(null);
+  const [code, setCode] = useState("");
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
   const [phase, setPhase] = useState<{
     phase: Phase;
     attempt: number;
-    code?: string;
   } | null>(null);
   const [status, setStatus] = useState<
     "idle" | "running" | "done" | "failed" | "error"
@@ -44,6 +44,7 @@ export default function Home() {
 
     setStatus("running");
     setResult(null);
+    setCode("");
     setStdout("");
     setStderr("");
     setPhase(null);
@@ -81,7 +82,11 @@ export default function Home() {
         setStderr((prev) => prev + JSON.parse(e.data));
       };
       statusSource.onmessage = (e) => {
-        setPhase(JSON.parse(JSON.parse(e.data)));
+        const data = JSON.parse(JSON.parse(e.data));
+        setPhase({ phase: data.phase, attempt: data.attempt });
+        if (data.code) {
+          setCode(data.code);
+        }
       };
 
       const cleanup = () => {
@@ -102,6 +107,7 @@ export default function Home() {
           cleanup();
           const output = data.output as RunCodeResult;
           setResult(output);
+          setCode(output.code);
           setPhase(null);
           setStatus(output.success ? "done" : "failed");
         } else if (data.status === "failed") {
@@ -122,105 +128,122 @@ export default function Home() {
     }
   }
 
-  const displayCode = result?.code ?? phase?.code;
+  const showPanes = code || stdout || stderr;
 
   return (
-    <div className="flex min-h-screen items-center justify-center font-sans">
-      <main className="flex w-full max-w-2xl flex-col gap-8 px-6 py-16">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Sandbox Code Runner
-          </h1>
-          <p className="text-sm text-zinc-400">
-            Describe a program and AI will generate and execute it in a sandbox.
-            If it fails, it automatically retries with the error context.
-          </p>
+    <div className="flex min-h-screen flex-col font-sans">
+      {/* Top bar: prompt + status */}
+      <div className="border-b border-zinc-800 px-6 py-8">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl font-semibold tracking-tight">
+              Sandbox Code Runner
+            </h1>
+            <p className="text-sm text-zinc-500">
+              Describe a program and AI will generate and execute it in a
+              sandbox.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex gap-3">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.metaKey) {
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
+              placeholder="Describe a program to run..."
+              rows={1}
+              className="flex-1 resize-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-zinc-600"
+            />
+            <button
+              type="submit"
+              disabled={status === "running" || !prompt.trim()}
+              className="rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-black transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {status === "running" ? "Running..." : "Run"}
+            </button>
+          </form>
+
+          {status === "running" && phase && (
+            <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
+              {PHASE_LABELS[phase.phase]}
+              {phase.attempt > 0 && ` (attempt ${phase.attempt}/3)`}
+            </div>
+          )}
+
+          {status === "error" && (
+            <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          {result && !result.success && (
+            <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-400">
+              Code failed after {result.iterations} attempt
+              {result.iterations > 1 ? "s" : ""}: {result.error}
+            </div>
+          )}
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && e.metaKey) {
-                e.preventDefault();
-                e.currentTarget.form?.requestSubmit();
-              }
-            }}
-            placeholder='e.g. "Write a program that computes the first 20 fibonacci numbers and prints them as a formatted table"'
-            rows={3}
-            className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-zinc-600"
-          />
-          <button
-            type="submit"
-            disabled={status === "running" || !prompt.trim()}
-            className="self-start rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {status === "running" ? "Running..." : "Run"}
-          </button>
-        </form>
-
-        {status === "running" && (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
-            {phase
-              ? `${PHASE_LABELS[phase.phase]}...${phase.attempt > 0 ? ` (attempt ${phase.attempt}/${3})` : ""}`
-              : "Starting..."}
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        {result && !result.success && (
-          <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-            Code failed after {result.iterations} attempt
-            {result.iterations > 1 ? "s" : ""}: {result.error}
-          </div>
-        )}
-
-        {(stdout || stderr || displayCode) && (
-          <div className="flex flex-col gap-4">
-            {displayCode && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-medium text-zinc-300">
-                    Generated Code
-                  </h2>
-                  {result && (
-                    <span className="text-xs text-zinc-500">
-                      {result.iterations} attempt
-                      {result.iterations > 1 ? "s" : ""}
-                      {result.success ? (
-                        <span className="ml-2 text-green-500">passed</span>
-                      ) : (
-                        <span className="ml-2 text-red-500">failed</span>
-                      )}
-                    </span>
+      {/* Split panes */}
+      {showPanes && (
+        <div className="flex flex-1">
+          {/* Left pane: code */}
+          <div className="flex w-1/2 flex-col border-r border-zinc-800">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
+              <span className="text-xs font-medium text-zinc-400">
+                script.js
+              </span>
+              {result && (
+                <span className="text-xs text-zinc-500">
+                  {result.iterations} attempt
+                  {result.iterations > 1 ? "s" : ""}
+                  {result.success ? (
+                    <span className="ml-1.5 text-green-500">passed</span>
+                  ) : (
+                    <span className="ml-1.5 text-red-500">failed</span>
                   )}
-                  {!result && phase && (
-                    <span className="text-xs text-zinc-500">
-                      attempt {phase.attempt}/{3}
-                    </span>
-                  )}
-                </div>
-                <CodeBlock code={displayCode} />
+                </span>
+              )}
+              {!result && phase && phase.attempt > 0 && (
+                <span className="text-xs text-zinc-500">
+                  attempt {phase.attempt}/3
+                </span>
+              )}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {code && <CodeBlock code={code} />}
+            </div>
+          </div>
+
+          {/* Right pane: terminal output */}
+          <div className="flex w-1/2 flex-col">
+            {stdout && (
+              <div className="flex flex-1 flex-col border-b border-zinc-800">
+                <Terminal title="stdout">{stdout}</Terminal>
               </div>
             )}
-
-            {stdout && <Terminal title="stdout">{stdout}</Terminal>}
-
             {stderr && (
-              <Terminal title="stderr" variant="error">
-                {stderr}
-              </Terminal>
+              <div className="flex flex-1 flex-col">
+                <Terminal title="stderr" variant="error">
+                  {stderr}
+                </Terminal>
+              </div>
+            )}
+            {!stdout && !stderr && status === "running" && (
+              <div className="flex flex-1 items-center justify-center text-sm text-zinc-600">
+                Waiting for output...
+              </div>
             )}
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }
