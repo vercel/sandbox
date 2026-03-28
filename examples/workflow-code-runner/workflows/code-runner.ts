@@ -5,14 +5,30 @@ import { updateStatus } from "@/steps/status";
 
 const MAX_ATTEMPTS = 3;
 
+export type Runtime = "node24" | "node22" | "python3.13";
+
 export type RunCodeResult =
   | { success: true; code: string; iterations: number }
   | { success: false; code: string; error: string; iterations: number };
 
-export async function runCode(prompt: string): Promise<RunCodeResult> {
+const RUNTIME_CONFIG: Record<
+  Runtime,
+  { lang: string; ext: string; cmd: string }
+> = {
+  node24: { lang: "Node.js", ext: "js", cmd: "node" },
+  node22: { lang: "Node.js", ext: "js", cmd: "node" },
+  "python3.13": { lang: "Python", ext: "py", cmd: "python3" },
+};
+
+export async function runCode(
+  prompt: string,
+  runtime: Runtime = "node24",
+): Promise<RunCodeResult> {
   "use workflow";
 
-  // Named writable streams — the UI can read these via run.getReadable()
+  const config = RUNTIME_CONFIG[runtime];
+  const filename = `script.${config.ext}`;
+
   const stdout = getWritable<string>({ namespace: "stdout" });
   const stderr = getWritable<string>({ namespace: "stderr" });
   const status = getWritable<string>({ namespace: "status" });
@@ -22,32 +38,28 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
   const sandbox = await Sandbox.create({
     resources: { vcpus: 1 },
     timeout: 5 * 60 * 1000,
-    runtime: "node22",
+    runtime,
   });
 
   try {
     await updateStatus(status, "generating", 1);
-    let code = await generateCode(prompt);
+    let code = await generateCode(prompt, config.lang);
     let lastError = "";
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       if (lastError) {
         await updateStatus(status, "fixing", attempt);
-        code = await fixCode(prompt, code, lastError);
+        code = await fixCode(prompt, code, lastError, config.lang);
       }
 
       await updateStatus(status, "writing", attempt, code);
-      await sandbox.writeFiles([{ path: "script.js", content: code }]);
+      await sandbox.writeFiles([{ path: filename, content: code }]);
 
       await updateStatus(status, "running", attempt);
 
-      // In workflow context, runCommand automatically creates a webhook
-      // and wraps the command to POST the exit code on completion.
-      // cmd.wait() then suspends the workflow until the webhook fires,
-      // instead of blocking a step polling for completion.
       const cmd = await sandbox.runCommand({
-        cmd: "node",
-        args: ["script.js"],
+        cmd: config.cmd,
+        args: [filename],
         stdout,
         stderr,
         detached: true,

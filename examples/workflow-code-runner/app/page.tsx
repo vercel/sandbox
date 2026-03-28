@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { RunCodeResult } from "@/workflows/code-runner";
+import type { RunCodeResult, Runtime } from "@/workflows/code-runner";
 import { CodeBlock } from "./components/code-block";
 import { Terminal } from "./components/terminal";
 
@@ -22,8 +22,21 @@ const PHASE_LABELS: Record<Phase, string> = {
   stopping: "Stopping sandbox",
 };
 
+const RUNTIMES: { value: Runtime; label: string }[] = [
+  { value: "node24", label: "Node.js 24" },
+  { value: "node22", label: "Node.js 22" },
+  { value: "python3.13", label: "Python 3.13" },
+];
+
+const RUNTIME_LANG: Record<Runtime, string> = {
+  node24: "javascript",
+  node22: "javascript",
+  "python3.13": "python",
+};
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
+  const [runtime, setRuntime] = useState<Runtime>("node24");
   const [result, setResult] = useState<RunCodeResult | null>(null);
   const [code, setCode] = useState("");
   const [stdout, setStdout] = useState("");
@@ -57,7 +70,7 @@ export default function Home() {
       const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, runtime }),
         signal: abortRef.current.signal,
       });
 
@@ -129,6 +142,8 @@ export default function Home() {
   }
 
   const showPanes = code || stdout || stderr;
+  const filename =
+    runtime === "python3.13" ? "script.py" : "script.js";
 
   return (
     <div className="flex min-h-screen flex-col font-sans">
@@ -157,8 +172,20 @@ export default function Home() {
               }}
               placeholder="Describe a program to run..."
               rows={1}
-              className="flex-1 resize-none rounded-lg border border-border bg-black px-4 py-2.5 text-sm text-foreground placeholder-zinc-600 outline-none focus:border-zinc-600"
+              className="flex-1 resize-none rounded-lg border border-border bg-black px-4 py-2.5 text-sm text-foreground placeholder-muted outline-none focus:border-foreground/20"
             />
+            <select
+              value={runtime}
+              onChange={(e) => setRuntime(e.target.value as Runtime)}
+              disabled={status === "running"}
+              className="rounded-lg border border-border bg-black px-3 py-2.5 text-sm text-foreground outline-none focus:border-foreground/20 disabled:opacity-50"
+            >
+              {RUNTIMES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
             <button
               type="submit"
               disabled={status === "running" || !prompt.trim()}
@@ -198,7 +225,7 @@ export default function Home() {
           <div className="flex w-1/2 flex-col border-r border-border">
             <div className="flex items-center justify-between border-b border-border px-4 py-2">
               <span className="text-xs font-medium text-muted">
-                script.js
+                {filename}
               </span>
               {result && (
                 <span className="text-xs text-muted">
@@ -218,7 +245,9 @@ export default function Home() {
               )}
             </div>
             <div className="flex-1 overflow-auto">
-              {code && <CodeBlock code={code} />}
+              {code && (
+                <CodeBlock code={code} lang={RUNTIME_LANG[runtime]} />
+              )}
             </div>
           </div>
 

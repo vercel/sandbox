@@ -3,9 +3,9 @@ import { runCode } from "@/workflows/code-runner";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const { prompt } = await request.json();
+  const { prompt, runtime } = await request.json();
 
-  const run = await start(runCode, [prompt]);
+  const run = await start(runCode, [prompt, runtime]);
 
   return NextResponse.json({ runId: run.runId });
 }

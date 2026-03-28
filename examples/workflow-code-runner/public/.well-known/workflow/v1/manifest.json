@@ -1,0 +1,172 @@
+{
+  "version": "1.0.0",
+  "steps": {
+    "steps/status.ts": {
+      "updateStatus": {
+        "stepId": "step//./steps/status//updateStatus"
+      }
+    },
+    "node_modules/.pnpm/workflow@https+++workflow-docs-3fkphgcis.vercel.sh+workflow.tgz_@nestjs+common@11.1.17__e19666b22b4f6e4a50f76d7f4c3b4843/node_modules/workflow/dist/internal/builtins.js": {
+      "__builtin_response_array_buffer": {
+        "stepId": "__builtin_response_array_buffer"
+      },
+      "__builtin_response_json": {
+        "stepId": "__builtin_response_json"
+      },
+      "__builtin_response_text": {
+        "stepId": "__builtin_response_text"
+      }
+    },
+    "steps/ai.ts": {
+      "fixCode": {
+        "stepId": "step//./steps/ai//fixCode"
+      },
+      "generateCode": {
+        "stepId": "step//./steps/ai//generateCode"
+      }
+    },
+    "packages/vercel-sandbox/dist/snapshot.js": {
+      "Snapshot#delete": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Snapshot#delete"
+      },
+      "Snapshot.get": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Snapshot.get"
+      },
+      "Snapshot.list": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Snapshot.list"
+      }
+    },
+    "node_modules/.pnpm/workflow@https+++workflow-docs-3fkphgcis.vercel.sh+workflow.tgz_@nestjs+common@11.1.17__e19666b22b4f6e4a50f76d7f4c3b4843/node_modules/workflow/dist/stdlib.js": {
+      "fetch": {
+        "stepId": "step//workflow@4.2.0-beta.73-e832f87//fetch"
+      }
+    },
+    "node_modules/.pnpm/workflow@4.2.0-beta.73_@nestjs+common@11.1.17_reflect-metadata@0.2.2_rxjs@6.6.7__@nestj_d6bc1a724c94ace3f844fc234e084414/node_modules/workflow/dist/stdlib.js": {
+      "fetch": {
+        "stepId": "step//workflow@4.2.0-beta.73//fetch"
+      }
+    },
+    "packages/vercel-sandbox/dist/command.js": {
+      "Command#_waitStep": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Command#_waitStep"
+      },
+      "Command#ensureClient": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Command#ensureClient"
+      },
+      "Command#kill": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Command#kill"
+      },
+      "Command#output": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Command#output"
+      },
+      "Command#stderr": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Command#stderr"
+      },
+      "Command#stdout": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Command#stdout"
+      }
+    },
+    "packages/vercel-sandbox/dist/sandbox.js": {
+      "Sandbox#_runCommandStep": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#_runCommandStep"
+      },
+      "Sandbox#downloadFile": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#downloadFile"
+      },
+      "Sandbox#ensureClient": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#ensureClient"
+      },
+      "Sandbox#extendTimeout": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#extendTimeout"
+      },
+      "Sandbox#getCommand": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#getCommand"
+      },
+      "Sandbox#mkDir": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#mkDir"
+      },
+      "Sandbox#readFile": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#readFile"
+      },
+      "Sandbox#readFileToBuffer": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#readFileToBuffer"
+      },
+      "Sandbox#snapshot": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#snapshot"
+      },
+      "Sandbox#stop": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#stop"
+      },
+      "Sandbox#updateNetworkPolicy": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#updateNetworkPolicy"
+      },
+      "Sandbox#writeFiles": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox#writeFiles"
+      },
+      "Sandbox.create": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox.create"
+      },
+      "Sandbox.get": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox.get"
+      },
+      "Sandbox.list": {
+        "stepId": "step//@vercel/sandbox@1.9.0//Sandbox.list"
+      }
+    }
+  },
+  "workflows": {
+    "workflows/code-runner.ts": {
+      "runCode": {
+        "workflowId": "workflow//./workflows/code-runner//runCode",
+        "graph": {
+          "nodes": [
+            {
+              "id": "start",
+              "type": "workflowStart",
+              "data": {
+                "label": "Start: runCode",
+                "nodeKind": "workflow_start"
+              }
+            },
+            {
+              "id": "end",
+              "type": "workflowEnd",
+              "data": {
+                "label": "Return",
+                "nodeKind": "workflow_end"
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e_start_end",
+              "source": "start",
+              "target": "end",
+              "type": "default"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "classes": {
+    "packages/vercel-sandbox/dist/snapshot.js": {
+      "Snapshot": {
+        "classId": "class//@vercel/sandbox@1.9.0//Snapshot"
+      }
+    },
+    "packages/vercel-sandbox/dist/command.js": {
+      "Command": {
+        "classId": "class//@vercel/sandbox@1.9.0//Command"
+      },
+      "CommandFinished": {
+        "classId": "class//@vercel/sandbox@1.9.0//CommandFinished"
+      }
+    },
+    "packages/vercel-sandbox/dist/sandbox.js": {
+      "Sandbox": {
+        "classId": "class//@vercel/sandbox@1.9.0//Sandbox"
+      }
+    }
+  }
+}
