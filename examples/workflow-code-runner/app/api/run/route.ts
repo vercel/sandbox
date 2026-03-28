@@ -21,8 +21,8 @@ export async function GET(request: Request) {
 
   const run = getRun(runId);
 
-  // Stream stdout or stderr as SSE
-  if (stream === "stdout" || stream === "stderr") {
+  // Stream stdout, stderr, or status as SSE
+  if (stream === "stdout" || stream === "stderr" || stream === "status") {
     const readable = run.getReadable<string>({ namespace: stream });
     const encoder = new TextEncoder();
 
