@@ -501,10 +501,11 @@ export class Sandbox {
     if (params.detached) {
       let webhook: any = null;
       try {
-        const mod: any = await (Function(
-          'return import("workflow")',
-        )() as Promise<any>);
-        webhook = mod.createWebhook();
+        // Dynamic import — workflow is only available in workflow context.
+        // The workflow bundler needs to see this import path to resolve it.
+        // @ts-expect-error — workflow may not be installed; resolved at runtime
+        const { createWebhook } = await import("workflow");
+        webhook = createWebhook();
       } catch {
         // Not in workflow context — use regular detached behavior
       }
