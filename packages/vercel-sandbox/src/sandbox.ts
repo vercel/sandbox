@@ -164,6 +164,15 @@ interface RunCommandParams {
    */
   stderr?: Writable | WritableStream;
   /**
+   * A URL to POST to when the command completes. The request body will
+   * contain `{ exitCode: number }`. Useful with workflow webhooks to
+   * suspend the workflow while the command runs, instead of blocking a step.
+   *
+   * When set, the command is wrapped in a shell script that runs the
+   * original command and then curls the URL with the exit code.
+   */
+  onCompleteUrl?: string;
+  /**
    * An AbortSignal to cancel the command execution
    */
   signal?: AbortSignal;
@@ -490,55 +499,12 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
+    "use step";
+    const client = await this.ensureClient();
     const params: RunCommandParams =
       typeof commandOrParams === "string"
         ? { cmd: commandOrParams, args, signal: opts?.signal }
         : commandOrParams;
-
-    // For detached commands, try to create a workflow webhook so the
-    // workflow suspends instead of blocking a step while the command runs.
-    if (params.detached) {
-      let webhookUrl: string | undefined;
-      let webhookWait: Promise<number> | undefined;
-
-      try {
-        // Dynamic import — workflow is only available in workflow context.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const mod: any = await (Function('return import("workflow")')() as Promise<any>);
-        const webhook = mod.createWebhook();
-        webhookUrl = webhook.url;
-        webhookWait = webhook.then(async (req: any) => {
-          const body = await req.json();
-          return body.exitCode as number;
-        });
-      } catch {
-        // Not in workflow context — fall back to regular detached behavior
-      }
-
-      const command = await this._runCommandStep({
-        ...params,
-        _onCompleteUrl: webhookUrl,
-      });
-
-      if (webhookWait && command instanceof Command) {
-        command._webhookWait = webhookWait;
-      }
-
-      return command;
-    }
-
-    return this._runCommandStep(params);
-  }
-
-  /**
-   * Internal step that actually executes the command via the API.
-   * @internal
-   */
-  private async _runCommandStep(
-    params: RunCommandParams & { _onCompleteUrl?: string },
-  ): Promise<Command | CommandFinished> {
-    "use step";
-    const client = await this.ensureClient();
 
     const wait = params.detached ? false : true;
     const pipeLogs = async (command: Command): Promise<void> => {
@@ -607,18 +573,18 @@ export class Sandbox {
       });
     }
 
-    // When _onCompleteUrl is set (workflow webhook), wrap the command in a
+    // When onCompleteUrl is set (e.g. workflow webhook), wrap the command in a
     // shell script that runs the original command then POSTs the exit code.
     let cmd = params.cmd;
     let cmdArgs = params.args ?? [];
-    if (params._onCompleteUrl) {
+    if (params.onCompleteUrl) {
       const escaped = [params.cmd, ...cmdArgs]
         .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
         .join(" ");
       cmd = "sh";
       cmdArgs = [
         "-c",
-        `${escaped}; EXIT_CODE=$?; curl -s -X POST -H 'Content-Type: application/json' -d "{\\"exitCode\\":$EXIT_CODE}" '${params._onCompleteUrl}'; exit $EXIT_CODE`,
+        `${escaped}; EXIT_CODE=$?; curl -s -X POST -H 'Content-Type: application/json' -d "{\\"exitCode\\":$EXIT_CODE}" '${params.onCompleteUrl}'; exit $EXIT_CODE`,
       ];
     }
 

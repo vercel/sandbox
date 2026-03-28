@@ -89,13 +89,6 @@ export class Command {
   protected _resolvedOutput: CommandOutput | null = null;
 
   /**
-   * A promise that resolves with the exit code when a webhook-based
-   * completion signal is received. Set by runCommand when in workflow context.
-   * @internal
-   */
-  _webhookWait: Promise<number> | null = null;
-
-  /**
    * ID of the command execution.
    */
   get cmdId() {
@@ -231,24 +224,6 @@ export class Command {
    * @returns A {@link CommandFinished} instance with populated exit code.
    */
   async wait(params?: { signal?: AbortSignal }) {
-    // If a webhook-based wait was set up by runCommand (workflow context),
-    // suspend the workflow until the sandbox POSTs the exit code.
-    if (this._webhookWait) {
-      const exitCode = await this._webhookWait;
-      return new CommandFinished({
-        sandboxId: this.sandboxId,
-        cmd: { ...this.cmd, exitCode },
-        exitCode,
-      });
-    }
-
-    return this._waitStep(params);
-  }
-
-  /**
-   * @internal
-   */
-  private async _waitStep(params?: { signal?: AbortSignal }) {
     "use step";
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();

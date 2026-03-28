@@ -1,4 +1,4 @@
-import { getWritable } from "workflow";
+import { createWebhook, getWritable } from "workflow";
 import { Sandbox } from "@vercel/sandbox";
 import { generateCode, fixCode } from "@/steps/ai";
 import { updateStatus } from "@/steps/status";
@@ -38,25 +38,29 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
 
       await sandbox.writeFiles([{ path: "script.js", content: code }]);
 
-      // runCommand with detached: true automatically creates a workflow
-      // webhook — the workflow suspends until the sandbox command finishes
-      // and POSTs the exit code, instead of blocking a step polling.
-      const cmd = await sandbox.runCommand({
+      // Create a webhook — the workflow suspends here instead of blocking
+      // a step while the command runs. The sandbox will POST { exitCode }
+      // to the webhook URL when the command finishes.
+      const webhook = createWebhook();
+
+      await sandbox.runCommand({
         cmd: "node",
         args: ["script.js"],
         stdout,
         stderr,
         detached: true,
+        onCompleteUrl: webhook.url,
       });
 
-      // cmd.wait() uses the webhook under the hood in workflow context
-      const finished = await cmd.wait();
+      // Workflow suspends until the sandbox curls the webhook
+      const response = await webhook;
+      const { exitCode } = await response.json();
 
-      if (finished.exitCode === 0) {
+      if (exitCode === 0) {
         return { success: true, code, iterations: attempt };
       }
 
-      lastError = `Process exited with code ${finished.exitCode}`;
+      lastError = `Process exited with code ${exitCode}`;
       console.log(`[Attempt ${attempt}] Failed:`, lastError);
     }
 
