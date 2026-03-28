@@ -164,6 +164,16 @@ interface RunCommandParams {
    */
   stderr?: Writable | WritableStream;
   /**
+   * A URL to POST to when the command completes. The request body will
+   * contain `{ exitCode: number }`. Useful with workflow webhooks to
+   * suspend the workflow while a long-running command executes, instead
+   * of blocking a step.
+   *
+   * When set, the command is wrapped in a shell script that runs the
+   * original command and then curls the URL with the exit code.
+   */
+  onCompleteUrl?: string;
+  /**
    * An AbortSignal to cancel the command execution
    */
   signal?: AbortSignal;
@@ -564,10 +574,26 @@ export class Sandbox {
       });
     }
 
+    // When onCompleteUrl is set, wrap the command in a shell script that
+    // runs the original command then POSTs the exit code to the URL.
+    // This enables workflow webhooks to suspend instead of blocking a step.
+    let cmd = params.cmd;
+    let cmdArgs = params.args ?? [];
+    if (params.onCompleteUrl) {
+      const escaped = [params.cmd, ...cmdArgs]
+        .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
+        .join(" ");
+      cmd = "sh";
+      cmdArgs = [
+        "-c",
+        `${escaped}; EXIT_CODE=$?; curl -s -X POST -H 'Content-Type: application/json' -d "{\\"exitCode\\":$EXIT_CODE}" '${params.onCompleteUrl}'; exit $EXIT_CODE`,
+      ];
+    }
+
     const commandResponse = await client.runCommand({
       sandboxId: this.sandbox.id,
-      command: params.cmd,
-      args: params.args ?? [],
+      command: cmd,
+      args: cmdArgs,
       cwd: params.cwd,
       env: params.env ?? {},
       sudo: params.sudo ?? false,
