@@ -5,6 +5,7 @@ import { readLinkedProject } from "./linked-project.js";
 
 const UserSchema = z.object({
   user: z.object({
+    defaultTeamId: z.string().nullable(),
     username: z.string(),
   }),
 });
@@ -18,11 +19,11 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
  * If found, uses the `projectId` and `orgId` from there.
  *
  * Otherwise, if `teamId` is not provided, falls back to the authenticated user's
- * personal team (their username). Ensures a default project exists within the team,
- * creating it if necessary.
+ * default team (`defaultTeamId`), or their personal team (username) if no default
+ * is configured. Ensures a default project exists within the team, creating it if necessary.
  *
  * @param opts.token - Vercel API authentication token.
- * @param opts.teamId - Optional team slug. If omitted, the user's personal team is used.
+ * @param opts.teamId - Optional team slug. If omitted, the user's default team is used.
  * @param opts.cwd - Optional directory to search for `.vercel/project.json`. Defaults to `process.cwd()`.
  * @returns The resolved scope with `projectId`, `teamId`, and whether the project was `created`.
  *
@@ -73,11 +74,12 @@ export async function inferScope(opts: {
 }
 
 /**
- * Falls back to the authenticated user's personal team by fetching
- * their username from the `/v2/user` endpoint.
+ * Falls back to the authenticated user's default team by fetching
+ * their profile from the `/v2/user` endpoint. Uses `defaultTeamId`
+ * if set, otherwise falls back to the user's personal team (username).
  *
  * @param token - Authentication token used to call the Vercel API.
- * @returns A promise that resolves to the user's username (their personal team slug).
+ * @returns A promise that resolves to the user's default team ID or username.
  */
 export async function selectTeam(token: string) {
   const {
@@ -85,5 +87,5 @@ export async function selectTeam(token: string) {
   } = await fetchApi({ token, endpoint: "/v2/user" }).then(
     UserSchema.parse,
   );
-  return user.username;
+  return user.defaultTeamId ?? user.username;
 }

@@ -28,15 +28,23 @@ async function getTempDir(): Promise<string> {
 }
 
 describe("selectTeam", () => {
-  test("returns the user's username as the personal team slug", async () => {
+  test("returns defaultTeamId when set", async () => {
     fetchApiMock.mockResolvedValue({
-      user: { username: "my-user" },
+      user: { defaultTeamId: "team_abc123", username: "my-user" },
     });
     const team = await selectTeam("token");
     expect(fetchApiMock).toHaveBeenCalledWith({
       endpoint: "/v2/user",
       token: "token",
     });
+    expect(team).toBe("team_abc123");
+  });
+
+  test("falls back to username when defaultTeamId is null", async () => {
+    fetchApiMock.mockResolvedValue({
+      user: { defaultTeamId: null, username: "my-user" },
+    });
+    const team = await selectTeam("token");
     expect(team).toBe("my-user");
   });
 });
@@ -95,10 +103,10 @@ describe("inferScope", () => {
     });
   });
 
-  test("infers the team from the user's username", async () => {
+  test("infers the team from the user's defaultTeamId", async () => {
     fetchApiMock.mockImplementation(async ({ endpoint }) => {
       if (endpoint === "/v2/user") {
-        return { user: { username: "inferred-user" } };
+        return { user: { defaultTeamId: "team_default", username: "my-user" } };
       }
       return {};
     });
@@ -106,7 +114,7 @@ describe("inferScope", () => {
     expect(scope).toEqual({
       created: false,
       projectId: "vercel-sandbox-default-project",
-      teamId: "inferred-user",
+      teamId: "team_default",
     });
   });
 
