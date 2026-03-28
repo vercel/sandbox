@@ -15,4 +15,6 @@ export default defineConfig({
   // compiler can strip "use step" method bodies and their associated imports
   // independently — preventing false build errors in the workflow VM context.
   bundle: false,
+  // workflow is optionally imported at runtime — don't bundle it
+  external: ["workflow"],
 });

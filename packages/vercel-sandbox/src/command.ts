@@ -19,6 +19,8 @@ export interface SerializedCommand {
   cmd: CommandData;
   /** Cached output, included if output was fetched before serialization */
   output?: CommandOutput;
+  /** Workflow webhook for completion — serialized by workflow runtime. @internal */
+  _webhook?: any;
 }
 
 /**
@@ -89,6 +91,14 @@ export class Command {
   protected _resolvedOutput: CommandOutput | null = null;
 
   /**
+   * Workflow webhook for completion notification. When set, `.wait()`
+   * awaits the webhook instead of blocking a step polling. This is a
+   * workflow primitive that survives checkpointing.
+   * @internal
+   */
+  _webhook: any = null;
+
+  /**
    * ID of the command execution.
    */
   get cmdId() {
@@ -151,6 +161,9 @@ export class Command {
     if (instance._resolvedOutput) {
       serialized.output = instance._resolvedOutput;
     }
+    if (instance._webhook) {
+      serialized._webhook = instance._webhook;
+    }
     return serialized;
   }
 
@@ -164,11 +177,15 @@ export class Command {
    * @returns The reconstructed Command instance
    */
   static [WORKFLOW_DESERIALIZE](data: SerializedCommand): Command {
-    return new Command({
+    const command = new Command({
       sandboxId: data.sandboxId,
       cmd: data.cmd,
       output: data.output,
     });
+    if (data._webhook) {
+      command._webhook = data._webhook;
+    }
+    return command;
   }
 
   /**
@@ -223,7 +240,26 @@ export class Command {
    * @param params.signal - An AbortSignal to cancel waiting.
    * @returns A {@link CommandFinished} instance with populated exit code.
    */
-  async wait(params?: { signal?: AbortSignal }) {
+  async wait(params?: { signal?: AbortSignal }): Promise<CommandFinished> {
+    // In workflow context, the webhook is a workflow primitive that was
+    // set by runCommand. Awaiting it suspends the workflow without blocking
+    // a step — the sandbox POSTs the exit code when the command finishes.
+    if (this._webhook) {
+      const response = await this._webhook;
+      const { exitCode } = await response.json();
+      return new CommandFinished({
+        sandboxId: this.sandboxId,
+        cmd: { ...this.cmd, exitCode },
+        exitCode,
+      });
+    }
+
+    // Outside workflow context, fall back to polling via a step.
+    return this._waitStep(params);
+  }
+
+  /** @internal */
+  private async _waitStep(params?: { signal?: AbortSignal }) {
     "use step";
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
@@ -255,6 +291,8 @@ export class Command {
     if (!this.outputCache) {
       this.outputCache = (async () => {
         try {
+          // Ensure client is initialized before calling logs()
+          await this.ensureClient();
           let stdout = "";
           let stderr = "";
           let both = "";

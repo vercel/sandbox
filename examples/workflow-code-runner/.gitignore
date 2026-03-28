@@ -1,2 +1,5 @@
 /.next
 /next-env.d.ts
+.vercel
+.env*.local
+examples/workflow-code-runner/public/.well-known/
