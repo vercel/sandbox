@@ -16,9 +16,11 @@ export default function Home() {
   const [result, setResult] = useState<RunCodeResult | null>(null);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
-  const [phase, setPhase] = useState<{ phase: Phase; attempt: number } | null>(
-    null,
-  );
+  const [phase, setPhase] = useState<{
+    phase: Phase;
+    attempt: number;
+    code?: string;
+  } | null>(null);
   const [status, setStatus] = useState<
     "idle" | "running" | "done" | "failed" | "error"
   >("idle");
@@ -163,26 +165,33 @@ export default function Home() {
           </div>
         )}
 
-        {(stdout || stderr || result) && (
+        {(stdout || stderr || result || phase?.code) && (
           <div className="flex flex-col gap-4">
-            {result && (
+            {(result || phase?.code) && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-medium text-zinc-300">
                     Generated Code
                   </h2>
-                  <span className="text-xs text-zinc-500">
-                    {result.iterations} attempt
-                    {result.iterations > 1 ? "s" : ""}
-                    {result.success ? (
-                      <span className="ml-2 text-green-500">passed</span>
-                    ) : (
-                      <span className="ml-2 text-red-500">failed</span>
-                    )}
-                  </span>
+                  {result && (
+                    <span className="text-xs text-zinc-500">
+                      {result.iterations} attempt
+                      {result.iterations > 1 ? "s" : ""}
+                      {result.success ? (
+                        <span className="ml-2 text-green-500">passed</span>
+                      ) : (
+                        <span className="ml-2 text-red-500">failed</span>
+                      )}
+                    </span>
+                  )}
+                  {!result && phase && (
+                    <span className="text-xs text-zinc-500">
+                      attempt {phase.attempt}/{3}
+                    </span>
+                  )}
                 </div>
                 <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-zinc-300">
-                  {result.code}
+                  {result?.code ?? phase?.code}
                 </pre>
               </div>
             )}

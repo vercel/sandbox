@@ -34,7 +34,7 @@ export async function runCode(prompt: string): Promise<RunCodeResult> {
         code = await fixCode(prompt, code, lastError);
       }
 
-      await updateStatus(status, "running", attempt);
+      await updateStatus(status, "running", attempt, code);
 
       await sandbox.writeFiles([{ path: "script.js", content: code }]);
 
