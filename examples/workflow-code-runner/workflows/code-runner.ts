@@ -5,7 +5,7 @@ import { updateStatus } from "@/steps/status";
 
 const MAX_ATTEMPTS = 3;
 
-export type Runtime = "node24" | "node22" | "python3.13";
+export type Runtime = "node24" | "node22" | "python3.13" | "bash";
 
 export type RunCodeResult =
   | { success: true; code: string; iterations: number }
@@ -13,11 +13,12 @@ export type RunCodeResult =
 
 const RUNTIME_CONFIG: Record<
   Runtime,
-  { lang: string; ext: string; cmd: string }
+  { lang: string; ext: string; cmd: string; sandboxRuntime?: string }
 > = {
   node24: { lang: "Node.js", ext: "js", cmd: "node" },
   node22: { lang: "Node.js", ext: "js", cmd: "node" },
   "python3.13": { lang: "Python", ext: "py", cmd: "python3" },
+  bash: { lang: "Bash", ext: "sh", cmd: "bash", sandboxRuntime: "node24" },
 };
 
 export async function runCode(
@@ -38,7 +39,7 @@ export async function runCode(
   const sandbox = await Sandbox.create({
     resources: { vcpus: 1 },
     timeout: 5 * 60 * 1000,
-    runtime,
+    runtime: config.sandboxRuntime ?? runtime,
   });
 
   try {

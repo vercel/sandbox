@@ -26,12 +26,14 @@ const RUNTIMES: { value: Runtime; label: string }[] = [
   { value: "node24", label: "Node.js 24" },
   { value: "node22", label: "Node.js 22" },
   { value: "python3.13", label: "Python 3.13" },
+  { value: "bash", label: "Bash" },
 ];
 
 const RUNTIME_LANG: Record<Runtime, string> = {
   node24: "javascript",
   node22: "javascript",
   "python3.13": "python",
+  bash: "bash",
 };
 
 export default function Home() {
@@ -142,8 +144,13 @@ export default function Home() {
   }
 
   const showPanes = code || stdout || stderr;
-  const filename =
-    runtime === "python3.13" ? "script.py" : "script.js";
+  const EXT: Record<Runtime, string> = {
+    node24: "js",
+    node22: "js",
+    "python3.13": "py",
+    bash: "sh",
+  };
+  const filename = `script.${EXT[runtime]}`;
 
   return (
     <div className="flex min-h-screen flex-col font-sans">
