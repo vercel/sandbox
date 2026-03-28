@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import type { RunCodeResult } from "@/workflows/code-runner";
+import { CodeBlock } from "./components/code-block";
+import { Terminal } from "./components/terminal";
 
 type Phase =
   | "creating-sandbox"
@@ -62,7 +64,6 @@ export default function Home() {
 
       const { runId } = await res.json();
 
-      // Subscribe to stdout, stderr, and status streams
       const stdoutSource = new EventSource(
         `/api/run?runId=${runId}&stream=stdout`,
       );
@@ -93,7 +94,6 @@ export default function Home() {
       stderrSource.addEventListener("done", cleanup);
       statusSource.addEventListener("done", cleanup);
 
-      // Poll for completion
       const pollResult = async () => {
         const poll = await fetch(`/api/run?runId=${runId}`);
         const data = await poll.json();
@@ -121,6 +121,8 @@ export default function Home() {
       setStatus("error");
     }
   }
+
+  const displayCode = result?.code ?? phase?.code;
 
   return (
     <div className="flex min-h-screen items-center justify-center font-sans">
@@ -180,9 +182,9 @@ export default function Home() {
           </div>
         )}
 
-        {(stdout || stderr || result || phase?.code) && (
+        {(stdout || stderr || displayCode) && (
           <div className="flex flex-col gap-4">
-            {(result || phase?.code) && (
+            {displayCode && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-medium text-zinc-300">
@@ -205,28 +207,16 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-                <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-zinc-300">
-                  {result?.code ?? phase?.code}
-                </pre>
+                <CodeBlock code={displayCode} />
               </div>
             )}
 
-            {stdout && (
-              <div className="flex flex-col gap-2">
-                <h2 className="text-sm font-medium text-zinc-300">Output</h2>
-                <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-green-400">
-                  {stdout}
-                </pre>
-              </div>
-            )}
+            {stdout && <Terminal title="stdout">{stdout}</Terminal>}
 
             {stderr && (
-              <div className="flex flex-col gap-2">
-                <h2 className="text-sm font-medium text-zinc-300">Stderr</h2>
-                <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm text-yellow-400">
-                  {stderr}
-                </pre>
-              </div>
+              <Terminal title="stderr" variant="error">
+                {stderr}
+              </Terminal>
             )}
           </div>
         )}
