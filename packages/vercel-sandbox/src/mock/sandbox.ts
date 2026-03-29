@@ -2,7 +2,7 @@ import { Readable } from "stream";
 import { mkdir, writeFile } from "fs/promises";
 import { dirname, resolve, isAbsolute, join } from "path";
 import { Bash, type IFileSystem } from "just-bash";
-import type { SandboxMetaData, SandboxRouteData } from "../api-client/validators.js";
+import type { SandboxMetaData, SandboxRouteData, PaginationData } from "../api-client/validators.js";
 import type { RunCommandParams } from "../sandbox.js";
 import type { NetworkPolicy } from "../network-policy.js";
 import { MockCommand, MockCommandFinished } from "./command.js";
@@ -272,10 +272,7 @@ export class MockSandbox {
 
   static async list(params?: {
     sandboxes?: MockSandboxOptions[];
-  }): Promise<{
-    sandboxes: MockSandbox[];
-    pagination: { count: number; next: number | null; prev: number | null };
-  }> {
+  }): Promise<{ sandboxes: MockSandbox[]; pagination: PaginationData }> {
     const sandboxes = (params?.sandboxes ?? []).map(
       (opts) => new MockSandbox(opts),
     );

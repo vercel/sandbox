@@ -81,6 +81,8 @@ export const Snapshot = z.object({
   updatedAt: z.number(),
 });
 
+export type PaginationData = z.infer<typeof Pagination>;
+
 export const Pagination = z.object({
   /**
    * Amount of items in the current page.

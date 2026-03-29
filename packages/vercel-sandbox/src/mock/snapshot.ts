@@ -1,4 +1,4 @@
-import type { SnapshotMetadata } from "../api-client/validators.js";
+import type { SnapshotMetadata, PaginationData } from "../api-client/validators.js";
 
 type SnapshotStatus = SnapshotMetadata["status"];
 
@@ -38,10 +38,7 @@ export class MockSnapshot {
 
   static async list(params?: {
     snapshots?: ConstructorParameters<typeof MockSnapshot>[0][];
-  }): Promise<{
-    snapshots: MockSnapshot[];
-    pagination: { count: number; next: number | null; prev: number | null };
-  }> {
+  }): Promise<{ snapshots: MockSnapshot[]; pagination: PaginationData }> {
     const snapshots = (params?.snapshots ?? []).map((opts) => new MockSnapshot(opts));
     return {
       snapshots,
