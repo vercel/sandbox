@@ -118,6 +118,16 @@ interface GetSandboxParams {
   signal?: AbortSignal;
 }
 
+export function normalizeRunCommandArgs(
+  commandOrParams: string | RunCommandParams,
+  args?: string[],
+  opts?: { signal?: AbortSignal },
+): RunCommandParams {
+  return typeof commandOrParams === "string"
+    ? { cmd: commandOrParams, args, signal: opts?.signal }
+    : commandOrParams;
+}
+
 /** @inline */
 export interface RunCommandParams {
   /**
@@ -416,9 +426,9 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    return typeof commandOrParams === "string"
-      ? this._runCommand({ cmd: commandOrParams, args, signal: opts?.signal })
-      : this._runCommand(commandOrParams);
+    return this._runCommand(
+      normalizeRunCommandArgs(commandOrParams, args, opts),
+    );
   }
 
   /**

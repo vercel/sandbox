@@ -3,7 +3,8 @@ import { mkdir, writeFile } from "fs/promises";
 import { dirname, resolve, isAbsolute, join } from "path";
 import { Bash, type IFileSystem } from "just-bash";
 import type { SandboxMetaData, SandboxRouteData, PaginationData } from "../api-client/validators.js";
-import type { RunCommandParams } from "../sandbox.js";
+import type { ConvertedSandbox } from "../utils/convert-sandbox.js";
+import { normalizeRunCommandArgs, type RunCommandParams } from "../sandbox.js";
 import type { NetworkPolicy } from "../network-policy.js";
 import { MockCommand, MockCommandFinished } from "./command.js";
 import type { CommandHandler, CommandResponse } from "./handlers.js";
@@ -109,10 +110,7 @@ export class MockSandbox {
     args?: string[],
     _opts?: { signal?: AbortSignal },
   ): Promise<MockCommand | MockCommandFinished> {
-    const params: RunCommandParams =
-      typeof commandOrParams === "string"
-        ? { cmd: commandOrParams, args, signal: _opts?.signal }
-        : commandOrParams;
+    const params = normalizeRunCommandArgs(commandOrParams, args, _opts);
 
     const handlerResponse = await this.resolveHandler(
       params.cmd,
@@ -228,7 +226,7 @@ export class MockSandbox {
     throw new Error(`No route for port ${p}`);
   }
 
-  async stop(_opts?: { signal?: AbortSignal; blocking?: boolean }) {
+  async stop(_opts?: { signal?: AbortSignal; blocking?: boolean }): Promise<ConvertedSandbox> {
     this.status = "stopped";
     return {
       id: this.sandboxId,
