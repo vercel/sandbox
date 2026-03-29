@@ -2,11 +2,11 @@ import type { SandboxMetaData } from "../api-client/index.js";
 import type { NetworkPolicy } from "../network-policy.js";
 import { fromAPINetworkPolicy } from "./network-policy.js";
 
-export type ConvertedSandbox = Omit<SandboxMetaData, "networkPolicy"> & {
+export type SandboxSnapshot = Omit<SandboxMetaData, "networkPolicy"> & {
   networkPolicy?: NetworkPolicy;
 };
 
-export function convertSandbox(sandbox: SandboxMetaData): ConvertedSandbox {
+export function toSandboxSnapshot(sandbox: SandboxMetaData): SandboxSnapshot {
   const { networkPolicy, ...rest } = sandbox;
   return {
     ...rest,

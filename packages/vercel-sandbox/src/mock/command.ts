@@ -39,8 +39,13 @@ export class MockCommand {
 
   async wait(): Promise<MockCommandFinished> {
     return new MockCommandFinished({
-      cmdId: this.cmdId, cwd: this.cwd, startedAt: this.startedAt,
-      exitCode: this.exitCode ?? 0, stdout: this._stdout, stderr: this._stderr, logs: this._logs,
+      cmdId: this.cmdId,
+      cwd: this.cwd,
+      startedAt: this.startedAt,
+      exitCode: this.exitCode ?? 0,
+      stdout: this._stdout,
+      stderr: this._stderr,
+      logs: this._logs,
     });
   }
 
@@ -50,8 +55,12 @@ export class MockCommand {
     return this._stdout + this._stderr;
   }
 
-  async stdout(): Promise<string> { return this._stdout; }
-  async stderr(): Promise<string> { return this._stderr; }
+  async stdout(): Promise<string> {
+    return this._stdout;
+  }
+  async stderr(): Promise<string> {
+    return this._stderr;
+  }
   async kill(): Promise<void> {}
 }
 

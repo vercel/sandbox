@@ -95,9 +95,7 @@ describe("APIClient", () => {
         expect.fail("Expected APIError to be thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(APIError);
-        expect(err.message).toBe(
-          "Status code 410 is not ok",
-        );
+        expect(err.message).toBe("Status code 410 is not ok");
         expect(err.json).toEqual({
           error: "gone",
         });
@@ -270,9 +268,7 @@ describe("APIClient", () => {
         expect.fail("Expected APIError to be thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(APIError);
-        expect(err.message).toBe(
-          "Status code 410 is not ok",
-        );
+        expect(err.message).toBe("Status code 410 is not ok");
         expect(err.json).toEqual({
           error: "gone",
         });
@@ -465,6 +461,5 @@ describe("APIClient", () => {
         JSON.stringify({ expiration: 0 }),
       );
     });
-
   });
 });
