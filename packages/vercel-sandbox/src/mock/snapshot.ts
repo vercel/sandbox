@@ -1,4 +1,6 @@
-type SnapshotStatus = "created" | "deleted" | "failed";
+import type { SnapshotMetadata } from "../api-client/validators.js";
+
+type SnapshotStatus = SnapshotMetadata["status"];
 
 export class MockSnapshot {
   readonly snapshotId: string;

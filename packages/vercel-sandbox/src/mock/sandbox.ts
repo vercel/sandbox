@@ -1,17 +1,15 @@
-import { Readable, type Writable } from "stream";
+import { Readable } from "stream";
 import { mkdir, writeFile } from "fs/promises";
 import { dirname, resolve, isAbsolute, join } from "path";
 import { Bash, type IFileSystem } from "just-bash";
+import type { SandboxMetaData, SandboxRouteData } from "../api-client/validators.js";
+import type { RunCommandParams } from "../sandbox.js";
 import type { NetworkPolicy } from "../network-policy.js";
 import { MockCommand, MockCommandFinished } from "./command.js";
 import type { CommandHandler, CommandResponse } from "./handlers.js";
 import { MockSnapshot } from "./snapshot.js";
 
-type SandboxStatus =
-  | "pending" | "running" | "stopping" | "stopped"
-  | "failed" | "aborted" | "snapshotting";
-
-type RouteData = { url: string; subdomain: string; port: number };
+type SandboxStatus = SandboxMetaData["status"];
 
 const CWD = "/vercel/sandbox";
 
@@ -19,18 +17,6 @@ const handlerState = {
   defaults: [] as CommandHandler[],
   runtime: [] as CommandHandler[],
 };
-
-interface RunCommandParams {
-  cmd: string;
-  args?: string[];
-  cwd?: string;
-  env?: Record<string, string>;
-  sudo?: boolean;
-  detached?: boolean;
-  stdout?: Writable;
-  stderr?: Writable;
-  signal?: AbortSignal;
-}
 
 export interface MockSandboxOptions {
   sandboxId?: string;
@@ -52,7 +38,7 @@ export class MockSandbox {
   readonly sandboxId: string;
   readonly createdAt: Date;
   readonly sourceSnapshotId: string | undefined;
-  readonly routes: RouteData[];
+  readonly routes: SandboxRouteData[];
 
   status: SandboxStatus;
   timeout: number;

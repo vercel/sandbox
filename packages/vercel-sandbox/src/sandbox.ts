@@ -119,7 +119,7 @@ interface GetSandboxParams {
 }
 
 /** @inline */
-interface RunCommandParams {
+export interface RunCommandParams {
   /**
    * The command to execute
    */
