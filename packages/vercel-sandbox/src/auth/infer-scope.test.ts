@@ -291,7 +291,7 @@ describe("inferScope", () => {
           };
         }
         // Project check: 403 for readonly default team, success for owner team
-        if (endpoint.includes("slug=team_readonly")) {
+        if (endpoint.includes("teamId=team_readonly")) {
           throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
         }
         return {};
@@ -364,7 +364,7 @@ describe("inferScope", () => {
           return { teams: [] };
         }
         if (
-          endpoint.includes("slug=team_default") &&
+          endpoint.includes("teamId=team_default") &&
           (!method || method === "GET")
         ) {
           throw new NotOk({ statusCode: 404, responseText: "Not Found" });
@@ -400,7 +400,7 @@ describe("inferScope", () => {
           };
         }
         // team_nocreate: project check 404, project creation 403
-        if (endpoint.includes("slug=team_nocreate")) {
+        if (endpoint.includes("teamId=team_nocreate")) {
           if (!method || method === "GET") {
             throw new NotOk({ statusCode: 404, responseText: "Not Found" });
           }

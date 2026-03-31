@@ -93,11 +93,15 @@ async function tryTeam(
   token: string,
   teamId: string,
 ): Promise<{ projectId: string; teamId: string; created: boolean }> {
+  const teamParam = teamId.startsWith("team_")
+    ? `teamId=${encodeURIComponent(teamId)}`
+    : `slug=${encodeURIComponent(teamId)}`;
+
   let created = false;
   try {
     await fetchApi({
       token,
-      endpoint: `/v2/projects/${encodeURIComponent(DEFAULT_PROJECT_NAME)}?slug=${encodeURIComponent(teamId)}`,
+      endpoint: `/v2/projects/${encodeURIComponent(DEFAULT_PROJECT_NAME)}?${teamParam}`,
     });
   } catch (e) {
     if (!(e instanceof NotOk) || e.response.statusCode !== 404) {
@@ -106,7 +110,7 @@ async function tryTeam(
 
     await fetchApi({
       token,
-      endpoint: `/v11/projects?slug=${encodeURIComponent(teamId)}`,
+      endpoint: `/v11/projects?${teamParam}`,
       method: "POST",
       body: JSON.stringify({
         name: DEFAULT_PROJECT_NAME,
