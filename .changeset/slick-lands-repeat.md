@@ -2,4 +2,4 @@
 "@vercel/sandbox": patch
 ---
 
-Use the user's default team (`defaultTeamId`) for scope inference fallback instead of picking the first team from `/v2/teams`.
+Smarter fallback team selection for scope inference: tries `defaultTeamId` first, then the best OWNER team (personal team or most recently updated). Skips teams that return 403 and shows a helpful error when no team allows sandbox creation.

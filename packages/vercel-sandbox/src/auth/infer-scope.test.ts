@@ -1,4 +1,4 @@
-import { inferScope, selectTeam } from "./project.js";
+import { inferScope, selectTeams } from "./project.js";
 import {
   beforeEach,
   describe,
@@ -27,25 +27,192 @@ async function getTempDir(): Promise<string> {
   return dir;
 }
 
-describe("selectTeam", () => {
-  test("returns defaultTeamId when set", async () => {
-    fetchApiMock.mockResolvedValue({
-      user: { defaultTeamId: "team_abc123", username: "my-user" },
-    });
-    const team = await selectTeam("token");
-    expect(fetchApiMock).toHaveBeenCalledWith({
-      endpoint: "/v2/user",
-      token: "token",
-    });
-    expect(team).toBe("team_abc123");
+function mockUserAndTeams({
+  defaultTeamId = null as string | null,
+  username = "my-user",
+  teams = [] as Array<{
+    id: string;
+    slug: string;
+    updatedAt: number;
+    membership: { role: string };
+  }>,
+} = {}) {
+  return (opts: { endpoint: string }) => {
+    if (opts.endpoint === "/v2/user") {
+      return Promise.resolve({ user: { defaultTeamId, username } });
+    }
+    if (opts.endpoint.startsWith("/v2/teams")) {
+      return Promise.resolve({ teams });
+    }
+    return Promise.resolve({});
+  };
+}
+
+describe("selectTeams", () => {
+  test("returns defaultTeamId first, then best owner team", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: "team_default",
+        username: "my-user",
+        teams: [
+          {
+            id: "team_default",
+            slug: "default-team",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+          },
+          {
+            id: "team_other",
+            slug: "other-team",
+            updatedAt: 200,
+            membership: { role: "OWNER" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    // defaultTeamId is also the best owner match, so only one candidate
+    expect(result.candidateTeamIds).toEqual(["team_default", "team_other"]);
+    expect(result.username).toBe("my-user");
   });
 
-  test("falls back to username when defaultTeamId is null", async () => {
-    fetchApiMock.mockResolvedValue({
-      user: { defaultTeamId: null, username: "my-user" },
-    });
-    const team = await selectTeam("token");
-    expect(team).toBe("my-user");
+  test("prefers personal team (matching username slug) over most recently updated", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: null,
+        username: "my-user",
+        teams: [
+          {
+            id: "team_other",
+            slug: "other-team",
+            updatedAt: 300,
+            membership: { role: "OWNER" },
+          },
+          {
+            id: "team_personal",
+            slug: "my-user",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    expect(result.candidateTeamIds).toEqual(["team_personal"]);
+  });
+
+  test("picks most recently updated owner team when no username match", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: null,
+        username: "my-user",
+        teams: [
+          {
+            id: "team_old",
+            slug: "old-team",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+          },
+          {
+            id: "team_recent",
+            slug: "recent-team",
+            updatedAt: 300,
+            membership: { role: "OWNER" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    expect(result.candidateTeamIds).toEqual(["team_recent"]);
+  });
+
+  test("filters out non-OWNER teams", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: null,
+        username: "my-user",
+        teams: [
+          {
+            id: "team_owner",
+            slug: "owner-team",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+          },
+          {
+            id: "team_member",
+            slug: "member-team",
+            updatedAt: 200,
+            membership: { role: "MEMBER" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    expect(result.candidateTeamIds).toEqual(["team_owner"]);
+  });
+
+  test("falls back to username when no teams and no defaultTeamId", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: null,
+        username: "my-user",
+        teams: [],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    expect(result.candidateTeamIds).toEqual(["my-user"]);
+  });
+
+  test("does not duplicate defaultTeamId when it matches best owner team", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: "team_abc",
+        username: "my-user",
+        teams: [
+          {
+            id: "team_abc",
+            slug: "abc-team",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    expect(result.candidateTeamIds).toEqual(["team_abc"]);
+  });
+
+  test("defaultTeamId may differ from best owner team", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: "team_nonowner",
+        username: "my-user",
+        teams: [
+          {
+            id: "team_owner",
+            slug: "my-user",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+          },
+          {
+            id: "team_nonowner",
+            slug: "nonowner-team",
+            updatedAt: 200,
+            membership: { role: "MEMBER" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    // defaultTeamId first (even though not OWNER), then best owner team as fallback
+    expect(result.candidateTeamIds).toEqual(["team_nonowner", "team_owner"]);
   });
 });
 
@@ -60,7 +227,7 @@ describe("inferScope", () => {
     });
   });
 
-  describe("team creation", () => {
+  describe("project creation", () => {
     test("project 404 triggers project creation", async () => {
       fetchApiMock.mockImplementation(async ({ method }) => {
         if (!method || method === "GET") {
@@ -76,7 +243,7 @@ describe("inferScope", () => {
       });
     });
 
-    test("non-404 throws", async () => {
+    test("non-404 throws when teamId is explicit", async () => {
       fetchApiMock.mockImplementation(async ({ method }) => {
         if (!method || method === "GET") {
           throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
@@ -103,18 +270,152 @@ describe("inferScope", () => {
     });
   });
 
-  test("infers the team from the user's defaultTeamId", async () => {
-    fetchApiMock.mockImplementation(async ({ endpoint }) => {
-      if (endpoint === "/v2/user") {
-        return { user: { defaultTeamId: "team_default", username: "my-user" } };
-      }
-      return {};
+  describe("fallback team selection with 403 handling", () => {
+    test("falls back to owner team when defaultTeamId returns 403", async () => {
+      fetchApiMock.mockImplementation(async ({ endpoint }) => {
+        if (endpoint === "/v2/user") {
+          return {
+            user: { defaultTeamId: "team_readonly", username: "my-user" },
+          };
+        }
+        if (endpoint.startsWith("/v2/teams")) {
+          return {
+            teams: [
+              {
+                id: "team_writable",
+                slug: "my-user",
+                updatedAt: 100,
+                membership: { role: "OWNER" },
+              },
+            ],
+          };
+        }
+        // Project check: 403 for readonly default team, success for owner team
+        if (endpoint.includes("slug=team_readonly")) {
+          throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
+        }
+        return {};
+      });
+
+      const scope = await inferScope({ token: "token" });
+      expect(scope).toEqual({
+        created: false,
+        projectId: "vercel-sandbox-default-project",
+        teamId: "team_writable",
+      });
     });
-    const scope = await inferScope({ token: "token" });
-    expect(scope).toEqual({
-      created: false,
-      projectId: "vercel-sandbox-default-project",
-      teamId: "team_default",
+
+    test("throws helpful error when all candidates return 403", async () => {
+      fetchApiMock.mockImplementation(async ({ endpoint }) => {
+        if (endpoint === "/v2/user") {
+          return {
+            user: { defaultTeamId: "team_readonly", username: "my-user" },
+          };
+        }
+        if (endpoint.startsWith("/v2/teams")) {
+          return {
+            teams: [
+              {
+                id: "team_owner",
+                slug: "my-user",
+                updatedAt: 200,
+                membership: { role: "OWNER" },
+              },
+            ],
+          };
+        }
+        throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
+      });
+
+      await expect(inferScope({ token: "token" })).rejects.toThrowError(
+        /Authenticated as "my-user" but none of the available teams allow sandbox creation/,
+      );
+    });
+
+    test("uses defaultTeamId when it succeeds", async () => {
+      fetchApiMock.mockImplementation(async ({ endpoint }) => {
+        if (endpoint === "/v2/user") {
+          return {
+            user: { defaultTeamId: "team_default", username: "my-user" },
+          };
+        }
+        if (endpoint.startsWith("/v2/teams")) {
+          return { teams: [] };
+        }
+        return {};
+      });
+
+      const scope = await inferScope({ token: "token" });
+      expect(scope).toEqual({
+        created: false,
+        projectId: "vercel-sandbox-default-project",
+        teamId: "team_default",
+      });
+    });
+
+    test("creates project in fallback team when it returns 404", async () => {
+      fetchApiMock.mockImplementation(async ({ endpoint, method }) => {
+        if (endpoint === "/v2/user") {
+          return {
+            user: { defaultTeamId: "team_default", username: "my-user" },
+          };
+        }
+        if (endpoint.startsWith("/v2/teams")) {
+          return { teams: [] };
+        }
+        if (
+          endpoint.includes("slug=team_default") &&
+          (!method || method === "GET")
+        ) {
+          throw new NotOk({ statusCode: 404, responseText: "Not Found" });
+        }
+        return {};
+      });
+
+      const scope = await inferScope({ token: "token" });
+      expect(scope).toEqual({
+        created: true,
+        projectId: "vercel-sandbox-default-project",
+        teamId: "team_default",
+      });
+    });
+
+    test("tries next candidate when project creation returns 403", async () => {
+      fetchApiMock.mockImplementation(async ({ endpoint, method }) => {
+        if (endpoint === "/v2/user") {
+          return {
+            user: { defaultTeamId: "team_nocreate", username: "my-user" },
+          };
+        }
+        if (endpoint.startsWith("/v2/teams")) {
+          return {
+            teams: [
+              {
+                id: "team_good",
+                slug: "good-team",
+                updatedAt: 100,
+                membership: { role: "OWNER" },
+              },
+            ],
+          };
+        }
+        // team_nocreate: project check 404, project creation 403
+        if (endpoint.includes("slug=team_nocreate")) {
+          if (!method || method === "GET") {
+            throw new NotOk({ statusCode: 404, responseText: "Not Found" });
+          }
+          throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
+        }
+        // team_good: success
+        return {};
+      });
+
+      const scope = await inferScope({ token: "token" });
+      expect(scope).toEqual({
+        created: false,
+        projectId: "vercel-sandbox-default-project",
+        teamId: "team_good",
+      });
     });
   });
 
