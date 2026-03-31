@@ -7,6 +7,7 @@ import { APIClient } from "./api-client";
 import { APIError } from "./api-client/api-error";
 import { type Credentials, getCredentials } from "./utils/get-credentials";
 import { getPrivateParams, type WithPrivate } from "./utils/types";
+import { inflight } from "./utils/inflight";
 import type { WithFetchOptions } from "./api-client/api-client";
 import type { RUNTIMES } from "./constants";
 import { Session, type RunCommandParams } from "./session";
@@ -149,9 +150,14 @@ export class Sandbox {
   private readonly projectId: string;
 
   /**
+   * In-flight get promises, used to deduplicate concurrent `Sandbox.get()` calls by name.
+   */
+  private static inflightGet = new Map<string, Promise<Sandbox>>();
+
+  /**
    * In-flight resume promise, used to deduplicate concurrent resume calls.
    */
-  private resumePromise: Promise<void> | null = null;
+  private inflightResume = new Map<string, Promise<void>>();
 
   /**
    * Internal Session instance for the current VM.
@@ -414,6 +420,18 @@ export class Sandbox {
       WithFetchOptions,
   ): Promise<Sandbox> {
     const credentials = await getCredentials(params);
+    const key = `get:${JSON.stringify(params)}`;
+
+    return inflight(Sandbox.inflightGet, key, () =>
+      Sandbox.doGet(params, credentials),
+    );
+  }
+
+  private static async doGet(
+    params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
+      WithFetchOptions,
+    credentials: Credentials,
+  ): Promise<Sandbox> {
     const client = new APIClient({
       teamId: credentials.teamId,
       token: credentials.token,
@@ -469,13 +487,10 @@ export class Sandbox {
   /**
    * Resume this sandbox by creating a new session via `getSandbox`.
    */
-  private async resume(signal?: AbortSignal): Promise<void> {
-    if (!this.resumePromise) {
-      this.resumePromise = this.doResume(signal).finally(() => {
-        this.resumePromise = null;
-      });
-    }
-    return this.resumePromise;
+  private resume(signal?: AbortSignal): Promise<void> {
+    return inflight(this.inflightResume, "resume", () =>
+      this.doResume(signal),
+    );
   }
 
   private async doResume(signal?: AbortSignal): Promise<void> {
