@@ -328,7 +328,7 @@ describe("inferScope", () => {
       });
 
       await expect(inferScope({ token: "token" })).rejects.toThrowError(
-        /Authenticated as "my-user" but none of the available teams allow sandbox creation/,
+        /Authenticated as "my-user" but none of the available teams allow sandbox creation\. Specify a team explicitly with --scope/,
       );
     });
 
