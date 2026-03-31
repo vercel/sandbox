@@ -415,23 +415,20 @@ export class Sandbox {
    * @param params - Get parameters and optional credentials.
    * @returns A promise resolving to the {@link Sandbox}.
    */
-  static async get(
+  static get(
     params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
       WithFetchOptions,
   ): Promise<Sandbox> {
-    const credentials = await getCredentials(params);
-    const key = `get:${JSON.stringify(params)}`;
-
-    return inflight(Sandbox.inflightGet, key, () =>
-      Sandbox.doGet(params, credentials),
+    return inflight(Sandbox.inflightGet, params.name, () =>
+      Sandbox.doGet(params),
     );
   }
 
   private static async doGet(
     params: WithPrivate<GetSandboxParams | (GetSandboxParams & Credentials)> &
       WithFetchOptions,
-    credentials: Credentials,
   ): Promise<Sandbox> {
+    const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
       token: credentials.token,
