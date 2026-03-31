@@ -28,7 +28,6 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
  * @returns The resolved scope with `projectId`, `teamId`, and whether the project was `created`.
  *
  * @throws {NotOk} If the API returns an error other than 404 when checking the project.
- * @throws {ZodError} If the user API response is missing a username.
  *
  * @example
  * ```ts
