@@ -3,7 +3,7 @@ import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable";
 import { Sandbox } from "./sandbox";
 import { APIError } from "./api-client/api-error";
-import { type CommandData, type SandboxMetaData, APIClient } from "./api-client";
+import type { APIClient, CommandData, SandboxMetaData } from "./api-client";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
