@@ -868,6 +868,7 @@ describe("APIClient", () => {
       updatedAt: Date.now(),
       status: "running" as const,
       currentSessionId: "sbx_123",
+      snapshotExpiration: 604800000,
     });
 
     beforeEach(() => {
@@ -892,6 +893,7 @@ describe("APIClient", () => {
         projectId: "proj_123",
         persistent: true,
         timeout: 600000,
+        snapshotExpiration: 604800000,
       });
 
       expect(result.json.sandbox.name).toBe("my-sandbox");
@@ -904,6 +906,7 @@ describe("APIClient", () => {
       const parsedBody = JSON.parse(opts.body);
       expect(parsedBody.persistent).toBe(true);
       expect(parsedBody.timeout).toBe(600000);
+      expect(parsedBody.snapshotExpiration).toBe(604800000);
     });
   });
 

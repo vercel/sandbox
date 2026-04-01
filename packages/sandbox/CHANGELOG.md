@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.12
+
+### Minor Changes
+
+- Support default snapshot expiration for persistent sandboxes
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.10
+
 ## 3.0.0-beta.11
 
 ### Patch Changes
