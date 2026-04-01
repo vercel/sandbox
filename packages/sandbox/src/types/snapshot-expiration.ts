@@ -7,7 +7,7 @@ export const SnapshotExpiration = extendType(string, {
   description: 'A duration (e.g. 7d, 30d) or "none" for no expiration',
   async from(value): Promise<StringValue> {
     if (value === "none") {
-      return "0" as unknown as StringValue;
+      return "0";
     }
     return Duration.from(value);
   },
