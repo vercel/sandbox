@@ -103,6 +103,12 @@ export interface BaseCreateSandboxParams {
    * Enable or disable automatic restore of the filesystem between sessions.
    */
   persistent?: boolean;
+  /**
+   * Default snapshot expiration in milliseconds.
+   * When set, snapshots created for this sandbox will expire after this duration.
+   * Use `0` for no expiration.
+   */
+  snapshotExpiration?: number;
 }
 
 export type CreateSandboxParams =
@@ -314,6 +320,13 @@ export class Sandbox {
   }
 
   /**
+   * The default snapshot expiration in milliseconds, if set.
+   */
+  public get snapshotExpiration(): number | undefined {
+    return this.sandbox.snapshotExpiration;
+  }
+
+  /**
    * The amount of CPU used by the session. Only reported once the VM is stopped.
    */
   public get activeCpuUsageMs(): number | undefined {
@@ -388,6 +401,7 @@ export class Sandbox {
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,
+      snapshotExpiration: params?.snapshotExpiration,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -824,6 +838,7 @@ export class Sandbox {
       timeout?: number;
       networkPolicy?: NetworkPolicy;
       tags?: Record<string, string>;
+      snapshotExpiration?: number;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -844,6 +859,7 @@ export class Sandbox {
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
       tags: params.tags,
+      snapshotExpiration: params.snapshotExpiration,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;

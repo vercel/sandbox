@@ -184,6 +184,7 @@ export const Sandbox = z.object({
   statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
   tags: z.record(z.string()).optional(),
+  snapshotExpiration: z.number().optional(),
 });
 
 export type SandboxMetaData = z.infer<typeof Sandbox>;

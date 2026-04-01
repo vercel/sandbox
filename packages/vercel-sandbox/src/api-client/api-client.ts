@@ -172,6 +172,7 @@ export class APIClient extends BaseClient {
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
       tags?: Record<string, string>;
+      snapshotExpiration?: number;
       signal?: AbortSignal;
     }>,
   ) {
@@ -194,6 +195,7 @@ export class APIClient extends BaseClient {
             : undefined,
           env: params.env,
           tags: params.tags,
+          snapshotExpiration: params.snapshotExpiration,
           ...privateParams,
         }),
         signal: params.signal,
@@ -761,6 +763,7 @@ export class APIClient extends BaseClient {
     timeout?: number;
     networkPolicy?: NetworkPolicy;
     tags?: Record<string, string>;
+    snapshotExpiration?: number;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -779,6 +782,7 @@ export class APIClient extends BaseClient {
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
           tags: params.tags,
+          snapshotExpiration: params.snapshotExpiration,
         }),
         signal: params.signal,
       }),

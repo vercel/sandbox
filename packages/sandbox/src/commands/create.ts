@@ -12,6 +12,7 @@ import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
+import { SnapshotExpiration } from "../types/snapshot-expiration";
 
 export const args = {
   name: cmd.option({
@@ -75,6 +76,11 @@ export const args = {
     type: ObjectFromKeyValue,
     description: "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
   }),
+  snapshotExpiration: cmd.option({
+    long: "snapshot-expiration",
+    type: cmd.optional(SnapshotExpiration),
+    description: 'Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d',
+  }),
   ...networkPolicyArgs,
   scope,
 } as const;
@@ -102,6 +108,7 @@ export const create = cmd.command({
     connect,
     envVars,
     tags,
+    snapshotExpiration,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -132,6 +139,7 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           persistent,
+          snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -147,6 +155,7 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           persistent,
+          snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
           __interactive: true,
         });
     spinner?.stop();

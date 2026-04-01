@@ -76,6 +76,7 @@ const makeSandboxMetadata = (): SandboxMetaData => ({
   cwd: "/",
   updatedAt: 1,
   createdAt: 1,
+  snapshotExpiration: 604800000,
 });
 
 const makeCommand = (): CommandData => ({
@@ -411,13 +412,15 @@ for (const port of ports) {
   });
 
   it("reflects updated resources after update", async () => {
-    const sandbox = await Sandbox.create({ timeout: 60_000, persistent: true });
+    const sandbox = await Sandbox.create({ timeout: 60_000, persistent: true, snapshotExpiration: 7 * 86400000 });
+    expect(sandbox.snapshotExpiration).toBe(7 * 86400000);
     await sandbox.stop({ blocking: true });
 
     await sandbox.update({
       resources: { vcpus: 4 },
       timeout: 30_000,
       persistent: false,
+      snapshotExpiration: 2 * 86400000,
     });
 
     const updated = await Sandbox.get({
@@ -428,6 +431,7 @@ for (const port of ports) {
     expect(updated.memory).toBe(8192);
     expect(updated.timeout).toBe(30_000);
     expect(updated.persistent).toBe(false);
+    expect(updated.snapshotExpiration).toBe(2 * 86400000);
   });
 
   it("appears in the sandbox list after creation", async () => {
