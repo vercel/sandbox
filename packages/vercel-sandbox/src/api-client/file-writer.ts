@@ -8,9 +8,9 @@ interface FileBuffer {
    */
   name: string;
   /**
-   * The content of the file as a Buffer.
+   * The content of the file.
    */
-  content: Buffer;
+  content: string | Uint8Array;
   /**
    * The file mode (permissions) to set on the file.
    * For example, 0o755 for executable files.
@@ -67,7 +67,11 @@ export class FileWriter {
       const entry = this.pack.entry(
         "size" in file
           ? { name: file.name, size: file.size, mode: file.mode }
-          : { name: file.name, size: Buffer.byteLength(file.content), mode: file.mode },
+          : {
+              name: file.name,
+              size: Buffer.byteLength(file.content),
+              mode: file.mode,
+            },
         (error) => {
           if (error) {
             return reject(error);
