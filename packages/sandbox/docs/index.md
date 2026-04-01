@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.11
+sandbox 3.0.0-beta.12
 
 ▲ sandbox [options] <command>
 
@@ -78,22 +78,23 @@ Create and run a command in a sandbox
 
 Options:
 
-    --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
-    --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
-    --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
-    --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
-    --env <key=value>, -e=<key=value>  Environment variables to set for the command
-    --tag <key=value>, -t=<key=value>  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
+    --name <str>                           A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                    One of 'node22', 'node24', 'python3.13' [default: node24]
+    --timeout <num UNIT>                   The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --vcpus <COUNT>                        Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>       Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>           Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>      Environment variables to set for the command
+    --tag <key=value>, -t=<key=value>      Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --snapshot-expiration <DURATION|none>  Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --network-policy <MODE>                Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --workdir, -w <str>                The working directory to run the command in [optional]
+    --allowed-domain <str>                 Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                   CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                    CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --workdir, -w <str>                    The working directory to run the command in [optional]
 
 Flags:
 
@@ -131,21 +132,22 @@ Create a sandbox in the specified account and project.
 
 Options:
 
-    --name <str>                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
-    --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
-    --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
-    --snapshot, -s <snapshot_id>       Start the sandbox from a snapshot ID [optional]
-    --env <key=value>, -e=<key=value>  Default environment variables for sandbox commands
-    --tag <key=value>, -t=<key=value>  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --network-policy <MODE>            Network policy mode: "allow-all" or "deny-all"
+    --name <str>                           A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                    One of 'node22', 'node24', 'python3.13' [default: node24]
+    --timeout <num UNIT>                   The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --vcpus <COUNT>                        Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>       Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>           Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>      Default environment variables for sandbox commands
+    --tag <key=value>, -t=<key=value>      Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --snapshot-expiration <DURATION|none>  Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --network-policy <MODE>                Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --allowed-domain <str>                 Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                   CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                    CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
 
 Flags:
 
@@ -340,12 +342,13 @@ For command help, run `sandbox config <command> --help`
 
 Commands:
 
-    list            <name>               Display the current configuration of a sandbox
-    vcpus           <name> <COUNT>       Update the vCPU count of a sandbox
-    timeout         <name> <num UNIT>    Update the timeout of a sandbox (will be applied to all new sessions)
-    persistent      <name> <true|false>  Enable or disable automatic restore of the filesystem between sessions
-    network-policy  <name>               Update the network policy of a sandbox
-    tags            <name>               Update the tags of a sandbox. Replaces all existing tags with the provided tags.
+    list                 <name>                  Display the current configuration of a sandbox
+    vcpus                <name> <COUNT>          Update the vCPU count of a sandbox
+    timeout              <name> <num UNIT>       Update the timeout of a sandbox (will be applied to all new sessions)
+    persistent           <name> <true|false>     Enable or disable automatic restore of the filesystem between sessions
+    network-policy       <name>                  Update the network policy of a sandbox
+    snapshot-expiration  <name> <DURATION|none>  Update the default snapshot expiration of a sandbox
+    tags                 <name>                  Update the tags of a sandbox. Replaces all existing tags with the provided tags.
 ```
 
 ## `sandbox login`

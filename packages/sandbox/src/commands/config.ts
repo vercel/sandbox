@@ -10,6 +10,7 @@ import {
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
 import { Duration } from "../types/duration";
+import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import ora from "ora";
 import chalk from "chalk";
@@ -152,6 +153,53 @@ const persistentCommand = cmd.command({
   },
 });
 
+const snapshotExpirationCommand = cmd.command({
+  name: "snapshot-expiration",
+  description: "Update the default snapshot expiration of a sandbox",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    duration: cmd.positional({
+      type: SnapshotExpiration,
+      description: 'Snapshot expiration duration (e.g. 7d, 30d) or "none" for no expiration',
+    }),
+    scope,
+  },
+  async handler({
+    scope: { token, team, project },
+    sandbox: name,
+    duration,
+  }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ snapshotExpiration: ms(duration) });
+      spinner.stop();
+
+      const display = ms(duration) === 0 ? "none" : duration;
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " +
+          chalk.cyan(name) +
+          "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "snapshot-expiration: " + chalk.cyan(display) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
 const listCommand = cmd.command({
   name: "list",
   description: "Display the current configuration of a sandbox",
@@ -185,6 +233,7 @@ const listCommand = cmd.command({
       { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
+      { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
       { field: "Tags", value: tagsDisplay },
     ];
 
@@ -334,6 +383,7 @@ export const config = cmd.subcommands({
     timeout: timeoutCommand,
     persistent: persistentCommand,
     "network-policy": networkPolicyCommand,
+    "snapshot-expiration": snapshotExpirationCommand,
     tags: tagsCommand,
   },
 });
