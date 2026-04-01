@@ -35,6 +35,7 @@ function mockUserAndTeams({
     slug: string;
     updatedAt: number;
     membership: { role: string };
+    billing: { plan: string };
   }>,
 } = {}) {
   return (opts: { endpoint: string }) => {
@@ -49,7 +50,7 @@ function mockUserAndTeams({
 }
 
 describe("selectTeams", () => {
-  test("returns defaultTeamId first, then best owner team", async () => {
+  test("returns defaultTeamId first, then best hobby owner team", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
         defaultTeamId: "team_default",
@@ -60,19 +61,20 @@ describe("selectTeams", () => {
             slug: "default-team",
             updatedAt: 100,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
           {
             id: "team_other",
             slug: "other-team",
             updatedAt: 200,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
         ],
       }),
     );
 
     const result = await selectTeams("token");
-    // defaultTeamId is also the best owner match, so only one candidate
     expect(result.candidateTeamIds).toEqual(["team_default", "team_other"]);
     expect(result.username).toBe("my-user");
   });
@@ -88,12 +90,14 @@ describe("selectTeams", () => {
             slug: "other-team",
             updatedAt: 300,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
           {
             id: "team_personal",
             slug: "my-user",
             updatedAt: 100,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
         ],
       }),
@@ -103,7 +107,7 @@ describe("selectTeams", () => {
     expect(result.candidateTeamIds).toEqual(["team_personal"]);
   });
 
-  test("picks most recently updated owner team when no username match", async () => {
+  test("picks most recently updated hobby owner team when no username match", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
         defaultTeamId: null,
@@ -114,12 +118,14 @@ describe("selectTeams", () => {
             slug: "old-team",
             updatedAt: 100,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
           {
             id: "team_recent",
             slug: "recent-team",
             updatedAt: 300,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
         ],
       }),
@@ -140,12 +146,14 @@ describe("selectTeams", () => {
             slug: "owner-team",
             updatedAt: 100,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
           {
             id: "team_member",
             slug: "member-team",
             updatedAt: 200,
             membership: { role: "MEMBER" },
+            billing: { plan: "hobby" },
           },
         ],
       }),
@@ -153,6 +161,34 @@ describe("selectTeams", () => {
 
     const result = await selectTeams("token");
     expect(result.candidateTeamIds).toEqual(["team_owner"]);
+  });
+
+  test("filters out non-hobby plan teams", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: null,
+        username: "my-user",
+        teams: [
+          {
+            id: "team_hobby",
+            slug: "hobby-team",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
+          },
+          {
+            id: "team_pro",
+            slug: "pro-team",
+            updatedAt: 200,
+            membership: { role: "OWNER" },
+            billing: { plan: "pro" },
+          },
+        ],
+      }),
+    );
+
+    const result = await selectTeams("token");
+    expect(result.candidateTeamIds).toEqual(["team_hobby"]);
   });
 
   test("falls back to username when no teams and no defaultTeamId", async () => {
@@ -168,7 +204,7 @@ describe("selectTeams", () => {
     expect(result.candidateTeamIds).toEqual(["my-user"]);
   });
 
-  test("does not duplicate defaultTeamId when it matches best owner team", async () => {
+  test("does not duplicate defaultTeamId when it matches best hobby owner team", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
         defaultTeamId: "team_abc",
@@ -179,6 +215,7 @@ describe("selectTeams", () => {
             slug: "abc-team",
             updatedAt: 100,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
         ],
       }),
@@ -188,7 +225,7 @@ describe("selectTeams", () => {
     expect(result.candidateTeamIds).toEqual(["team_abc"]);
   });
 
-  test("defaultTeamId may differ from best owner team", async () => {
+  test("defaultTeamId may differ from best hobby owner team", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
         defaultTeamId: "team_nonowner",
@@ -199,19 +236,21 @@ describe("selectTeams", () => {
             slug: "my-user",
             updatedAt: 100,
             membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
           },
           {
             id: "team_nonowner",
             slug: "nonowner-team",
             updatedAt: 200,
             membership: { role: "MEMBER" },
+            billing: { plan: "pro" },
           },
         ],
       }),
     );
 
     const result = await selectTeams("token");
-    // defaultTeamId first (even though not OWNER), then best owner team as fallback
+    // defaultTeamId first (even though not hobby OWNER), then best hobby owner team as fallback
     expect(result.candidateTeamIds).toEqual(["team_nonowner", "team_owner"]);
   });
 });
@@ -271,7 +310,7 @@ describe("inferScope", () => {
   });
 
   describe("fallback team selection with 403 handling", () => {
-    test("falls back to owner team when defaultTeamId returns 403", async () => {
+    test("falls back to hobby owner team when defaultTeamId returns 403", async () => {
       fetchApiMock.mockImplementation(async ({ endpoint }) => {
         if (endpoint === "/v2/user") {
           return {
@@ -286,6 +325,7 @@ describe("inferScope", () => {
                 slug: "my-user",
                 updatedAt: 100,
                 membership: { role: "OWNER" },
+                billing: { plan: "hobby" },
               },
             ],
           };
@@ -320,6 +360,7 @@ describe("inferScope", () => {
                 slug: "my-user",
                 updatedAt: 200,
                 membership: { role: "OWNER" },
+                billing: { plan: "hobby" },
               },
             ],
           };
@@ -395,6 +436,7 @@ describe("inferScope", () => {
                 slug: "good-team",
                 updatedAt: 100,
                 membership: { role: "OWNER" },
+                billing: { plan: "hobby" },
               },
             ],
           };

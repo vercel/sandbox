@@ -19,6 +19,9 @@ const TeamsSchema = z.object({
       membership: z.object({
         role: z.string(),
       }),
+      billing: z.object({
+        plan: z.string(),
+      }),
     }),
   ),
 });
@@ -32,9 +35,10 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
  * If found, uses the `projectId` and `orgId` from there.
  *
  * Otherwise, if `teamId` is not provided, builds an ordered list of candidate
- * teams to try: the user's `defaultTeamId` first (if set), then teams where
- * the user has an OWNER role (sorted by `updatedAt` desc, with the personal
- * team matching the username first). Tries each candidate until one succeeds.
+ * teams to try: the user's `defaultTeamId` first (if set), then hobby-plan
+ * teams where the user has an OWNER role (preferring the personal team matching
+ * the username, then the most recently updated). Tries each candidate until one
+ * succeeds.
  *
  * @param opts.token - Vercel API authentication token.
  * @param opts.teamId - Optional team slug. If omitted, candidate teams are resolved automatically.
@@ -126,8 +130,8 @@ async function tryTeam(
  * Builds an ordered list of candidate team IDs to try for sandbox creation.
  *
  * Fetches the user profile and their teams in parallel. Returns the user's
- * `defaultTeamId` first (if set), followed by the best OWNER team: the one
- * whose slug matches the username, or the most recently updated.
+ * `defaultTeamId` first (if set), followed by the best hobby-plan OWNER team:
+ * the one whose slug matches the username, or the most recently updated.
  *
  * @param token - Authentication token used to call the Vercel API.
  * @returns The ordered candidate team IDs and the username.
@@ -144,14 +148,14 @@ export async function selectTeams(
 
   const { defaultTeamId, username } = userData.user;
 
-  const ownerTeams = teamsData.teams.filter(
-    (t) => t.membership.role === "OWNER",
+  const hobbyOwnerTeams = teamsData.teams.filter(
+    (t) => t.membership.role === "OWNER" && t.billing.plan === "hobby",
   );
 
   // Pick the personal team (slug matches username), or the most recently updated
-  const bestOwnerTeam =
-    ownerTeams.find((t) => t.slug === username) ??
-    ownerTeams.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const bestHobbyTeam =
+    hobbyOwnerTeams.find((t) => t.slug === username) ??
+    hobbyOwnerTeams.sort((a, b) => b.updatedAt - a.updatedAt)[0];
 
   const candidateTeamIds: string[] = [];
 
@@ -159,8 +163,8 @@ export async function selectTeams(
     candidateTeamIds.push(defaultTeamId);
   }
 
-  if (bestOwnerTeam && !candidateTeamIds.includes(bestOwnerTeam.id)) {
-    candidateTeamIds.push(bestOwnerTeam.id);
+  if (bestHobbyTeam && !candidateTeamIds.includes(bestHobbyTeam.id)) {
+    candidateTeamIds.push(bestHobbyTeam.id);
   }
 
   // If no teams found at all, try the username as personal team
