@@ -1,32 +1,24 @@
 import { describe, it, expect } from "vitest";
 import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import zlib from "zlib";
 import tar from "tar-stream";
 import { FileWriter } from "./file-writer.js";
 
-async function extractFiles(
-  readable: Readable,
-): Promise<Map<string, Buffer>> {
-  const gunzip = zlib.createGunzip();
+async function extractFiles(readable: Readable) {
   const extract = tar.extract();
   const files = new Map<string, Buffer>();
 
-  const done = new Promise<void>((resolve, reject) => {
-    extract.on("entry", (header, stream, next) => {
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-      stream.on("end", () => {
-        files.set(header.name, Buffer.concat(chunks));
-        next();
-      });
-      stream.on("error", reject);
+  extract.on("entry", (header, stream, next) => {
+    const chunks: Buffer[] = [];
+    stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+    stream.on("end", () => {
+      files.set(header.name, Buffer.concat(chunks));
+      next();
     });
-    extract.on("finish", resolve);
-    extract.on("error", reject);
   });
 
-  readable.pipe(gunzip).pipe(extract);
-  await done;
+  await pipeline(readable, zlib.createGunzip(), extract);
   return files;
 }
 
