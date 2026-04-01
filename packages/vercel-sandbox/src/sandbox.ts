@@ -145,6 +145,14 @@ function isSandboxStoppingError(err: unknown): boolean {
   );
 }
 
+function isSandboxSnapshottingError(err: unknown): boolean {
+  return (
+    err instanceof APIError &&
+    err.response.status === 422 &&
+    (err.json as any)?.error?.code === "sandbox_snapshotting"
+  );
+}
+
 /**
  * A Sandbox is a persistent, isolated Linux MicroVMs to run commands in.
  * Use {@link Sandbox.create} or {@link Sandbox.get} to construct.
@@ -530,7 +538,7 @@ export class Sandbox {
   }
 
   /**
-   * Execute `fn`, and if the session is stopped/stopping, resume and retry.
+   * Execute `fn`, and if the session is stopped/stopping/snapshotting, resume and retry.
    */
   private async withResume<T>(
     fn: () => Promise<T>,
@@ -543,7 +551,7 @@ export class Sandbox {
         await this.resume(signal);
         return fn();
       }
-      if (isSandboxStoppingError(err)) {
+      if (isSandboxStoppingError(err) || isSandboxSnapshottingError(err)) {
         await this.waitForStopAndResume(signal);
         return fn();
       }

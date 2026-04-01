@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.11
+
+### Patch Changes
+
+- Fix an 422 error when trying to resume a sandbox after snapshotting
+
 ## 2.0.0-beta.10
 
 ### Minor Changes
