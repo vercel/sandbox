@@ -67,7 +67,7 @@ export class FileWriter {
       const entry = this.pack.entry(
         "size" in file
           ? { name: file.name, size: file.size, mode: file.mode }
-          : { name: file.name, size: file.content.length, mode: file.mode },
+          : { name: file.name, size: Buffer.byteLength(file.content), mode: file.mode },
         (error) => {
           if (error) {
             return reject(error);
