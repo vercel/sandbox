@@ -95,9 +95,7 @@ describe("APIClient", () => {
         expect.fail("Expected APIError to be thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(APIError);
-        expect(err.message).toBe(
-          "Status code 410 is not ok",
-        );
+        expect(err.message).toBe("Status code 410 is not ok");
         expect(err.json).toEqual({
           error: "gone",
         });
@@ -270,13 +268,68 @@ describe("APIClient", () => {
         expect.fail("Expected APIError to be thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(APIError);
-        expect(err.message).toBe(
-          "Status code 410 is not ok",
-        );
+        expect(err.message).toBe("Status code 410 is not ok");
         expect(err.json).toEqual({
           error: "gone",
         });
       }
+    });
+
+    it("returns synthetic command when non-wait response body is empty (background process)", async () => {
+      mockFetch.mockResolvedValue(
+        new Response("", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.runCommand({
+        sessionId: "sbx_123",
+        command: "sleep",
+        args: ["10"],
+        env: {},
+        sudo: false,
+        cwd: "/home",
+      });
+
+      expect(result.json.command.name).toBe("sleep");
+      expect(result.json.command.args).toEqual(["10"]);
+      expect(result.json.command.sessionId).toBe("sbx_123");
+      expect(result.json.command.cwd).toBe("/home");
+      expect(result.json.command.exitCode).toBeNull();
+      expect(result.text).toBe("");
+    });
+
+    it("parses normal non-wait response correctly", async () => {
+      const commandData = {
+        command: {
+          id: "cmd_456",
+          name: "ls",
+          args: ["-la"],
+          cwd: "/",
+          sessionId: "sbx_123",
+          exitCode: null,
+          startedAt: 1,
+        },
+      };
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(commandData), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.runCommand({
+        sessionId: "sbx_123",
+        command: "ls",
+        args: ["-la"],
+        env: {},
+        sudo: false,
+      });
+
+      expect(result.json.command.id).toBe("cmd_456");
+      expect(result.json.command.name).toBe("ls");
     });
   });
 
@@ -891,6 +944,5 @@ describe("APIClient", () => {
         JSON.stringify({ expiration: 0 }),
       );
     });
-
   });
 });

@@ -5,7 +5,7 @@ import {
   type RequestParams,
 } from "./base-client";
 import {
-type CommandFinishedData,
+  type CommandFinishedData,
   SessionAndRoutesResponse,
   SessionResponse,
   SessionsResponse,
@@ -143,9 +143,12 @@ export class APIClient extends BaseClient {
     querystring = querystring ? `?${querystring}` : "";
     return parseOrThrow(
       SessionAndRoutesResponse,
-      await this.request(`/v2/sandboxes/sessions/${params.sessionId}${querystring}`, {
-        signal: params.signal,
-      }),
+      await this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}${querystring}`,
+        {
+          signal: params.signal,
+        },
+      ),
     );
   }
 
@@ -284,9 +287,9 @@ export class APIClient extends BaseClient {
       return { command, finished };
     }
 
-    return parseOrThrow(
-      CommandResponse,
-      await this.request(`/v2/sandboxes/sessions/${params.sessionId}/cmd`, {
+    const response = await this.request(
+      `/v2/sandboxes/sessions/${params.sessionId}/cmd`,
+      {
         method: "POST",
         body: JSON.stringify({
           command: params.command,
@@ -296,8 +299,32 @@ export class APIClient extends BaseClient {
           sudo: params.sudo,
         }),
         signal: params.signal,
-      }),
+      },
     );
+
+    // Background commands (e.g. `cmd &`) may return 200 with an empty body.
+    // Clone the response so we can inspect the text without consuming it.
+    const cloned = response.clone();
+    const text = await cloned.text();
+    if (response.ok && text.trim() === "") {
+      return {
+        json: {
+          command: {
+            id: "",
+            name: params.command,
+            args: params.args,
+            cwd: params.cwd ?? "",
+            sessionId: params.sessionId,
+            exitCode: null,
+            startedAt: Date.now(),
+          },
+        },
+        response,
+        text: "",
+      };
+    }
+
+    return parseOrThrow(CommandResponse, response);
   }
 
   async getCommand(params: {
@@ -343,11 +370,14 @@ export class APIClient extends BaseClient {
   }) {
     return parseOrThrow(
       EmptyResponse,
-      await this.request(`/v2/sandboxes/sessions/${params.sessionId}/fs/mkdir`, {
-        method: "POST",
-        body: JSON.stringify({ path: params.path, cwd: params.cwd }),
-        signal: params.signal,
-      }),
+      await this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}/fs/mkdir`,
+        {
+          method: "POST",
+          body: JSON.stringify({ path: params.path, cwd: params.cwd }),
+          signal: params.signal,
+        },
+      ),
     );
   }
 
@@ -359,15 +389,18 @@ export class APIClient extends BaseClient {
     const writer = new FileWriter();
     return {
       response: (async () => {
-        return this.request(`/v2/sandboxes/sessions/${params.sessionId}/fs/write`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/gzip",
-            "x-cwd": params.extractDir,
+        return this.request(
+          `/v2/sandboxes/sessions/${params.sessionId}/fs/write`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/gzip",
+              "x-cwd": params.extractDir,
+            },
+            body: await consumeReadable(writer.readable),
+            signal: params.signal,
           },
-          body: await consumeReadable(writer.readable),
-          signal: params.signal,
-        });
+        );
       })(),
       writer,
     };
@@ -613,7 +646,11 @@ export class APIClient extends BaseClient {
 
     if (params.blocking) {
       let session = response.json.session;
-      while (session.status !== "stopped" && session.status !== "failed" && session.status !== "aborted") {
+      while (
+        session.status !== "stopped" &&
+        session.status !== "failed" &&
+        session.status !== "aborted"
+      ) {
         await setTimeout(500, undefined, { signal: params.signal });
         const poll = await this.getSession({
           sessionId: params.sessionId,
@@ -701,12 +738,14 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async getSandbox(params: WithPrivate<{
-    name: string;
-    projectId: string;
-    resume?: boolean;
-    signal?: AbortSignal;
-  }>) {
+  async getSandbox(
+    params: WithPrivate<{
+      name: string;
+      projectId: string;
+      resume?: boolean;
+      signal?: AbortSignal;
+    }>,
+  ) {
     const privateParams = getPrivateParams(params);
     const query: Record<string, string | undefined> = {
       projectId: params.projectId,
