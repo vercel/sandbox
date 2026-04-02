@@ -29,9 +29,10 @@ describe("FileWriter", () => {
       name: "hello.txt",
       content: Buffer.from("Hello world"),
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("hello.txt")?.toString()).toBe("Hello world");
   });
 
@@ -42,9 +43,10 @@ describe("FileWriter", () => {
       name: "utf8.txt",
       content: Buffer.from(content),
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("utf8.txt")?.toString()).toBe(content);
   });
 
@@ -58,9 +60,10 @@ describe("FileWriter", () => {
       name: "b.txt",
       content: Buffer.from("file b"),
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.size).toBe(2);
     expect(files.get("a.txt")?.toString()).toBe("file a");
     expect(files.get("b.txt")?.toString()).toBe("file b");
@@ -72,9 +75,10 @@ describe("FileWriter", () => {
       name: "hello.txt",
       content: "Hello world",
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("hello.txt")?.toString()).toBe("Hello world");
   });
 
@@ -85,9 +89,10 @@ describe("FileWriter", () => {
       name: "utf8.txt",
       content,
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("utf8.txt")?.toString()).toBe(content);
   });
 
@@ -98,9 +103,10 @@ describe("FileWriter", () => {
       name: "hello.txt",
       content,
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("hello.txt")?.toString()).toBe("Hello world");
   });
 
@@ -112,9 +118,10 @@ describe("FileWriter", () => {
       name: "utf8.txt",
       content,
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("utf8.txt")?.toString()).toBe(text);
   });
 
@@ -126,9 +133,10 @@ describe("FileWriter", () => {
       content: Readable.from(content),
       size: content.length,
     });
-    writer.end();
+    const end = writer.end();
 
     const files = await extractFiles(writer.readable);
+    await end;
     expect(files.get("stream.txt")?.toString()).toBe("streamed content");
   });
 });

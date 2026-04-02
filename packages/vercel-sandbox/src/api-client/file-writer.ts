@@ -2,7 +2,7 @@ import zlib from "zlib";
 import tar, { type Pack } from "tar-stream";
 import { Readable } from "stream";
 
-interface FileBuffer {
+interface FileData {
   /**
    * The name (path) of the file to write.
    */
@@ -62,7 +62,7 @@ export class FileWriter {
    * Returns a Promise resolved once the file is written in the
    * stream.
    */
-  async addFile(file: FileBuffer | FileStream) {
+  async addFile(file: FileData | FileStream) {
     return new Promise<void>((resolve, reject) => {
       const entry = this.pack.entry(
         "size" in file
