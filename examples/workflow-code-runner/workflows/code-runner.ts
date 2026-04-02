@@ -1,5 +1,5 @@
+import { Sandbox } from "@vercel/sandbox";
 import { FatalError } from "workflow";
-import { createSandbox, execute, stopSandbox } from "@/steps/sandbox";
 import { generateCode, fixCode } from "@/steps/ai";
 
 const MAX_ATTEMPTS = 3;
@@ -7,10 +7,14 @@ const MAX_ATTEMPTS = 3;
 export async function runCode(prompt: string) {
   "use workflow";
 
-  // Step 1: Create a sandbox.
-  // The returned Sandbox instance is automatically serialized via
-  // WORKFLOW_SERIALIZE when it crosses the step boundary.
-  const sandbox = await createSandbox();
+  // Sandbox.create() has "use step" built in, so it runs as a
+  // durable step. The returned Sandbox instance is automatically
+  // serialized via WORKFLOW_SERIALIZE when it crosses the step boundary.
+  const sandbox = await Sandbox.create({
+    resources: { vcpus: 1 },
+    timeout: 5 * 60 * 1000,
+    runtime: "node22",
+  });
 
   try {
     let code = await generateCode(prompt);
@@ -21,21 +25,26 @@ export async function runCode(prompt: string) {
         code = await fixCode(prompt, code, lastError);
       }
 
-      // The sandbox object survives the step boundary from createSandbox —
-      // it was rehydrated via WORKFLOW_DESERIALIZE, no Sandbox.get() needed.
-      const result = await execute(sandbox, code);
+      // Each Sandbox instance method (writeFiles, runCommand, stop, etc.)
+      // also has "use step" built in, so every call below is its own
+      // durable step — and the sandbox object is automatically rehydrated
+      // via WORKFLOW_DESERIALIZE at each step boundary.
+      await sandbox.writeFiles([{ path: "script.js", content: code }]);
 
-      if (result.exitCode === 0) {
+      const finished = await sandbox.runCommand("node", ["script.js"]);
+      const stdout = await finished.stdout();
+      const stderr = await finished.stderr();
+
+      if (finished.exitCode === 0) {
         return {
           code,
-          stdout: result.stdout,
-          stderr: result.stderr,
+          stdout,
+          stderr,
           iterations: attempt,
         };
       }
 
-      lastError =
-        result.stderr || `Process exited with code ${result.exitCode}`;
+      lastError = stderr || `Process exited with code ${finished.exitCode}`;
       console.log(`[Attempt ${attempt}] Failed:`, lastError);
     }
 
@@ -43,6 +52,6 @@ export async function runCode(prompt: string) {
       `Code failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}`,
     );
   } finally {
-    await stopSandbox(sandbox);
+    await sandbox.stop();
   }
 }
