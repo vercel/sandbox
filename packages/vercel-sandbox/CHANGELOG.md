@@ -78,6 +78,12 @@
 
 - Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
 
+## 1.9.2
+
+### Patch Changes
+
+- Fix `stdout()`/`stderr()`/`output()` failing on deserialized `Command` instances with "logs() requires an API client" error. ([#130](https://github.com/vercel/sandbox/pull/130))
+
 ## 1.9.1
 
 ### Patch Changes
