@@ -429,6 +429,52 @@ describe("CommandFinished serialization", () => {
     });
   });
 
+  describe("deserialized without cached output", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("stdout() and stderr() work after deserialization without output", async () => {
+      vi.mock("./utils/get-credentials.js", () => ({
+        getCredentials: vi.fn().mockResolvedValue({
+          token: "test_token",
+          teamId: "team_test",
+          projectId: "proj_test",
+        }),
+      }));
+
+      const serializedData: SerializedCommandFinished = {
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+        exitCode: 0,
+        // No output — simulates a deserialized instance that never fetched logs
+      };
+
+      const commandFinished =
+        CommandFinished[WORKFLOW_DESERIALIZE](serializedData);
+
+      // _client should be null before any async method is called
+      expect(Reflect.get(commandFinished, "_client")).toBeNull();
+
+      // Mock getLogs on the APIClient prototype to return fake log entries
+      const getLogsSpy = vi
+        .spyOn(APIClient.prototype, "getLogs")
+        .mockReturnValue(
+          (async function* () {
+            yield { stream: "stdout" as const, data: "hello\n" };
+            yield { stream: "stderr" as const, data: "warn\n" };
+          })() as any,
+        );
+
+      const stdout = await commandFinished.stdout();
+      const stderr = await commandFinished.stderr();
+
+      expect(stdout).toBe("hello\n");
+      expect(stderr).toBe("warn\n");
+      expect(getLogsSpy).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("workflow runtime integration", () => {
     afterEach(() => {
       vi.restoreAllMocks();
