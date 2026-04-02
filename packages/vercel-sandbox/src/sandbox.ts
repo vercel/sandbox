@@ -703,11 +703,15 @@ export class Sandbox {
    * @example
    * // Write an executable script
    * await sandbox.writeFiles([
-   *   { path: "/usr/local/bin/myscript", content: Buffer.from("#!/bin/bash\necho hello"), mode: 0o755 }
+   *   { path: "/usr/local/bin/myscript", content: "#!/bin/bash\necho hello", mode: 0o755 }
    * ]);
    */
   async writeFiles(
-    files: { path: string; content: Buffer; mode?: number }[],
+    files: {
+      path: string;
+      content: string | Uint8Array;
+      mode?: number;
+    }[],
     opts?: { signal?: AbortSignal },
   ) {
     "use step";
