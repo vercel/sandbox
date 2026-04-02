@@ -463,7 +463,11 @@ export class APIClient extends BaseClient {
   async writeFiles(params: {
     sessionId: string;
     cwd: string;
-    files: { path: string; content: Buffer; mode?: number }[];
+    files: {
+      path: string;
+      content: string | Uint8Array;
+      mode?: number;
+    }[];
     extractDir: string;
     signal?: AbortSignal;
   }) {
