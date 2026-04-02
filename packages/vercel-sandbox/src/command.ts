@@ -255,6 +255,10 @@ export class Command {
     if (!this.outputCache) {
       this.outputCache = (async () => {
         try {
+          opts?.signal?.throwIfAborted();
+          // Ensure the API client is initialized before calling logs(),
+          // since logs() is synchronous and requires _client to be set.
+          await this.ensureClient();
           let stdout = "";
           let stderr = "";
           let both = "";
