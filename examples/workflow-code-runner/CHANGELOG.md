@@ -1,5 +1,12 @@
 # workflow-code-runner
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`b91b9e49fb7d2c5a4b601c07c125e6e5a2c43441`](https://github.com/vercel/sandbox/commit/b91b9e49fb7d2c5a4b601c07c125e6e5a2c43441)]:
+  - @vercel/sandbox@1.9.2
+
 ## 0.1.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@vercel/sandbox",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "Software Development Kit for Vercel Sandbox",
   "type": "module",
   "main": "dist/index.cjs",
