@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { APIClient } from "./api-client.js";
 import { APIError, StreamError } from "./api-error.js";
 import { createNdjsonStream } from "../../test-utils/mock-response.js";
+import { z } from "zod";
 
 describe("APIClient", () => {
   describe("getLogs", () => {
@@ -273,6 +274,127 @@ describe("APIClient", () => {
           error: "gone",
         });
       }
+    });
+
+    it("throws abort error (not Zod error) when signal aborts before stream finishes", async () => {
+      const commandData = {
+        command: {
+          id: "cmd_123",
+          name: "python3",
+          args: ["script.py"],
+          cwd: "/",
+          sandboxId: "sbx_123",
+          exitCode: null,
+          startedAt: 1,
+        },
+      };
+
+      const encoder = new TextEncoder();
+      const firstChunk = JSON.stringify(commandData) + "\n";
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(firstChunk));
+        },
+        cancel() {},
+      });
+
+      mockFetch.mockResolvedValue(
+        new Response(stream, {
+          headers: { "content-type": "application/x-ndjson" },
+        }),
+      );
+
+      const controller = new AbortController();
+      const result = await client.runCommand({
+        sandboxId: "sbx_123",
+        command: "python3",
+        args: ["script.py"],
+        env: {},
+        sudo: false,
+        wait: true,
+        signal: controller.signal,
+      });
+
+      expect(result.command.id).toBe("cmd_123");
+
+      controller.abort();
+
+      await expect(result.finished).rejects.toThrow();
+      await expect(result.finished).rejects.not.toBeInstanceOf(z.ZodError);
+    }, 10000);
+
+    it("throws StreamError when stream closes before finished chunk arrives", async () => {
+      const commandData = {
+        command: {
+          id: "cmd_123",
+          name: "python3",
+          args: ["script.py"],
+          cwd: "/",
+          sandboxId: "sbx_123",
+          exitCode: null,
+          startedAt: 1,
+        },
+      };
+
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(JSON.stringify(commandData) + "\n"),
+          );
+          controller.close();
+        },
+      });
+
+      mockFetch.mockResolvedValue(
+        new Response(stream, {
+          headers: { "content-type": "application/x-ndjson" },
+        }),
+      );
+
+      const result = await client.runCommand({
+        sandboxId: "sbx_123",
+        command: "python3",
+        args: ["script.py"],
+        env: {},
+        sudo: false,
+        wait: true,
+      });
+
+      expect(result.command.id).toBe("cmd_123");
+
+      await expect(result.finished).rejects.toThrow(
+        "Stream ended before command finished",
+      );
+      await expect(result.finished).rejects.toBeInstanceOf(StreamError);
+    });
+
+    it("rejects when signal is already aborted before stream starts", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start() {},
+        cancel() {},
+      });
+
+      mockFetch.mockResolvedValue(
+        new Response(stream, {
+          headers: { "content-type": "application/x-ndjson" },
+        }),
+      );
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        client.runCommand({
+          sandboxId: "sbx_123",
+          command: "python3",
+          args: ["script.py"],
+          env: {},
+          sudo: false,
+          wait: true,
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow();
     });
   });
 
