@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.9.3
+
+### Patch Changes
+
+- Handle abort signal and early stream close in runCommand to avoid misleading Zod error ([#135](https://github.com/vercel/sandbox/pull/135))
+
 ## 1.9.2
 
 ### Patch Changes
