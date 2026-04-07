@@ -289,20 +289,13 @@ describe("APIClient", () => {
         },
       };
 
-      // Create a stream that sends the first chunk (command started)
-      // but never sends the second chunk (command finished),
-      // simulating a long-running command that gets aborted.
       const encoder = new TextEncoder();
       const firstChunk = JSON.stringify(commandData) + "\n";
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(encoder.encode(firstChunk));
-          // Never enqueue the finished chunk or close — simulates a
-          // long-running command whose stream is still open.
         },
-        cancel() {
-          // Stream cancelled by abort signal
-        },
+        cancel() {},
       });
 
       mockFetch.mockResolvedValue(
@@ -322,34 +315,15 @@ describe("APIClient", () => {
         signal: controller.signal,
       });
 
-      // First chunk parsed fine
       expect(result.command.id).toBe("cmd_123");
 
-      // Abort the signal before the finished chunk arrives
       controller.abort();
 
-      // The finished promise should reject with an abort-related error,
-      // NOT a Zod validation error from parsing undefined, and NOT hang forever.
-      const settled = await Promise.race([
-        result.finished
-          .then((v) => ({ status: "resolved" as const, value: v }))
-          .catch((e) => ({ status: "rejected" as const, error: e })),
-        new Promise<{ status: "timeout" }>((resolve) =>
-          setTimeout(() => resolve({ status: "timeout" }), 2000),
-        ),
-      ]);
-
-      // Currently the promise hangs because abort doesn't propagate to the
-      // jsonlines iterator — the finished promise never settles.
-      expect(settled.status).not.toBe("timeout");
-
-      // If it does settle, it should be a rejection, not a Zod error
-      if (settled.status === "rejected") {
-        expect(settled.error).not.toBeInstanceOf(z.ZodError);
-      }
+      await expect(result.finished).rejects.toThrow();
+      await expect(result.finished).rejects.not.toBeInstanceOf(z.ZodError);
     }, 10000);
 
-    it("throws Zod error when stream closes abruptly with no finished chunk", async () => {
+    it("throws StreamError when stream closes before finished chunk arrives", async () => {
       const commandData = {
         command: {
           id: "cmd_123",
@@ -362,15 +336,12 @@ describe("APIClient", () => {
         },
       };
 
-      // Stream that sends the first chunk then immediately closes,
-      // simulating a connection drop after the command starts.
       const encoder = new TextEncoder();
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(
             encoder.encode(JSON.stringify(commandData) + "\n"),
           );
-          // Close immediately without sending the finished chunk
           controller.close();
         },
       });
@@ -392,17 +363,38 @@ describe("APIClient", () => {
 
       expect(result.command.id).toBe("cmd_123");
 
-      // When the stream closes before sending the finished chunk,
-      // iterator.next() returns { done: true, value: undefined },
-      // and CommandFinishedResponse.parse(undefined) throws a ZodError.
-      // This should be a more descriptive error instead.
-      try {
-        await result.finished;
-        expect.fail("Expected an error from result.finished");
-      } catch (err) {
-        // Currently throws ZodError — this validates the bug exists
-        expect(err).toBeInstanceOf(z.ZodError);
-      }
+      await expect(result.finished).rejects.toThrow(
+        "Stream ended before command finished",
+      );
+      await expect(result.finished).rejects.toBeInstanceOf(StreamError);
+    });
+
+    it("rejects when signal is already aborted before stream starts", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start() {},
+        cancel() {},
+      });
+
+      mockFetch.mockResolvedValue(
+        new Response(stream, {
+          headers: { "content-type": "application/x-ndjson" },
+        }),
+      );
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        client.runCommand({
+          sandboxId: "sbx_123",
+          command: "python3",
+          args: ["script.py"],
+          env: {},
+          sudo: false,
+          wait: true,
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow();
     });
   });
 

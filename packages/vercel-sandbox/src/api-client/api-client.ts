@@ -267,14 +267,52 @@ export class APIClient extends BaseClient {
         console.error("Error piping command stream:", err);
       });
 
+      let cleanupAbortListener: (() => void) | undefined;
+      if (params.signal) {
+        const onAbort = () => {
+          jsonlinesStream.destroy(
+            params.signal!.reason ??
+              new DOMException("The operation was aborted.", "AbortError"),
+          );
+        };
+        if (params.signal.aborted) {
+          onAbort();
+        } else {
+          params.signal.addEventListener("abort", onAbort, { once: true });
+          cleanupAbortListener = () =>
+            params.signal!.removeEventListener("abort", onAbort);
+        }
+      }
+
       const iterator = jsonlinesStream[Symbol.asyncIterator]();
       const commandChunk = await iterator.next();
+      if (commandChunk.done) {
+        cleanupAbortListener?.();
+        throw new StreamError(
+          "stream_ended_early",
+          "Stream ended before command data was received",
+          params.sandboxId,
+        );
+      }
       const { command } = CommandResponse.parse(commandChunk.value);
 
       const finished = (async () => {
-        const finishedChunk = await iterator.next();
-        const { command } = CommandFinishedResponse.parse(finishedChunk.value);
-        return command;
+        try {
+          const finishedChunk = await iterator.next();
+          if (finishedChunk.done) {
+            throw new StreamError(
+              "stream_ended_early",
+              "Stream ended before command finished",
+              params.sandboxId,
+            );
+          }
+          const { command } = CommandFinishedResponse.parse(
+            finishedChunk.value,
+          );
+          return command;
+        } finally {
+          cleanupAbortListener?.();
+        }
       })();
 
       return { command, finished };
