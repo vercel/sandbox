@@ -272,16 +272,32 @@ export class APIClient extends BaseClient {
       }
 
       const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream).catch((err) => {
-        console.error("Error piping command stream:", err);
-      });
+      pipe(response.body, jsonlinesStream, { signal: params.signal }).catch(
+        (err) => {
+          console.error("Error piping command stream:", err);
+        },
+      );
 
       const iterator = jsonlinesStream[Symbol.asyncIterator]();
       const commandChunk = await iterator.next();
+      if (commandChunk.done) {
+        throw new StreamError(
+          "stream_ended_early",
+          "Stream ended before command data was received",
+          params.sandboxId,
+        );
+      }
       const { command } = CommandResponse.parse(commandChunk.value);
 
       const finished = (async () => {
         const finishedChunk = await iterator.next();
+        if (finishedChunk.done) {
+          throw new StreamError(
+            "stream_ended_early",
+            "Stream ended before command finished",
+            params.sandboxId,
+          );
+        }
         const { command } = CommandFinishedResponse.parse(finishedChunk.value);
         return command;
       })();
@@ -584,7 +600,7 @@ export class APIClient extends BaseClient {
       }
 
       const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream).catch((err) => {
+      pipe(response.body, jsonlinesStream, { signal }).catch((err) => {
         console.error("Error piping logs:", err);
       });
 
@@ -821,8 +837,38 @@ export class APIClient extends BaseClient {
 async function pipe(
   readable: ReadableStream<Uint8Array>,
   output: NodeJS.WritableStream,
+  options?: { signal?: AbortSignal },
 ) {
   const reader = readable.getReader();
+  let aborted = false;
+
+  const signal = options?.signal;
+  const onAbort = () => {
+    aborted = true;
+    const reason =
+      signal?.reason ??
+      new DOMException("The operation was aborted.", "AbortError");
+    void reader.cancel(reason).catch(() => {
+      // ignore cancel errors when aborting
+    });
+
+    if ("destroy" in output && typeof output.destroy === "function") {
+      output.destroy(reason as Error);
+      return;
+    }
+
+    output.emit("error", reason);
+    output.end();
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  }
+
   try {
     while (true) {
       const read = await reader.read();
@@ -834,9 +880,14 @@ async function pipe(
       }
     }
   } catch (err) {
-    output.emit("error", err);
+    if (!aborted) {
+      output.emit("error", err);
+    }
   } finally {
-    output.end();
+    signal?.removeEventListener("abort", onAbort);
+    if (!aborted) {
+      output.end();
+    }
   }
 }
 
