@@ -1,7 +1,12 @@
+import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { SnapshotMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+
+export interface SerializedSnapshot {
+  snapshot: SnapshotMetadata;
+}
 
 /** @inline */
 interface GetSnapshotParams {
@@ -22,7 +27,24 @@ interface GetSnapshotParams {
  * @hideconstructor
  */
 export class Snapshot {
-  private readonly client: APIClient;
+  private _client: APIClient | null = null;
+
+  /**
+   * Lazily resolve credentials and construct an API client.
+   * This is used in step contexts where the Snapshot was deserialized
+   * without a client (e.g. when crossing workflow/step boundaries).
+   * @internal
+   */
+  private async ensureClient(): Promise<APIClient> {
+    "use step";
+    if (this._client) return this._client;
+    const credentials = await getCredentials();
+    this._client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+    });
+    return this._client;
+  }
 
   /**
    * Unique ID of this snapshot.
@@ -76,19 +98,40 @@ export class Snapshot {
   private snapshot: SnapshotMetadata;
 
   /**
-   * Create a new Snapshot instance.
+   * Serialize a Snapshot instance to plain data for @workflow/serde.
    *
-   * @param client - API client used to communicate with the backend
-   * @param snapshot - Snapshot metadata
+   * @param instance - The Snapshot instance to serialize
+   * @returns A plain object containing snapshot metadata
    */
+  static [WORKFLOW_SERIALIZE](instance: Snapshot): SerializedSnapshot {
+    return {
+      snapshot: instance.snapshot,
+    };
+  }
+
+  /**
+   * Deserialize a Snapshot from serialized data.
+   *
+   * The deserialized instance uses the serialized metadata synchronously and
+   * lazily creates an API client only when methods perform API requests.
+   *
+   * @param data - The serialized snapshot data
+   * @returns The reconstructed Snapshot instance
+   */
+  static [WORKFLOW_DESERIALIZE](data: SerializedSnapshot): Snapshot {
+    return new Snapshot({
+      snapshot: data.snapshot,
+    });
+  }
+
   constructor({
     client,
     snapshot,
   }: {
-    client: APIClient;
+    client?: APIClient;
     snapshot: SnapshotMetadata;
   }) {
-    this.client = client;
+    this._client = client ?? null;
     this.snapshot = snapshot;
   }
 
@@ -151,7 +194,8 @@ export class Snapshot {
    */
   async delete(opts?: { signal?: AbortSignal }): Promise<void> {
     "use step";
-    const response = await this.client!.deleteSnapshot({
+    const client = await this.ensureClient();
+    const response = await client.deleteSnapshot({
       snapshotId: this.snapshot.id,
       signal: opts?.signal,
     });
