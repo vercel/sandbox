@@ -13,7 +13,7 @@ import type {
   NetworkTransformer,
 } from "./network-policy.js";
 import { toSandboxSnapshot, type SandboxSnapshot } from "./utils/sandbox-snapshot.js";
-import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import { getCredentials } from "./utils/get-credentials.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -269,18 +269,22 @@ export class Session {
     return this.session.networkTransfer;
   }
 
-  constructor({
-    client,
-    routes,
-    session,
-  }: {
+  constructor(params: {
     client: APIClient;
     routes: SandboxRouteData[];
     session: SessionMetaData;
+  } | {
+    /** @internal – used during deserialization with an already-converted snapshot */
+    routes: SandboxRouteData[];
+    snapshot: SandboxSnapshot;
   }) {
-    this._client = client;
-    this.routes = routes;
-    this.session = toSandboxSnapshot(session);
+    this.routes = params.routes;
+    if ("snapshot" in params) {
+      this.session = params.snapshot;
+    } else {
+      this._client = params.client;
+      this.session = toSandboxSnapshot(params.session);
+    }
   }
 
   /**

@@ -81,8 +81,10 @@ describe("Sandbox serialization", () => {
       const serialized = serializeSandbox(sandbox);
 
       expect(serialized.metadata.id).toBe("sess_test123");
-      expect(serialized.routes).toEqual(mockRoutes);
       expect(serialized.metadata.networkPolicy).toBe("allow-all");
+      expect(serialized.metadata.status).toBe("running");
+      expect(serialized.metadata.memory).toBe(2048);
+      expect(serialized.routes).toEqual(mockRoutes);
       expect(serialized.sandboxMetadata).toEqual(mockSandboxMetadata);
       expect(serialized.projectId).toBe("proj_test");
     });
@@ -124,7 +126,19 @@ describe("Sandbox serialization", () => {
 
       const result = deserializeSandbox(serialized);
 
+      // Sandbox-level metadata
       expect(result.name).toBe("test-sandbox");
+      expect(result.persistent).toBe(false);
+      expect((result as any).projectId).toBe("proj_test");
+
+      // Session is restored from the serialized snapshot
+      const session = result.currentSession();
+      expect(session.sessionId).toBe("sess_test123");
+      expect(session.status).toBe("running");
+      expect(session.memory).toBe(2048);
+      expect(session.networkPolicy).toBe("allow-all");
+      expect(result.routes).toEqual(mockRoutes);
+      expect(result.domain(3000)).toBe("https://test-3000.vercel.run");
     });
 
     it("does not require global credentials just to deserialize and read metadata", async () => {
@@ -157,6 +171,8 @@ describe("Sandbox serialization", () => {
       ) as Sandbox;
 
       expect(deserialized.name).toBe("test-sandbox");
+      expect(deserialized.status).toBe("running");
+      expect(deserialized.routes).toEqual(mockRoutes);
     });
 
     it("deserialized instance has no client until ensureClient() is called", async () => {

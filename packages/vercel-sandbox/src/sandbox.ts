@@ -431,11 +431,15 @@ export class Sandbox {
    * @returns The reconstructed Sandbox instance
    */
   static [WORKFLOW_DESERIALIZE](data: SerializedSandbox): Sandbox {
-    return new Sandbox({
+    const sandbox = new Sandbox({
       sandbox: data.sandboxMetadata!,
       routes: data.routes,
       projectId: data.projectId,
     });
+    if (data.metadata) {
+      sandbox.session = new Session({ routes: data.routes, snapshot: data.metadata });
+    }
+    return sandbox;
   }
 
   /**
