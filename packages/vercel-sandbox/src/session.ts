@@ -1,3 +1,4 @@
+import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { type SessionMetaData, type SandboxRouteData, APIClient } from "./api-client/index.js";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
@@ -16,6 +17,14 @@ import { toSandboxSnapshot, type SandboxSnapshot } from "./utils/sandbox-snapsho
 import { getCredentials } from "./utils/get-credentials.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
+
+/**
+ * Serialized representation of a Session for @workflow/serde.
+ */
+export interface SerializedSession {
+  session: SandboxSnapshot;
+  routes: SandboxRouteData[];
+}
 
 /** @inline */
 export interface RunCommandParams {
@@ -73,6 +82,7 @@ export class Session {
    * @internal
    */
   private async ensureClient(): Promise<APIClient> {
+    "use step";
     if (this._client) return this._client;
     const credentials = await getCredentials();
     this._client = new APIClient({
@@ -268,6 +278,25 @@ export class Session {
     return this.session.networkTransfer;
   }
 
+  /**
+   * Serialize a Session instance to plain data for @workflow/serde.
+   *
+   * Although Sandbox handles top-level serialization, Session needs these
+   * methods so the Workflow SWC compiler can resolve the class by name.
+   * The `new Session(...)` self-reference in WORKFLOW_DESERIALIZE forces
+   * rolldown to preserve the class name in the compiled output.
+   */
+  static [WORKFLOW_SERIALIZE](instance: Session): SerializedSession {
+    return {
+      session: instance.session,
+      routes: instance.routes,
+    };
+  }
+
+  static [WORKFLOW_DESERIALIZE](data: SerializedSession): Session {
+    return new Session({ routes: data.routes, snapshot: data.session });
+  }
+
   constructor(params: {
     client: APIClient;
     routes: SandboxRouteData[];
@@ -298,6 +327,7 @@ export class Session {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
+    "use step";
     const client = await this.ensureClient();
     const command = await client.getCommand({
       sessionId: this.session.id,
@@ -350,6 +380,7 @@ export class Session {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
+    "use step";
     const client = await this.ensureClient();
     const params: RunCommandParams =
       typeof commandOrParams === "string"
@@ -441,6 +472,7 @@ export class Session {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
     const client = await this.ensureClient();
     await client.mkDir({
       sessionId: this.session.id,
@@ -461,6 +493,7 @@ export class Session {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
+    "use step";
     const client = await this.ensureClient();
     return client.readFile({
       sessionId: this.session.id,
@@ -482,6 +515,7 @@ export class Session {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
+    "use step";
     const client = await this.ensureClient();
     const stream = await client.readFile({
       sessionId: this.session.id,
@@ -512,6 +546,7 @@ export class Session {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    "use step";
     const client = await this.ensureClient();
     if (!src?.path) {
       throw new Error("downloadFile: source path is required");
@@ -560,6 +595,7 @@ export class Session {
     files: { path: string; content: string | Uint8Array; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
+    "use step";
     const client = await this.ensureClient();
     return client.writeFiles({
       sessionId: this.session.id,
@@ -598,6 +634,7 @@ export class Session {
     signal?: AbortSignal;
     blocking?: boolean;
   }): Promise<SandboxSnapshot> {
+    "use step";
     const client = await this.ensureClient();
     const response = await client.stopSession({
       sessionId: this.session.id,
@@ -650,7 +687,8 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
     if (params.networkPolicy !== undefined) {
-      const client = await this.ensureClient();
+      "use step";
+    const client = await this.ensureClient();
       const response = await client.updateNetworkPolicy({
         sessionId: this.session.id,
         networkPolicy: params.networkPolicy,
@@ -683,6 +721,7 @@ export class Session {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const client = await this.ensureClient();
     const response = await client.extendTimeout({
       sessionId: this.session.id,
@@ -709,6 +748,7 @@ export class Session {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
+    "use step";
     const client = await this.ensureClient();
     const response = await client.createSnapshot({
       sessionId: this.session.id,
