@@ -284,7 +284,7 @@ export class APIClient extends BaseClient {
         throw new StreamError(
           "stream_ended_early",
           "Stream ended before command data was received",
-          params.sandboxId,
+          params.sessionId,
         );
       }
       const { command } = CommandResponse.parse(commandChunk.value);
@@ -295,7 +295,7 @@ export class APIClient extends BaseClient {
           throw new StreamError(
             "stream_ended_early",
             "Stream ended before command finished",
-            params.sandboxId,
+            params.sessionId,
           );
         }
         const { command } = CommandFinishedResponse.parse(finishedChunk.value);

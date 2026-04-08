@@ -561,7 +561,7 @@ export class Session {
    * @returns A promise that resolves when the files are written
    */
   async writeFiles(
-    files: { path: string; content: Buffer }[],
+    files: { path: string; content: string | Uint8Array; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
     return this.client.writeFiles({

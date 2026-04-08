@@ -1,5 +1,12 @@
 # workflow-code-runner
 
+## 0.1.4-beta.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.12
+
 ## 0.1.3
 
 ### Patch Changes
