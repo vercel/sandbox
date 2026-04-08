@@ -283,7 +283,7 @@ describe("APIClient", () => {
           name: "python3",
           args: ["script.py"],
           cwd: "/",
-          sandboxId: "sbx_123",
+          sessionId: "sbx_123",
           exitCode: null,
           startedAt: 1,
         },
@@ -306,7 +306,7 @@ describe("APIClient", () => {
 
       const controller = new AbortController();
       const result = await client.runCommand({
-        sandboxId: "sbx_123",
+        sessionId: "sbx_123",
         command: "python3",
         args: ["script.py"],
         env: {},
@@ -330,7 +330,7 @@ describe("APIClient", () => {
           name: "python3",
           args: ["script.py"],
           cwd: "/",
-          sandboxId: "sbx_123",
+          sessionId: "sbx_123",
           exitCode: null,
           startedAt: 1,
         },
@@ -353,7 +353,7 @@ describe("APIClient", () => {
       );
 
       const result = await client.runCommand({
-        sandboxId: "sbx_123",
+        sessionId: "sbx_123",
         command: "python3",
         args: ["script.py"],
         env: {},
@@ -386,7 +386,7 @@ describe("APIClient", () => {
 
       await expect(
         client.runCommand({
-          sandboxId: "sbx_123",
+          sessionId: "sbx_123",
           command: "python3",
           args: ["script.py"],
           env: {},
