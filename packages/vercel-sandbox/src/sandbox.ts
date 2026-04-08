@@ -690,6 +690,7 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
+    "use step";
     const signal =
       typeof commandOrParams === "string"
         ? opts?.signal
@@ -711,6 +712,7 @@ export class Sandbox {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
+    "use step";
     return this.withResume(
       () => this.session!.getCommand(cmdId, opts),
       opts?.signal,
@@ -725,6 +727,7 @@ export class Sandbox {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
     return this.withResume(
       () => this.session!.mkDir(path, opts),
       opts?.signal,
@@ -743,6 +746,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
+    "use step";
     return this.withResume(
       () => this.session!.readFile(file, opts),
       opts?.signal,
@@ -761,6 +765,7 @@ export class Sandbox {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
+    "use step";
     return this.withResume(
       () => this.session!.readFileToBuffer(file, opts),
       opts?.signal,
@@ -782,6 +787,7 @@ export class Sandbox {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    "use step";
     return this.withResume(
       () => this.session!.downloadFile(src, dst, opts),
       opts?.signal,
@@ -812,6 +818,7 @@ export class Sandbox {
     }[],
     opts?: { signal?: AbortSignal },
   ) {
+    "use step";
     return this.withResume(
       () => this.session!.writeFiles(files, opts),
       opts?.signal,
@@ -841,6 +848,7 @@ export class Sandbox {
     signal?: AbortSignal;
     blocking?: boolean;
   }): Promise<SandboxSnapshot> {
+    "use step";
     if (!this.session) {
       throw new Error("No active session to stop.");
     }
@@ -884,6 +892,7 @@ export class Sandbox {
     networkPolicy: NetworkPolicy,
     opts?: { signal?: AbortSignal },
   ): Promise<NetworkPolicy> {
+    "use step";
     await this.withResume(
       () => this.session!.update({ networkPolicy: networkPolicy }, opts),
       opts?.signal,
@@ -912,6 +921,7 @@ export class Sandbox {
     duration: number,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     return this.withResume(
       () => this.session!.extendTimeout(duration, opts),
       opts?.signal,
@@ -933,6 +943,7 @@ export class Sandbox {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
+    "use step";
     return this.withResume(
       () => this.session!.snapshot(opts),
       opts?.signal,
@@ -956,6 +967,7 @@ export class Sandbox {
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const client = await this.ensureClient();
     let resources: { vcpus: number; memory: number } | undefined;
     if (params.resources?.vcpus) {
@@ -1002,6 +1014,7 @@ export class Sandbox {
    * throw immediately.
    */
   async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
     const client = await this.ensureClient();
     await client.deleteSandbox({
       name: this.sandbox.name,
@@ -1022,6 +1035,7 @@ export class Sandbox {
     sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
+    "use step";
     const client = await this.ensureClient();
     const response = await client.listSessions({
       projectId: this.projectId,
@@ -1046,6 +1060,7 @@ export class Sandbox {
     sortOrder?: "asc" | "desc";
     signal?: AbortSignal;
   }) {
+    "use step";
     const client = await this.ensureClient();
     const response = await client.listSnapshots({
       projectId: this.projectId,
