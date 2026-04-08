@@ -1,5 +1,11 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import { type SessionMetaData, type SandboxRouteData, type SandboxMetaData, type SnapshotMetadata, APIClient } from "./api-client/index.js";
+import {
+  type SessionMetaData,
+  type SandboxRouteData,
+  type SandboxMetaData,
+  type SnapshotMetadata,
+  APIClient,
+} from "./api-client/index.js";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
@@ -631,15 +637,25 @@ export class Session {
    */
   async stop(opts?: {
     signal?: AbortSignal;
-  }): Promise<{ session: SandboxSnapshot; sandbox?: SandboxMetaData; snapshot?: SnapshotMetadata }> {
+    blocking?: boolean;
+  }): Promise<{
+    session: SandboxSnapshot;
+    sandbox?: SandboxMetaData;
+    snapshot?: SnapshotMetadata;
+  }> {
     "use step";
     const client = await this.ensureClient();
     const response = await client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
+      blocking: opts?.blocking,
     });
     this.session = toSandboxSnapshot(response.json.session);
-    return { session: this.session, sandbox: response.json.sandbox, snapshot: response.json.snapshot };
+    return {
+      session: this.session,
+      sandbox: response.json.sandbox,
+      snapshot: response.json.snapshot,
+    };
   }
 
   /**

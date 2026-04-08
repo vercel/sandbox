@@ -5,14 +5,30 @@ import {
 } from "@workflow/core/serialization";
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SandboxMetaData, SandboxRouteData } from "./api-client";
+import type {
+  SandboxMetaData,
+  SandboxRouteData,
+  SessionMetaData,
+} from "./api-client";
 import { APIClient } from "./api-client";
 import { Sandbox, type SerializedSandbox } from "./sandbox";
-import { toSandboxSnapshot } from "./utils/sandbox-snapshot";
 
 describe("Sandbox serialization", () => {
-  const mockMetadata: SandboxMetaData = {
-    id: "sbx_test123",
+  const mockSandboxMetadata: SandboxMetaData = {
+    name: "test-sandbox",
+    persistent: false,
+    currentSessionId: "sess_test123",
+    region: "us-east-1",
+    vcpus: 1,
+    memory: 2048,
+    runtime: "node24",
+    timeout: 300000,
+    createdAt: "2023-11-14T22:13:20.000Z",
+    updatedAt: "2023-11-14T22:13:22.000Z",
+  } as SandboxMetaData;
+
+  const mockSessionMetadata: SessionMetaData = {
+    id: "sess_test123",
     memory: 2048,
     vcpus: 1,
     region: "us-east-1",
@@ -25,17 +41,14 @@ describe("Sandbox serialization", () => {
     cwd: "/vercel/sandbox",
     updatedAt: 1700000002000,
     networkPolicy: { mode: "allow-all" },
-  };
+  } as SessionMetaData;
 
   const mockRoutes: SandboxRouteData[] = [
     { url: "https://test-3000.vercel.run", subdomain: "test-3000", port: 3000 },
     { url: "https://test-4000.vercel.run", subdomain: "test-4000", port: 4000 },
   ];
 
-  const createMockSandbox = (
-    metadata: SandboxMetaData = mockMetadata,
-    routes: SandboxRouteData[] = mockRoutes,
-  ): Sandbox => {
+  const createMockSandbox = (): Sandbox => {
     const client = new APIClient({
       teamId: "team_test",
       token: "test_token",
@@ -43,8 +56,10 @@ describe("Sandbox serialization", () => {
 
     return new Sandbox({
       client,
-      sandbox: toSandboxSnapshot(metadata),
-      routes,
+      sandbox: mockSandboxMetadata,
+      session: mockSessionMetadata,
+      routes: mockRoutes,
+      projectId: "proj_test",
     });
   };
 
@@ -65,9 +80,13 @@ describe("Sandbox serialization", () => {
       const sandbox = createMockSandbox();
       const serialized = serializeSandbox(sandbox);
 
-      expect(serialized.metadata.id).toBe("sbx_test123");
-      expect(serialized.routes).toEqual(mockRoutes);
+      expect(serialized.metadata.id).toBe("sess_test123");
       expect(serialized.metadata.networkPolicy).toBe("allow-all");
+      expect(serialized.metadata.status).toBe("running");
+      expect(serialized.metadata.memory).toBe(2048);
+      expect(serialized.routes).toEqual(mockRoutes);
+      expect(serialized.sandboxMetadata).toEqual(mockSandboxMetadata);
+      expect(serialized.projectId).toBe("proj_test");
     });
 
     it("returns plain JSON-serializable data", () => {
@@ -77,7 +96,7 @@ describe("Sandbox serialization", () => {
       const jsonString = JSON.stringify(serialized);
       const parsed = JSON.parse(jsonString);
 
-      expect(parsed.metadata.id).toBe("sbx_test123");
+      expect(parsed.metadata.id).toBe("sess_test123");
       expect(parsed.routes).toEqual(mockRoutes);
     });
 
@@ -107,10 +126,18 @@ describe("Sandbox serialization", () => {
 
       const result = deserializeSandbox(serialized);
 
-      expect(result.sandboxId).toBe("sbx_test123");
-      expect(result.status).toBe("running");
+      // Sandbox-level metadata
+      expect(result.name).toBe("test-sandbox");
+      expect(result.persistent).toBe(false);
+      expect((result as any).projectId).toBe("proj_test");
+
+      // Session is restored from the serialized snapshot
+      const session = result.currentSession();
+      expect(session.sessionId).toBe("sess_test123");
+      expect(session.status).toBe("running");
+      expect(session.memory).toBe(2048);
+      expect(session.networkPolicy).toBe("allow-all");
       expect(result.routes).toEqual(mockRoutes);
-      expect(result.networkPolicy).toBe("allow-all");
       expect(result.domain(3000)).toBe("https://test-3000.vercel.run");
     });
 
@@ -120,7 +147,7 @@ describe("Sandbox serialization", () => {
 
       const serializedData: SerializedSandbox = {
         metadata: {
-          id: "sbx_test123",
+          id: "sess_test123",
           memory: 2048,
           vcpus: 1,
           region: "us-east-1",
@@ -135,13 +162,15 @@ describe("Sandbox serialization", () => {
           networkPolicy: "allow-all",
         },
         routes: mockRoutes,
+        sandboxMetadata: mockSandboxMetadata,
+        projectId: "proj_test",
       };
 
       const deserialized = FreshSandbox[WORKFLOW_DESERIALIZE](
         serializedData,
       ) as Sandbox;
 
-      expect(deserialized.sandboxId).toBe("sbx_test123");
+      expect(deserialized.name).toBe("test-sandbox");
       expect(deserialized.status).toBe("running");
       expect(deserialized.routes).toEqual(mockRoutes);
     });
@@ -152,7 +181,7 @@ describe("Sandbox serialization", () => {
 
       const serializedData: SerializedSandbox = {
         metadata: {
-          id: "sbx_test123",
+          id: "sess_test123",
           memory: 2048,
           vcpus: 1,
           region: "us-east-1",
@@ -167,6 +196,8 @@ describe("Sandbox serialization", () => {
           networkPolicy: "allow-all",
         },
         routes: mockRoutes,
+        sandboxMetadata: mockSandboxMetadata,
+        projectId: "proj_test",
       };
 
       const deserialized = FreshSandbox[WORKFLOW_DESERIALIZE](
@@ -197,8 +228,7 @@ describe("Sandbox serialization", () => {
       );
 
       expect(rehydrated).toBeInstanceOf(Sandbox);
-      expect(rehydrated.sandboxId).toBe("sbx_test123");
-      expect(rehydrated.routes).toEqual(mockRoutes);
+      expect(rehydrated.name).toBe("test-sandbox");
     });
 
     it("preserves converted metadata through runtime pipeline", async () => {
@@ -217,8 +247,7 @@ describe("Sandbox serialization", () => {
         undefined,
       );
 
-      expect(rehydrated.status).toBe("running");
-      expect(rehydrated.networkPolicy).toBe("allow-all");
+      expect(rehydrated.name).toBe("test-sandbox");
     });
   });
 });

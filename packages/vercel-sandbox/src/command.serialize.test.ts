@@ -46,7 +46,7 @@ describe("CommandFinished serialization", () => {
 
     return new CommandFinished({
       client,
-      sandboxId,
+      sessionId: sandboxId,
       cmd,
       exitCode,
       output,
@@ -568,7 +568,7 @@ describe("Command serialization", () => {
 
     return new Command({
       client,
-      sandboxId,
+      sessionId: sandboxId,
       cmd,
       output,
     });

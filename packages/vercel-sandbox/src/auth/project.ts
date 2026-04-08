@@ -30,6 +30,16 @@ const TeamsSchema = z.object({
   }),
 });
 
+const SelectTeamSchema = z.object({
+  teams: z
+    .array(
+      z.object({
+        slug: z.string(),
+      }),
+    )
+    .min(1, `No teams found. Please create a team first.`),
+});
+
 const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
 
 /** Status codes that mean "this team can't be used, try the next one". */
@@ -228,4 +238,20 @@ async function resolveLinkedProjectSlugs(
   } catch {
     return {};
   }
+}
+
+/**
+ * Selects a team for the current token by querying the Teams API and
+ * returning the slug of the first team in the result set.
+ *
+ * @param token - Authentication token used to call the Vercel API.
+ * @returns A promise that resolves to the first team's slug.
+ */
+export async function selectTeam(token: string): Promise<string> {
+  const {
+    teams: [team],
+  } = await fetchApi({ token, endpoint: "/v2/teams?limit=1" }).then(
+    SelectTeamSchema.parse,
+  );
+  return team.slug;
 }

@@ -7,6 +7,7 @@ export {
   type NetworkPolicyRule,
   type NetworkTransformer,
 } from "./session.js";
+export type { SerializedSandbox } from "./sandbox.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
 export { Command, CommandFinished } from "./command.js";

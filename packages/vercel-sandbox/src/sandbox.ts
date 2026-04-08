@@ -1046,6 +1046,7 @@ export class Sandbox {
    */
   async stop(opts?: {
     signal?: AbortSignal;
+    blocking?: boolean;
   }): Promise<SandboxSnapshot & { snapshot?: SnapshotMetadata }> {
     "use step";
     if (!this.session) {

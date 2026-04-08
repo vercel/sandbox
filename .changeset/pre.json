@@ -12,9 +12,11 @@
     "@vercel/pty-tunnel": "2.0.3",
     "@vercel/pty-tunnel-server": "0.0.2",
     "sandbox": "2.5.3",
-    "@vercel/sandbox": "1.7.1"
+    "@vercel/sandbox": "1.7.1",
+    "workflow-code-runner": "0.1.3"
   },
   "changesets": [
+    "bumpy-keys-try",
     "clean-jeans-build",
     "cold-falcons-read",
     "common-corners-leave",

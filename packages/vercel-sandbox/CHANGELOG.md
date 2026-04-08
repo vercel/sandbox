@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.12
+
+### Minor Changes
+
+- Rebase from main
+
 ## 2.0.0-beta.11
 
 ### Patch Changes

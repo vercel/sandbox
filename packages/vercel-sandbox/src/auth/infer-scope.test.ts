@@ -1,4 +1,4 @@
-import { inferScope } from "./project.js";
+import { inferScope, selectTeam } from "./project.js";
 import {
   beforeEach,
   describe,
@@ -19,6 +19,22 @@ vi.mock("./api");
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("selectTeam", () => {
+  test("returns the first team slug", async () => {
+    fetchApiMock.mockResolvedValue({
+      teams: [{ slug: "one" }, { slug: "two" }],
+    });
+
+    const team = await selectTeam("token");
+
+    expect(team).toBe("one");
+    expect(fetchApiMock).toHaveBeenCalledWith({
+      token: "token",
+      endpoint: "/v2/teams?limit=1",
+    });
+  });
 });
 
 async function getTempDir(): Promise<string> {
