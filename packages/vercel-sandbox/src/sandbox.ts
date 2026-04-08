@@ -3,28 +3,19 @@ import type {
   SandboxRouteData,
   SandboxMetaData,
 } from "./api-client/index.js";
-import { type Writable } from "stream";
-import { pipeline } from "stream/promises";
-import { createWriteStream } from "fs";
-import { mkdir } from "fs/promises";
-import { dirname, resolve } from "path";
 import { APIClient } from "./api-client/index.js";
-import { Command, CommandFinished } from "./command.js";
+import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
-import { getPrivateParams, WithPrivate } from "./utils/types.js";
-import { WithFetchOptions } from "./api-client/api-client.js";
-import { RUNTIMES } from "./constants.js";
-import { Snapshot } from "./snapshot.js";
-import { consumeReadable } from "./utils/consume-readable.js";
-import {
-  type NetworkPolicy,
-  type NetworkPolicyRule,
-  type NetworkTransformer,
-} from "./network-policy.js";
-import {
-  convertSandbox,
-  type ConvertedSession,
-} from "./utils/convert-sandbox.js";
+import { getPrivateParams, type WithPrivate } from "./utils/types.js";
+import type { WithFetchOptions } from "./api-client/api-client.js";
+import type { RUNTIMES } from "./constants.js";
+import { Session, type RunCommandParams } from "./session.js";
+import type { Command, CommandFinished } from "./command.js";
+import type { Snapshot } from "./snapshot.js";
+import type { ConvertedSession } from "./utils/convert-sandbox.js";
+import type { NetworkPolicy } from "./network-policy.js";
+import { fromAPINetworkPolicy } from "./utils/network-policy.js";
+import { setTimeout } from "node:timers/promises";
 
 export type { NetworkPolicy };
 
