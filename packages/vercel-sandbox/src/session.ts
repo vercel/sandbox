@@ -686,9 +686,9 @@ export class Session {
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     if (params.networkPolicy !== undefined) {
-      "use step";
-    const client = await this.ensureClient();
+      const client = await this.ensureClient();
       const response = await client.updateNetworkPolicy({
         sessionId: this.session.id,
         networkPolicy: params.networkPolicy,
