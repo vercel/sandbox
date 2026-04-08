@@ -78,6 +78,12 @@
 
 - Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
 
+## 1.9.3
+
+### Patch Changes
+
+- Handle abort signal and early stream close in runCommand to avoid misleading Zod error ([#135](https://github.com/vercel/sandbox/pull/135))
+
 ## 1.9.2
 
 ### Patch Changes
