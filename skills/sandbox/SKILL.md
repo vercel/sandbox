@@ -3,7 +3,7 @@ name: sandbox
 description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
 metadata:
   author: Vercel Inc.
-  version: "1.0"
+  version: "1.1"
 ---
 
 ## _CRITICAL_: Always Use Correct `@vercel/sandbox` Documentation
@@ -14,9 +14,12 @@ Follow these instructions before starting on any sandbox-related tasks:
 ### Official Resources
 
 - **Documentation**: https://vercel.com/docs/vercel-sandbox
+- **Documentation (beta)**: https://vercel.com/docs/vercel-sandbox/concepts/persistent-sandboxes
 - **SDK Reference**: https://vercel.com/docs/vercel-sandbox/sdk-reference
 - **CLI Reference**: https://vercel.com/docs/vercel-sandbox/cli-reference
 - **GitHub**: https://github.com/vercel/sandbox
+- **REST API**: https://vercel.com/docs/rest-api/sandboxes
+- **REST API (Beta)**: https://vercel.com/docs/rest-api/sandboxes-v2-beta
 
 ### Quick Reference
 
@@ -565,6 +568,7 @@ const sandbox = await Sandbox.create({
   name: "my-dev-env", // Optional, random if omitted. Unique per project.
   runtime: "node24",
   persistent: true, // Default: true. Auto-snapshots on shutdown and restores on resume.
+  snapshotExpiration: ms("7d"), // Optional. Default TTL for snapshots. Use 0 for no expiration.
 });
 console.log(sandbox.name);
 ```
@@ -635,6 +639,7 @@ await sandbox.update({
   persistent: false,
   resources: { vcpus: 4 },
   timeout: ms("30m"),
+  snapshotExpiration: ms("14d"), // Update default snapshot TTL. Use 0 for no expiration.
 });
 ```
 
@@ -663,6 +668,7 @@ Key differences from the stable CLI:
 - `sandbox rm` / `sandbox remove` **permanently deletes** the sandbox.
 - New: `sandbox sessions` command to manage sessions.
 - New: `sandbox create --name <name>` to set a sandbox name.
+- New: `sandbox create --snapshot-expiration <duration|none>` to set default snapshot TTL.
 - New: `sandbox create --non-persistent` to disable state persistence.
 - New: `sandbox run --stop` to stop the session when the command exits.
 - New: `sandbox run --name <name>` resumes from an existing sandbox if it exists.
@@ -672,5 +678,6 @@ Key differences from the stable CLI:
 - New: `sandbox config vcpus <name> <count>` to update vCPUs.
 - New: `sandbox config timeout <name> <duration>` to update timeout.
 - New: `sandbox config persistent <name> <true|false>` to toggle persistence.
+- New: `sandbox config snapshot-expiration <name> <duration|none>` to set default snapshot TTL.
 - `sandbox cp` now uses `<sandbox_name>:path` instead of `<sandbox_id>:path`.
 - `sandbox ls` supports `--name-prefix` and `--sort-by` filtering.

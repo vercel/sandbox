@@ -1,5 +1,5 @@
 import { expect, it, vi, beforeEach, afterEach, describe } from "vitest";
-import { Sandbox } from "./sandbox";
+import { Sandbox } from "./sandbox.js";
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   let sandbox: Sandbox;

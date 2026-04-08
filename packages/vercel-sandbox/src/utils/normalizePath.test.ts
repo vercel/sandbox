@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizePath } from "./normalizePath";
+import { normalizePath } from "./normalizePath.js";
 
 describe("normalizePath", () => {
   it("handles base cases", () => {

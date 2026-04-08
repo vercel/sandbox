@@ -181,6 +181,14 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+## Workflow DevKit integration
+
+`Sandbox` and `CommandFinished` support serialization with the
+[Workflow DevKit](https://vercel.com/docs/workflow). When a sandbox instance
+crosses a step boundary the SDK serializes sandbox metadata and routes, then
+rehydrates synchronously from that snapshot. Deserialized instances lazily
+recreate an API client using OIDC or environment credentials when needed.
+
 ## Limitations
 
 - Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.

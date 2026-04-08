@@ -1,9 +1,13 @@
 import { it, beforeEach, afterEach, expect, describe, vi } from "vitest";
 import { PassThrough } from "stream";
-import { consumeReadable } from "./utils/consume-readable";
-import { Sandbox } from "./sandbox";
-import { APIError } from "./api-client/api-error";
-import type { APIClient, CommandData, SandboxMetaData } from "./api-client";
+import { consumeReadable } from "./utils/consume-readable.js";
+import { Sandbox } from "./sandbox.js";
+import { APIError } from "./api-client/api-error.js";
+import type {
+  APIClient,
+  CommandData,
+  SandboxMetaData,
+} from "./api-client/index.js";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";

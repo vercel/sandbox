@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy";
+import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy.js";
 
 describe("toAPINetworkPolicy", () => {
   it("converts allow-all", () => {
@@ -63,7 +63,12 @@ describe("toAPINetworkPolicy", () => {
           "api.github.com": [
             {
               transform: [
-                { headers: { authorization: "Bearer sk-openai", "x-org-id": "org-123" } },
+                {
+                  headers: {
+                    authorization: "Bearer sk-openai",
+                    "x-org-id": "org-123",
+                  },
+                },
               ],
             },
           ],
@@ -95,7 +100,10 @@ describe("toAPINetworkPolicy", () => {
         },
         {
           domain: "ai-gateway.vercel.sh",
-          headers: { "x-api-key": "sk-ant-test", "anthropic-version": "2024-01-01" },
+          headers: {
+            "x-api-key": "sk-ant-test",
+            "anthropic-version": "2024-01-01",
+          },
         },
       ],
       allowedCIDRs: ["10.0.0.0/8"],
@@ -108,9 +116,7 @@ describe("toAPINetworkPolicy", () => {
   });
 
   it("omits undefined subnet fields", () => {
-    expect(
-      toAPINetworkPolicy({ subnets: { allow: ["10.0.0.0/8"] } }),
-    ).toEqual({
+    expect(toAPINetworkPolicy({ subnets: { allow: ["10.0.0.0/8"] } })).toEqual({
       mode: "custom",
       allowedCIDRs: ["10.0.0.0/8"],
     });
@@ -210,14 +216,18 @@ describe("fromAPINetworkPolicy", () => {
         "api.github.com": [
           {
             transform: [
-              { headers: { authorization: "<redacted>", "x-foo": "<redacted>" } },
+              {
+                headers: { authorization: "<redacted>", "x-foo": "<redacted>" },
+              },
             ],
           },
         ],
         "ai-gateway.vercel.sh": [
           {
             transform: [
-              { headers: { authorization: "<redacted>", "x-bar": "<redacted>" } },
+              {
+                headers: { authorization: "<redacted>", "x-bar": "<redacted>" },
+              },
             ],
           },
         ],

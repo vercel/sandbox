@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.12
+
+### Minor Changes
+
+- Rebase from main
+
 ## 2.0.0-beta.11
 
 ### Patch Changes
@@ -77,6 +83,30 @@
 ### Major Changes
 
 - Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
+
+## 1.9.3
+
+### Patch Changes
+
+- Handle abort signal and early stream close in runCommand to avoid misleading Zod error ([#135](https://github.com/vercel/sandbox/pull/135))
+
+## 1.9.2
+
+### Patch Changes
+
+- Fix `stdout()`/`stderr()`/`output()` failing on deserialized `Command` instances with "logs() requires an API client" error. ([#130](https://github.com/vercel/sandbox/pull/130))
+
+## 1.9.1
+
+### Patch Changes
+
+- Build and publish both ESM and CJS outputs for the SDK package. ([#84](https://github.com/vercel/sandbox/pull/84))
+
+- Support useworkflow serialization for sandboxes and commands ([#72](https://github.com/vercel/sandbox/pull/72))
+
+- Fix a Size mismatch when encoding binaries during write operations ([#127](https://github.com/vercel/sandbox/pull/127))
+
+- Accept `string` and `Uint8Array` in `writeFiles()` content, not just `Buffer`. ([#128](https://github.com/vercel/sandbox/pull/128))
 
 ## 1.9.0
 

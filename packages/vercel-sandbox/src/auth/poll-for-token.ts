@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
-import { updateAuthConfig } from "./file";
-import { DeviceAuthorizationRequest, isOAuthError, OAuth } from "./oauth";
+import { updateAuthConfig } from "./file.js";
+import { DeviceAuthorizationRequest, isOAuthError, OAuth } from "./oauth.js";
 
 export type PollTokenItem =
   | { _tag: "Timeout"; newInterval: number }

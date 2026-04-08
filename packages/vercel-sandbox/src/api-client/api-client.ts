@@ -3,9 +3,9 @@ import {
   parseOrThrow,
   type Parsed,
   type RequestParams,
-} from "./base-client";
+} from "./base-client.js";
 import {
-type CommandFinishedData,
+  type CommandFinishedData,
   SessionAndRoutesResponse,
   SessionResponse,
   SessionsResponse,
@@ -22,21 +22,24 @@ type CommandFinishedData,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
   type CommandData,
-} from "./validators";
-import { APIError, StreamError } from "./api-error";
-import { FileWriter } from "./file-writer";
-import { VERSION } from "../version";
-import { consumeReadable } from "../utils/consume-readable";
+} from "./validators.js";
+import { APIError, StreamError } from "./api-error.js";
+import { FileWriter } from "./file-writer.js";
+import { VERSION } from "../version.js";
+import { consumeReadable } from "../utils/consume-readable.js";
 import { z } from "zod";
 import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
-import { normalizePath } from "../utils/normalizePath";
+import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
-import type { NetworkPolicy } from "../network-policy";
-import { toAPINetworkPolicy } from "../utils/network-policy";
-import { getPrivateParams, type WithPrivate } from "../utils/types";
-import type { RUNTIMES } from "../constants";
+import { NetworkPolicy } from "../network-policy.js";
+import {
+  toAPINetworkPolicy,
+  fromAPINetworkPolicy,
+} from "../utils/network-policy.js";
+import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import { RUNTIMES } from "../constants.js";
 import { setTimeout } from "node:timers/promises";
 
 interface Claims {
@@ -269,16 +272,32 @@ export class APIClient extends BaseClient {
       }
 
       const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream).catch((err) => {
-        console.error("Error piping command stream:", err);
-      });
+      pipe(response.body, jsonlinesStream, { signal: params.signal }).catch(
+        (err) => {
+          console.error("Error piping command stream:", err);
+        },
+      );
 
       const iterator = jsonlinesStream[Symbol.asyncIterator]();
       const commandChunk = await iterator.next();
+      if (commandChunk.done) {
+        throw new StreamError(
+          "stream_ended_early",
+          "Stream ended before command data was received",
+          params.sessionId,
+        );
+      }
       const { command } = CommandResponse.parse(commandChunk.value);
 
       const finished = (async () => {
         const finishedChunk = await iterator.next();
+        if (finishedChunk.done) {
+          throw new StreamError(
+            "stream_ended_early",
+            "Stream ended before command finished",
+            params.sessionId,
+          );
+        }
         const { command } = CommandFinishedResponse.parse(finishedChunk.value);
         return command;
       })();
@@ -460,7 +479,11 @@ export class APIClient extends BaseClient {
   async writeFiles(params: {
     sessionId: string;
     cwd: string;
-    files: { path: string; content: Buffer; mode?: number }[];
+    files: {
+      path: string;
+      content: string | Uint8Array;
+      mode?: number;
+    }[];
     extractDir: string;
     signal?: AbortSignal;
   }) {
@@ -577,7 +600,7 @@ export class APIClient extends BaseClient {
       }
 
       const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream).catch((err) => {
+      pipe(response.body, jsonlinesStream, { signal }).catch((err) => {
         console.error("Error piping logs:", err);
       });
 
@@ -615,7 +638,11 @@ export class APIClient extends BaseClient {
 
     if (params.blocking) {
       let session = response.json.session;
-      while (session.status !== "stopped" && session.status !== "failed" && session.status !== "aborted") {
+      while (
+        session.status !== "stopped" &&
+        session.status !== "failed" &&
+        session.status !== "aborted"
+      ) {
         await setTimeout(500, undefined, { signal: params.signal });
         const poll = await this.getSession({
           sessionId: params.sessionId,
@@ -810,8 +837,38 @@ export class APIClient extends BaseClient {
 async function pipe(
   readable: ReadableStream<Uint8Array>,
   output: NodeJS.WritableStream,
+  options?: { signal?: AbortSignal },
 ) {
   const reader = readable.getReader();
+  let aborted = false;
+
+  const signal = options?.signal;
+  const onAbort = () => {
+    aborted = true;
+    const reason =
+      signal?.reason ??
+      new DOMException("The operation was aborted.", "AbortError");
+    void reader.cancel(reason).catch(() => {
+      // ignore cancel errors when aborting
+    });
+
+    if ("destroy" in output && typeof output.destroy === "function") {
+      output.destroy(reason as Error);
+      return;
+    }
+
+    output.emit("error", reason);
+    output.end();
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  }
+
   try {
     while (true) {
       const read = await reader.read();
@@ -823,9 +880,14 @@ async function pipe(
       }
     }
   } catch (err) {
-    output.emit("error", err);
+    if (!aborted) {
+      output.emit("error", err);
+    }
   } finally {
-    output.end();
+    signal?.removeEventListener("abort", onAbort);
+    if (!aborted) {
+      output.end();
+    }
   }
 }
 

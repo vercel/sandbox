@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { homedir } from "node:os";
 import XDGAppPaths from "xdg-app-paths";
 import { z } from "zod";
-import { json } from "./zod";
+import { json } from "./zod.js";
 
 const ZodDate = z.number().transform((seconds) => new Date(seconds * 1000));
 
