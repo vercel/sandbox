@@ -606,6 +606,7 @@ export class Sandbox {
    * Poll until the current session reaches a terminal state, then resume.
    */
   private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
+    "use step";
     const client = await this.ensureClient();
     const pollingInterval = 500;
     let status = this.session!.status;

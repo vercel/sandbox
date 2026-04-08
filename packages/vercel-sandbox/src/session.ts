@@ -299,14 +299,16 @@ export class Session {
     cmdId: string,
     opts?: { signal?: AbortSignal },
   ): Promise<Command> {
-    const command = await this.client.getCommand({
+    "use step";
+    const client = await this.ensureClient();
+    const command = await client.getCommand({
       sessionId: this.session.id,
       cmdId,
       signal: opts?.signal,
     });
 
     return new Command({
-      client: this.client,
+      client,
       sessionId: this.session.id,
       cmd: command.json.command,
     });
@@ -350,19 +352,12 @@ export class Session {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    return typeof commandOrParams === "string"
-      ? this._runCommand({ cmd: commandOrParams, args, signal: opts?.signal })
-      : this._runCommand(commandOrParams);
-  }
-
-  /**
-   * Internal helper to start a command in the session.
-   *
-   * @param params - Command execution parameters.
-   * @returns A {@link Command} or {@link CommandFinished}, depending on `detached`.
-   * @internal
-   */
-  async _runCommand(params: RunCommandParams) {
+    "use step";
+    const client = await this.ensureClient();
+    const params: RunCommandParams =
+      typeof commandOrParams === "string"
+        ? { cmd: commandOrParams, args, signal: opts?.signal }
+        : commandOrParams;
     const wait = params.detached ? false : true;
     const pipeLogs = async (command: Command): Promise<void> => {
       if (!params.stdout && !params.stderr) {
@@ -386,7 +381,7 @@ export class Session {
     };
 
     if (wait) {
-      const commandStream = await this.client.runCommand({
+      const commandStream = await client.runCommand({
         sessionId: this.session.id,
         command: params.cmd,
         args: params.args ?? [],
@@ -398,7 +393,7 @@ export class Session {
       });
 
       const command = new Command({
-        client: this.client,
+        client,
         sessionId: this.session.id,
         cmd: commandStream.command,
       });
@@ -408,14 +403,14 @@ export class Session {
         pipeLogs(command),
       ]);
       return new CommandFinished({
-        client: this.client,
+        client,
         sessionId: this.session.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
       });
     }
 
-    const commandResponse = await this.client.runCommand({
+    const commandResponse = await client.runCommand({
       sessionId: this.session.id,
       command: params.cmd,
       args: params.args ?? [],
@@ -426,7 +421,7 @@ export class Session {
     });
 
     const command = new Command({
-      client: this.client,
+      client,
       sessionId: this.session.id,
       cmd: commandResponse.json.command,
     });
@@ -449,7 +444,9 @@ export class Session {
    * @param opts.signal - An AbortSignal to cancel the operation.
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
-    await this.client.mkDir({
+    "use step";
+    const client = await this.ensureClient();
+    await client.mkDir({
       sessionId: this.session.id,
       path: path,
       signal: opts?.signal,
@@ -468,7 +465,9 @@ export class Session {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
-    return this.client.readFile({
+    "use step";
+    const client = await this.ensureClient();
+    return client.readFile({
       sessionId: this.session.id,
       path: file.path,
       cwd: file.cwd,
@@ -488,7 +487,9 @@ export class Session {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-    const stream = await this.client.readFile({
+    "use step";
+    const client = await this.ensureClient();
+    const stream = await client.readFile({
       sessionId: this.session.id,
       path: file.path,
       cwd: file.cwd,
@@ -517,6 +518,8 @@ export class Session {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    "use step";
+    const client = await this.ensureClient();
     if (!src?.path) {
       throw new Error("downloadFile: source path is required");
     }
@@ -525,7 +528,7 @@ export class Session {
       throw new Error("downloadFile: destination path is required");
     }
 
-    const stream = await this.client.readFile({
+    const stream = await client.readFile({
       sessionId: this.session.id,
       path: src.path,
       cwd: src.cwd,
@@ -564,7 +567,9 @@ export class Session {
     files: { path: string; content: string | Uint8Array; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
-    return this.client.writeFiles({
+    "use step";
+    const client = await this.ensureClient();
+    return client.writeFiles({
       sessionId: this.session.id,
       cwd: this.session.cwd,
       extractDir: "/",
@@ -601,7 +606,9 @@ export class Session {
     signal?: AbortSignal;
     blocking?: boolean;
   }): Promise<SandboxSnapshot> {
-    const response = await this.client.stopSession({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
@@ -652,7 +659,9 @@ export class Session {
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
     if (params.networkPolicy !== undefined) {
-      const response = await this.client.updateNetworkPolicy({
+      "use step";
+      const client = await this.ensureClient();
+      const response = await client.updateNetworkPolicy({
         sessionId: this.session.id,
         networkPolicy: params.networkPolicy,
         signal: opts?.signal,
@@ -711,7 +720,9 @@ export class Session {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Snapshot> {
-    const response = await this.client.createSnapshot({
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.createSnapshot({
       sessionId: this.session.id,
       expiration: opts?.expiration,
       signal: opts?.signal,
@@ -720,7 +731,7 @@ export class Session {
     this.session = toSandboxSnapshot(response.json.session);
 
     return new Snapshot({
-      client: this.client,
+      client,
       snapshot: response.json.snapshot,
     });
   }
