@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.13
+
+### Minor Changes
+
+- Support new onResume parameter in Sandbox.create and Sandbox.get
+
 ## 2.0.0-beta.12
 
 ### Minor Changes
