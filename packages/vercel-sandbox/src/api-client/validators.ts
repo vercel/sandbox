@@ -193,6 +193,7 @@ export const SandboxAndSessionResponse = z.object({
   sandbox: Sandbox,
   session: Session.passthrough(),
   routes: z.array(SandboxRoute),
+  resumed: z.boolean().optional(),
 });
 
 export const SandboxesPaginationResponse = z.object({

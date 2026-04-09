@@ -110,6 +110,11 @@ export interface BaseCreateSandboxParams {
    * Use `0` for no expiration.
    */
   snapshotExpiration?: number;
+  /**
+   * Called when the sandbox session is resumed (e.g., after a snapshot restore).
+   * Use this to re-warm caches, restore transient state, or run other setup logic.
+   */
+  onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
 export type CreateSandboxParams =
@@ -132,6 +137,11 @@ interface GetSandboxParams {
    * An AbortSignal to cancel the operation.
    */
   signal?: AbortSignal;
+  /**
+   * Called when the sandbox session is resumed (e.g., after a snapshot restore).
+   * Use this to re-warm caches, restore transient state, or run other setup logic.
+   */
+  onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
 function isSandboxStoppedError(err: unknown): boolean {
@@ -193,6 +203,11 @@ export class Sandbox {
    * Internal metadata about the sandbox.
    */
   private sandbox: SandboxMetaData;
+
+  /**
+   * Hook that will be executed when a new session is created during resume.
+   */
+  private readonly onResume?: (sandbox: Sandbox) => Promise<void>;
 
   /**
    * Lazily resolve credentials and construct an API client.
@@ -496,6 +511,7 @@ export class Sandbox {
       sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
+      onResume: params?.onResume,
     });
   }
 
@@ -526,13 +542,20 @@ export class Sandbox {
       ...privateParams,
     });
 
-    return new Sandbox({
+    const sandbox = new Sandbox({
       client,
       session: response.json.session,
       sandbox: response.json.sandbox,
       routes: response.json.routes,
       projectId: credentials.projectId,
+      onResume: params.onResume,
     });
+
+    if (response.json.resumed && params.onResume) {
+      await params.onResume(sandbox);
+    }
+
+    return sandbox;
   }
 
   /**
@@ -548,12 +571,14 @@ export class Sandbox {
     session,
     sandbox,
     projectId,
+    onResume,
   }: {
     client?: APIClient;
     routes: SandboxRouteData[];
     session?: SessionMetaData;
     sandbox: SandboxMetaData;
     projectId?: string;
+    onResume?: (sandbox: Sandbox) => Promise<void>;
   }) {
     this._client = client ?? null;
     if (session) {
@@ -561,6 +586,7 @@ export class Sandbox {
     }
     this.sandbox = sandbox;
     this.projectId = projectId ?? "";
+    this.onResume = onResume;
   }
 
   /**
@@ -600,6 +626,9 @@ export class Sandbox {
       routes: response.json.routes,
       session: response.json.session,
     });
+    if (this.onResume && response.json.resumed) {
+      await this.onResume(this);
+    }
   }
 
   /**
