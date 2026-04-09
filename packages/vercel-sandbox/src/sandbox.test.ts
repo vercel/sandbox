@@ -445,4 +445,49 @@ for (const port of ports) {
     expect(sandboxes).toHaveLength(1);
     expect(sandboxes[0].name).toBe(sandbox.name);
   });
+
+  it("calls onResume when Sandbox.get resumes a stopped sandbox", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.stop({ blocking: true });
+
+    let resumedSandbox: Sandbox | null = null;
+    const retrieved = await Sandbox.get({
+      name: sandbox.name,
+      resume: true,
+      onResume: async (sbx) => {
+        resumedSandbox = sbx;
+      },
+    });
+
+    expect(resumedSandbox).toBe(retrieved);
+  });
+
+  it("calls onResume on auto-resume after a stopped session", async () => {
+    let resumeCount = 0;
+    const sandbox = await Sandbox.create({
+      onResume: async () => {
+        resumeCount++;
+      },
+    });
+
+    await sandbox.stop({ blocking: true });
+    await sandbox.runCommand("echo", ["hello"]);
+
+    expect(resumeCount).toBe(1);
+  });
+
+  it("does not call onResume when Sandbox.get does not resume", async () => {
+    const sandbox = await Sandbox.create();
+
+    let called = false;
+    await Sandbox.get({
+      name: sandbox.name,
+      resume: true,
+      onResume: async () => {
+        called = true;
+      },
+    });
+
+    expect(called).toBe(false);
+  });
 });

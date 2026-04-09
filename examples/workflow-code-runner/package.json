@@ -1,6 +1,6 @@
 {
   "name": "workflow-code-runner",
-  "version": "0.1.4-beta.0",
+  "version": "0.1.4-beta.1",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
