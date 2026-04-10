@@ -13,6 +13,10 @@ export interface RequestParams extends RequestInit {
   retry?: Partial<RetryOptions>;
 }
 
+const DEFAULT_AGENT = new Agent({
+  bodyTimeout: 0, // disable body timeout to allow long logs streaming
+});
+
 /**
  * A base API client that provides a convenience wrapper for fetching where
  * we can pass query parameters as an object, support retries, debugging
@@ -35,9 +39,7 @@ export class BaseClient {
     this.baseUrl = params.baseUrl;
     this.debug = params.debug ?? process.env.DEBUG_FETCH === "true";
     this.token = params.token;
-    this.agent = new Agent({
-      bodyTimeout: 0, // disable body timeout to allow long logs streaming
-    });
+    this.agent = DEFAULT_AGENT;
   }
 
   protected async request(path: string, opts?: RequestParams) {
