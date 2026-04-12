@@ -154,13 +154,15 @@ interface RunCommandParams {
    */
   detached?: boolean;
   /**
-   * A `Writable` stream where `stdout` from the command will be piped
+   * A stream where `stdout` from the command will be piped.
+   * Accepts a Node.js `Writable` or a Web `WritableStream`.
    */
-  stdout?: Writable;
+  stdout?: Writable | WritableStream;
   /**
-   * A `Writable` stream where `stderr` from the command will be piped
+   * A stream where `stderr` from the command will be piped.
+   * Accepts a Node.js `Writable` or a Web `WritableStream`.
    */
-  stderr?: Writable;
+  stderr?: Writable | WritableStream;
   /**
    * An AbortSignal to cancel the command execution
    */
@@ -488,12 +490,51 @@ export class Sandbox {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ): Promise<Command | CommandFinished> {
-    "use step";
-    const client = await this.ensureClient();
     const params: RunCommandParams =
       typeof commandOrParams === "string"
         ? { cmd: commandOrParams, args, signal: opts?.signal }
         : commandOrParams;
+
+    // For detached commands, try to create a workflow webhook so the
+    // workflow suspends instead of blocking a step while the command runs.
+    // The webhook is a workflow primitive that survives checkpointing.
+    if (params.detached) {
+      let webhook: any = null;
+      try {
+        // Dynamic import — workflow is only available in workflow context.
+        // The workflow bundler needs to see this import path to resolve it.
+        // @ts-expect-error — workflow may not be installed; resolved at runtime
+        const { createWebhook } = await import("workflow");
+        webhook = createWebhook();
+      } catch {
+        // Not in workflow context — use regular detached behavior
+      }
+
+      const command = await this._runCommandStep({
+        ...params,
+        _onCompleteUrl: webhook?.url,
+      });
+
+      // Inject the webhook into the Command so .wait() can use it
+      if (webhook && command instanceof Command) {
+        command._webhook = webhook;
+      }
+
+      return command;
+    }
+
+    return this._runCommandStep(params);
+  }
+
+  /**
+   * Internal step that executes the command via the API.
+   * @internal
+   */
+  private async _runCommandStep(
+    params: RunCommandParams & { _onCompleteUrl?: string },
+  ): Promise<Command | CommandFinished> {
+    "use step";
+    const client = await this.ensureClient();
 
     const wait = params.detached ? false : true;
     const pipeLogs = async (command: Command): Promise<void> => {
@@ -501,12 +542,27 @@ export class Sandbox {
         return;
       }
 
+      // Resolve writers: support both Node.js Writable and Web WritableStream
+      const getWriter = (
+        stream: Writable | WritableStream | undefined,
+      ): { write: (data: string) => void } | undefined => {
+        if (!stream) return undefined;
+        if ("getWriter" in stream) {
+          const writer = stream.getWriter();
+          return { write: (data: string) => writer.write(data) };
+        }
+        return stream;
+      };
+
+      const stdoutWriter = getWriter(params.stdout);
+      const stderrWriter = getWriter(params.stderr);
+
       try {
         for await (const log of command.logs({ signal: params.signal })) {
           if (log.stream === "stdout") {
-            params.stdout?.write(log.data);
+            stdoutWriter?.write(log.data);
           } else if (log.stream === "stderr") {
-            params.stderr?.write(log.data);
+            stderrWriter?.write(log.data);
           }
         }
       } catch (err) {
@@ -547,10 +603,25 @@ export class Sandbox {
       });
     }
 
+    // When _onCompleteUrl is set (workflow webhook), wrap the command in a
+    // shell script that runs the original command then POSTs the exit code.
+    let cmd = params.cmd;
+    let cmdArgs = params.args ?? [];
+    if (params._onCompleteUrl) {
+      const escaped = [params.cmd, ...cmdArgs]
+        .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
+        .join(" ");
+      cmd = "sh";
+      cmdArgs = [
+        "-c",
+        `${escaped}; EXIT_CODE=$?; curl -s -X POST -H 'Content-Type: application/json' -d "{\\"exitCode\\":$EXIT_CODE}" '${params._onCompleteUrl}'; exit $EXIT_CODE`,
+      ];
+    }
+
     const commandResponse = await client.runCommand({
       sandboxId: this.sandbox.id,
-      command: params.cmd,
-      args: params.args ?? [],
+      command: cmd,
+      args: cmdArgs,
       cwd: params.cwd,
       env: params.env ?? {},
       sudo: params.sudo ?? false,
@@ -567,7 +638,10 @@ export class Sandbox {
       if (params.signal?.aborted) {
         return;
       }
-      (params.stderr ?? params.stdout)?.emit("error", err);
+      const errStream = params.stderr ?? params.stdout;
+      if (errStream && "emit" in errStream) {
+        errStream.emit("error", err);
+      }
     });
 
     return command;
@@ -720,7 +794,10 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       cwd: this.sandbox.cwd,
       extractDir: "/",
-      files: files,
+      files: files.map((f) => ({
+        ...f,
+        content: typeof f.content === "string" ? Buffer.from(f.content) : f.content,
+      })),
       signal: opts?.signal,
     });
   }
