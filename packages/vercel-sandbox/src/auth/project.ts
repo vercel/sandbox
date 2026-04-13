@@ -118,6 +118,8 @@ export async function inferScope(opts: {
       TeamsSchema.parse,
     );
 
+    next = page.pagination.next;
+
     const hobbyOwnerTeams = page.teams.filter(
       (t) => t.membership.role === "OWNER" && t.billing.plan === "hobby",
     );
@@ -137,8 +139,6 @@ export async function inferScope(opts: {
         if (!(e instanceof NotOk) || e.response.statusCode !== 403) throw e;
       }
     }
-
-    next = page.pagination.next;
   } while (next !== null);
 
   // 3. Fall back to username as personal team
