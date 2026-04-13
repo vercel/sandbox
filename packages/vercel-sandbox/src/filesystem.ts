@@ -1,37 +1,4 @@
-/**
- * A `node:fs/promises`-compatible API for interacting with the Sandbox filesystem.
- *
- * Access via {@link Sandbox.fs}.
- *
- * @hideconstructor
- */
-
-import { Stats, Dirent } from "fs";
-
-// The Stats constructor and Dirent constructor exist at runtime but are marked
-// private in @types/node. We cast to the actual runtime signatures.
-const StatsConstructor = Stats as unknown as new (
-  dev: number,
-  mode: number,
-  nlink: number,
-  uid: number,
-  gid: number,
-  rdev: number,
-  blksize: number,
-  ino: number,
-  size: number,
-  blocks: number,
-  atimeMs: number,
-  mtimeMs: number,
-  ctimeMs: number,
-  birthtimeMs: number,
-) => Stats;
-
-const DirentConstructor = Dirent as unknown as new (
-  name: string,
-  type: number,
-  path: string,
-) => Dirent;
+import * as fs from "fs";
 
 // UV_DIRENT_* constants exist at runtime but aren't in @types/node
 const UV_DIRENT_FILE = 1;
@@ -113,26 +80,68 @@ function parseEncoding(options?: EncodingOption): {
   return { encoding: options.encoding ?? null, signal: options.signal };
 }
 
-function parseStat(stdout: string): Stats {
+function parseStat(stdout: string): fs.Stats {
+  // The Stats constructor and Dirent constructor exist at runtime but are marked
+  // private in @types/node. We cast to the actual runtime signatures.
+  const StatsConstructor = fs.Stats as unknown as new (
+    dev: number,
+    mode: number,
+    nlink: number,
+    uid: number,
+    gid: number,
+    rdev: number,
+    blksize: number,
+    ino: number,
+    size: number,
+    blocks: number,
+    atimeMs: number,
+    mtimeMs: number,
+    ctimeMs: number,
+    birthtimeMs: number,
+  ) => fs.Stats;
+
   // Format: size|rawModeHex|uid|gid|atimeMs|mtimeMs|ctimeMs|birthtimeMs|nlink|ino|dev|blksize|blocks
   const parts = stdout.trim().split("|");
 
   return new StatsConstructor(
-    parseInt(parts[10]!, 10),        // dev
-    parseInt(parts[1]!, 16),         // mode (raw mode from %f, hex)
-    parseInt(parts[8]!, 10),         // nlink
-    parseInt(parts[2]!, 10),         // uid
-    parseInt(parts[3]!, 10),         // gid
-    0,                               // rdev
-    parseInt(parts[11]!, 10),        // blksize
-    parseInt(parts[9]!, 10),         // ino
-    parseInt(parts[0]!, 10),         // size
-    parseInt(parts[12]!, 10),        // blocks
-    parseFloat(parts[4]!) * 1000,    // atimeMs
-    parseFloat(parts[5]!) * 1000,    // mtimeMs
-    parseFloat(parts[6]!) * 1000,    // ctimeMs
-    parseFloat(parts[7]!) * 1000,    // birthtimeMs
+    parseInt(parts[10]!, 10), // dev
+    parseInt(parts[1]!, 16), // mode (raw mode from %f, hex)
+    parseInt(parts[8]!, 10), // nlink
+    parseInt(parts[2]!, 10), // uid
+    parseInt(parts[3]!, 10), // gid
+    0, // rdev
+    parseInt(parts[11]!, 10), // blksize
+    parseInt(parts[9]!, 10), // ino
+    parseInt(parts[0]!, 10), // size
+    parseInt(parts[12]!, 10), // blocks
+    parseFloat(parts[4]!) * 1000, // atimeMs
+    parseFloat(parts[5]!) * 1000, // mtimeMs
+    parseFloat(parts[6]!) * 1000, // ctimeMs
+    parseFloat(parts[7]!) * 1000, // birthtimeMs
   );
+}
+
+function parseDirent(stdout: string, path: string): fs.Dirent {
+  const parts = stdout.trim().split("|");
+  const name = parts[0];
+  const type = parts[1];
+
+  if (!name) {
+    throw fsError("ENOENT", "no such file or directory", "readdir", path);
+  }
+
+  if (!type) {
+    throw new Error(`Invalid dirent type: ${type}`);
+  }
+
+  const DirentConstructor = fs.Dirent as unknown as new (
+    name: string,
+    type: number,
+    path: string,
+  ) => fs.Dirent;
+
+  const direntType = FIND_TYPE_TO_DIRENT[type] ?? UV_DIRENT_FILE;
+  return new DirentConstructor(name, direntType, path);
 }
 
 // %f = raw mode in hex, includes file type bits so Stats.isFile()/isDirectory()/etc. work
@@ -177,6 +186,7 @@ export class FileSystem {
     path: string,
     options?: EncodingOption,
   ): Promise<Buffer | string> {
+    "use step";
     const { encoding, signal } = parseEncoding(options);
     const buffer = await this.sandbox.readFileToBuffer({ path }, { signal });
     if (buffer === null) {
@@ -199,6 +209,7 @@ export class FileSystem {
       | { encoding?: BufferEncoding; signal?: AbortSignal }
       | BufferEncoding,
   ): Promise<void> {
+    "use step";
     const { encoding, signal } =
       typeof options === "string"
         ? { encoding: options, signal: undefined }
@@ -228,6 +239,7 @@ export class FileSystem {
       | { encoding?: BufferEncoding; signal?: AbortSignal }
       | BufferEncoding,
   ): Promise<void> {
+    "use step";
     const { encoding, signal } =
       typeof options === "string"
         ? { encoding: options, signal: undefined }
@@ -259,6 +271,7 @@ export class FileSystem {
     path: string,
     options?: MkdirOptions | number,
   ): Promise<string | undefined> {
+    "use step";
     const opts =
       typeof options === "number" ? { recursive: false } : (options ?? {});
     if (opts.recursive) {
@@ -293,11 +306,12 @@ export class FileSystem {
   async readdir(
     path: string,
     options: { signal?: AbortSignal; withFileTypes: true },
-  ): Promise<Dirent[]>;
+  ): Promise<fs.Dirent[]>;
   async readdir(
     path: string,
     options?: { signal?: AbortSignal; withFileTypes?: boolean },
-  ): Promise<string[] | Dirent[]> {
+  ): Promise<string[] | fs.Dirent[]> {
+    "use step";
     if (options?.withFileTypes) {
       // Use find to get name and type in one pass
       const result = await this.sandbox.runCommand(
@@ -314,12 +328,8 @@ export class FileSystem {
       }
       const stdout = await result.stdout();
       const lines = stdout.trim().split("\n").filter(Boolean);
-      return lines.map((line) => {
-        const [name, type] = line.split("|");
-        const direntType =
-          FIND_TYPE_TO_DIRENT[type!] ?? UV_DIRENT_FILE;
-        return new DirentConstructor(name!, direntType, path);
-      });
+
+      return lines.map((line) => parseDirent(line, path));
     }
 
     const result = await this.sandbox.runCommand("ls", ["-1", path], {
@@ -345,7 +355,8 @@ export class FileSystem {
   async stat(
     path: string,
     options?: { signal?: AbortSignal },
-  ): Promise<Stats> {
+  ): Promise<fs.Stats> {
+    "use step";
     const result = await this.sandbox.runCommand(
       "stat",
       ["-L", "-c", STAT_FORMAT, path],
@@ -370,7 +381,8 @@ export class FileSystem {
   async lstat(
     path: string,
     options?: { signal?: AbortSignal },
-  ): Promise<Stats> {
+  ): Promise<fs.Stats> {
+    "use step";
     const result = await this.sandbox.runCommand(
       "stat",
       ["-c", STAT_FORMAT, path],
@@ -383,7 +395,9 @@ export class FileSystem {
       }
       throw fsError("EACCES", stderr.trim(), "lstat", path);
     }
-    return parseStat(await result.stdout());
+    const stat = await parseStat(await result.stdout());
+
+    return stat;
   }
 
   /**
@@ -396,6 +410,7 @@ export class FileSystem {
     path: string,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand("rm", [path], {
       signal: options?.signal,
     });
@@ -415,6 +430,7 @@ export class FileSystem {
    * @param options - Options
    */
   async rm(path: string, options?: RmOptions): Promise<void> {
+    "use step";
     const args: string[] = [];
     if (options?.recursive) args.push("-r");
     if (options?.force) args.push("-f");
@@ -439,6 +455,7 @@ export class FileSystem {
    * @param options - Options
    */
   async rmdir(path: string, options?: { signal?: AbortSignal }): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand("rmdir", [path], {
       signal: options?.signal,
     });
@@ -466,6 +483,7 @@ export class FileSystem {
     newPath: string,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand("mv", [oldPath, newPath], {
       signal: options?.signal,
     });
@@ -490,6 +508,7 @@ export class FileSystem {
     dest: string,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand("cp", [src, dest], {
       signal: options?.signal,
     });
@@ -512,6 +531,7 @@ export class FileSystem {
     path: string,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand("test", ["-e", path], {
       signal: options?.signal,
     });
@@ -550,6 +570,7 @@ export class FileSystem {
     mode: number | string,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const modeStr = typeof mode === "number" ? mode.toString(8) : mode;
     const result = await this.sandbox.runCommand("chmod", [modeStr, path], {
       signal: options?.signal,
@@ -577,6 +598,7 @@ export class FileSystem {
     gid: number,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand(
       "chown",
       [`${uid}:${gid}`, path],
@@ -603,6 +625,7 @@ export class FileSystem {
     path: string,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand("ln", ["-s", target, path], {
       signal: options?.signal,
     });
@@ -625,6 +648,7 @@ export class FileSystem {
     path: string,
     options?: { signal?: AbortSignal },
   ): Promise<string> {
+    "use step";
     const result = await this.sandbox.runCommand("readlink", [path], {
       signal: options?.signal,
     });
@@ -648,6 +672,7 @@ export class FileSystem {
     path: string,
     options?: { signal?: AbortSignal },
   ): Promise<string> {
+    "use step";
     const result = await this.sandbox.runCommand("realpath", [path], {
       signal: options?.signal,
     });
@@ -673,6 +698,7 @@ export class FileSystem {
     len?: number,
     options?: { signal?: AbortSignal },
   ): Promise<void> {
+    "use step";
     const result = await this.sandbox.runCommand(
       "truncate",
       ["-s", String(len ?? 0), path],
@@ -698,6 +724,7 @@ export class FileSystem {
     prefix: string,
     options?: { signal?: AbortSignal },
   ): Promise<string> {
+    "use step";
     const result = await this.sandbox.runCommand(
       "mktemp",
       ["-d", `${prefix}XXXXXX`],
