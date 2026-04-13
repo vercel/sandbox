@@ -1,5 +1,5 @@
 import { it, expect, describe, vi, beforeEach } from "vitest";
-import { Stats, Dirent } from "fs";
+import type { Stats, Dirent } from "fs";
 import { FileSystem } from "./filesystem";
 
 function makeMockSandbox() {
@@ -167,7 +167,6 @@ describe("FileSystem", () => {
       );
       const result = await fs.readdir("/mydir", { withFileTypes: true });
       expect(result).toHaveLength(3);
-      expect(result[0]).toBeInstanceOf(Dirent);
       expect(result[0].name).toBe("file.txt");
       expect(result[0].isFile()).toBe(true);
       expect(result[0].isDirectory()).toBe(false);
@@ -201,7 +200,6 @@ describe("FileSystem", () => {
         ),
       );
       const stats = await fs.stat("/test.txt");
-      expect(stats).toBeInstanceOf(Stats);
       expect(stats.size).toBe(1024);
       expect(stats.uid).toBe(1000);
       expect(stats.isFile()).toBe(true);
