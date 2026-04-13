@@ -1,6 +1,19 @@
-import * as fs from "fs";
+import type { Stats, Dirent } from "fs";
+import * as constants from "node:constants";
 
-// UV_DIRENT_* constants exist at runtime but aren't in @types/node
+const {
+  S_IFMT,
+  S_IFREG,
+  S_IFDIR,
+  S_IFLNK,
+  S_IFBLK,
+  S_IFCHR,
+  S_IFIFO,
+  S_IFSOCK,
+} = constants;
+
+// https://github.com/nodejs/node/blob/main/deps/uv/include/uv.h#L1267-L1276
+// exposed through node:constants but not in @types/node
 const UV_DIRENT_FILE = 1;
 const UV_DIRENT_DIR = 2;
 const UV_DIRENT_LINK = 3;
@@ -80,30 +93,100 @@ function parseEncoding(options?: EncodingOption): {
   return { encoding: options.encoding ?? null, signal: options.signal };
 }
 
-function parseStat(stdout: string): fs.Stats {
-  // The Stats constructor and Dirent constructor exist at runtime but are marked
-  // private in @types/node. We cast to the actual runtime signatures.
-  const StatsConstructor = fs.Stats as unknown as new (
-    dev: number,
-    mode: number,
-    nlink: number,
-    uid: number,
-    gid: number,
-    rdev: number,
-    blksize: number,
-    ino: number,
-    size: number,
-    blocks: number,
-    atimeMs: number,
-    mtimeMs: number,
-    ctimeMs: number,
-    birthtimeMs: number,
-  ) => fs.Stats;
+class SandboxStats {
+  readonly atime: Date;
+  readonly mtime: Date;
+  readonly ctime: Date;
+  readonly birthtime: Date;
 
+  constructor(
+    readonly dev: number,
+    private readonly _mode: number,
+    readonly nlink: number,
+    readonly uid: number,
+    readonly gid: number,
+    readonly rdev: number,
+    readonly blksize: number,
+    readonly ino: number,
+    readonly size: number,
+    readonly blocks: number,
+    readonly atimeMs: number,
+    readonly mtimeMs: number,
+    readonly ctimeMs: number,
+    readonly birthtimeMs: number,
+  ) {
+    this.atime = new Date(atimeMs);
+    this.mtime = new Date(mtimeMs);
+    this.ctime = new Date(ctimeMs);
+    this.birthtime = new Date(birthtimeMs);
+  }
+
+  get mode(): number {
+    return this._mode;
+  }
+
+  isFile(): boolean {
+    return (this.mode & S_IFMT) === S_IFREG;
+  }
+  isDirectory(): boolean {
+    return (this.mode & S_IFMT) === S_IFDIR;
+  }
+  isBlockDevice(): boolean {
+    return (this.mode & S_IFMT) === S_IFBLK;
+  }
+  isCharacterDevice(): boolean {
+    return (this.mode & S_IFMT) === S_IFCHR;
+  }
+  isSymbolicLink(): boolean {
+    return (this.mode & S_IFMT) === S_IFLNK;
+  }
+  isFIFO(): boolean {
+    return (this.mode & S_IFMT) === S_IFIFO;
+  }
+  isSocket(): boolean {
+    return (this.mode & S_IFMT) === S_IFSOCK;
+  }
+}
+
+class SandboxDirent {
+  readonly path: string;
+
+  constructor(
+    public name: string,
+    private type: number,
+    public parentPath: string,
+  ) {
+    this.path = `${this.parentPath}/${this.name}`;
+  }
+
+  isFile(): boolean {
+    return this.type === UV_DIRENT_FILE;
+  }
+  isDirectory(): boolean {
+    return this.type === UV_DIRENT_DIR;
+  }
+  isBlockDevice(): boolean {
+    return this.type === UV_DIRENT_BLOCK;
+  }
+  isCharacterDevice(): boolean {
+    return this.type === UV_DIRENT_CHAR;
+  }
+  isSymbolicLink(): boolean {
+    return this.type === UV_DIRENT_LINK;
+  }
+  isFIFO(): boolean {
+    return this.type === UV_DIRENT_FIFO;
+  }
+  isSocket(): boolean {
+    return this.type === UV_DIRENT_SOCKET;
+  }
+}
+
+function parseStat(stdout: string) {
   // Format: size|rawModeHex|uid|gid|atimeMs|mtimeMs|ctimeMs|birthtimeMs|nlink|ino|dev|blksize|blocks
   const parts = stdout.trim().split("|");
 
-  return new StatsConstructor(
+  return new SandboxStats(
     parseInt(parts[10]!, 10), // dev
     parseInt(parts[1]!, 16), // mode (raw mode from %f, hex)
     parseInt(parts[8]!, 10), // nlink
@@ -118,10 +201,10 @@ function parseStat(stdout: string): fs.Stats {
     parseFloat(parts[5]!) * 1000, // mtimeMs
     parseFloat(parts[6]!) * 1000, // ctimeMs
     parseFloat(parts[7]!) * 1000, // birthtimeMs
-  );
+  ) satisfies Stats;
 }
 
-function parseDirent(stdout: string, path: string): fs.Dirent {
+function parseDirent(stdout: string, path: string) {
   const parts = stdout.trim().split("|");
   const name = parts[0];
   const type = parts[1];
@@ -134,14 +217,8 @@ function parseDirent(stdout: string, path: string): fs.Dirent {
     throw new Error(`Invalid dirent type: ${type}`);
   }
 
-  const DirentConstructor = fs.Dirent as unknown as new (
-    name: string,
-    type: number,
-    path: string,
-  ) => fs.Dirent;
-
   const direntType = FIND_TYPE_TO_DIRENT[type] ?? UV_DIRENT_FILE;
-  return new DirentConstructor(name, direntType, path);
+  return new SandboxDirent(name, direntType, path) satisfies Dirent;
 }
 
 // %f = raw mode in hex, includes file type bits so Stats.isFile()/isDirectory()/etc. work
@@ -306,11 +383,11 @@ export class FileSystem {
   async readdir(
     path: string,
     options: { signal?: AbortSignal; withFileTypes: true },
-  ): Promise<fs.Dirent[]>;
+  ): Promise<Dirent[]>;
   async readdir(
     path: string,
     options?: { signal?: AbortSignal; withFileTypes?: boolean },
-  ): Promise<string[] | fs.Dirent[]> {
+  ): Promise<string[] | Dirent[]> {
     "use step";
     if (options?.withFileTypes) {
       // Use find to get name and type in one pass
@@ -352,10 +429,7 @@ export class FileSystem {
    * @param path - Path to the file
    * @param options - Options
    */
-  async stat(
-    path: string,
-    options?: { signal?: AbortSignal },
-  ): Promise<fs.Stats> {
+  async stat(path: string, options?: { signal?: AbortSignal }): Promise<Stats> {
     "use step";
     const result = await this.sandbox.runCommand(
       "stat",
@@ -381,7 +455,7 @@ export class FileSystem {
   async lstat(
     path: string,
     options?: { signal?: AbortSignal },
-  ): Promise<fs.Stats> {
+  ): Promise<Stats> {
     "use step";
     const result = await this.sandbox.runCommand(
       "stat",
@@ -395,9 +469,7 @@ export class FileSystem {
       }
       throw fsError("EACCES", stderr.trim(), "lstat", path);
     }
-    const stat = await parseStat(await result.stdout());
-
-    return stat;
+    return parseStat(await result.stdout());
   }
 
   /**
