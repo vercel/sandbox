@@ -61,14 +61,22 @@ export const snapshot = cmd.command({
           });
 
     if (!["running"].includes(sandbox.status)) {
-      console.error(
-        [
-          `Sandbox ${sandbox.sandboxId} is not available (status: ${sandbox.status}).`,
-          `${chalk.bold("hint:")} Only 'running' sandboxes can be snapshotted.`,
+      const hints = [
+        `Sandbox ${sandbox.sandboxId} is not available (status: ${sandbox.status}).`,
+        `${chalk.bold("hint:")} Only 'running' sandboxes can be snapshotted.`,
+      ];
+      if (sandbox.status === "stopped" || sandbox.status === "stopping") {
+        hints.push(
+          "├▶ Use `sandbox snapshots list` to find existing snapshots.",
+          "╰▶ Use `sandbox create --snapshot <snapshot_id>` to restore from a snapshot.",
+        );
+      } else {
+        hints.push(
           "├▶ Use `sandbox list` to check sandbox status.",
           "╰▶ Use `sandbox create` to create a new sandbox.",
-        ].join("\n"),
-      );
+        );
+      }
+      console.error(hints.join("\n"));
       process.exitCode = 1;
       return;
     }
