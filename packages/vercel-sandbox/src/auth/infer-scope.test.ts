@@ -1,4 +1,4 @@
-import { inferScope, selectTeams } from "./project.js";
+import { inferScope } from "./project.js";
 import {
   beforeEach,
   describe,
@@ -43,42 +43,16 @@ function mockUserAndTeams({
       return Promise.resolve({ user: { defaultTeamId, username } });
     }
     if (opts.endpoint.startsWith("/v2/teams")) {
-      return Promise.resolve({ teams });
+      return Promise.resolve({
+        teams,
+        pagination: { count: teams.length, next: null },
+      });
     }
     return Promise.resolve({});
   };
 }
 
-describe("selectTeams", () => {
-  test("returns defaultTeamId first, then best hobby owner team", async () => {
-    fetchApiMock.mockImplementation(
-      mockUserAndTeams({
-        defaultTeamId: "team_default",
-        username: "my-user",
-        teams: [
-          {
-            id: "team_default",
-            slug: "default-team",
-            updatedAt: 100,
-            membership: { role: "OWNER" },
-            billing: { plan: "hobby" },
-          },
-          {
-            id: "team_other",
-            slug: "other-team",
-            updatedAt: 200,
-            membership: { role: "OWNER" },
-            billing: { plan: "hobby" },
-          },
-        ],
-      }),
-    );
-
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["team_default", "team_other"]);
-    expect(result.username).toBe("my-user");
-  });
-
+describe("team selection from paginated results", () => {
   test("prefers personal team (matching username slug) over most recently updated", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
@@ -103,8 +77,8 @@ describe("selectTeams", () => {
       }),
     );
 
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["team_personal"]);
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("team_personal");
   });
 
   test("picks most recently updated hobby owner team when no username match", async () => {
@@ -131,49 +105,21 @@ describe("selectTeams", () => {
       }),
     );
 
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["team_recent"]);
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("team_recent");
   });
 
-  test("filters out non-OWNER teams", async () => {
+  test("filters out non-OWNER and non-hobby teams", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
         defaultTeamId: null,
         username: "my-user",
         teams: [
-          {
-            id: "team_owner",
-            slug: "owner-team",
-            updatedAt: 100,
-            membership: { role: "OWNER" },
-            billing: { plan: "hobby" },
-          },
           {
             id: "team_member",
             slug: "member-team",
-            updatedAt: 200,
+            updatedAt: 300,
             membership: { role: "MEMBER" },
-            billing: { plan: "hobby" },
-          },
-        ],
-      }),
-    );
-
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["team_owner"]);
-  });
-
-  test("filters out non-hobby plan teams", async () => {
-    fetchApiMock.mockImplementation(
-      mockUserAndTeams({
-        defaultTeamId: null,
-        username: "my-user",
-        teams: [
-          {
-            id: "team_hobby",
-            slug: "hobby-team",
-            updatedAt: 100,
-            membership: { role: "OWNER" },
             billing: { plan: "hobby" },
           },
           {
@@ -183,15 +129,22 @@ describe("selectTeams", () => {
             membership: { role: "OWNER" },
             billing: { plan: "pro" },
           },
+          {
+            id: "team_good",
+            slug: "good-team",
+            updatedAt: 100,
+            membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
+          },
         ],
       }),
     );
 
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["team_hobby"]);
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("team_good");
   });
 
-  test("falls back to username when no teams and no defaultTeamId", async () => {
+  test("falls back to username when no hobby owner teams found", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
         defaultTeamId: null,
@@ -200,58 +153,83 @@ describe("selectTeams", () => {
       }),
     );
 
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["my-user"]);
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("my-user");
   });
 
-  test("does not duplicate defaultTeamId when it matches best hobby owner team", async () => {
-    fetchApiMock.mockImplementation(
-      mockUserAndTeams({
-        defaultTeamId: "team_abc",
-        username: "my-user",
-        teams: [
-          {
-            id: "team_abc",
-            slug: "abc-team",
-            updatedAt: 100,
-            membership: { role: "OWNER" },
-            billing: { plan: "hobby" },
-          },
-        ],
-      }),
-    );
+  test("skips hobby team that matches already-tried defaultTeamId", async () => {
+    fetchApiMock.mockImplementation(async ({ endpoint }) => {
+      if (endpoint === "/v2/user") {
+        return {
+          user: { defaultTeamId: "team_abc", username: "my-user" },
+        };
+      }
+      if (endpoint.startsWith("/v2/teams")) {
+        return {
+          teams: [
+            {
+              id: "team_abc",
+              slug: "abc-team",
+              updatedAt: 100,
+              membership: { role: "OWNER" },
+              billing: { plan: "hobby" },
+            },
+          ],
+          pagination: { count: 1, next: null },
+        };
+      }
+      // All project checks fail with 403
+      throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
+    });
 
-    const result = await selectTeams("token");
-    expect(result.candidateTeamIds).toEqual(["team_abc"]);
+    await expect(inferScope({ token: "token" })).rejects.toThrowError(
+      /none of the available teams allow sandbox creation/,
+    );
+    // team_abc tried once (defaultTeamId), then skipped in pagination, then username fallback
+    const projectCalls = fetchApiMock.mock.calls.filter(([{ endpoint }]) =>
+      endpoint.includes("vercel-sandbox-default-project"),
+    );
+    expect(projectCalls).toHaveLength(2);
   });
 
-  test("defaultTeamId may differ from best hobby owner team", async () => {
-    fetchApiMock.mockImplementation(
-      mockUserAndTeams({
-        defaultTeamId: "team_nonowner",
-        username: "my-user",
-        teams: [
-          {
-            id: "team_owner",
-            slug: "my-user",
-            updatedAt: 100,
-            membership: { role: "OWNER" },
-            billing: { plan: "hobby" },
-          },
-          {
-            id: "team_nonowner",
-            slug: "nonowner-team",
-            updatedAt: 200,
-            membership: { role: "MEMBER" },
-            billing: { plan: "pro" },
-          },
-        ],
-      }),
-    );
+  test("paginates through multiple pages to find a usable team", async () => {
+    fetchApiMock.mockImplementation(async ({ endpoint }) => {
+      if (endpoint === "/v2/user") {
+        return { user: { defaultTeamId: null, username: "my-user" } };
+      }
+      if (endpoint === "/v2/teams?limit=20") {
+        return {
+          teams: [
+            {
+              id: "team_pro",
+              slug: "pro-team",
+              updatedAt: 300,
+              membership: { role: "OWNER" },
+              billing: { plan: "pro" },
+            },
+          ],
+          pagination: { count: 1, next: 12345 },
+        };
+      }
+      if (endpoint === "/v2/teams?limit=20&until=12345") {
+        return {
+          teams: [
+            {
+              id: "team_hobby",
+              slug: "hobby-team",
+              updatedAt: 100,
+              membership: { role: "OWNER" },
+              billing: { plan: "hobby" },
+            },
+          ],
+          pagination: { count: 1, next: null },
+        };
+      }
+      return {};
+    });
 
-    const result = await selectTeams("token");
-    // defaultTeamId first (even though not hobby OWNER), then best hobby owner team as fallback
-    expect(result.candidateTeamIds).toEqual(["team_nonowner", "team_owner"]);
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("team_hobby");
   });
 });
 
@@ -328,6 +306,7 @@ describe("inferScope", () => {
                 billing: { plan: "hobby" },
               },
             ],
+            pagination: { count: 1, next: null },
           };
         }
         // Project check: 403 for readonly default team, success for owner team
@@ -342,6 +321,7 @@ describe("inferScope", () => {
         created: false,
         projectId: "vercel-sandbox-default-project",
         teamId: "team_writable",
+        teamSlug: "my-user",
       });
     });
 
@@ -363,6 +343,7 @@ describe("inferScope", () => {
                 billing: { plan: "hobby" },
               },
             ],
+            pagination: { count: 1, next: null },
           };
         }
         throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
@@ -381,7 +362,7 @@ describe("inferScope", () => {
           };
         }
         if (endpoint.startsWith("/v2/teams")) {
-          return { teams: [] };
+          return { teams: [], pagination: { count: 0, next: null } };
         }
         return {};
       });
@@ -402,7 +383,7 @@ describe("inferScope", () => {
           };
         }
         if (endpoint.startsWith("/v2/teams")) {
-          return { teams: [] };
+          return { teams: [], pagination: { count: 0, next: null } };
         }
         if (
           endpoint.includes("teamId=team_default") &&
@@ -439,6 +420,7 @@ describe("inferScope", () => {
                 billing: { plan: "hobby" },
               },
             ],
+            pagination: { count: 1, next: null },
           };
         }
         // team_nocreate: project check 404, project creation 403
@@ -457,6 +439,7 @@ describe("inferScope", () => {
         created: false,
         projectId: "vercel-sandbox-default-project",
         teamId: "team_good",
+        teamSlug: "good-team",
       });
     });
   });
@@ -473,15 +456,25 @@ describe("inferScope", () => {
         }),
       );
 
+      fetchApiMock.mockImplementation(async ({ endpoint }) => {
+        if (endpoint.includes("/v2/teams/")) {
+          return { slug: "linked-team" };
+        }
+        if (endpoint.includes("/v2/projects/")) {
+          return { name: "linked-project" };
+        }
+        return {};
+      });
+
       const scope = await inferScope({ token: "token", cwd: dir });
 
       expect(scope).toEqual({
         created: false,
         projectId: "prj_linked",
         teamId: "team_linked",
+        teamSlug: "linked-team",
+        projectSlug: "linked-project",
       });
-      // Should not call API when using linked project
-      expect(fetchApiMock).not.toHaveBeenCalled();
     });
 
     test("falls back to default project when .vercel/project.json does not exist", async () => {
