@@ -1,5 +1,19 @@
 # @vercel/sandbox
 
+## 1.10.0
+
+### Minor Changes
+
+- Expose Filesystem api from Sandbox ([#112](https://github.com/vercel/sandbox/pull/112))
+
+### Patch Changes
+
+- Reuse Undici `Agent` across instances ([#143](https://github.com/vercel/sandbox/pull/143))
+
+- Smarter fallback team selection for scope inference: tries `defaultTeamId` first, then the best hobby-plan OWNER team (personal team or most recently updated). Filters fallback candidates by `billing.plan === 'hobby'` to avoid selecting pro/enterprise teams. Skips teams that return 403 and shows a helpful error when no team allows sandbox creation. ([#120](https://github.com/vercel/sandbox/pull/120))
+
+- Add workflow serialization support for the `Snapshot` class via `WORKFLOW_SERIALIZE` / `WORKFLOW_DESERIALIZE`, fixing serialization errors when a `Snapshot` instance is returned from a workflow step. ([#140](https://github.com/vercel/sandbox/pull/140))
+
 ## 1.9.3
 
 ### Patch Changes
