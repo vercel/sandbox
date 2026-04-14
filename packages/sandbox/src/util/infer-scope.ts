@@ -72,15 +72,14 @@ async function inferFromJwt(jwt: string) {
 }
 
 async function inferFromToken(token: string, requestedTeam?: string) {
-  const { teamId, projectId } = await Auth.inferScope({
+  const { teamId, teamSlug, projectId, projectSlug } = await Auth.inferScope({
     token,
     teamId: requestedTeam,
   });
-  // Auth.inferScope returns team slug and project name (not IDs).
   return {
     owner: teamId,
     project: projectId,
-    ownerSlug: teamId,
-    projectSlug: projectId,
+    ownerSlug: teamSlug ?? teamId,
+    projectSlug: projectSlug ?? projectId,
   };
 }
