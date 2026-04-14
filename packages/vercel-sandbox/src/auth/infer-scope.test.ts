@@ -402,6 +402,46 @@ describe("inferScope", () => {
       });
     });
 
+    test("falls back to hobby owner team when defaultTeamId returns 402 RESOURCE_CREATION_BLOCKED", async () => {
+      fetchApiMock.mockImplementation(async ({ endpoint }) => {
+        if (endpoint === "/v2/user") {
+          return {
+            user: { defaultTeamId: "team_blocked", username: "my-user" },
+          };
+        }
+        if (endpoint.startsWith("/v2/teams")) {
+          return {
+            teams: [
+              {
+                id: "team_writable",
+                slug: "my-user",
+                updatedAt: 100,
+                membership: { role: "OWNER" },
+                billing: { plan: "hobby" },
+              },
+            ],
+            pagination: { count: 1, next: null },
+          };
+        }
+        // 402 for the blocked team (RESOURCE_CREATION_BLOCKED)
+        if (endpoint.includes("teamId=team_blocked")) {
+          throw new NotOk({
+            statusCode: 402,
+            responseText: "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
+          });
+        }
+        return {};
+      });
+
+      const scope = await inferScope({ token: "token" });
+      expect(scope).toEqual({
+        created: false,
+        projectId: "vercel-sandbox-default-project",
+        teamId: "team_writable",
+        teamSlug: "my-user",
+      });
+    });
+
     test("tries next candidate when project creation returns 403", async () => {
       fetchApiMock.mockImplementation(async ({ endpoint, method }) => {
         if (endpoint === "/v2/user") {

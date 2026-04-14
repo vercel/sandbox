@@ -32,6 +32,11 @@ const TeamsSchema = z.object({
 
 const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
 
+/** Status codes that mean "this team can't be used, try the next one". */
+function isSkippableTeamError(e: unknown): boolean {
+  return e instanceof NotOk && (e.response.statusCode === 402 || e.response.statusCode === 403);
+}
+
 /**
  * Resolves the team and project scope for sandbox operations.
  *
@@ -103,7 +108,7 @@ export async function inferScope(opts: {
         return result;
       }
     } catch (e) {
-      if (!(e instanceof NotOk) || e.response.statusCode !== 403) throw e;
+      if (!isSkippableTeamError(e)) throw e;
     }
   }
 
@@ -136,7 +141,7 @@ export async function inferScope(opts: {
         const result = await tryTeam(opts.token, bestHobbyTeam.id);
         return { ...result, teamSlug: bestHobbyTeam.slug };
       } catch (e) {
-        if (!(e instanceof NotOk) || e.response.statusCode !== 403) throw e;
+        if (!isSkippableTeamError(e)) throw e;
       }
     }
   } while (next !== null);
@@ -146,7 +151,7 @@ export async function inferScope(opts: {
     const result = await tryTeam(opts.token, username);
     return { ...result, teamSlug: username };
   } catch (e) {
-    if (!(e instanceof NotOk) || e.response.statusCode !== 403) throw e;
+    if (!isSkippableTeamError(e)) throw e;
   }
 
   throw new NotOk({
