@@ -155,6 +155,15 @@
 
 - Support named sandboxes
 
+## 2.5.10
+
+### Patch Changes
+
+- Smarter fallback team selection for scope inference: tries `defaultTeamId` first, then the best hobby-plan OWNER team (personal team or most recently updated). Filters fallback candidates by `billing.plan === 'hobby'` to avoid selecting pro/enterprise teams. Skips teams that return 403 and shows a helpful error when no team allows sandbox creation. ([#120](https://github.com/vercel/sandbox/pull/120))
+
+- Updated dependencies [[`9dc0ac96d1d531b5a44786c92d6ddc2ce4890791`](https://github.com/vercel/sandbox/commit/9dc0ac96d1d531b5a44786c92d6ddc2ce4890791), [`494c2ddae5899b7f793cbd906a2a62260bd08885`](https://github.com/vercel/sandbox/commit/494c2ddae5899b7f793cbd906a2a62260bd08885), [`3fbabb95946771e41d8b17b7f8cb8d2972beba25`](https://github.com/vercel/sandbox/commit/3fbabb95946771e41d8b17b7f8cb8d2972beba25), [`42515e1ede4468fad204e5332ade0ee5d8dce3e5`](https://github.com/vercel/sandbox/commit/42515e1ede4468fad204e5332ade0ee5d8dce3e5)]:
+  - @vercel/sandbox@1.10.0
+
 ## 2.5.9
 
 ### Patch Changes
