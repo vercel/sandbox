@@ -152,7 +152,7 @@ recreate an API client using OIDC or environment credentials when needed.
 
 ## Limitations
 
-- Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.
+- Max resources: 8 vCPUs on Hobby/Pro, 32 vCPUs on Enterprise. You will get 2048 MB of memory per vCPU.
 - Sandboxes have a maximum runtime duration of 5 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 
