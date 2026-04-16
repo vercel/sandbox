@@ -42,9 +42,42 @@ jobs:
       - name: Create Release Pull Request
         uses: changesets/action@v1
         if: github.ref == 'refs/heads/main'
+        id: changesets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
         with:
           version: pnpm version:prepare
           publish: pnpm release
+
+      - name: Trigger Vercel CLI Sandbox Sync
+        if: steps.changesets.outputs.published == 'true'
+        uses: actions/github-script@v7
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+        with:
+          github-token: ${{ secrets.VERCEL_CLI_RELEASE_BOT_TOKEN }}
+          script: |
+            const publishedPackages = JSON.parse(
+              process.env.PUBLISHED_PACKAGES || '[]'
+            );
+            const sandboxPackage = publishedPackages.find(
+              pkg => pkg.name === 'sandbox'
+            );
+
+            if (!sandboxPackage) {
+              console.log('sandbox was not published, skipping CLI sync.');
+              return;
+            }
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'vercel',
+              repo: 'vercel',
+              workflow_id: 'update-sandbox.yml',
+              ref: 'main',
+              inputs: {
+                version: sandboxPackage.version,
+                source_repository: `${context.repo.owner}/${context.repo.repo}`,
+                source_run_id: String(context.runId),
+              },
+            });
