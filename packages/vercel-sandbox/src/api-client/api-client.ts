@@ -35,9 +35,12 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
 import {
   toAPINetworkPolicy,
-  fromAPINetworkPolicy,
 } from "../utils/network-policy.js";
-import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import {
+  getPrivateParams,
+  getSpanLinkPrivateParams,
+  WithPrivate,
+} from "../utils/types.js";
 import { RUNTIMES } from "../constants.js";
 import { setTimeout } from "node:timers/promises";
 
@@ -197,7 +200,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async runCommand(params: {
+  async runCommand(params: WithPrivate<{
     sandboxId: string;
     cwd?: string;
     command: string;
@@ -206,8 +209,8 @@ export class APIClient extends BaseClient {
     sudo: boolean;
     wait: true;
     signal?: AbortSignal;
-  }): Promise<{ command: CommandData; finished: Promise<CommandFinishedData> }>;
-  async runCommand(params: {
+  }>): Promise<{ command: CommandData; finished: Promise<CommandFinishedData> }>;
+  async runCommand(params: WithPrivate<{
     sandboxId: string;
     cwd?: string;
     command: string;
@@ -216,8 +219,8 @@ export class APIClient extends BaseClient {
     sudo: boolean;
     wait?: false;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
-  async runCommand(params: {
+  }>): Promise<Parsed<z.infer<typeof CommandResponse>>>;
+  async runCommand(params: WithPrivate<{
     sandboxId: string;
     cwd?: string;
     command: string;
@@ -226,7 +229,8 @@ export class APIClient extends BaseClient {
     sudo: boolean;
     wait?: boolean;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     if (params.wait) {
       const response = await this.request(
         `/v1/sandboxes/${params.sandboxId}/cmd`,
@@ -239,6 +243,7 @@ export class APIClient extends BaseClient {
             env: params.env,
             sudo: params.sudo,
             wait: true,
+            ...spanLinkPrivateParams,
           }),
           signal: params.signal,
         },
@@ -306,72 +311,84 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
           env: params.env,
           sudo: params.sudo,
+          ...spanLinkPrivateParams,
         }),
         signal: params.signal,
       }),
     );
   }
 
-  async getCommand(params: {
+  async getCommand(params: WithPrivate<{
     sandboxId: string;
     cmdId: string;
     wait: true;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof CommandFinishedResponse>>>;
-  async getCommand(params: {
+  }>): Promise<Parsed<z.infer<typeof CommandFinishedResponse>>>;
+  async getCommand(params: WithPrivate<{
     sandboxId: string;
     cmdId: string;
     wait?: boolean;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
-  async getCommand(params: {
+  }>): Promise<Parsed<z.infer<typeof CommandResponse>>>;
+  async getCommand(params: WithPrivate<{
     sandboxId: string;
     cmdId: string;
     wait?: boolean;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
+    const query = params.wait
+      ? { wait: "true", ...spanLinkPrivateParams }
+      : { ...spanLinkPrivateParams };
     return params.wait
       ? parseOrThrow(
           CommandFinishedResponse,
           await this.request(
             `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}`,
-            { signal: params.signal, query: { wait: "true" } },
+            { signal: params.signal, query },
           ),
         )
       : parseOrThrow(
           CommandResponse,
           await this.request(
             `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}`,
-            { signal: params.signal },
+            { signal: params.signal, query },
           ),
         );
   }
 
-  async mkDir(params: {
+  async mkDir(params: WithPrivate<{
     sandboxId: string;
     path: string;
     cwd?: string;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     return parseOrThrow(
       EmptyResponse,
       await this.request(`/v1/sandboxes/${params.sandboxId}/fs/mkdir`, {
         method: "POST",
-        body: JSON.stringify({ path: params.path, cwd: params.cwd }),
+        body: JSON.stringify({
+          path: params.path,
+          cwd: params.cwd,
+          ...spanLinkPrivateParams,
+        }),
         signal: params.signal,
       }),
     );
   }
 
-  getFileWriter(params: {
+  getFileWriter(params: WithPrivate<{
     sandboxId: string;
     extractDir: string;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const writer = new FileWriter();
     return {
       response: (async () => {
         return this.request(`/v1/sandboxes/${params.sandboxId}/fs/write`, {
+          query: { ...spanLinkPrivateParams },
           method: "POST",
           headers: {
             "content-type": "application/gzip",
@@ -385,7 +402,7 @@ export class APIClient extends BaseClient {
     };
   }
 
-  async listSandboxes(params: {
+  async listSandboxes(params: WithPrivate<{
     /**
      * The ID or name of the project to which the sandboxes belong.
      * @example "my-project"
@@ -407,7 +424,8 @@ export class APIClient extends BaseClient {
      */
     until?: number | Date;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     return parseOrThrow(
       SandboxesResponse,
       await this.request(`/v1/sandboxes`, {
@@ -422,6 +440,7 @@ export class APIClient extends BaseClient {
             typeof params.until === "number"
               ? params.until
               : params.until?.getTime(),
+          ...spanLinkPrivateParams,
         },
         method: "GET",
         signal: params.signal,
@@ -429,7 +448,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async listSnapshots(params: {
+  async listSnapshots(params: WithPrivate<{
     /**
      * The ID or name of the project to which the snapshots belong.
      * @example "my-project"
@@ -451,7 +470,8 @@ export class APIClient extends BaseClient {
      */
     until?: number | Date;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     return parseOrThrow(
       SnapshotsResponse,
       await this.request(`/v1/sandboxes/snapshots`, {
@@ -466,6 +486,7 @@ export class APIClient extends BaseClient {
             typeof params.until === "number"
               ? params.until
               : params.until?.getTime(),
+          ...spanLinkPrivateParams,
         },
         method: "GET",
         signal: params.signal,
@@ -473,7 +494,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async writeFiles(params: {
+  async writeFiles(params: WithPrivate<{
     sandboxId: string;
     cwd: string;
     files: {
@@ -483,11 +504,13 @@ export class APIClient extends BaseClient {
     }[];
     extractDir: string;
     signal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const { writer, response } = this.getFileWriter({
       sandboxId: params.sandboxId,
       extractDir: params.extractDir,
       signal: params.signal,
+      ...spanLinkPrivateParams,
     });
 
     for (const file of params.files) {
@@ -506,17 +529,22 @@ export class APIClient extends BaseClient {
     await parseOrThrow(EmptyResponse, await response);
   }
 
-  async readFile(params: {
+  async readFile(params: WithPrivate<{
     sandboxId: string;
     path: string;
     cwd?: string;
     signal?: AbortSignal;
-  }): Promise<Readable | null> {
+  }>): Promise<Readable | null> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const response = await this.request(
       `/v1/sandboxes/${params.sandboxId}/fs/read`,
       {
         method: "POST",
-        body: JSON.stringify({ path: params.path, cwd: params.cwd }),
+        body: JSON.stringify({
+          path: params.path,
+          cwd: params.cwd,
+          ...spanLinkPrivateParams,
+        }),
         signal: params.signal,
       },
     );
@@ -532,30 +560,31 @@ export class APIClient extends BaseClient {
     return Readable.fromWeb(response.body);
   }
 
-  async killCommand(params: {
+  async killCommand(params: WithPrivate<{
     sandboxId: string;
     commandId: string;
     signal: number;
     abortSignal?: AbortSignal;
-  }) {
+  }>) {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     return parseOrThrow(
       CommandResponse,
       await this.request(
         `/v1/sandboxes/${params.sandboxId}/${params.commandId}/kill`,
         {
           method: "POST",
-          body: JSON.stringify({ signal: params.signal }),
+          body: JSON.stringify({ signal: params.signal, ...spanLinkPrivateParams }),
           signal: params.abortSignal,
         },
       ),
     );
   }
 
-  getLogs(params: {
+  getLogs(params: WithPrivate<{
     sandboxId: string;
     cmdId: string;
     signal?: AbortSignal;
-  }): AsyncGenerator<
+  }>): AsyncGenerator<
     z.infer<typeof LogLineStdout> | z.infer<typeof LogLineStderr>,
     void,
     void
@@ -566,12 +595,14 @@ export class APIClient extends BaseClient {
     const signal = !params.signal
       ? disposer.signal
       : mergeSignals(params.signal, disposer.signal);
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
 
     const generator = (async function* () {
       const url = `/v1/sandboxes/${params.sandboxId}/cmd/${params.cmdId}/logs`;
       const response = await self.request(url, {
         method: "GET",
         signal,
+        query: { ...spanLinkPrivateParams },
       });
 
       if (!response.ok) {
@@ -618,15 +649,24 @@ export class APIClient extends BaseClient {
     });
   }
 
-  async stopSandbox(params: {
+  async stopSandbox(params: WithPrivate<{
     sandboxId: string;
     signal?: AbortSignal;
     blocking?: boolean;
-  }): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
+  }>): Promise<Parsed<z.infer<typeof SandboxResponse>>> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
+    const hasSpanLinkPrivateParams =
+      Object.keys(spanLinkPrivateParams).length > 0;
     const url = `/v1/sandboxes/${params.sandboxId}/stop`;
     const response = await parseOrThrow(
       SandboxResponse,
-      await this.request(url, { method: "POST", signal: params.signal }),
+      await this.request(url, {
+        method: "POST",
+        ...(hasSpanLinkPrivateParams && {
+          body: JSON.stringify(spanLinkPrivateParams),
+        }),
+        signal: params.signal,
+      }),
     );
 
     if (params.blocking) {
@@ -649,48 +689,61 @@ export class APIClient extends BaseClient {
     return response;
   }
 
-  async updateNetworkPolicy(params: {
+  async updateNetworkPolicy(params: WithPrivate<{
     sandboxId: string;
     networkPolicy: NetworkPolicy;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
+  }>): Promise<Parsed<z.infer<typeof UpdateNetworkPolicyResponse>>> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const url = `/v1/sandboxes/${params.sandboxId}/network-policy`;
     return parseOrThrow(
       UpdateNetworkPolicyResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify(toAPINetworkPolicy(params.networkPolicy)),
+        body: JSON.stringify({
+          ...toAPINetworkPolicy(params.networkPolicy),
+          ...spanLinkPrivateParams,
+        }),
         signal: params.signal,
       }),
     );
   }
 
-  async extendTimeout(params: {
+  async extendTimeout(params: WithPrivate<{
     sandboxId: string;
     duration: number;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof ExtendTimeoutResponse>>> {
+  }>): Promise<Parsed<z.infer<typeof ExtendTimeoutResponse>>> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const url = `/v1/sandboxes/${params.sandboxId}/extend-timeout`;
     return parseOrThrow(
       ExtendTimeoutResponse,
       await this.request(url, {
         method: "POST",
-        body: JSON.stringify({ duration: params.duration }),
+        body: JSON.stringify({
+          duration: params.duration,
+          ...spanLinkPrivateParams,
+        }),
         signal: params.signal,
       }),
     );
   }
 
-  async createSnapshot(params: {
+  async createSnapshot(params: WithPrivate<{
     sandboxId: string;
     expiration?: number;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
+  }>): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
+    const bodyObj: Record<string, unknown> = {
+      ...spanLinkPrivateParams,
+    };
+    if (params.expiration !== undefined) {
+      bodyObj.expiration = params.expiration;
+    }
     const url = `/v1/sandboxes/${params.sandboxId}/snapshot`;
     const body =
-      params.expiration === undefined
-        ? undefined
-        : JSON.stringify({ expiration: params.expiration });
+      Object.keys(bodyObj).length > 0 ? JSON.stringify(bodyObj) : undefined;
     return parseOrThrow(
       CreateSnapshotResponse,
       await this.request(url, {
@@ -701,25 +754,34 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async deleteSnapshot(params: {
+  async deleteSnapshot(params: WithPrivate<{
     snapshotId: string;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
+  }>): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const url = `/v1/sandboxes/snapshots/${params.snapshotId}`;
     return parseOrThrow(
       SnapshotResponse,
-      await this.request(url, { method: "DELETE", signal: params.signal }),
+      await this.request(url, {
+        method: "DELETE",
+        signal: params.signal,
+        query: { ...spanLinkPrivateParams },
+      }),
     );
   }
 
-  async getSnapshot(params: {
+  async getSnapshot(params: WithPrivate<{
     snapshotId: string;
     signal?: AbortSignal;
-  }): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
+  }>): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const url = `/v1/sandboxes/snapshots/${params.snapshotId}`;
     return parseOrThrow(
       SnapshotResponse,
-      await this.request(url, { signal: params.signal }),
+      await this.request(url, {
+        signal: params.signal,
+        query: { ...spanLinkPrivateParams },
+      }),
     );
   }
 }

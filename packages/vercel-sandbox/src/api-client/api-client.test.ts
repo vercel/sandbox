@@ -4,6 +4,16 @@ import { APIError, StreamError } from "./api-error.js";
 import { createNdjsonStream } from "../../test-utils/mock-response.js";
 import { z } from "zod";
 
+const makeCommand = () => ({
+  id: "cmd_123",
+  name: "echo",
+  args: ["hello"],
+  cwd: "/",
+  sandboxId: "sbx_123",
+  exitCode: null as number | null,
+  startedAt: 1,
+});
+
 describe("APIClient", () => {
   describe("getLogs", () => {
     let client: APIClient;
@@ -249,6 +259,38 @@ describe("APIClient", () => {
       await expect(result.finished).resolves.toMatchObject({ exitCode: 0 });
     });
 
+    it("passes span-link private params to run-command body", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ command: { ...makeCommand() } }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.runCommand({
+        sandboxId: "sbx_123",
+        command: "echo",
+        args: ["hello"],
+        env: {},
+        sudo: false,
+        __spanId: "span-123",
+        __traceId: "trace-123",
+        __interactive: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({
+          command: "echo",
+          args: ["hello"],
+          cwd: undefined,
+          env: {},
+          sudo: false,
+          __spanId: "span-123",
+          __traceId: "trace-123",
+        }),
+      );
+    });
+
     it("throws APIError when response status is not ok", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ error: "gone" }), {
@@ -443,6 +485,25 @@ describe("APIClient", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
+    it("passes span-link private params to stop body", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandbox("stopping") }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.stopSandbox({
+        sandboxId: "sbx_123",
+        __spanId: "span-stop",
+        __interactive: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({ __spanId: "span-stop" }),
+      );
+    });
+
     it("polls until stopped when blocking is true", async () => {
       mockFetch
         .mockResolvedValueOnce(
@@ -581,6 +642,115 @@ describe("APIClient", () => {
 
       expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
         JSON.stringify({ expiration: 0 }),
+      );
+    });
+
+    it("passes span-link private params to snapshot creation", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            sandbox: {
+              id: "sbx_123",
+              memory: 2048,
+              vcpus: 1,
+              region: "iad1",
+              runtime: "node24",
+              timeout: 300000,
+              status: "running",
+              requestedAt: Date.now(),
+              createdAt: Date.now(),
+              cwd: "/",
+              updatedAt: Date.now(),
+            },
+            snapshot: {
+              id: "snap_123",
+              sourceSandboxId: "sbx_123",
+              region: "iad1",
+              status: "created",
+              sizeBytes: 1024,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+
+      await client.createSnapshot({
+        sandboxId: "sbx_123",
+        __spanId: "span-snapshot",
+        __includeSystemRoutes: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({ __spanId: "span-snapshot" }),
+      );
+    });
+  });
+
+  describe("span-link param propagation", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("passes span-link private params to getCommand query only", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ command: makeCommand() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.getCommand({
+        sandboxId: "sbx_123",
+        cmdId: "cmd_123",
+        __spanId: "span-get-command",
+        __interactive: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const calledUrl = String(mockFetch.mock.calls[0]?.[0]);
+      expect(calledUrl).toContain("__spanId=span-get-command");
+      expect(calledUrl).not.toContain("__interactive");
+    });
+
+    it("passes span-link private params to stopSandbox body only", async () => {
+      const sandbox = {
+        id: "sbx_123",
+        memory: 2048,
+        vcpus: 1,
+        region: "iad1",
+        runtime: "node24",
+        timeout: 300000,
+        status: "stopping",
+        requestedAt: Date.now(),
+        createdAt: Date.now(),
+        cwd: "/",
+        updatedAt: Date.now(),
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.stopSandbox({
+        sandboxId: "sbx_123",
+        __traceId: "trace-stop",
+        __includeSystemRoutes: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({ __traceId: "trace-stop" }),
       );
     });
   });

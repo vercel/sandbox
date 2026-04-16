@@ -144,6 +144,28 @@ describe("CommandFinished serialization", () => {
       expect(serialized).not.toHaveProperty("client");
       expect(JSON.stringify(serialized)).not.toContain("token");
     });
+
+    it("serializes span-link private params", () => {
+      const commandFinished = new CommandFinished({
+        client: new APIClient({
+          teamId: "team_test",
+          token: "test_token",
+        }),
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+        exitCode: 0,
+        spanLinkPrivateParams: {
+          __spanId: "span-command-finished",
+          __traceId: "trace-command-finished",
+        },
+      });
+
+      const serialized = CommandFinished[WORKFLOW_SERIALIZE](commandFinished);
+      expect(serialized.spanLinkPrivateParams).toEqual({
+        __spanId: "span-command-finished",
+        __traceId: "trace-command-finished",
+      });
+    });
   });
 
   describe("WORKFLOW_DESERIALIZE", () => {
@@ -627,6 +649,27 @@ describe("Command serialization", () => {
 
       expect(parsed.sandboxId).toBe(mockSandboxId);
       expect(parsed.output).toEqual(mockOutput);
+    });
+
+    it("serializes span-link private params", () => {
+      const command = new Command({
+        client: new APIClient({
+          teamId: "team_test",
+          token: "test_token",
+        }),
+        sandboxId: mockSandboxId,
+        cmd: mockCommandData,
+        spanLinkPrivateParams: {
+          __spanId: "span-command",
+          __traceId: "trace-command",
+        },
+      });
+
+      const serialized = Command[WORKFLOW_SERIALIZE](command);
+      expect(serialized.spanLinkPrivateParams).toEqual({
+        __spanId: "span-command",
+        __traceId: "trace-command",
+      });
     });
   });
 

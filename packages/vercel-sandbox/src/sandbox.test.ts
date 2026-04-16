@@ -183,6 +183,34 @@ describe("_runCommand error handling", () => {
   });
 });
 
+describe("span-link private params forwarding", () => {
+  it("forwards persisted span-link params to non-runCommand endpoints", async () => {
+    const mkDirMock = vi.fn(async () => ({ json: {} }));
+    const sandbox = new Sandbox({
+      client: {
+        mkDir: mkDirMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      spanLinkPrivateParams: {
+        __spanId: "span-mkdir",
+        __traceId: "trace-mkdir",
+      },
+    });
+
+    await sandbox.mkDir("/tmp/test");
+
+    expect(mkDirMock).toHaveBeenCalledTimes(1);
+    expect(mkDirMock).toHaveBeenCalledWith({
+      sandboxId: "sbx_123",
+      path: "/tmp/test",
+      signal: undefined,
+      __spanId: "span-mkdir",
+      __traceId: "trace-mkdir",
+    });
+  });
+});
+
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   const PORTS = [3000, 4000];
   let sandbox: Sandbox;

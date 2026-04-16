@@ -3,9 +3,11 @@ import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { SnapshotMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import { getSpanLinkPrivateParams } from "./utils/types.js";
 
 export interface SerializedSnapshot {
   snapshot: SnapshotMetadata;
+  spanLinkPrivateParams?: Record<string, unknown>;
 }
 
 /** @inline */
@@ -28,6 +30,7 @@ interface GetSnapshotParams {
  */
 export class Snapshot {
   private _client: APIClient | null = null;
+  private spanLinkPrivateParams: Record<string, unknown>;
 
   /**
    * Lazily resolve credentials and construct an API client.
@@ -104,9 +107,13 @@ export class Snapshot {
    * @returns A plain object containing snapshot metadata
    */
   static [WORKFLOW_SERIALIZE](instance: Snapshot): SerializedSnapshot {
-    return {
+    const serialized: SerializedSnapshot = {
       snapshot: instance.snapshot,
     };
+    if (Object.keys(instance.spanLinkPrivateParams).length > 0) {
+      serialized.spanLinkPrivateParams = instance.spanLinkPrivateParams;
+    }
+    return serialized;
   }
 
   /**
@@ -121,18 +128,22 @@ export class Snapshot {
   static [WORKFLOW_DESERIALIZE](data: SerializedSnapshot): Snapshot {
     return new Snapshot({
       snapshot: data.snapshot,
+      spanLinkPrivateParams: data.spanLinkPrivateParams,
     });
   }
 
   constructor({
     client,
     snapshot,
+    spanLinkPrivateParams,
   }: {
     client?: APIClient;
     snapshot: SnapshotMetadata;
+    spanLinkPrivateParams?: Record<string, unknown>;
   }) {
     this._client = client ?? null;
     this.snapshot = snapshot;
+    this.spanLinkPrivateParams = spanLinkPrivateParams ?? {};
   }
 
   /**
@@ -152,9 +163,11 @@ export class Snapshot {
       token: credentials.token,
       fetch: params?.fetch,
     });
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     return client.listSnapshots({
       ...credentials,
       ...params,
+      ...spanLinkPrivateParams,
     });
   }
 
@@ -174,14 +187,17 @@ export class Snapshot {
       token: credentials.token,
     });
 
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const sandbox = await client.getSnapshot({
       snapshotId: params.snapshotId,
       signal: params.signal,
+      ...spanLinkPrivateParams,
     });
 
     return new Snapshot({
       client,
       snapshot: sandbox.json.snapshot,
+      spanLinkPrivateParams,
     });
   }
 
@@ -198,6 +214,7 @@ export class Snapshot {
     const response = await client.deleteSnapshot({
       snapshotId: this.snapshot.id,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     this.snapshot = response.json.snapshot;

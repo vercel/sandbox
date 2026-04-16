@@ -88,6 +88,26 @@ describe("Sandbox serialization", () => {
       expect(serialized).not.toHaveProperty("client");
       expect(JSON.stringify(serialized)).not.toContain("token");
     });
+
+    it("serializes span-link private params", () => {
+      const sandbox = new Sandbox({
+        client: new APIClient({
+          teamId: "team_test",
+          token: "test_token",
+        }),
+        sandbox: toSandboxSnapshot(mockMetadata),
+        routes: mockRoutes,
+        spanLinkPrivateParams: {
+          __spanId: "span-sandbox",
+          __traceId: "trace-sandbox",
+        },
+      });
+      const serialized = serializeSandbox(sandbox);
+      expect(serialized.spanLinkPrivateParams).toEqual({
+        __spanId: "span-sandbox",
+        __traceId: "trace-sandbox",
+      });
+    });
   });
 
   describe("WORKFLOW_DESERIALIZE", () => {

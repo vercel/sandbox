@@ -21,7 +21,11 @@ import {
   type SandboxSnapshot,
   toSandboxSnapshot,
 } from "./utils/sandbox-snapshot.js";
-import { getPrivateParams, type WithPrivate } from "./utils/types.js";
+import {
+  getPrivateParams,
+  getSpanLinkPrivateParams,
+  type WithPrivate,
+} from "./utils/types.js";
 import { FileSystem } from "./filesystem.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
@@ -126,6 +130,7 @@ interface GetSandboxParams {
 export interface SerializedSandbox {
   metadata: SandboxSnapshot;
   routes: SandboxRouteData[];
+  spanLinkPrivateParams?: Record<string, unknown>;
 }
 
 /** @inline */
@@ -180,6 +185,7 @@ interface RunCommandParams {
  */
 export class Sandbox {
   private _client: APIClient | null = null;
+  private spanLinkPrivateParams: Record<string, unknown>;
 
   /**
    * Lazily resolve credentials and construct an API client.
@@ -313,10 +319,14 @@ export class Sandbox {
    * @returns A plain object containing sandbox metadata and routes
    */
   static [WORKFLOW_SERIALIZE](instance: Sandbox): SerializedSandbox {
-    return {
+    const serialized: SerializedSandbox = {
       metadata: instance.sandbox,
       routes: instance.routes,
     };
+    if (Object.keys(instance.spanLinkPrivateParams).length > 0) {
+      serialized.spanLinkPrivateParams = instance.spanLinkPrivateParams;
+    }
+    return serialized;
   }
 
   /**
@@ -332,6 +342,7 @@ export class Sandbox {
     return new Sandbox({
       sandbox: data.metadata,
       routes: data.routes,
+      spanLinkPrivateParams: data.spanLinkPrivateParams,
     });
   }
 
@@ -362,6 +373,7 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const sandbox = await client.createSandbox({
       source: params?.source,
       projectId: credentials.projectId,
@@ -379,6 +391,7 @@ export class Sandbox {
       client,
       sandbox: toSandboxSnapshot(sandbox.json.sandbox),
       routes: sandbox.json.routes,
+      spanLinkPrivateParams,
     });
   }
 
@@ -401,6 +414,7 @@ export class Sandbox {
     });
 
     const privateParams = getPrivateParams(params);
+    const spanLinkPrivateParams = getSpanLinkPrivateParams(params);
     const sandbox = await client.getSandbox({
       sandboxId: params.sandboxId,
       signal: params.signal,
@@ -411,6 +425,7 @@ export class Sandbox {
       client,
       sandbox: toSandboxSnapshot(sandbox.json.sandbox),
       routes: sandbox.json.routes,
+      spanLinkPrivateParams,
     });
   }
 
@@ -425,14 +440,17 @@ export class Sandbox {
     client,
     routes,
     sandbox,
+    spanLinkPrivateParams,
   }: {
     client?: APIClient;
     routes: SandboxRouteData[];
     sandbox: SandboxSnapshot;
+    spanLinkPrivateParams?: Record<string, unknown>;
   }) {
     this._client = client ?? null;
     this.routes = routes;
     this.sandbox = sandbox;
+    this.spanLinkPrivateParams = spanLinkPrivateParams ?? {};
     this.fs = new FileSystem(this);
   }
 
@@ -454,12 +472,14 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       cmdId,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     return new Command({
       client,
       sandboxId: this.sandbox.id,
       cmd: command.json.command,
+      spanLinkPrivateParams: this.spanLinkPrivateParams,
     });
   }
 
@@ -540,12 +560,14 @@ export class Sandbox {
         sudo: params.sudo ?? false,
         wait: true,
         signal: params.signal,
+        ...this.spanLinkPrivateParams,
       });
 
       const command = new Command({
         client,
         sandboxId: this.sandbox.id,
         cmd: commandStream.command,
+        spanLinkPrivateParams: this.spanLinkPrivateParams,
       });
 
       const [finished] = await Promise.all([
@@ -557,6 +579,7 @@ export class Sandbox {
         sandboxId: this.sandbox.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
+        spanLinkPrivateParams: this.spanLinkPrivateParams,
       });
     }
 
@@ -568,12 +591,14 @@ export class Sandbox {
       env: params.env ?? {},
       sudo: params.sudo ?? false,
       signal: params.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     const command = new Command({
       client,
       sandboxId: this.sandbox.id,
       cmd: commandResponse.json.command,
+      spanLinkPrivateParams: this.spanLinkPrivateParams,
     });
 
     void pipeLogs(command).catch((err) => {
@@ -600,6 +625,7 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       path: path,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
   }
 
@@ -622,6 +648,7 @@ export class Sandbox {
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
   }
 
@@ -644,6 +671,7 @@ export class Sandbox {
       path: file.path,
       cwd: file.cwd,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     if (stream === null) {
@@ -683,6 +711,7 @@ export class Sandbox {
       path: src.path,
       cwd: src.cwd,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     if (stream === null) {
@@ -735,6 +764,7 @@ export class Sandbox {
       extractDir: "/",
       files: files,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
   }
 
@@ -772,6 +802,7 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       signal: opts?.signal,
       blocking: opts?.blocking,
+      ...this.spanLinkPrivateParams,
     });
     this.sandbox = toSandboxSnapshot(response.json.sandbox);
     return this.sandbox;
@@ -818,6 +849,7 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       networkPolicy: networkPolicy,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     // Update the internal sandbox metadata with the new timeout value
@@ -851,6 +883,7 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       duration,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     // Update the internal sandbox metadata with the new timeout value
@@ -878,6 +911,7 @@ export class Sandbox {
       sandboxId: this.sandbox.id,
       expiration: opts?.expiration,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     this.sandbox = toSandboxSnapshot(response.json.sandbox);
@@ -885,6 +919,7 @@ export class Sandbox {
     return new Snapshot({
       client,
       snapshot: response.json.snapshot,
+      spanLinkPrivateParams: this.spanLinkPrivateParams,
     });
   }
 }

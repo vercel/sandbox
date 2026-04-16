@@ -78,6 +78,25 @@ describe("Snapshot serialization", () => {
       expect(serialized).not.toHaveProperty("_client");
       expect(JSON.stringify(serialized)).not.toContain("token");
     });
+
+    it("serializes span-link private params", () => {
+      const snapshot = new Snapshot({
+        client: new APIClient({
+          teamId: "team_test",
+          token: "test_token",
+        }),
+        snapshot: mockSnapshotMetadata,
+        spanLinkPrivateParams: {
+          __spanId: "span-snapshot",
+          __traceId: "trace-snapshot",
+        },
+      });
+      const serialized = serializeSnapshot(snapshot);
+      expect(serialized.spanLinkPrivateParams).toEqual({
+        __spanId: "span-snapshot",
+        __traceId: "trace-snapshot",
+      });
+    });
   });
 
   describe("WORKFLOW_DESERIALIZE", () => {

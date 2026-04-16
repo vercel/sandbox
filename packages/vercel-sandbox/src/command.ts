@@ -19,6 +19,8 @@ export interface SerializedCommand {
   cmd: CommandData;
   /** Cached output, included if output was fetched before serialization */
   output?: CommandOutput;
+  /** Private params used to preserve trace/span links across calls */
+  spanLinkPrivateParams?: Record<string, unknown>;
 }
 
 /**
@@ -67,6 +69,7 @@ export class Command {
    * ID of the sandbox this command is running in.
    */
   protected sandboxId: string;
+  protected spanLinkPrivateParams: Record<string, unknown>;
 
   /**
    * Data for the command execution.
@@ -109,21 +112,25 @@ export class Command {
    * @param params.sandboxId - The ID of the sandbox where the command is running.
    * @param params.cmd - The command data.
    * @param params.output - Optional cached output to restore (used during deserialization).
+   * @param params.spanLinkPrivateParams - Optional private params for trace/span propagation.
    */
   constructor({
     client,
     sandboxId,
     cmd,
     output,
+    spanLinkPrivateParams,
   }: {
     client?: APIClient;
     sandboxId: string;
     cmd: CommandData;
     output?: CommandOutput;
+    spanLinkPrivateParams?: Record<string, unknown>;
   }) {
     this._client = client ?? null;
     this.sandboxId = sandboxId;
     this.cmd = cmd;
+    this.spanLinkPrivateParams = spanLinkPrivateParams ?? {};
     this.exitCode = cmd.exitCode ?? null;
     if (output) {
       this._resolvedOutput = output;
@@ -151,6 +158,9 @@ export class Command {
     if (instance._resolvedOutput) {
       serialized.output = instance._resolvedOutput;
     }
+    if (Object.keys(instance.spanLinkPrivateParams).length > 0) {
+      serialized.spanLinkPrivateParams = instance.spanLinkPrivateParams;
+    }
     return serialized;
   }
 
@@ -168,6 +178,7 @@ export class Command {
       sandboxId: data.sandboxId,
       cmd: data.cmd,
       output: data.output,
+      spanLinkPrivateParams: data.spanLinkPrivateParams,
     });
   }
 
@@ -201,6 +212,7 @@ export class Command {
       sandboxId: this.sandboxId,
       cmdId: this.cmd.id,
       signal: opts?.signal,
+      ...this.spanLinkPrivateParams,
     });
   }
 
@@ -233,6 +245,7 @@ export class Command {
       cmdId: this.cmd.id,
       wait: true,
       signal: params?.signal,
+      ...this.spanLinkPrivateParams,
     });
 
     return new CommandFinished({
@@ -240,6 +253,7 @@ export class Command {
       sandboxId: this.sandboxId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
+      spanLinkPrivateParams: this.spanLinkPrivateParams,
     });
   }
 
@@ -350,6 +364,7 @@ export class Command {
       commandId: this.cmd.id,
       signal: resolveSignal(signal ?? "SIGTERM"),
       abortSignal: opts?.abortSignal,
+      ...this.spanLinkPrivateParams,
     });
   }
 }
@@ -384,6 +399,7 @@ export class CommandFinished extends Command {
     cmd: CommandData;
     exitCode: number;
     output?: CommandOutput;
+    spanLinkPrivateParams?: Record<string, unknown>;
   }) {
     super({ ...params });
     this.exitCode = params.exitCode;
@@ -421,6 +437,7 @@ export class CommandFinished extends Command {
       cmd: data.cmd,
       exitCode: data.exitCode,
       output: data.output,
+      spanLinkPrivateParams: data.spanLinkPrivateParams,
     });
   }
 
