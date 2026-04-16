@@ -791,6 +791,7 @@ export class APIClient extends BaseClient {
     networkPolicy?: NetworkPolicy;
     tags?: Record<string, string>;
     snapshotExpiration?: number;
+    currentSnapshotId?: string;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -810,6 +811,7 @@ export class APIClient extends BaseClient {
             : undefined,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
+          currentSnapshotId: params.currentSnapshotId,
         }),
         signal: params.signal,
       }),

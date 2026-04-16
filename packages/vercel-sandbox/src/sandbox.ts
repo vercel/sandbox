@@ -993,6 +993,7 @@ export class Sandbox {
       networkPolicy?: NetworkPolicy;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      currentSnapshotId?: string;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -1016,6 +1017,7 @@ export class Sandbox {
       networkPolicy: params.networkPolicy,
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
+      currentSnapshotId: params.currentSnapshotId,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;
