@@ -1,5 +1,11 @@
 # sandbox
 
+## 2.5.11
+
+### Patch Changes
+
+- Improve timeout hour format and example values ([#150](https://github.com/vercel/sandbox/pull/150))
+
 ## 2.5.10
 
 ### Patch Changes
