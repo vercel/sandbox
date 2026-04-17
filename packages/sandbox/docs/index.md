@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.15
+sandbox 3.0.0-beta.16
 
 ▲ sandbox [options] <command>
 
@@ -348,6 +348,7 @@ Commands:
     persistent           <name> <true|false>     Enable or disable automatic restore of the filesystem between sessions
     network-policy       <name>                  Update the network policy of a sandbox
     snapshot-expiration  <name> <DURATION|none>  Update the default snapshot expiration of a sandbox
+    current-snapshot     <name> <snapshot_id>    Update the current snapshot of a sandbox
     tags                 <name>                  Update the tags of a sandbox. Replaces all existing tags with the provided tags.
 ```
 
