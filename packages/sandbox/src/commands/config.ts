@@ -1,6 +1,7 @@
 import * as cmd from "cmd-ts";
-import type { Sandbox } from "@vercel/sandbox";
+import { APIError, type Sandbox } from "@vercel/sandbox";
 import { sandboxName } from "../args/sandbox-name";
+import { snapshotId } from "../args/snapshot-id";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import {
@@ -17,6 +18,7 @@ import chalk from "chalk";
 import ms from "ms";
 import { table } from "../util/output";
 import { acquireRelease } from "../util/disposables";
+import { StyledError } from "../error";
 
 const vcpusCommand = cmd.command({
   name: "vcpus",
@@ -200,6 +202,61 @@ const snapshotExpirationCommand = cmd.command({
   },
 });
 
+const currentSnapshotCommand = cmd.command({
+  name: "current-snapshot",
+  description: "Update the current snapshot of a sandbox",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    snapshotId: cmd.positional({
+      type: snapshotId,
+      description: "Snapshot ID to set as the current snapshot",
+    }),
+    scope,
+  },
+  async handler({
+    scope: { token, team, project },
+    sandbox: name,
+    snapshotId,
+  }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ currentSnapshotId: snapshotId });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " +
+          chalk.cyan(name) +
+          "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "current-snapshot: " + chalk.cyan(snapshotId) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      if (
+        error instanceof APIError &&
+        error.response.status === 404
+      ) {
+        throw new StyledError(
+          `Snapshot '${snapshotId}' was not found or does not belong to this project.`,
+          error,
+        );
+      }
+      throw error;
+    }
+  },
+});
+
 const listCommand = cmd.command({
   name: "list",
   description: "Display the current configuration of a sandbox",
@@ -234,6 +291,7 @@ const listCommand = cmd.command({
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
       { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
+      { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
       { field: "Tags", value: tagsDisplay },
     ];
 
@@ -384,6 +442,7 @@ export const config = cmd.subcommands({
     persistent: persistentCommand,
     "network-policy": networkPolicyCommand,
     "snapshot-expiration": snapshotExpirationCommand,
+    "current-snapshot": currentSnapshotCommand,
     tags: tagsCommand,
   },
 });

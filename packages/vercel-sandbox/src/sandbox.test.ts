@@ -420,11 +420,14 @@ for (const port of ports) {
     expect(sandbox.snapshotExpiration).toBe(7 * 86400000);
     await sandbox.stop({ blocking: true });
 
+    const { id: snapshotId } = await sandbox.snapshot();
+
     await sandbox.update({
       resources: { vcpus: 4 },
       timeout: 30_000,
       persistent: false,
       snapshotExpiration: 2 * 86400000,
+      currentSnapshotId: snapshotId,
     });
 
     const updated = await Sandbox.get({
@@ -436,6 +439,7 @@ for (const port of ports) {
     expect(updated.timeout).toBe(30_000);
     expect(updated.persistent).toBe(false);
     expect(updated.snapshotExpiration).toBe(2 * 86400000);
+    expect(updated.currentSnapshotId).toBe(snapshotId);
   });
 
   it("appears in the sandbox list after creation", async () => {
