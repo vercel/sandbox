@@ -894,6 +894,7 @@ describe("APIClient", () => {
         persistent: true,
         timeout: 600000,
         snapshotExpiration: 604800000,
+        currentSnapshotId: "snap_abc123",
       });
 
       expect(result.json.sandbox.name).toBe("my-sandbox");
@@ -907,6 +908,7 @@ describe("APIClient", () => {
       expect(parsedBody.persistent).toBe(true);
       expect(parsedBody.timeout).toBe(600000);
       expect(parsedBody.snapshotExpiration).toBe(604800000);
+      expect(parsedBody.currentSnapshotId).toBe("snap_abc123");
     });
   });
 

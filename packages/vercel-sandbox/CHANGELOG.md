@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.14
+
+### Patch Changes
+
+- Support updading current-snapshot-id of an existing sandbox
+
 ## 2.0.0-beta.13
 
 ### Minor Changes
