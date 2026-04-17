@@ -12,7 +12,7 @@ import { Snapshot, type SerializedSnapshot } from "./snapshot";
 describe("Snapshot serialization", () => {
   const mockSnapshotMetadata: SnapshotMetadata = {
     id: "snap_test123",
-    sourceSandboxId: "sbx_source456",
+    sourceSessionId: "sbx_source456",
     region: "iad1",
     status: "created",
     sizeBytes: 253826392,
@@ -98,7 +98,7 @@ describe("Snapshot serialization", () => {
       const result = deserializeSnapshot(serialized);
 
       expect(result.snapshotId).toBe("snap_test123");
-      expect(result.sourceSandboxId).toBe("sbx_source456");
+      expect(result.sourceSessionId).toBe("sbx_source456");
       expect(result.status).toBe("created");
       expect(result.sizeBytes).toBe(253826392);
       expect(result.createdAt).toEqual(new Date(1775650621392));
@@ -118,7 +118,7 @@ describe("Snapshot serialization", () => {
       ) as Snapshot;
 
       expect(deserialized.snapshotId).toBe("snap_test123");
-      expect(deserialized.sourceSandboxId).toBe("sbx_source456");
+      expect(deserialized.sourceSessionId).toBe("sbx_source456");
       expect(deserialized.status).toBe("created");
     });
 
@@ -171,7 +171,7 @@ describe("Snapshot serialization", () => {
 
       expect(rehydrated).toBeInstanceOf(Snapshot);
       expect(rehydrated.snapshotId).toBe("snap_test123");
-      expect(rehydrated.sourceSandboxId).toBe("sbx_source456");
+      expect(rehydrated.sourceSessionId).toBe("sbx_source456");
     });
 
     it("preserves all metadata through runtime pipeline", async () => {
