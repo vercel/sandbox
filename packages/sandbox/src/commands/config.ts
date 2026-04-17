@@ -1,6 +1,7 @@
 import * as cmd from "cmd-ts";
-import type { Sandbox } from "@vercel/sandbox";
+import { APIError, type Sandbox } from "@vercel/sandbox";
 import { sandboxName } from "../args/sandbox-name";
+import { snapshotId } from "../args/snapshot-id";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import {
@@ -17,6 +18,7 @@ import chalk from "chalk";
 import ms from "ms";
 import { table } from "../util/output";
 import { acquireRelease } from "../util/disposables";
+import { StyledError } from "../error";
 
 const vcpusCommand = cmd.command({
   name: "vcpus",
@@ -209,7 +211,7 @@ const currentSnapshotCommand = cmd.command({
       description: "Sandbox name to update",
     }),
     snapshotId: cmd.positional({
-      type: cmd.string,
+      type: snapshotId,
       description: "Snapshot ID to set as the current snapshot",
     }),
     scope,
@@ -241,6 +243,15 @@ const currentSnapshotCommand = cmd.command({
       );
     } catch (error) {
       spinner.stop();
+      if (
+        error instanceof APIError &&
+        error.response.status === 404
+      ) {
+        throw new StyledError(
+          `Snapshot '${snapshotId}' was not found or does not belong to this project.`,
+          error,
+        );
+      }
       throw error;
     }
   },
