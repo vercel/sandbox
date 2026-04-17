@@ -53,7 +53,7 @@ describe("Snapshot serialization", () => {
       const serialized = serializeSnapshot(snapshot);
 
       expect(serialized.snapshot.id).toBe("snap_test123");
-      expect(serialized.snapshot.sourceSandboxId).toBe("sbx_source456");
+      expect(serialized.snapshot.sourceSessionId).toBe("sbx_source456");
       expect(serialized.snapshot.region).toBe("iad1");
       expect(serialized.snapshot.status).toBe("created");
       expect(serialized.snapshot.sizeBytes).toBe(253826392);
@@ -67,7 +67,7 @@ describe("Snapshot serialization", () => {
       const parsed = JSON.parse(jsonString);
 
       expect(parsed.snapshot.id).toBe("snap_test123");
-      expect(parsed.snapshot.sourceSandboxId).toBe("sbx_source456");
+      expect(parsed.snapshot.sourceSessionId).toBe("sbx_source456");
     });
 
     it("does not include the API client or credentials", () => {
