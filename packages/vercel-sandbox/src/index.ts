@@ -16,3 +16,11 @@ export type {
 export { StreamError } from "./api-client/api-error.js";
 export { APIError } from "./api-client/api-error.js";
 export { FileSystem } from "./filesystem.js";
+export type {
+  IFileSystem,
+  FileContent,
+  EncodingOption,
+  MkdirOptions,
+  RmOptions,
+  SignalOptions,
+} from "./filesystem-interface.js";

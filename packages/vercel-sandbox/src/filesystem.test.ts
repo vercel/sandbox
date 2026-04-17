@@ -74,6 +74,15 @@ describe("FileSystem", () => {
     });
   });
 
+  describe("readFileBuffer", () => {
+    it("returns the file content as a Buffer", async () => {
+      sandbox.readFileToBuffer.mockResolvedValue(Buffer.from("hello"));
+      const result = await fs.readFileBuffer("/test.txt");
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result.toString()).toBe("hello");
+    });
+  });
+
   describe("writeFile", () => {
     it("writes string data as utf8 Buffer", async () => {
       sandbox.writeFiles.mockResolvedValue(undefined);
@@ -187,6 +196,18 @@ describe("FileSystem", () => {
       await expect(fs.readdir("/missing")).rejects.toMatchObject({
         code: "ENOENT",
       });
+    });
+  });
+
+  describe("readdirWithFileTypes", () => {
+    it("returns Dirent entries", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult("file.txt|f\nsubdir|d\n"),
+      );
+      const result = await fs.readdirWithFileTypes("/mydir");
+      expect(result).toHaveLength(2);
+      expect(result[0].isFile()).toBe(true);
+      expect(result[1].isDirectory()).toBe(true);
     });
   });
 
@@ -326,12 +347,32 @@ describe("FileSystem", () => {
         expect.any(Object),
       );
     });
+
+    it("aliases mv to rename", async () => {
+      sandbox.runCommand.mockResolvedValue(mockCommandResult(""));
+      await fs.mv("/old.txt", "/new.txt");
+      expect(sandbox.runCommand).toHaveBeenCalledWith(
+        "mv",
+        ["/old.txt", "/new.txt"],
+        expect.any(Object),
+      );
+    });
   });
 
   describe("copyFile", () => {
     it("copies a file", async () => {
       sandbox.runCommand.mockResolvedValue(mockCommandResult(""));
       await fs.copyFile("/src.txt", "/dst.txt");
+      expect(sandbox.runCommand).toHaveBeenCalledWith(
+        "cp",
+        ["/src.txt", "/dst.txt"],
+        expect.any(Object),
+      );
+    });
+
+    it("aliases cp to copyFile", async () => {
+      sandbox.runCommand.mockResolvedValue(mockCommandResult(""));
+      await fs.cp("/src.txt", "/dst.txt");
       expect(sandbox.runCommand).toHaveBeenCalledWith(
         "cp",
         ["/src.txt", "/dst.txt"],

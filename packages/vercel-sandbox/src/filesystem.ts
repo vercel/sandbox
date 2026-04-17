@@ -1,5 +1,13 @@
 import type { Stats, Dirent } from "fs";
 import * as constants from "node:constants";
+import type {
+  EncodingOption,
+  FileContent,
+  IFileSystem,
+  MkdirOptions,
+  RmOptions,
+  SignalOptions,
+} from "./filesystem-interface.js";
 
 const {
   S_IFMT,
@@ -21,24 +29,6 @@ const UV_DIRENT_FIFO = 4;
 const UV_DIRENT_SOCKET = 5;
 const UV_DIRENT_CHAR = 6;
 const UV_DIRENT_BLOCK = 7;
-
-type EncodingOption =
-  | { encoding?: BufferEncoding | null; signal?: AbortSignal }
-  | BufferEncoding
-  | null;
-
-type WriteFileData = string | Buffer | Uint8Array;
-
-interface MkdirOptions {
-  recursive?: boolean;
-  signal?: AbortSignal;
-}
-
-interface RmOptions {
-  recursive?: boolean;
-  force?: boolean;
-  signal?: AbortSignal;
-}
 
 function fsError(
   code: string,
@@ -234,7 +224,7 @@ const FIND_TYPE_TO_DIRENT: Record<string, number> = {
   s: UV_DIRENT_SOCKET,
 };
 
-export class FileSystem {
+export class FileSystem implements IFileSystem {
   /** @internal */
   private sandbox: SandboxHandle;
 
@@ -273,6 +263,24 @@ export class FileSystem {
   }
 
   /**
+   * Read the entire contents of a file as a Buffer.
+   *
+   * This alias keeps the API close to just-bash's `IFileSystem`.
+   *
+   * @param path - Path to the file
+   * @param options - Options
+   */
+  async readFileBuffer(
+    path: string,
+    options?: SignalOptions,
+  ): Promise<Buffer> {
+    return (await this.readFile(path, {
+      encoding: null,
+      signal: options?.signal,
+    })) as Buffer;
+  }
+
+  /**
    * Write data to a file, replacing the file if it already exists.
    *
    * @param path - Path to the file
@@ -281,7 +289,7 @@ export class FileSystem {
    */
   async writeFile(
     path: string,
-    data: WriteFileData,
+    data: FileContent,
     options?:
       | { encoding?: BufferEncoding; signal?: AbortSignal }
       | BufferEncoding,
@@ -311,7 +319,7 @@ export class FileSystem {
    */
   async appendFile(
     path: string,
-    data: WriteFileData,
+    data: FileContent,
     options?:
       | { encoding?: BufferEncoding; signal?: AbortSignal }
       | BufferEncoding,
@@ -421,6 +429,24 @@ export class FileSystem {
     }
     const stdout = await result.stdout();
     return stdout.trim().split("\n").filter(Boolean);
+  }
+
+  /**
+   * Read directory entries as Dirent-like objects.
+   *
+   * This alias keeps the API close to just-bash's `IFileSystem`.
+   *
+   * @param path - Path to the directory
+   * @param options - Options
+   */
+  async readdirWithFileTypes(
+    path: string,
+    options?: SignalOptions,
+  ): Promise<Dirent[]> {
+    return this.readdir(path, {
+      withFileTypes: true,
+      signal: options?.signal,
+    });
   }
 
   /**
@@ -569,6 +595,19 @@ export class FileSystem {
   }
 
   /**
+   * Move/rename a file or directory.
+   *
+   * Alias for `rename` to keep parity with just-bash's `IFileSystem`.
+   *
+   * @param src - Current path
+   * @param dest - New path
+   * @param options - Options
+   */
+  async mv(src: string, dest: string, options?: SignalOptions): Promise<void> {
+    await this.rename(src, dest, options);
+  }
+
+  /**
    * Copy a file.
    *
    * @param src - Source path
@@ -591,6 +630,19 @@ export class FileSystem {
       }
       throw fsError("EACCES", stderr.trim(), "copyfile", src);
     }
+  }
+
+  /**
+   * Copy a file.
+   *
+   * Alias for `copyFile` to keep parity with just-bash's `IFileSystem`.
+   *
+   * @param src - Source path
+   * @param dest - Destination path
+   * @param options - Options
+   */
+  async cp(src: string, dest: string, options?: SignalOptions): Promise<void> {
+    await this.copyFile(src, dest, options);
   }
 
   /**
