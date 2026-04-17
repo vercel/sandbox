@@ -6,7 +6,6 @@ import type {
   IFileSystem,
   MkdirOptions,
   RmOptions,
-  SignalOptions,
 } from "./filesystem-interface.js";
 
 const {
@@ -263,24 +262,6 @@ export class FileSystem implements IFileSystem {
   }
 
   /**
-   * Read the entire contents of a file as a Buffer.
-   *
-   * This alias keeps the API close to just-bash's `IFileSystem`.
-   *
-   * @param path - Path to the file
-   * @param options - Options
-   */
-  async readFileBuffer(
-    path: string,
-    options?: SignalOptions,
-  ): Promise<Buffer> {
-    return (await this.readFile(path, {
-      encoding: null,
-      signal: options?.signal,
-    })) as Buffer;
-  }
-
-  /**
    * Write data to a file, replacing the file if it already exists.
    *
    * @param path - Path to the file
@@ -432,24 +413,6 @@ export class FileSystem implements IFileSystem {
   }
 
   /**
-   * Read directory entries as Dirent-like objects.
-   *
-   * This alias keeps the API close to just-bash's `IFileSystem`.
-   *
-   * @param path - Path to the directory
-   * @param options - Options
-   */
-  async readdirWithFileTypes(
-    path: string,
-    options?: SignalOptions,
-  ): Promise<Dirent[]> {
-    return this.readdir(path, {
-      withFileTypes: true,
-      signal: options?.signal,
-    });
-  }
-
-  /**
    * Get file status. Follows symbolic links.
    *
    * @param path - Path to the file
@@ -595,19 +558,6 @@ export class FileSystem implements IFileSystem {
   }
 
   /**
-   * Move/rename a file or directory.
-   *
-   * Alias for `rename` to keep parity with just-bash's `IFileSystem`.
-   *
-   * @param src - Current path
-   * @param dest - New path
-   * @param options - Options
-   */
-  async mv(src: string, dest: string, options?: SignalOptions): Promise<void> {
-    await this.rename(src, dest, options);
-  }
-
-  /**
    * Copy a file.
    *
    * @param src - Source path
@@ -630,19 +580,6 @@ export class FileSystem implements IFileSystem {
       }
       throw fsError("EACCES", stderr.trim(), "copyfile", src);
     }
-  }
-
-  /**
-   * Copy a file.
-   *
-   * Alias for `copyFile` to keep parity with just-bash's `IFileSystem`.
-   *
-   * @param src - Source path
-   * @param dest - Destination path
-   * @param options - Options
-   */
-  async cp(src: string, dest: string, options?: SignalOptions): Promise<void> {
-    await this.copyFile(src, dest, options);
   }
 
   /**

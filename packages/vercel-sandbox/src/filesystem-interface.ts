@@ -55,7 +55,6 @@ export interface IFileSystem {
       | BufferEncoding,
   ): Promise<string>;
   readFile(path: string, options?: EncodingOption): Promise<Buffer | string>;
-  readFileBuffer(path: string, options?: SignalOptions): Promise<Buffer>;
 
   writeFile(
     path: string,
@@ -95,16 +94,13 @@ export interface IFileSystem {
     path: string,
     options?: { signal?: AbortSignal; withFileTypes?: boolean },
   ): Promise<string[] | Dirent[]>;
-  readdirWithFileTypes(path: string, options?: SignalOptions): Promise<Dirent[]>;
 
   rm(path: string, options?: RmOptions): Promise<void>;
   rmdir(path: string, options?: SignalOptions): Promise<void>;
   unlink(path: string, options?: SignalOptions): Promise<void>;
 
   rename(oldPath: string, newPath: string, options?: SignalOptions): Promise<void>;
-  mv(src: string, dest: string, options?: SignalOptions): Promise<void>;
   copyFile(src: string, dest: string, options?: SignalOptions): Promise<void>;
-  cp(src: string, dest: string, options?: SignalOptions): Promise<void>;
 
   access(path: string, options?: SignalOptions): Promise<void>;
   chmod(path: string, mode: number | string, options?: SignalOptions): Promise<void>;
@@ -121,15 +117,4 @@ export interface IFileSystem {
 
   truncate(path: string, len?: number, options?: SignalOptions): Promise<void>;
   mkdtemp(prefix: string, options?: SignalOptions): Promise<string>;
-
-  // Optional helpers kept for closer parity with just-bash IFileSystem.
-  resolvePath?(base: string, path: string): string;
-  getAllPaths?(): string[];
-  link?(existingPath: string, newPath: string, options?: SignalOptions): Promise<void>;
-  utimes?(
-    path: string,
-    atime: Date,
-    mtime: Date,
-    options?: SignalOptions,
-  ): Promise<void>;
 }
