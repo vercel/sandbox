@@ -1,5 +1,11 @@
 # sandbox
 
+## 3.0.0-beta.17
+
+### Patch Changes
+
+- Improve timeout hour format and example values ([#156](https://github.com/vercel/sandbox/pull/156))
+
 ## 3.0.0-beta.16
 
 ### Patch Changes
