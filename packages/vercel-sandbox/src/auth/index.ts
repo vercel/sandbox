@@ -6,4 +6,4 @@ export type * from "./file.js";
 export * from "./oauth.js";
 export type * from "./oauth.js";
 export { pollForToken } from "./poll-for-token.js";
-export { inferScope, selectTeam } from "./project.js";
+export { inferScope } from "./project.js";
