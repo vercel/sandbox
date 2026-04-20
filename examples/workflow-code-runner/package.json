@@ -1,6 +1,6 @@
 {
   "name": "workflow-code-runner",
-  "version": "0.1.4-beta.1",
+  "version": "0.1.4",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -13,7 +13,7 @@
     "next": "16.0.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "workflow": "4.2.0-beta.73",
+    "workflow": "4.2.1",
     "zod": "^4.1.9"
   },
   "devDependencies": {

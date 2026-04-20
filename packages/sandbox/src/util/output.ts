@@ -1,4 +1,4 @@
-import { formatDistance } from "date-fns/formatDistance";
+import { formatDistanceStrict } from "date-fns/formatDistanceStrict";
 import chalk, { ChalkInstance } from "chalk";
 import { stripVTControlCharacters } from "node:util";
 
@@ -29,11 +29,9 @@ export function timeAgo(date: string | number | Date | undefined) {
     return '-';
   }
 
-  return formatDistance(date, new Date(), {
+  return formatDistanceStrict(date, new Date(), {
     addSuffix: true,
-  })
-    .replace("about ", "")
-    .replace("less than ", "");
+  });
 }
 
 export function table<T extends object>(opts: {

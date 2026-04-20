@@ -4,7 +4,12 @@ import { output } from "../util/output";
 import { default as open } from "open";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
-import { OAuth, pollForToken } from "@vercel/sandbox/dist/auth/index.js";
+import {
+  OAuth,
+  pollForToken,
+  getAuth,
+  inferScope,
+} from "@vercel/sandbox/dist/auth/index.js";
 import createDebugger from "debug";
 
 const debug = createDebugger("sandbox:login");
@@ -108,6 +113,30 @@ export const login = cmd.command({
       spinner.succeed(
         `${chalk.cyan("Congratulations!")} You are now signed in.`,
       );
+
+      const auth = getAuth();
+      if (auth?.token) {
+        try {
+          const { teamId, teamSlug, projectId, projectSlug } =
+            await inferScope({
+              token: auth.token,
+            });
+          process.stderr.write(
+            chalk.dim("   │ ") +
+              "team: " +
+              chalk.cyan(teamSlug ?? teamId) +
+              "\n",
+          );
+          process.stderr.write(
+            chalk.dim("   ╰ ") +
+              "project: " +
+              chalk.cyan(projectSlug ?? projectId) +
+              "\n",
+          );
+        } catch {
+          // Scope inference is best-effort; don't fail the login
+        }
+      }
     }
   },
 });

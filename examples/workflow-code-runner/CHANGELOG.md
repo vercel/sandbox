@@ -14,6 +14,13 @@
 - Updated dependencies []:
   - @vercel/sandbox@2.0.0-beta.12
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [[`9dc0ac96d1d531b5a44786c92d6ddc2ce4890791`](https://github.com/vercel/sandbox/commit/9dc0ac96d1d531b5a44786c92d6ddc2ce4890791), [`494c2ddae5899b7f793cbd906a2a62260bd08885`](https://github.com/vercel/sandbox/commit/494c2ddae5899b7f793cbd906a2a62260bd08885), [`3fbabb95946771e41d8b17b7f8cb8d2972beba25`](https://github.com/vercel/sandbox/commit/3fbabb95946771e41d8b17b7f8cb8d2972beba25), [`42515e1ede4468fad204e5332ade0ee5d8dce3e5`](https://github.com/vercel/sandbox/commit/42515e1ede4468fad204e5332ade0ee5d8dce3e5)]:
+  - @vercel/sandbox@1.10.0
+
 ## 0.1.3
 
 ### Patch Changes

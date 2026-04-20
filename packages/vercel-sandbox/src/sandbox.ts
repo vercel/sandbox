@@ -17,6 +17,7 @@ import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import type { NetworkPolicy } from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { setTimeout } from "node:timers/promises";
+import { FileSystem } from "./filesystem.js";
 
 export type { NetworkPolicy };
 
@@ -208,6 +209,17 @@ export class Sandbox {
    * Hook that will be executed when a new session is created during resume.
    */
   private readonly onResume?: (sandbox: Sandbox) => Promise<void>;
+
+  /**
+   * A `node:fs/promises`-compatible API for interacting with the sandbox filesystem.
+   *
+   * @example
+   * const content = await sandbox.fs.readFile('/etc/hostname', 'utf8');
+   * await sandbox.fs.writeFile('/tmp/hello.txt', 'Hello, world!');
+   * const files = await sandbox.fs.readdir('/tmp');
+   * const stats = await sandbox.fs.stat('/tmp/hello.txt');
+   */
+  public readonly fs: FileSystem;
 
   /**
    * Lazily resolve credentials and construct an API client.
@@ -587,6 +599,7 @@ export class Sandbox {
     this.sandbox = sandbox;
     this.projectId = projectId ?? "";
     this.onResume = onResume;
+    this.fs = new FileSystem(this);
   }
 
   /**

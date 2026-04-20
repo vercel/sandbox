@@ -420,7 +420,7 @@ for (const port of ports) {
     expect(sandbox.snapshotExpiration).toBe(7 * 86400000);
     await sandbox.stop({ blocking: true });
 
-    const { id: snapshotId } = await sandbox.snapshot();
+    const { snapshotId } = await sandbox.snapshot();
 
     await sandbox.update({
       resources: { vcpus: 4 },
