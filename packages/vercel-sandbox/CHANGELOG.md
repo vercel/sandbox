@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.15
+
+### Minor Changes
+
+- Remove support for blocking parameter in .stop() and default to always blocking. Improve CLI output when stopping a sandbox.
+
 ## 2.0.0-beta.14
 
 ### Patch Changes
