@@ -637,7 +637,6 @@ export class Session {
    */
   async stop(opts?: {
     signal?: AbortSignal;
-    blocking?: boolean;
   }): Promise<{
     session: SandboxSnapshot;
     sandbox?: SandboxMetaData;
@@ -648,7 +647,6 @@ export class Session {
     const response = await client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
-      blocking: opts?.blocking,
     });
     this.session = toSandboxSnapshot(response.json.session);
     return {

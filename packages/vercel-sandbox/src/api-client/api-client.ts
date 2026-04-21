@@ -41,7 +41,6 @@ import {
 } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { RUNTIMES } from "../constants.js";
-import { setTimeout } from "node:timers/promises";
 
 interface Claims {
   owner_id: string;
@@ -629,32 +628,12 @@ export class APIClient extends BaseClient {
   async stopSession(params: {
     sessionId: string;
     signal?: AbortSignal;
-    blocking?: boolean;
   }): Promise<Parsed<z.infer<typeof StopSessionResponse>>> {
     const url = `/v2/sandboxes/sessions/${params.sessionId}/stop`;
-    const response = await parseOrThrow(
+    return parseOrThrow(
       StopSessionResponse,
       await this.request(url, { method: "POST", signal: params.signal }),
     );
-
-    if (params.blocking) {
-      let session = response.json.session;
-      while (
-        session.status !== "stopped" &&
-        session.status !== "failed" &&
-        session.status !== "aborted"
-      ) {
-        await setTimeout(500, undefined, { signal: params.signal });
-        const poll = await this.getSession({
-          sessionId: params.sessionId,
-          signal: params.signal,
-        });
-        session = poll.json.session;
-        response.json.session = session;
-      }
-    }
-
-    return response;
   }
 
   async updateNetworkPolicy(params: {

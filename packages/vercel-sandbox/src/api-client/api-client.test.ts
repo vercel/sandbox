@@ -416,8 +416,26 @@ describe("APIClient", () => {
       updatedAt: Date.now(),
     });
 
+    const makeSandbox = () => ({
+      name: "my-sandbox",
+      persistent: true,
+      region: "iad1",
+      vcpus: 1,
+      memory: 2048,
+      runtime: "node24",
+      timeout: 300000,
+      totalActiveCpuDurationMs: 1200,
+      totalIngressBytes: 1200000,
+      totalEgressBytes: 3400000,
+      totalDurationMs: 45000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      currentSessionId: "sbx_123",
+      currentSnapshotId: "snap_456",
+      status: "stopped" as const,
+    });
+
     beforeEach(() => {
-      vi.useFakeTimers();
       mockFetch = vi.fn();
       client = new APIClient({
         teamId: "team_123",
@@ -426,107 +444,40 @@ describe("APIClient", () => {
       });
     });
 
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("returns immediately when blocking is not set", async () => {
+    it("returns session from stop response", async () => {
       mockFetch.mockResolvedValue(
-        new Response(JSON.stringify({ session: makeSession("stopping") }), {
+        new Response(JSON.stringify({ session: makeSession("stopped") }), {
           headers: { "content-type": "application/json" },
         }),
       );
 
       const result = await client.stopSession({ sessionId: "sbx_123" });
 
-      expect(result.json.session.status).toBe("stopping");
+      expect(result.json.session.status).toBe("stopped");
+      expect(result.json.sandbox).toBeUndefined();
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it("polls until stopped when blocking is true", async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ session: makeSession("stopping") }), {
-            headers: { "content-type": "application/json" },
-          }),
-        )
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({ session: makeSession("stopping"), routes: [] }),
-            { headers: { "content-type": "application/json" } },
-          ),
-        )
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({ session: makeSession("stopped"), routes: [] }),
-            { headers: { "content-type": "application/json" } },
-          ),
-        );
+    it("parses sandbox metadata from stop response", async () => {
+      const sandbox = makeSandbox();
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({ session: makeSession("stopped"), sandbox }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
 
-      const promise = client.stopSession({
-        sessionId: "sbx_123",
-        blocking: true,
-      });
+      const result = await client.stopSession({ sessionId: "sbx_123" });
 
-      // Advance past the two polling delays
-      await vi.advanceTimersByTimeAsync(500);
-      await vi.advanceTimersByTimeAsync(500);
-
-      const result = await promise;
       expect(result.json.session.status).toBe("stopped");
-      expect(mockFetch).toHaveBeenCalledTimes(3);
-    });
-
-    it("stops polling on failed status", async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ session: makeSession("stopping") }), {
-            headers: { "content-type": "application/json" },
-          }),
-        )
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({ session: makeSession("failed"), routes: [] }),
-            { headers: { "content-type": "application/json" } },
-          ),
-        );
-
-      const promise = client.stopSession({
-        sessionId: "sbx_123",
-        blocking: true,
-      });
-
-      await vi.advanceTimersByTimeAsync(500);
-
-      const result = await promise;
-      expect(result.json.session.status).toBe("failed");
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
-    it("stops polling on aborted status", async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ session: makeSession("stopping") }), {
-            headers: { "content-type": "application/json" },
-          }),
-        )
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({ session: makeSession("aborted"), routes: [] }),
-            { headers: { "content-type": "application/json" } },
-          ),
-        );
-
-      const promise = client.stopSession({
-        sessionId: "sbx_123",
-        blocking: true,
-      });
-
-      await vi.advanceTimersByTimeAsync(500);
-
-      const result = await promise;
-      expect(result.json.session.status).toBe("aborted");
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result.json.sandbox).toBeDefined();
+      expect(result.json.sandbox?.name).toBe("my-sandbox");
+      expect(result.json.sandbox?.totalActiveCpuDurationMs).toBe(1200);
+      expect(result.json.sandbox?.totalIngressBytes).toBe(1200000);
+      expect(result.json.sandbox?.totalEgressBytes).toBe(3400000);
+      expect(result.json.sandbox?.totalDurationMs).toBe(45000);
+      expect(result.json.sandbox?.currentSnapshotId).toBe("snap_456");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
