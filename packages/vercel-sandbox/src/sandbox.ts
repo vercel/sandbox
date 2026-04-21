@@ -3,6 +3,7 @@ import type {
   SessionMetaData,
   SandboxRouteData,
   SandboxMetaData,
+  SnapshotMetadata,
 } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { APIError } from "./api-client/api-error.js";
@@ -883,18 +884,20 @@ export class Sandbox {
    *
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @param opts.blocking - If true, poll until the sandbox has fully stopped and return the final state.
-   * @returns The sandbox at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
+   * @returns The final session state after stopping, with optional snapshot metadata.
    */
   async stop(opts?: {
     signal?: AbortSignal;
-    blocking?: boolean;
-  }): Promise<SandboxSnapshot> {
+  }): Promise<SandboxSnapshot & { snapshot?: SnapshotMetadata }> {
     "use step";
     if (!this.session) {
       throw new Error("No active session to stop.");
     }
-    return this.session.stop(opts);
+    const { session, sandbox, snapshot } = await this.session.stop(opts);
+    if (sandbox) {
+      this.sandbox = sandbox;
+    }
+    return Object.assign(session, { snapshot });
   }
 
   /**

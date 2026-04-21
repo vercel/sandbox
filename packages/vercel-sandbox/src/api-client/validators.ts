@@ -189,6 +189,12 @@ export const Sandbox = z.object({
 
 export type SandboxMetaData = z.infer<typeof Sandbox>;
 
+export const StopSessionResponse = z.object({
+  session: Session.passthrough(),
+  sandbox: Sandbox.optional(),
+  snapshot: Snapshot.optional(),
+});
+
 export const SandboxAndSessionResponse = z.object({
   sandbox: Sandbox,
   session: Session.passthrough(),

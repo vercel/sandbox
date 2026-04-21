@@ -1,5 +1,18 @@
 # sandbox
 
+## 3.0.0-beta.17
+
+### Minor Changes
+
+- Remove support for blocking parameter in .stop() and default to always blocking. Improve CLI output when stopping a sandbox.
+
+### Patch Changes
+
+- Improve timeout hour format and example values ([#156](https://github.com/vercel/sandbox/pull/156))
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.15
+
 ## 3.0.0-beta.16
 
 ### Patch Changes

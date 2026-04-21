@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.16
+sandbox 3.0.0-beta.17
 
 ▲ sandbox [options] <command>
 
@@ -80,7 +80,7 @@ Options:
 
     --name <str>                           A user-chosen name for the sandbox. It must be unique per project. [optional]
     --runtime <runtime>                    One of 'node22', 'node24', 'python3.13' [default: node24]
-    --timeout <num UNIT>                   The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --timeout <num UNIT>                   The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                        Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>       Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>           Start the sandbox from a snapshot ID [optional]
@@ -134,7 +134,7 @@ Options:
 
     --name <str>                           A user-chosen name for the sandbox. It must be unique per project. [optional]
     --runtime <runtime>                    One of 'node22', 'node24', 'python3.13' [default: node24]
-    --timeout <num UNIT>                   The maximum duration a sandbox can run for. Example: 5m, 1h [default: 5 minutes]
+    --timeout <num UNIT>                   The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                        Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>       Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>           Start the sandbox from a snapshot ID [optional]
