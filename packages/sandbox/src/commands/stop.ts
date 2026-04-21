@@ -9,71 +9,75 @@ import { formatBytes, formatRunDuration, timeAgo } from "../util/output";
 
 type StopResult = Awaited<ReturnType<Sandbox["stop"]>>;
 
+/** Label/value pair; null means empty (used for column alignment). */
 type Cell = { label: string; value: string } | null;
 
-function cell(label: string, value: string): Cell {
+function c(label: string, value: string): Cell {
   return { label, value };
+}
+
+/** Visible width of a cell (label + value, no ANSI). */
+function cellWidth(cell: Cell): number {
+  return cell ? cell.label.length + cell.value.length : 0;
+}
+
+/** Print rows as a tree with column-aligned label: value pairs. */
+function printTree(rows: Cell[][]) {
+  // Column widths
+  const widths: number[] = [];
+  for (const row of rows) {
+    for (let i = 0; i < row.length; i++) {
+      widths[i] = Math.max(widths[i] ?? 0, cellWidth(row[i]));
+    }
+  }
+
+  for (let r = 0; r < rows.length; r++) {
+    const isLast = r === rows.length - 1;
+    const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
+    const line = rows[r]
+      .map((cell, i) => {
+        if (!cell) return " ".repeat(widths[i]);
+        const pad = widths[i] - cell.label.length - cell.value.length;
+        return cell.label + chalk.cyan(cell.value) + " ".repeat(Math.max(0, pad));
+      })
+      .join("  ")
+      .trimEnd();
+    process.stderr.write(prefix + line + "\n");
+  }
 }
 
 function printStopResult(name: string, sandbox: Sandbox, sessionSnapshot: StopResult) {
   process.stderr.write(chalk.green("✔") + " Sandbox stopped.\n");
 
-  // Build rows as cells with label/value pairs
-  const sbxRow: Cell[] = [
-    cell("sandbox: ", name),
-    sandbox.totalActiveCpuDurationMs != null ? cell("active cpu: ", formatRunDuration(sandbox.totalActiveCpuDurationMs)) : null,
-    sandbox.memory != null ? cell("mem: ", `${sandbox.memory} MB`) : null,
-    sandbox.totalDurationMs != null ? cell("duration: ", formatRunDuration(sandbox.totalDurationMs)) : null,
-    sandbox.totalIngressBytes != null ? cell("ingress: ", formatBytes(sandbox.totalIngressBytes)) : null,
-    sandbox.totalEgressBytes != null ? cell("egress: ", formatBytes(sandbox.totalEgressBytes)) : null,
-  ];
-
-  const sessRow: Cell[] = [
-    cell("session: ", sessionSnapshot.id),
-    sessionSnapshot.activeCpuDurationMs != null ? cell("active cpu: ", formatRunDuration(sessionSnapshot.activeCpuDurationMs)) : null,
-    cell("mem: ", `${sessionSnapshot.memory} MB`),
-    sessionSnapshot.duration != null ? cell("duration: ", formatRunDuration(sessionSnapshot.duration)) : null,
-    sessionSnapshot.networkTransfer ? cell("ingress: ", formatBytes(sessionSnapshot.networkTransfer.ingress)) : null,
-    sessionSnapshot.networkTransfer ? cell("egress: ", formatBytes(sessionSnapshot.networkTransfer.egress)) : null,
-  ];
-
   const snapshot = sessionSnapshot.snapshot;
-  const snapRow: Cell[] = snapshot
-    ? [
-        cell("snapshot: ", snapshot.id),
-        cell("size: ", formatBytes(snapshot.sizeBytes)),
-        cell("expires: ", snapshot.expiresAt ? timeAgo(snapshot.expiresAt) : "never"),
-      ]
-    : [];
 
-  const rows = [sbxRow, sessRow, ...(snapRow.length ? [snapRow] : [])];
+  const rows: Cell[][] = [
+    [
+      c("sandbox: ", name),
+      sandbox.totalActiveCpuDurationMs != null ? c("active cpu: ", formatRunDuration(sandbox.totalActiveCpuDurationMs)) : null,
+      sandbox.memory != null ? c("mem: ", `${sandbox.memory} MB`) : null,
+      sandbox.totalDurationMs != null ? c("duration: ", formatRunDuration(sandbox.totalDurationMs)) : null,
+      sandbox.totalIngressBytes != null ? c("ingress: ", formatBytes(sandbox.totalIngressBytes)) : null,
+      sandbox.totalEgressBytes != null ? c("egress: ", formatBytes(sandbox.totalEgressBytes)) : null,
+    ],
+    [
+      c("session: ", sessionSnapshot.id),
+      sessionSnapshot.activeCpuDurationMs != null ? c("active cpu: ", formatRunDuration(sessionSnapshot.activeCpuDurationMs)) : null,
+      c("mem: ", `${sessionSnapshot.memory} MB`),
+      sessionSnapshot.duration != null ? c("duration: ", formatRunDuration(sessionSnapshot.duration)) : null,
+      sessionSnapshot.networkTransfer ? c("ingress: ", formatBytes(sessionSnapshot.networkTransfer.ingress)) : null,
+      sessionSnapshot.networkTransfer ? c("egress: ", formatBytes(sessionSnapshot.networkTransfer.egress)) : null,
+    ],
+    ...(snapshot
+      ? [[
+          c("snapshot: ", snapshot.id),
+          c("size: ", formatBytes(snapshot.sizeBytes)),
+          c("expires: ", snapshot.expiresAt ? timeAgo(snapshot.expiresAt) : "never"),
+        ]]
+      : []),
+  ];
 
-  // Compute column widths based on visible text (label + value)
-  const colCount = Math.max(...rows.map((r) => r.length));
-  const colWidths = Array.from<number>({ length: colCount }).fill(0);
-  for (const row of rows) {
-    for (let i = 0; i < row.length; i++) {
-      const c = row[i];
-      if (c) {
-        colWidths[i] = Math.max(colWidths[i], c.label.length + c.value.length);
-      }
-    }
-  }
-
-  const formatRow = (row: Cell[], isLast: boolean) => {
-    const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
-    const cells = row.map((c, i) => {
-      if (!c) return " ".repeat(colWidths[i]);
-      const padding = colWidths[i] - c.label.length - c.value.length;
-      return c.label + chalk.cyan(c.value) + (padding > 0 ? " ".repeat(padding) : "");
-    });
-    return prefix + cells.join("  ").trimEnd() + "\n";
-  };
-
-  const totalRows = rows.length;
-  for (let i = 0; i < totalRows; i++) {
-    process.stderr.write(formatRow(rows[i], i === totalRows - 1));
-  }
+  printTree(rows);
 }
 
 export const stop = cmd.command({
