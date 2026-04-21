@@ -1,5 +1,5 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import { type SessionMetaData, type SandboxRouteData, APIClient } from "./api-client/index.js";
+import { type SessionMetaData, type SandboxRouteData, type SandboxMetaData, type SnapshotMetadata, APIClient } from "./api-client/index.js";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
@@ -627,22 +627,19 @@ export class Session {
    *
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the operation.
-   * @param opts.blocking - If true, poll until the session has fully stopped and return the final state.
-   * @returns The session at the time the stop was acknowledged, or after fully stopped if `blocking` is true.
+   * @returns The final session state and optional sandbox metadata.
    */
   async stop(opts?: {
     signal?: AbortSignal;
-    blocking?: boolean;
-  }): Promise<SandboxSnapshot> {
+  }): Promise<{ session: SandboxSnapshot; sandbox?: SandboxMetaData; snapshot?: SnapshotMetadata }> {
     "use step";
     const client = await this.ensureClient();
     const response = await client.stopSession({
       sessionId: this.session.id,
       signal: opts?.signal,
-      blocking: opts?.blocking,
     });
     this.session = toSandboxSnapshot(response.json.session);
-    return this.session;
+    return { session: this.session, sandbox: response.json.sandbox, snapshot: response.json.snapshot };
   }
 
   /**
