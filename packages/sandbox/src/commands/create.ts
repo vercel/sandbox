@@ -5,8 +5,9 @@ import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
 import { scope } from "../args/scope";
-import { sandboxClient } from "../client";
+import { sandboxClient, snapshotClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
+import { sandboxName } from "../args/sandbox-name";
 import ora from "ora";
 import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
@@ -59,6 +60,12 @@ export const args = {
     description: "Start the sandbox from a snapshot ID",
     type: cmd.optional(snapshotId),
   }),
+  sandboxSnapshot: cmd.option({
+    long: "sandbox-snapshot",
+    description:
+      "Start the sandbox from another sandbox's current snapshot",
+    type: cmd.optional(sandboxName),
+  }),
   connect: cmd.flag({
     long: "connect",
     description:
@@ -105,6 +112,7 @@ export const create = cmd.command({
     vcpus,
     silent,
     snapshot,
+    sandboxSnapshot,
     connect,
     envVars,
     tags,
@@ -114,6 +122,15 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
+    if (snapshot && sandboxSnapshot) {
+      throw new Error(
+        [
+          `Cannot use --snapshot and --sandbox-snapshot together.`,
+          `${chalk.bold("hint:")} Pick one source for the new sandbox.`,
+        ].join("\n"),
+      );
+    }
+
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
@@ -124,11 +141,20 @@ export const create = cmd.command({
     const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
+    const resolvedSnapshot =
+      snapshot ??
+      (sandboxSnapshot
+        ? await snapshotClient.fromSandbox(sandboxSnapshot, {
+            teamId: scope.team,
+            projectId: scope.project,
+            token: scope.token,
+          })
+        : undefined);
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
-    const sandbox = snapshot
+    const sandbox = resolvedSnapshot
       ? await sandboxClient.create({
           name,
-          source: { type: "snapshot", snapshotId: snapshot },
+          source: { type: "snapshot", snapshotId: resolvedSnapshot },
           teamId: scope.team,
           projectId: scope.project,
           token: scope.token,

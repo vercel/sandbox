@@ -2,6 +2,7 @@ import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { SnapshotMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
+import { Sandbox } from "./sandbox.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 
 export interface SerializedSnapshot {
@@ -157,6 +158,45 @@ export class Snapshot {
       ...params,
     });
     return response.json;
+  }
+
+  /**
+   * Resolve the current snapshot ID of an existing sandbox by name.
+   *
+   * Useful to feed into {@link Sandbox.create} as `source.snapshotId` without
+   * having to first look up the sandbox yourself.
+   *
+   * @param name - The name of the source sandbox.
+   * @param opts - Optional credentials, fetch override, and abort signal.
+   * @returns The current snapshot ID of the named sandbox.
+   * @throws If the sandbox has no current snapshot.
+   *
+   * @example
+   * const sandbox = await Sandbox.create({
+   *   source: {
+   *     type: "snapshot",
+   *     snapshotId: await Snapshot.fromSandbox("my-sandbox"),
+   *   },
+   * });
+   */
+  static async fromSandbox(
+    name: string,
+    opts?: Partial<Credentials> & WithFetchOptions & { signal?: AbortSignal },
+  ): Promise<string> {
+    "use step";
+    const sandbox = await Sandbox.get({
+      name,
+      resume: false,
+      signal: opts?.signal,
+      fetch: opts?.fetch,
+      teamId: opts?.teamId,
+      projectId: opts?.projectId,
+      token: opts?.token,
+    });
+    if (!sandbox.currentSnapshotId) {
+      throw new Error(`Sandbox "${name}" has no current snapshot.`);
+    }
+    return sandbox.currentSnapshotId;
   }
 
   /**

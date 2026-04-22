@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.18
+
+### Minor Changes
+
+- Support --sandbox-snapshot parameter in the CLI, and new Snapshot.fromSandbox(...) method
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.16
+
 ## 3.0.0-beta.17
 
 ### Minor Changes
