@@ -146,8 +146,40 @@ interface GetSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
+/**
+ * Extends both {@link BaseCreateSandboxParams} and {@link GetSandboxParams}
+ * (minus `name`, which is required on get but optional here) so that any
+ * new parameter added to either flow is picked up automatically. The
+ * structural overlap on `signal` / `onResume` is intentional — both
+ * interfaces declare them with identical optional types.
+ * @inline
+ */
+interface GetOrCreateSandboxParams
+  extends BaseCreateSandboxParams,
+    Omit<GetSandboxParams, "name"> {
+  /**
+   * Called once after a sandbox is freshly created (not when an existing
+   * sandbox is retrieved). Use this for one-time setup such as seeding
+   * files or warming caches. The returned promise is awaited before
+   * {@link Sandbox.getOrCreate} resolves.
+   */
+  onCreate?: (sandbox: Sandbox) => Promise<void>;
+}
+
 function isSandboxStoppedError(err: unknown): boolean {
   return err instanceof APIError && err.response.status === 410;
+}
+
+function isNotFoundError(err: unknown): boolean {
+  return err instanceof APIError && err.response.status === 404;
+}
+
+function isSnapshotNotFoundError(err: unknown): boolean {
+  return (
+    err instanceof APIError &&
+    err.response.status === 400 &&
+    (err.json as any)?.error?.code === "snapshot_not_found"
+  );
 }
 
 function isSandboxStoppingError(err: unknown): boolean {
@@ -569,6 +601,103 @@ export class Sandbox {
     }
 
     return sandbox;
+  }
+
+  /**
+   * Retrieve an existing named sandbox, or create a new one if none exists.
+   *
+   * If `name` is omitted, this always creates a new sandbox and fires
+   * `onCreate`. If `name` is provided, it first tries {@link Sandbox.get};
+   * on `not_found` it creates a new sandbox with that name; on
+   * `snapshot_not_found` it deletes the stale named sandbox and creates
+   * a fresh one with the same name.
+   *
+   * @param params - Get/create parameters plus an optional `onCreate` hook.
+   * @returns A promise resolving to the {@link Sandbox}.
+   *
+   * @example
+   * <caption>Idempotent named sandbox with one-time setup</caption>
+   * const sandbox = await Sandbox.getOrCreate({
+   *   name: "my-workspace",
+   *   onCreate: async (sbx) => {
+   *     await sbx.writeFiles([
+   *       { path: "README.md", content: Buffer.from("# Hello") },
+   *     ]);
+   *   },
+   * });
+   *
+   * @example
+   * <caption>Unnamed — always creates</caption>
+   * const sandbox = await Sandbox.getOrCreate({
+   *   onCreate: async (sbx) => {
+   *     await sbx.runCommand("npm", ["install"]);
+   *   },
+   * });
+   */
+  static async getOrCreate(
+    params?: WithPrivate<
+      GetOrCreateSandboxParams | (GetOrCreateSandboxParams & Credentials)
+    > &
+      WithFetchOptions,
+  ): Promise<Sandbox> {
+    "use step";
+    // No name → always create, fire onCreate.
+    if (!params?.name) {
+      const sandbox = await Sandbox.create(params);
+      if (params?.onCreate) {
+        await params.onCreate(sandbox);
+      }
+      return sandbox;
+    }
+
+    try {
+      return await Sandbox.get(
+        params as unknown as Parameters<typeof Sandbox.get>[0],
+      );
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        // Sandbox does not exist: re-create it.
+        const sandbox = await Sandbox.create(params);
+        if (params.onCreate) {
+          await params.onCreate(sandbox);
+        }
+        return sandbox;
+      }
+
+      if (isSnapshotNotFoundError(err)) {
+        // Sandbox exists but the snapshot has expired. Delete it and create
+        // a new one.
+        const credentials = await getCredentials(params);
+        const client = new APIClient({
+          teamId: credentials.teamId,
+          token: credentials.token,
+          fetch: params.fetch,
+        });
+        const privateParams = getPrivateParams(params);
+        try {
+          await client.deleteSandbox({
+            name: params.name,
+            projectId: credentials.projectId,
+            signal: params.signal,
+            ...privateParams,
+          });
+        } catch (deleteErr) {
+          // Tolerate 404 — the named sandbox was already cleaned up by a
+          // concurrent request. Propagate anything else.
+          if (!isNotFoundError(deleteErr)) {
+            throw deleteErr;
+          }
+        }
+
+        const sandbox = await Sandbox.create(params);
+        if (params.onCreate) {
+          await params.onCreate(sandbox);
+        }
+        return sandbox;
+      }
+
+      throw err;
+    }
   }
 
   /**
