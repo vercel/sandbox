@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.17
+sandbox 3.0.0-beta.18
 
 ▲ sandbox [options] <command>
 
@@ -84,6 +84,7 @@ Options:
     --vcpus <COUNT>                        Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>       Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>           Start the sandbox from a snapshot ID [optional]
+    --sandbox-snapshot <name>              Start the sandbox from another sandbox's current snapshot [optional]
     --env <key=value>, -e=<key=value>      Environment variables to set for the command
     --tag <key=value>, -t=<key=value>      Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --snapshot-expiration <DURATION|none>  Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -138,6 +139,7 @@ Options:
     --vcpus <COUNT>                        Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>       Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>           Start the sandbox from a snapshot ID [optional]
+    --sandbox-snapshot <name>              Start the sandbox from another sandbox's current snapshot [optional]
     --env <key=value>, -e=<key=value>      Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>      Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --snapshot-expiration <DURATION|none>  Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]

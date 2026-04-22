@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.16
+
+### Minor Changes
+
+- Support --sandbox-snapshot parameter in the CLI, and new Snapshot.fromSandbox(...) method
+
 ## 2.0.0-beta.15
 
 ### Minor Changes
