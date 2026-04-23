@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.16
+
+### Minor Changes
+
+- Support new keepLast snapshots parameters for CLI and SDK
+
 ## 2.0.0-beta.15
 
 ### Minor Changes

@@ -176,6 +176,11 @@ export class APIClient extends BaseClient {
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      snapshotKeepLast?: {
+        count: number;
+        expiration?: number;
+        deleteEvicted?: boolean;
+      };
       signal?: AbortSignal;
     }>,
   ) {
@@ -199,6 +204,7 @@ export class APIClient extends BaseClient {
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
+          snapshotKeepLast: params.snapshotKeepLast,
           ...privateParams,
         }),
         signal: params.signal,
@@ -690,12 +696,19 @@ export class APIClient extends BaseClient {
 
   async deleteSnapshot(params: {
     snapshotId: string;
+    forceDelete?: boolean;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof SnapshotResponse>>> {
     const url = `/v2/sandboxes/snapshots/${params.snapshotId}`;
     return parseOrThrow(
       SnapshotResponse,
-      await this.request(url, { method: "DELETE", signal: params.signal }),
+      await this.request(url, {
+        method: "DELETE",
+        query: {
+          forceDelete: params.forceDelete ? "true" : undefined,
+        },
+        signal: params.signal,
+      }),
     );
   }
 
@@ -771,6 +784,11 @@ export class APIClient extends BaseClient {
     networkPolicy?: NetworkPolicy;
     tags?: Record<string, string>;
     snapshotExpiration?: number;
+    snapshotKeepLast?: {
+      count: number;
+      expiration?: number;
+      deleteEvicted?: boolean;
+    } | null;
     currentSnapshotId?: string;
     signal?: AbortSignal;
   }) {
@@ -791,6 +809,7 @@ export class APIClient extends BaseClient {
             : undefined,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
+          snapshotKeepLast: params.snapshotKeepLast,
           currentSnapshotId: params.currentSnapshotId,
         }),
         signal: params.signal,
