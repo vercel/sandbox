@@ -2,6 +2,10 @@
 
 ## 3.0.0-beta.18
 
+### Minor Changes
+
+- Support pagination (CLI and SDK) when listing sandboxes, snapshots, sessions
+
 ### Patch Changes
 
 - Updated dependencies []:
