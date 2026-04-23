@@ -8,7 +8,7 @@ import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
 import { snapshotClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { formatBytes, table, timeAgo } from "../util/output";
+import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
 
 const list = cmd.command({
   name: "list",
@@ -26,22 +26,32 @@ const list = cmd.command({
       description: "Sort order. Options: asc, desc (default)",
       type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
     }),
+    limit: cmd.option({
+      long: "limit",
+      description: "Maximum number of snapshots per page (default 50).",
+      type: cmd.optional(cmd.number),
+    }),
+    cursor: cmd.option({
+      long: "cursor",
+      description: "Pagination cursor from a previous 'More results' hint.",
+      type: cmd.optional(cmd.string),
+    }),
   },
-  async handler({ scope: { token, team, project }, name, sortOrder }) {
-    const snapshots = await (async () => {
+  async handler({ scope: { token, team, project }, name, sortOrder, limit, cursor }) {
+    const { snapshots, pagination } = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching snapshots...").start(),
         (s) => s.stop(),
       );
-      const { snapshots } = await snapshotClient.list({
+      return snapshotClient.list({
         token,
         teamId: team,
         projectId: project,
         name,
-        limit: 50,
+        limit: limit ?? 50,
+        ...(cursor && { cursor }),
         ...(sortOrder && { sortOrder }),
       });
-      return snapshots;
     })();
 
     console.log(
@@ -65,6 +75,20 @@ const list = cmd.command({
         },
       }),
     );
+
+    if (pagination.next !== null) {
+      console.log(
+        formatNextCursorHint(
+          "sandbox snapshots list",
+          {
+            name,
+            "sort-order": sortOrder,
+            limit,
+          },
+          pagination.next,
+        ),
+      );
+    }
   },
 });
 
