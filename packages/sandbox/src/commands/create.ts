@@ -81,6 +81,35 @@ export const args = {
     type: cmd.optional(SnapshotExpiration),
     description: 'Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d',
   }),
+  keepLast: cmd.option({
+    long: "keep-last",
+    type: cmd.optional(
+      cmd.extendType(cmd.number, {
+        displayName: "COUNT",
+        async from(n) {
+          if (!Number.isInteger(n) || n < 1 || n > 10) {
+            throw new Error(
+              `Invalid --keep-last value: ${n}. Must be an integer between 1 and 10.`,
+            );
+          }
+          return n;
+        },
+      }),
+    ),
+    description:
+      "Keep only the N most recent snapshots of this sandbox (1-10).",
+  }),
+  keepLastFor: cmd.option({
+    long: "keep-last-for",
+    type: cmd.optional(SnapshotExpiration),
+    description:
+      'Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d',
+  }),
+  softEvict: cmd.flag({
+    long: "soft-evict",
+    description:
+      "Evicted snapshots keep the default expiration instead of being deleted immediately.",
+  }),
   ...networkPolicyArgs,
   scope,
 } as const;
@@ -109,6 +138,9 @@ export const create = cmd.command({
     envVars,
     tags,
     snapshotExpiration,
+    keepLast,
+    keepLastFor,
+    softEvict,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -120,6 +152,25 @@ export const create = cmd.command({
       allowedCIDRs,
       deniedCIDRs,
     });
+
+    if (keepLast === undefined && (keepLastFor !== undefined || softEvict)) {
+      throw new Error(
+        [
+          "--keep-last-for and --soft-evict require --keep-last.",
+          `${chalk.bold("hint:")} Pass --keep-last <count> to enable the retention policy.`,
+        ].join("\n"),
+      );
+    }
+
+    const snapshotKeepLastPayload =
+      keepLast !== undefined
+        ? {
+            count: keepLast,
+            expiration:
+              keepLastFor !== undefined ? ms(keepLastFor) : undefined,
+            deleteEvicted: softEvict ? false : undefined,
+          }
+        : undefined;
 
     const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
@@ -140,6 +191,7 @@ export const create = cmd.command({
           tags: tagsObj,
           persistent,
           snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
+          snapshotKeepLast: snapshotKeepLastPayload,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -156,6 +208,7 @@ export const create = cmd.command({
           tags: tagsObj,
           persistent,
           snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
+          snapshotKeepLast: snapshotKeepLastPayload,
           __interactive: true,
         });
     spinner?.stop();

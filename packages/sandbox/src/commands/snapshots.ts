@@ -124,9 +124,20 @@ const remove = cmd.command({
       type: snapshotId,
       description: "More snapshots IDs to delete",
     }),
+    force: cmd.flag({
+      long: "force",
+      short: "f",
+      description:
+        "Delete even if the snapshot is currently set as a sandbox's most recent snapshot. Skips the pre-flight status check.",
+    }),
     scope,
   },
-  async handler({ scope: { team, token, project }, snapshotId, snapshotIds }) {
+  async handler({
+    scope: { team, token, project },
+    snapshotId,
+    snapshotIds,
+    force,
+  }) {
     const tasks = Array.from(
       new Set([snapshotId, ...snapshotIds]),
       (snapshotId) => {
@@ -144,7 +155,7 @@ const remove = cmd.command({
                 `Snapshot ${snapshotId} is in status "${snapshot.status}" and cannot be deleted.`,
               );
             }
-            await snapshot.delete();
+            await snapshot.delete({ forceDelete: force });
           },
         };
       },

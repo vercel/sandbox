@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.17
+sandbox 3.0.0-beta.18
 
 ▲ sandbox [options] <command>
 
@@ -87,6 +87,8 @@ Options:
     --env <key=value>, -e=<key=value>      Environment variables to set for the command
     --tag <key=value>, -t=<key=value>      Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --snapshot-expiration <DURATION|none>  Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last <COUNT>                    Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-for <DURATION|none>        Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --network-policy <MODE>                Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
@@ -101,6 +103,7 @@ Flags:
     --non-persistent     Disable automatic restore of the filesystem between sessions. [optional]
     --silent             Don't write sandbox name to stdout [optional]
     --connect            Start an interactive shell session after creating the sandbox [optional]
+    --soft-evict         Evicted snapshots keep the default expiration instead of being deleted immediately. [optional]
     --sudo               Give extended privileges to the command. [optional]
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
@@ -141,6 +144,8 @@ Options:
     --env <key=value>, -e=<key=value>      Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>      Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --snapshot-expiration <DURATION|none>  Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last <COUNT>                    Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-for <DURATION|none>        Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --network-policy <MODE>                Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
@@ -154,6 +159,7 @@ Flags:
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
     --connect         Start an interactive shell session after creating the sandbox [optional]
+    --soft-evict      Evicted snapshots keep the default expiration instead of being deleted immediately. [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:
@@ -348,6 +354,7 @@ Commands:
     persistent           <name> <true|false>     Enable or disable automatic restore of the filesystem between sessions
     network-policy       <name>                  Update the network policy of a sandbox
     snapshot-expiration  <name> <DURATION|none>  Update the default snapshot expiration of a sandbox
+    keep-last            <name> [COUNT]          Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox
     current-snapshot     <name> <snapshot_id>    Update the current snapshot of a sandbox
     tags                 <name>                  Update the tags of a sandbox. Replaces all existing tags with the provided tags.
 ```
