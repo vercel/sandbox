@@ -104,11 +104,11 @@ const list = cmd.command({
       console.log(
         formatNextCursorHint(
           "sandbox sessions list",
-          [
-            { long: "all", value: all },
-            { long: "sort-order", value: sortOrder },
-            { long: "limit", value: limit },
-          ],
+          {
+            all,
+            "sort-order": sortOrder,
+            limit,
+          },
           pagination.next,
           [name],
         ),

@@ -80,11 +80,11 @@ const list = cmd.command({
       console.log(
         formatNextCursorHint(
           "sandbox snapshots list",
-          [
-            { long: "name", value: name },
-            { long: "sort-order", value: sortOrder },
-            { long: "limit", value: limit },
-          ],
+          {
+            name,
+            "sort-order": sortOrder,
+            limit,
+          },
           pagination.next,
         ),
       );

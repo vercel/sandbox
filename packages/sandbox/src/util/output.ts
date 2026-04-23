@@ -79,36 +79,37 @@ export function formatRunDuration(d: number): string {
   return `${d/1000}s`
 }
 
-type CursorHintFlagValue = string | number | boolean | string[] | undefined;
+type FlagValue = string | number | boolean | string[] | undefined;
 
 export function formatNextCursorHint(
-  commandPath: string,
-  flags: Array<{ long: string; value: CursorHintFlagValue }>,
+  command: string,
+  flags: Record<string, FlagValue>,
   cursor: string,
   positionals: string[] = [],
 ): string {
-  const parts: string[] = [commandPath];
-  for (const p of positionals) {
-    parts.push(shellEscape(p));
-  }
-  for (const { long, value } of flags) {
-    if (value === undefined || value === false) continue;
+  const parts = [command, ...positionals.map(shellEscape)];
+  for (const [name, value] of Object.entries(flags)) {
+    if (value === undefined || value === false) {
+      continue;
+    }
+
     if (value === true) {
-      parts.push(`--${long}`);
+      parts.push(`--${name}`);
     } else if (Array.isArray(value)) {
       for (const v of value) {
-        parts.push(`--${long}`, shellEscape(String(v)));
+        parts.push(`--${name}`, shellEscape(v));
       }
     } else {
-      parts.push(`--${long}`, shellEscape(String(value)));
+      parts.push(`--${name}`, shellEscape(String(value)));
     }
   }
+
   parts.push("--cursor", shellEscape(cursor));
   return `More results: ${parts.join(" ")}`;
 }
 
 function shellEscape(value: string): string {
-  if (value.length > 0 && /^[A-Za-z0-9_\-.:/=@]+$/.test(value)) {
+  if (/^[\w\-.:/=@]+$/.test(value)) {
     return value;
   }
   return `'${value.replace(/'/g, `'\\''`)}'`;

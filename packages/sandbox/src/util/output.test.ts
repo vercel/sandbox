@@ -6,10 +6,7 @@ describe("formatNextCursorHint", () => {
     expect(
       formatNextCursorHint(
         "sandbox list",
-        [
-          { long: "all", value: false },
-          { long: "name-prefix", value: undefined },
-        ],
+        { all: false, "name-prefix": undefined },
         "cur123",
       ),
     ).toBe("More results: sandbox list --cursor cur123");
@@ -17,11 +14,7 @@ describe("formatNextCursorHint", () => {
 
   it("renders boolean flags without a value", () => {
     expect(
-      formatNextCursorHint(
-        "sandbox list",
-        [{ long: "all", value: true }],
-        "cur1",
-      ),
+      formatNextCursorHint("sandbox list", { all: true }, "cur1"),
     ).toBe("More results: sandbox list --all --cursor cur1");
   });
 
@@ -29,11 +22,11 @@ describe("formatNextCursorHint", () => {
     expect(
       formatNextCursorHint(
         "sandbox list",
-        [
-          { long: "name-prefix", value: "ci-" },
-          { long: "limit", value: 10 },
-          { long: "tag", value: ["env=prod", "team=core"] },
-        ],
+        {
+          "name-prefix": "ci-",
+          limit: 10,
+          tag: ["env=prod", "team=core"],
+        },
         "cur9",
       ),
     ).toBe(
@@ -45,7 +38,7 @@ describe("formatNextCursorHint", () => {
     expect(
       formatNextCursorHint(
         "sandbox list",
-        [{ long: "name-prefix", value: "has space" }],
+        { "name-prefix": "has space" },
         "cur",
       ),
     ).toBe("More results: sandbox list --name-prefix 'has space' --cursor cur");
@@ -55,7 +48,7 @@ describe("formatNextCursorHint", () => {
     expect(
       formatNextCursorHint(
         "sandbox sessions list",
-        [{ long: "limit", value: 5 }],
+        { limit: 5 },
         "abc",
         ["my-sandbox"],
       ),
@@ -66,7 +59,7 @@ describe("formatNextCursorHint", () => {
 
   it("shell-escapes positional arguments with special chars", () => {
     expect(
-      formatNextCursorHint("sandbox sessions list", [], "cur", ["has space"]),
+      formatNextCursorHint("sandbox sessions list", {}, "cur", ["has space"]),
     ).toBe("More results: sandbox sessions list 'has space' --cursor cur");
   });
 
@@ -74,7 +67,7 @@ describe("formatNextCursorHint", () => {
     expect(
       formatNextCursorHint(
         "sandbox list",
-        [{ long: "name-prefix", value: "it's" }],
+        { "name-prefix": "it's" },
         "cur",
       ),
     ).toBe(`More results: sandbox list --name-prefix 'it'\\''s' --cursor cur`);
@@ -82,11 +75,7 @@ describe("formatNextCursorHint", () => {
 
   it("treats empty string as needing quotes", () => {
     expect(
-      formatNextCursorHint(
-        "sandbox list",
-        [{ long: "name-prefix", value: "" }],
-        "cur",
-      ),
+      formatNextCursorHint("sandbox list", { "name-prefix": "" }, "cur"),
     ).toBe("More results: sandbox list --name-prefix '' --cursor cur");
   });
 
@@ -94,11 +83,7 @@ describe("formatNextCursorHint", () => {
     expect(
       formatNextCursorHint(
         "sandbox list",
-        [
-          { long: "sort-by", value: undefined },
-          { long: "limit", value: 20 },
-          { long: "sort-order", value: undefined },
-        ],
+        { "sort-by": undefined, limit: 20, "sort-order": undefined },
         "cur",
       ),
     ).toBe("More results: sandbox list --limit 20 --cursor cur");
@@ -106,11 +91,7 @@ describe("formatNextCursorHint", () => {
 
   it("skips empty arrays", () => {
     expect(
-      formatNextCursorHint(
-        "sandbox list",
-        [{ long: "tag", value: [] }],
-        "cur",
-      ),
+      formatNextCursorHint("sandbox list", { tag: [] }, "cur"),
     ).toBe("More results: sandbox list --cursor cur");
   });
 });

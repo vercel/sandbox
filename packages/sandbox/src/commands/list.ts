@@ -126,14 +126,14 @@ export const list = cmd.command({
       console.log(
         formatNextCursorHint(
           "sandbox list",
-          [
-            { long: "all", value: all },
-            { long: "name-prefix", value: namePrefix },
-            { long: "sort-by", value: sortBy },
-            { long: "sort-order", value: sortOrder },
-            { long: "tag", value: tagEntries.length > 0 ? tagEntries : undefined },
-            { long: "limit", value: limit },
-          ],
+          {
+            all,
+            "name-prefix": namePrefix,
+            "sort-by": sortBy,
+            "sort-order": sortOrder,
+            tag: tagEntries.length > 0 ? tagEntries : undefined,
+            limit,
+          },
           pagination.next,
         ),
       );
