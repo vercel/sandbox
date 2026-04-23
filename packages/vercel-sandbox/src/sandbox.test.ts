@@ -199,15 +199,21 @@ describe("_runCommand error handling", () => {
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   const PORTS = [3000, 4000];
+  const SNAPSHOT_EXPIRATION = ms("1d");
+
   let sandbox: Sandbox;
 
   beforeEach(async () => {
-    sandbox = await Sandbox.create({ ports: PORTS });
+    sandbox = await Sandbox.create({
+      ports: PORTS,
+      persistent: false,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
   });
 
   afterEach(async () => {
-    await sandbox.stop();
-  });
+    await sandbox.delete();
+  }, 30_000);
 
   it("allows to write files and then read them as a stream", async () => {
     await sandbox.writeFiles([
@@ -346,20 +352,37 @@ for (const port of ports) {
   });
 
   it("auto-resumes a stopped session when running a command", async () => {
-    await sandbox.stop();
-    const result = await sandbox.runCommand("echo", ["resumed!"]);
-    expect(result.exitCode).toBe(0);
-    expect(await result.stdout()).toContain("resumed!");
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
+    try {
+      await sbx.stop();
+      const result = await sbx.runCommand("echo", ["resumed!"]);
+      expect(result.exitCode).toBe(0);
+      expect(await result.stdout()).toContain("resumed!");
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("auto-resumes a stopped session when reading a file", async () => {
-    await sandbox.writeFiles([
-      { path: "persist.txt", content: Buffer.from("persisted content") },
-    ]);
-    await sandbox.stop();
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
 
-    const content = await sandbox.readFileToBuffer({ path: "persist.txt" });
-    expect(content?.toString()).toBe("persisted content");
+    try {
+      await sbx.writeFiles([
+        { path: "persist.txt", content: Buffer.from("persisted content") },
+      ]);
+      await sbx.stop();
+
+      const content = await sbx.readFileToBuffer({ path: "persist.txt" });
+      expect(content?.toString()).toBe("persisted content");
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("raises an error when the timeout cannot be updated", async () => {
@@ -378,9 +401,12 @@ for (const port of ports) {
   });
 
   it("returns not found when getting a deleted sandbox", async () => {
-    const sandbox = await Sandbox.create();
-    const name = sandbox.name;
-    await sandbox.delete();
+    const sbx = await Sandbox.create({
+      persistent: false,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
+    const name = sbx.name;
+    await sbx.delete();
 
     try {
       await Sandbox.get({ name });
@@ -394,21 +420,28 @@ for (const port of ports) {
   });
 
   it("lists two sessions after stop and resume", async () => {
-    const sandbox = await Sandbox.create();
-    await sandbox.stop();
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
 
-    const resumed = await Sandbox.get({ name: sandbox.name, resume: true });
-    const { sessions } = await resumed.listSessions();
+    try {
+      await sbx.stop();
 
-    expect(sessions).toHaveLength(2);
+      const resumed = await Sandbox.get({ name: sbx.name, resume: true });
+      const { sessions } = await resumed.listSessions();
 
-    const currentSessionId = resumed.currentSession().sessionId;
-    const match = sessions.find((s) => s.id === currentSessionId);
-    expect(match).toBeDefined();
+      expect(sessions).toHaveLength(2);
+
+      const currentSessionId = resumed.currentSession().sessionId;
+      const match = sessions.find((s) => s.id === currentSessionId);
+      expect(match).toBeDefined();
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("lists one snapshot after creating one", async () => {
-    const sandbox = await Sandbox.create();
     await sandbox.snapshot();
 
     const { snapshots } = await sandbox.listSnapshots();
@@ -416,34 +449,42 @@ for (const port of ports) {
   });
 
   it("reflects updated resources after update", async () => {
-    const sandbox = await Sandbox.create({ timeout: 60_000, persistent: true, snapshotExpiration: 7 * 86400000 });
-    expect(sandbox.snapshotExpiration).toBe(7 * 86400000);
-    await sandbox.stop();
-
-    const { snapshotId } = await sandbox.snapshot();
-
-    await sandbox.update({
-      resources: { vcpus: 4 },
-      timeout: 30_000,
-      persistent: false,
-      snapshotExpiration: 2 * 86400000,
-      currentSnapshotId: snapshotId,
+    const sbx = await Sandbox.create({
+      timeout: 60_000,
+      persistent: true,
+      snapshotExpiration: 7 * 86400000,
     });
 
-    const updated = await Sandbox.get({
-      name: sandbox.name,
-      resume: false,
-    });
-    expect(updated.vcpus).toBe(4);
-    expect(updated.memory).toBe(8192);
-    expect(updated.timeout).toBe(30_000);
-    expect(updated.persistent).toBe(false);
-    expect(updated.snapshotExpiration).toBe(2 * 86400000);
-    expect(updated.currentSnapshotId).toBe(snapshotId);
+    try {
+      expect(sbx.snapshotExpiration).toBe(7 * 86400000);
+      await sbx.stop();
+
+      const { snapshotId } = await sbx.snapshot();
+
+      await sbx.update({
+        resources: { vcpus: 4 },
+        timeout: 30_000,
+        persistent: false,
+        snapshotExpiration: 2 * 86400000,
+        currentSnapshotId: snapshotId,
+      });
+
+      const updated = await Sandbox.get({
+        name: sbx.name,
+        resume: false,
+      });
+      expect(updated.vcpus).toBe(4);
+      expect(updated.memory).toBe(8192);
+      expect(updated.timeout).toBe(30_000);
+      expect(updated.persistent).toBe(false);
+      expect(updated.snapshotExpiration).toBe(2 * 86400000);
+      expect(updated.currentSnapshotId).toBe(snapshotId);
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("appears in the sandbox list after creation", async () => {
-    const sandbox = await Sandbox.create();
     await sandbox.stop();
     const { sandboxes } = await Sandbox.list({ limit: 1 });
     expect(sandboxes).toHaveLength(1);
@@ -451,48 +492,68 @@ for (const port of ports) {
   });
 
   it("calls onResume when Sandbox.get resumes a stopped sandbox", async () => {
-    const sandbox = await Sandbox.create();
-    await sandbox.stop();
-
-    let resumedSandbox: Sandbox | null = null;
-    const retrieved = await Sandbox.get({
-      name: sandbox.name,
-      resume: true,
-      onResume: async (sbx) => {
-        resumedSandbox = sbx;
-      },
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
     });
 
-    expect(resumedSandbox).toBe(retrieved);
+    try {
+      await sbx.stop();
+
+      let resumedSandbox: Sandbox | null = null;
+      const retrieved = await Sandbox.get({
+        name: sbx.name,
+        resume: true,
+        onResume: async (s) => {
+          resumedSandbox = s;
+        },
+      });
+
+      expect(resumedSandbox).toBe(retrieved);
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("calls onResume on auto-resume after a stopped session", async () => {
     let resumeCount = 0;
-    const sandbox = await Sandbox.create({
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
       onResume: async () => {
         resumeCount++;
       },
     });
 
-    await sandbox.stop();
-    await sandbox.runCommand("echo", ["hello"]);
+    try {
+      await sbx.stop();
+      await sbx.runCommand("echo", ["hello"]);
 
-    expect(resumeCount).toBe(1);
+      expect(resumeCount).toBe(1);
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("updates status and currentSnapshotId after stopping a persistent sandbox", async () => {
-    const sandbox = await Sandbox.create({ persistent: true });
-    expect(sandbox.status).toBe("running");
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
 
-    await sandbox.stop();
+    try {
+      expect(sbx.status).toBe("running");
 
-    expect(sandbox.status).toBe("stopped");
-    expect(sandbox.currentSnapshotId).not.toBeNull();
+      await sbx.stop();
+
+      expect(sbx.status).toBe("stopped");
+      expect(sbx.currentSnapshotId).not.toBeNull();
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("does not call onResume when Sandbox.get does not resume", async () => {
-    const sandbox = await Sandbox.create();
-
     let called = false;
     await Sandbox.get({
       name: sandbox.name,

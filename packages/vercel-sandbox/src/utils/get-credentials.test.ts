@@ -1,9 +1,19 @@
-import { test, expect, beforeEach } from "vitest";
+import { test, expect, beforeEach, vi } from "vitest";
 import {
   getCredentials,
   LocalOidcContextError,
   VercelOidcContextError,
 } from "./get-credentials.js";
+
+// Force `getVercelOidcToken` to reject so the error-path in `getCredentials`
+// runs deterministically. Without this, `@vercel/oidc` discovers the developer's
+// linked project via `.vercel/project.json` and refreshes a real token from
+// stored `vc` auth — masking the missing-context error these tests assert on.
+vi.mock("@vercel/oidc", () => ({
+  getVercelOidcToken: vi.fn(async () => {
+    throw new Error("no OIDC context");
+  }),
+}));
 
 beforeEach(() => {
   delete process.env.VERCEL_OIDC_TOKEN;
