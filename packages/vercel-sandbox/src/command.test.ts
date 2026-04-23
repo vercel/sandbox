@@ -1,16 +1,20 @@
 import { expect, it, vi, beforeEach, afterEach, describe } from "vitest";
+import ms from "ms";
 import { Sandbox } from "./sandbox.js";
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   let sandbox: Sandbox;
 
   beforeEach(async () => {
-    sandbox = await Sandbox.create();
+    sandbox = await Sandbox.create({
+      persistent: false,
+      snapshotExpiration: ms("1d"),
+    });
   });
 
   afterEach(async () => {
-    await sandbox.stop();
-  });
+    await sandbox.delete();
+  }, 30_000);
 
   it("supports more than one logs consumer", async () => {
     const stdoutSpy = vi
