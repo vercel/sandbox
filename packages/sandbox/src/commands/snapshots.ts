@@ -6,9 +6,10 @@ import ora from "ora";
 import { scope } from "../args/scope";
 import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
-import { snapshotClient } from "../client";
+import { sandboxClient, snapshotClient } from "../client";
 import { acquireRelease } from "../util/disposables";
 import { formatBytes, table, timeAgo } from "../util/output";
+import { renderSnapshotTree } from "../util/snapshot-tree";
 
 const list = cmd.command({
   name: "list",
@@ -158,12 +159,91 @@ const remove = cmd.command({
   },
 });
 
+const tree = cmd.command({
+  name: "tree",
+  description: "Show the snapshot ancestry tree for a sandbox.",
+  args: {
+    scope,
+    sandboxName: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name",
+    }),
+  },
+  async handler({ scope: { token, team, project }, sandboxName: name }) {
+    const result = await (async () => {
+      using _spinner = acquireRelease(
+        () => ora("Fetching snapshot tree...").start(),
+        (s) => s.stop(),
+      );
+
+      const sandbox = await sandboxClient.get({
+        name,
+        token,
+        teamId: team,
+        projectId: project,
+      });
+
+      const currentSnapshotId = sandbox.currentSnapshotId;
+      if (!currentSnapshotId) {
+        return null;
+      }
+
+      const [currentSnap, ancestors, descendants] = await Promise.all([
+        snapshotClient.get({
+          snapshotId: currentSnapshotId,
+          token,
+          teamId: team,
+          projectId: project,
+        }),
+        snapshotClient.tree({
+          snapshotId: currentSnapshotId,
+          sortOrder: "desc",
+          limit: 10,
+          token,
+          teamId: team,
+          projectId: project,
+        }),
+        snapshotClient.tree({
+          snapshotId: currentSnapshotId,
+          sortOrder: "asc",
+          limit: 10,
+          token,
+          teamId: team,
+          projectId: project,
+        }),
+      ]);
+
+      return {
+        currentSnap,
+        currentSnapshotId,
+        ancestors,
+        descendants,
+      };
+    })();
+
+    if (!result) {
+      console.log(chalk.yellow("No snapshots found for this sandbox."));
+      return;
+    }
+
+    console.log(
+      renderSnapshotTree({
+        currentSnapshotId: result.currentSnapshotId,
+        currentSnapshotExpiresAt: result.currentSnap.expiresAt?.getTime(),
+        ancestors: result.ancestors,
+        descendants: result.descendants,
+      }),
+    );
+  },
+});
+
 export const snapshots = subcommands({
   name: "snapshots",
   description: "Manage sandbox snapshots",
   cmds: {
     list,
     get,
+    tree,
     delete: remove,
   },
 });

@@ -79,6 +79,9 @@ export const Snapshot = z.object({
   expiresAt: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  lastUsedAt: z.number().optional(),
+  creationMethod: z.string().optional(),
+  parentId: z.string().optional(),
 });
 
 export const CursorPagination = z.object({
@@ -151,6 +154,19 @@ export const LogLine = z.discriminatedUnion("stream", [
 
 export const SnapshotsResponse = z.object({
   snapshots: z.array(Snapshot),
+  pagination: CursorPagination,
+});
+
+export const SnapshotTreeNode = z.object({
+  snapshot: Snapshot,
+  siblings: z.array(Snapshot),
+  count: z.string(),
+});
+
+export type SnapshotTreeNodeData = z.infer<typeof SnapshotTreeNode>;
+
+export const SnapshotTreeResponse = z.object({
+  snapshots: z.array(SnapshotTreeNode),
   pagination: CursorPagination,
 });
 

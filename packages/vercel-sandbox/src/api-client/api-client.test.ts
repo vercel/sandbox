@@ -803,6 +803,136 @@ describe("APIClient", () => {
     });
   });
 
+  describe("getSnapshotTree", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeSnapshot = (overrides: Partial<Record<string, unknown>> = {}) => ({
+      id: "snap_123",
+      sourceSessionId: "sbx_123",
+      region: "iad1",
+      status: "created",
+      sizeBytes: 1024,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("fetches tree with required snapshotId and projectId", async () => {
+      const body = {
+        snapshots: [
+          {
+            snapshot: makeSnapshot({ id: "snap_parent", parentId: "snap_root" }),
+            siblings: [],
+            count: "1",
+          },
+        ],
+        pagination: { count: 1, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.getSnapshotTree({
+        projectId: "proj_123",
+        snapshotId: "snap_123",
+      });
+
+      expect(result.json.snapshots).toHaveLength(1);
+      expect(result.json.snapshots[0].snapshot.id).toBe("snap_parent");
+      expect(result.json.snapshots[0].count).toBe("1");
+      expect(result.json.pagination.count).toBe(1);
+      expect(result.json.pagination.next).toBeNull();
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v2/sandboxes/snapshots/tree");
+      expect(url).toContain("project=proj_123");
+      expect(url).toContain("snapshotId=snap_123");
+      expect(url).toContain("teamId=team_123");
+      expect(opts.method).toBe("GET");
+    });
+
+    it("passes limit and sortOrder query params", async () => {
+      const body = {
+        snapshots: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.getSnapshotTree({
+        projectId: "proj_123",
+        snapshotId: "snap_123",
+        limit: 5,
+        sortOrder: "asc",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("limit=5");
+      expect(url).toContain("sortOrder=asc");
+    });
+
+    it("parses pagination.next for continuation", async () => {
+      const body = {
+        snapshots: [
+          {
+            snapshot: makeSnapshot({ id: "snap_a", parentId: "snap_b" }),
+            siblings: [],
+            count: "1",
+          },
+        ],
+        pagination: { count: 1, next: "snap_a" },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.getSnapshotTree({
+        projectId: "proj_123",
+        snapshotId: "snap_123",
+      });
+
+      expect(result.json.pagination.next).toBe("snap_a");
+    });
+
+    it("returns empty result when snapshot is not found", async () => {
+      const body = {
+        snapshots: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.getSnapshotTree({
+        projectId: "proj_123",
+        snapshotId: "snap_missing",
+      });
+
+      expect(result.json.snapshots).toHaveLength(0);
+      expect(result.json.pagination.count).toBe(0);
+      expect(result.json.pagination.next).toBeNull();
+    });
+  });
+
   describe("updateSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
