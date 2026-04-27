@@ -3,4 +3,4 @@
 "sandbox": minor
 ---
 
-Support new keepLast snapshots parameters for CLI and SDK
+Support new keepLastSnapshots parameter for CLI and SDK

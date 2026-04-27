@@ -185,7 +185,7 @@ export const Sandbox = z.object({
   cwd: z.string().optional(),
   tags: z.record(z.string()).optional(),
   snapshotExpiration: z.number().optional(),
-  snapshotKeepLast: z
+  keepLastSnapshots: z
     .object({
       count: z.number(),
       expiration: z.number().optional(),

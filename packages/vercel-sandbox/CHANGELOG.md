@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
-- Support new keepLast snapshots parameters for CLI and SDK
+- Support new keepLastSnapshots parameter for CLI and SDK
 
 ## 2.0.0-beta.15
 

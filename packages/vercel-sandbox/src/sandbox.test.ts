@@ -420,10 +420,10 @@ for (const port of ports) {
       timeout: 60_000,
       persistent: true,
       snapshotExpiration: 7 * 86400000,
-      snapshotKeepLast: { count: 3 },
+      keepLastSnapshots: { count: 3 },
     });
     expect(sandbox.snapshotExpiration).toBe(7 * 86400000);
-    expect(sandbox.snapshotKeepLast).toMatchObject({
+    expect(sandbox.keepLastSnapshots).toMatchObject({
       count: 3,
       deleteEvicted: true,
     });
@@ -436,7 +436,7 @@ for (const port of ports) {
       timeout: 30_000,
       persistent: false,
       snapshotExpiration: 2 * 86400000,
-      snapshotKeepLast: {
+      keepLastSnapshots: {
         count: 5,
         expiration: 3 * 86400000,
         deleteEvicted: false,
@@ -453,7 +453,7 @@ for (const port of ports) {
     expect(updated.timeout).toBe(30_000);
     expect(updated.persistent).toBe(false);
     expect(updated.snapshotExpiration).toBe(2 * 86400000);
-    expect(updated.snapshotKeepLast).toEqual({
+    expect(updated.keepLastSnapshots).toEqual({
       count: 5,
       expiration: 3 * 86400000,
       deleteEvicted: false,
@@ -461,24 +461,24 @@ for (const port of ports) {
     expect(updated.currentSnapshotId).toBe(snapshotId);
   });
 
-  it("clears snapshotKeepLast when updated with null", async () => {
+  it("clears keepLastSnapshots when updated with null", async () => {
     const sandbox = await Sandbox.create({
       persistent: true,
-      snapshotKeepLast: {
+      keepLastSnapshots: {
         count: 2,
         expiration: 7 * 86400000,
         deleteEvicted: true,
       },
     });
-    expect(sandbox.snapshotKeepLast).toMatchObject({ count: 2 });
+    expect(sandbox.keepLastSnapshots).toMatchObject({ count: 2 });
 
-    await sandbox.update({ snapshotKeepLast: null });
+    await sandbox.update({ keepLastSnapshots: null });
 
     const cleared = await Sandbox.get({
       name: sandbox.name,
       resume: false,
     });
-    expect(cleared.snapshotKeepLast).toBeUndefined();
+    expect(cleared.keepLastSnapshots).toBeUndefined();
   });
 
   it("rejects snapshot deletion when the snapshot is in use, unless forceDelete is set", async () => {

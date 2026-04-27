@@ -1032,7 +1032,7 @@ describe("APIClient", () => {
     });
   });
 
-  describe("createSandbox with snapshotKeepLast", () => {
+  describe("createSandbox with keepLastSnapshots", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
@@ -1051,7 +1051,7 @@ describe("APIClient", () => {
             updatedAt: Date.now(),
             status: "running",
             currentSessionId: "sbx_123",
-            snapshotKeepLast: {
+            keepLastSnapshots: {
               count: 3,
               expiration: 604800000,
               deleteEvicted: true,
@@ -1084,12 +1084,12 @@ describe("APIClient", () => {
       });
     });
 
-    it("forwards snapshotKeepLast in the request body", async () => {
+    it("forwards keepLastSnapshots in the request body", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
       await client.createSandbox({
         projectId: "proj_123",
-        snapshotKeepLast: {
+        keepLastSnapshots: {
           count: 3,
           expiration: 604800000,
           deleteEvicted: true,
@@ -1098,25 +1098,25 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       const body = JSON.parse(opts.body);
-      expect(body.snapshotKeepLast).toEqual({
+      expect(body.keepLastSnapshots).toEqual({
         count: 3,
         expiration: 604800000,
         deleteEvicted: true,
       });
     });
 
-    it("omits snapshotKeepLast when not provided", async () => {
+    it("omits keepLastSnapshots when not provided", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
       await client.createSandbox({ projectId: "proj_123" });
 
       const [, opts] = mockFetch.mock.calls[0];
       const body = JSON.parse(opts.body);
-      expect(body).not.toHaveProperty("snapshotKeepLast");
+      expect(body).not.toHaveProperty("keepLastSnapshots");
     });
   });
 
-  describe("updateSandbox with snapshotKeepLast", () => {
+  describe("updateSandbox with keepLastSnapshots", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
@@ -1143,7 +1143,7 @@ describe("APIClient", () => {
       });
     });
 
-    it("forwards snapshotKeepLast in the PATCH body", async () => {
+    it("forwards keepLastSnapshots in the PATCH body", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
           headers: { "content-type": "application/json" },
@@ -1153,19 +1153,19 @@ describe("APIClient", () => {
       await client.updateSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
-        snapshotKeepLast: { count: 5, expiration: 0, deleteEvicted: false },
+        keepLastSnapshots: { count: 5, expiration: 0, deleteEvicted: false },
       });
 
       const [, opts] = mockFetch.mock.calls[0];
       const body = JSON.parse(opts.body);
-      expect(body.snapshotKeepLast).toEqual({
+      expect(body.keepLastSnapshots).toEqual({
         count: 5,
         expiration: 0,
         deleteEvicted: false,
       });
     });
 
-    it("sends null to clear snapshotKeepLast", async () => {
+    it("sends null to clear keepLastSnapshots", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
           headers: { "content-type": "application/json" },
@@ -1175,16 +1175,16 @@ describe("APIClient", () => {
       await client.updateSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
-        snapshotKeepLast: null,
+        keepLastSnapshots: null,
       });
 
       const [, opts] = mockFetch.mock.calls[0];
       const body = JSON.parse(opts.body);
       // Presence of the key with null — not undefined/missing — is the signal.
-      expect(Object.prototype.hasOwnProperty.call(body, "snapshotKeepLast")).toBe(
+      expect(Object.prototype.hasOwnProperty.call(body, "keepLastSnapshots")).toBe(
         true,
       );
-      expect(body.snapshotKeepLast).toBeNull();
+      expect(body.keepLastSnapshots).toBeNull();
     });
   });
 });

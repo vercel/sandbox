@@ -176,7 +176,7 @@ export class APIClient extends BaseClient {
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
-      snapshotKeepLast?: {
+      keepLastSnapshots?: {
         count: number;
         expiration?: number;
         deleteEvicted?: boolean;
@@ -204,7 +204,7 @@ export class APIClient extends BaseClient {
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
-          snapshotKeepLast: params.snapshotKeepLast,
+          keepLastSnapshots: params.keepLastSnapshots,
           ...privateParams,
         }),
         signal: params.signal,
@@ -784,7 +784,7 @@ export class APIClient extends BaseClient {
     networkPolicy?: NetworkPolicy;
     tags?: Record<string, string>;
     snapshotExpiration?: number;
-    snapshotKeepLast?: {
+    keepLastSnapshots?: {
       count: number;
       expiration?: number;
       deleteEvicted?: boolean;
@@ -809,7 +809,7 @@ export class APIClient extends BaseClient {
             : undefined,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
-          snapshotKeepLast: params.snapshotKeepLast,
+          keepLastSnapshots: params.keepLastSnapshots,
           currentSnapshotId: params.currentSnapshotId,
         }),
         signal: params.signal,

@@ -116,7 +116,7 @@ export interface BaseCreateSandboxParams {
    * Retention policy that keeps only the N most recent snapshots of this
    * sandbox. Older snapshots are evicted when a new one is created.
    */
-  snapshotKeepLast?: {
+  keepLastSnapshots?: {
     /**
      * Number of snapshots to keep (1-10).
      */
@@ -415,13 +415,13 @@ export class Sandbox {
   }
 
   /**
-   * The snapshot retention policy (`keep-last`) currently configured on this
-   * sandbox, if any.
+   * The snapshot retention policy (`keep-last-snapshots`) currently configured
+   * on this sandbox, if any.
    */
-  public get snapshotKeepLast():
+  public get keepLastSnapshots():
     | { count: number; expiration?: number; deleteEvicted: boolean }
     | undefined {
-    return this.sandbox.snapshotKeepLast;
+    return this.sandbox.keepLastSnapshots;
   }
 
   /**
@@ -542,7 +542,7 @@ export class Sandbox {
       env: params?.env,
       tags: params?.tags,
       snapshotExpiration: params?.snapshotExpiration,
-      snapshotKeepLast: params?.snapshotKeepLast,
+      keepLastSnapshots: params?.keepLastSnapshots,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -1040,7 +1040,7 @@ export class Sandbox {
       networkPolicy?: NetworkPolicy;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
-      snapshotKeepLast?: {
+      keepLastSnapshots?: {
         count: number;
         expiration?: number;
         deleteEvicted?: boolean;
@@ -1069,7 +1069,7 @@ export class Sandbox {
       networkPolicy: params.networkPolicy,
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
-      snapshotKeepLast: params.snapshotKeepLast,
+      keepLastSnapshots: params.keepLastSnapshots,
       currentSnapshotId: params.currentSnapshotId,
       signal: opts?.signal,
     });

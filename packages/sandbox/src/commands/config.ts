@@ -214,8 +214,8 @@ const keepLastCountType = cmd.extendType(cmd.number, {
   },
 });
 
-const keepLastCommand = cmd.command({
-  name: "keep-last",
+const keepLastSnapshotsCommand = cmd.command({
+  name: "keep-last-snapshots",
   description:
     "Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox",
   args: {
@@ -228,16 +228,20 @@ const keepLastCommand = cmd.command({
       description:
         "Number of most recent snapshots to keep (1-10). Omit with --clear to remove the policy.",
     }),
-    keepLastFor: cmd.option({
-      long: "for",
+    keepLastSnapshotsFor: cmd.option({
+      long: "keep-last-snapshots-for",
       type: cmd.optional(SnapshotExpiration),
       description:
         'Expiration for kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d',
     }),
-    softEvict: cmd.flag({
-      long: "soft-evict",
+    deleteEvictedSnapshots: cmd.option({
+      long: "delete-evicted-snapshots",
+      type: cmd.optional({
+        ...cmd.oneOf(["true", "false"]),
+        displayName: "true|false",
+      }),
       description:
-        "Evicted snapshots keep the default expiration instead of being deleted immediately.",
+        'When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration.',
     }),
     clear: cmd.flag({
       long: "clear",
@@ -250,8 +254,8 @@ const keepLastCommand = cmd.command({
     scope: { token, team, project },
     sandbox: name,
     count,
-    keepLastFor,
-    softEvict,
+    keepLastSnapshotsFor,
+    deleteEvictedSnapshots,
     clear,
   }) {
     if (clear && count !== undefined) {
@@ -267,9 +271,13 @@ const keepLastCommand = cmd.command({
         ].join("\n"),
       );
     }
-    if (clear && (keepLastFor !== undefined || softEvict)) {
+    if (
+      clear &&
+      (keepLastSnapshotsFor !== undefined ||
+        deleteEvictedSnapshots !== undefined)
+    ) {
       throw new Error(
-        "--for and --soft-evict cannot be combined with --clear.",
+        "--keep-last-snapshots-for and --delete-evicted-snapshots cannot be combined with --clear.",
       );
     }
 
@@ -283,14 +291,19 @@ const keepLastCommand = cmd.command({
     const spinner = ora("Updating sandbox configuration...").start();
     try {
       if (clear) {
-        await sandbox.update({ snapshotKeepLast: null });
+        await sandbox.update({ keepLastSnapshots: null });
       } else {
         await sandbox.update({
-          snapshotKeepLast: {
+          keepLastSnapshots: {
             count: count!,
             expiration:
-              keepLastFor !== undefined ? ms(keepLastFor) : undefined,
-            deleteEvicted: softEvict ? false : undefined,
+              keepLastSnapshotsFor !== undefined
+                ? ms(keepLastSnapshotsFor)
+                : undefined,
+            deleteEvicted:
+              deleteEvictedSnapshots !== undefined
+                ? deleteEvictedSnapshots === "true"
+                : undefined,
           },
         });
       }
@@ -301,18 +314,24 @@ const keepLastCommand = cmd.command({
       );
       if (clear) {
         process.stderr.write(
-          chalk.dim("   ╰ ") + "keep-last: " + chalk.cyan("cleared") + "\n",
+          chalk.dim("   ╰ ") +
+            "keep-last-snapshots: " +
+            chalk.cyan("cleared") +
+            "\n",
         );
       } else {
         const parts: string[] = [`count=${count}`];
-        if (keepLastFor !== undefined) {
-          const displayExp = ms(keepLastFor) === 0 ? "none" : keepLastFor;
+        if (keepLastSnapshotsFor !== undefined) {
+          const displayExp =
+            ms(keepLastSnapshotsFor) === 0 ? "none" : keepLastSnapshotsFor;
           parts.push(`for=${displayExp}`);
         }
-        if (softEvict) parts.push("soft-evict");
+        if (deleteEvictedSnapshots === "false") {
+          parts.push("delete-evicted-snapshots=false");
+        }
         process.stderr.write(
           chalk.dim("   ╰ ") +
-            "keep-last: " +
+            "keep-last-snapshots: " +
             chalk.cyan(parts.join(", ")) +
             "\n",
         );
@@ -413,7 +432,7 @@ const listCommand = cmd.command({
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
       { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
-      { field: "Keep last", value: formatKeepLast(sandbox.snapshotKeepLast) },
+      { field: "Keep last snapshots", value: formatKeepLastSnapshots(sandbox.keepLastSnapshots) },
       { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
       { field: "Tags", value: tagsDisplay },
     ];
@@ -555,19 +574,21 @@ const tagsCommand = cmd.command({
   },
 });
 
-function formatKeepLast(
-  keepLast:
+function formatKeepLastSnapshots(
+  keepLastSnapshots:
     | { count: number; expiration?: number; deleteEvicted: boolean }
     | undefined,
 ): string {
-  if (!keepLast) return "-";
-  const parts = [`count=${keepLast.count}`];
-  if (keepLast.expiration !== undefined) {
+  if (!keepLastSnapshots) return "-";
+  const parts = [`count=${keepLastSnapshots.count}`];
+  if (keepLastSnapshots.expiration !== undefined) {
     parts.push(
-      `for=${keepLast.expiration === 0 ? "none" : ms(keepLast.expiration, { long: true })}`,
+      `for=${keepLastSnapshots.expiration === 0 ? "none" : ms(keepLastSnapshots.expiration, { long: true })}`,
     );
   }
-  if (!keepLast.deleteEvicted) parts.push("soft-evict");
+  if (!keepLastSnapshots.deleteEvicted) {
+    parts.push("delete-evicted-snapshots=false");
+  }
   return parts.join(", ");
 }
 
@@ -581,7 +602,7 @@ export const config = cmd.subcommands({
     persistent: persistentCommand,
     "network-policy": networkPolicyCommand,
     "snapshot-expiration": snapshotExpirationCommand,
-    "keep-last": keepLastCommand,
+    "keep-last-snapshots": keepLastSnapshotsCommand,
     "current-snapshot": currentSnapshotCommand,
     tags: tagsCommand,
   },
