@@ -77,17 +77,7 @@ const list = cmd.command({
     );
 
     if (pagination.next !== null) {
-      console.log(
-        formatNextCursorHint(
-          "sandbox snapshots list",
-          {
-            name,
-            "sort-order": sortOrder,
-            limit,
-          },
-          pagination.next,
-        ),
-      );
+      console.log(formatNextCursorHint(pagination.next));
     }
   },
 });

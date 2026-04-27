@@ -122,21 +122,7 @@ export const list = cmd.command({
     console.log(table({ rows: displayedSandboxes, columns }));
 
     if (pagination.next !== null) {
-      const tagEntries = Object.entries(tags).map(([k, v]) => `${k}=${v}`);
-      console.log(
-        formatNextCursorHint(
-          "sandbox list",
-          {
-            all,
-            "name-prefix": namePrefix,
-            "sort-by": sortBy,
-            "sort-order": sortOrder,
-            tag: tagEntries.length > 0 ? tagEntries : undefined,
-            limit,
-          },
-          pagination.next,
-        ),
-      );
+      console.log(formatNextCursorHint(pagination.next));
     }
   },
 });

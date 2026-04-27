@@ -101,18 +101,7 @@ const list = cmd.command({
     console.log(table({ rows: displayedSessions, columns }));
 
     if (pagination.next !== null) {
-      console.log(
-        formatNextCursorHint(
-          "sandbox sessions list",
-          {
-            all,
-            "sort-order": sortOrder,
-            limit,
-          },
-          pagination.next,
-          [name],
-        ),
-      );
+      console.log(formatNextCursorHint(pagination.next));
     }
   },
 });
