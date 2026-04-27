@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.18
+
+### Minor Changes
+
+- Support snapshot tree with pagination
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.16
+
 ## 3.0.0-beta.17
 
 ### Minor Changes

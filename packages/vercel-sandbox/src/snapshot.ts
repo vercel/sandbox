@@ -160,6 +160,33 @@ export class Snapshot {
   }
 
   /**
+   * Fetch the snapshot ancestry tree for a given snapshot.
+   * Returns both the tree nodes and pagination metadata.
+   */
+  static async tree(
+    params: {
+      snapshotId: string;
+      limit?: number;
+      sortOrder?: "asc" | "desc";
+    } & Partial<Parameters<APIClient["getSnapshotTree"]>[0]> &
+      Partial<Credentials> &
+      WithFetchOptions,
+  ) {
+    "use step";
+    const credentials = await getCredentials(params);
+    const client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+      fetch: params?.fetch,
+    });
+    const response = await client.getSnapshotTree({
+      ...credentials,
+      ...params,
+    });
+    return response.json;
+  }
+
+  /**
    * Retrieve an existing snapshot.
    *
    * @param params - Get parameters and optional credentials.

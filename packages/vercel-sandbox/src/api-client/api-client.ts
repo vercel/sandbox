@@ -17,6 +17,7 @@ import {
   type LogLineStdout,
   type LogLineStderr,
   SnapshotsResponse,
+  SnapshotTreeResponse,
   SnapshotResponse,
   CreateSnapshotResponse,
   SandboxAndSessionResponse,
@@ -468,6 +469,40 @@ export class APIClient extends BaseClient {
           name: params.name,
           limit: params.limit,
           cursor: params.cursor,
+          sortOrder: params.sortOrder,
+        },
+        method: "GET",
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async getSnapshotTree(params: {
+    /**
+     * The ID or name of the project to which the snapshots belong.
+     */
+    projectId: string;
+    /**
+     * The snapshot ID to use as the anchor for the tree traversal.
+     */
+    snapshotId: string;
+    /**
+     * Maximum number of nodes to return.
+     */
+    limit?: number;
+    /**
+     * Sort order: "asc" for descendants, "desc" for ancestors.
+     */
+    sortOrder?: "asc" | "desc";
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      SnapshotTreeResponse,
+      await this.request(`/v2/sandboxes/snapshots/tree`, {
+        query: {
+          project: params.projectId,
+          snapshotId: params.snapshotId,
+          limit: params.limit,
           sortOrder: params.sortOrder,
         },
         method: "GET",

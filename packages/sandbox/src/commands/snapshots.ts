@@ -6,9 +6,10 @@ import ora from "ora";
 import { scope } from "../args/scope";
 import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
-import { snapshotClient } from "../client";
+import { sandboxClient, snapshotClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { formatBytes, table, timeAgo } from "../util/output";
+import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
+import { renderSnapshotTree } from "../util/snapshot-tree";
 
 const list = cmd.command({
   name: "list",
@@ -158,12 +159,199 @@ const remove = cmd.command({
   },
 });
 
+const tree = cmd.command({
+  name: "tree",
+  description: "Show the snapshot ancestry tree for a sandbox.",
+  args: {
+    scope,
+    sandboxName: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name",
+    }),
+    limit: cmd.option({
+      long: "limit",
+      description:
+        "Maximum number of snapshots per page and direction (1–10, default 10).",
+      type: cmd.optional(cmd.number),
+    }),
+    cursor: cmd.option({
+      long: "cursor",
+      description:
+        "Pagination cursor from a previous 'More ancestors' or 'More descendants' hint.",
+      type: cmd.optional(cmd.string),
+    }),
+    direction: cmd.option({
+      long: "direction",
+      description:
+        "Pagination direction (default desc). 'desc' = ancestors, 'asc' = descendants. Only used with --cursor.",
+      type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
+    }),
+  },
+  async handler({
+    scope: { token, team, project },
+    sandboxName: name,
+    limit,
+    cursor,
+    direction,
+  }) {
+    if (limit !== undefined && (limit < 1 || limit > 10)) {
+      console.error(
+        chalk.red("Error: --limit must be between 1 and 10."),
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    const pageLimit = limit ?? 10;
+
+    // Paginated single-direction branch.
+    if (cursor) {
+      const sortOrder = direction ?? "desc";
+      const page = await (async () => {
+        using _spinner = acquireRelease(
+          () => ora("Fetching snapshot tree...").start(),
+          (s) => s.stop(),
+        );
+        return snapshotClient.tree({
+          snapshotId: cursor,
+          sortOrder,
+          limit: pageLimit,
+          token,
+          teamId: team,
+          projectId: project,
+        });
+      })();
+
+      const ancestors =
+        sortOrder === "desc"
+          ? page
+          : { snapshots: [], pagination: { count: 0, next: null } };
+      const descendants =
+        sortOrder === "asc"
+          ? page
+          : { snapshots: [], pagination: { count: 0, next: null } };
+
+      console.log(
+        renderSnapshotTree({
+          currentSnapshotId: "",
+          hideCurrent: true,
+          ancestors,
+          descendants,
+        }),
+      );
+
+      if (page.pagination.next !== null) {
+        console.log(
+          formatNextCursorHint(
+            "sandbox snapshots tree",
+            { direction: sortOrder, limit },
+            page.pagination.next,
+            [name],
+            sortOrder === "desc" ? "More ancestors" : "More descendants",
+          ),
+        );
+      }
+      return;
+    }
+
+    // Default: bidirectional view anchored on the sandbox's current snapshot.
+    const result = await (async () => {
+      using _spinner = acquireRelease(
+        () => ora("Fetching snapshot tree...").start(),
+        (s) => s.stop(),
+      );
+
+      const sandbox = await sandboxClient.get({
+        name,
+        token,
+        teamId: team,
+        projectId: project,
+      });
+
+      const currentSnapshotId = sandbox.currentSnapshotId;
+      if (!currentSnapshotId) {
+        return null;
+      }
+
+      const [currentSnap, ancestors, descendants] = await Promise.all([
+        snapshotClient.get({
+          snapshotId: currentSnapshotId,
+          token,
+          teamId: team,
+          projectId: project,
+        }),
+        snapshotClient.tree({
+          snapshotId: currentSnapshotId,
+          sortOrder: "desc",
+          limit: pageLimit,
+          token,
+          teamId: team,
+          projectId: project,
+        }),
+        snapshotClient.tree({
+          snapshotId: currentSnapshotId,
+          sortOrder: "asc",
+          limit: pageLimit,
+          token,
+          teamId: team,
+          projectId: project,
+        }),
+      ]);
+
+      return {
+        currentSnap,
+        currentSnapshotId,
+        ancestors,
+        descendants,
+      };
+    })();
+
+    if (!result) {
+      console.log(chalk.yellow("No snapshots found for this sandbox."));
+      return;
+    }
+
+    console.log(
+      renderSnapshotTree({
+        currentSnapshotId: result.currentSnapshotId,
+        currentSnapshotExpiresAt: result.currentSnap.expiresAt?.getTime(),
+        ancestors: result.ancestors,
+        descendants: result.descendants,
+      }),
+    );
+
+    if (result.ancestors.pagination.next !== null) {
+      console.log(
+        formatNextCursorHint(
+          "sandbox snapshots tree",
+          { direction: "desc", limit },
+          result.ancestors.pagination.next,
+          [name],
+          "More ancestors",
+        ),
+      );
+    }
+    if (result.descendants.pagination.next !== null) {
+      console.log(
+        formatNextCursorHint(
+          "sandbox snapshots tree",
+          { direction: "asc", limit },
+          result.descendants.pagination.next,
+          [name],
+          "More descendants",
+        ),
+      );
+    }
+  },
+});
+
 export const snapshots = subcommands({
   name: "snapshots",
   description: "Manage sandbox snapshots",
   cmds: {
     list,
     get,
+    tree,
     delete: remove,
   },
 });
