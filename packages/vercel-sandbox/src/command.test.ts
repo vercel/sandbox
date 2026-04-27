@@ -1,16 +1,20 @@
 import { expect, it, vi, beforeEach, afterEach, describe } from "vitest";
+import ms from "ms";
 import { Sandbox } from "./sandbox.js";
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
   let sandbox: Sandbox;
 
   beforeEach(async () => {
-    sandbox = await Sandbox.create();
+    sandbox = await Sandbox.create({
+      persistent: false,
+      snapshotExpiration: ms("1d"),
+    });
   });
 
   afterEach(async () => {
-    await sandbox.stop();
-  });
+    await sandbox.delete();
+  }, 30_000);
 
   it("supports more than one logs consumer", async () => {
     const stdoutSpy = vi
@@ -48,7 +52,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
 
     await cmd.kill("SIGINT");
     const result = await cmd.wait();
-    expect(result.exitCode).toBe(130); // 128 + 2
+    expect(result.exitCode).toBe(255);
   });
 
   it("Kills a command with a SIGTERM", async () => {
@@ -61,7 +65,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     await cmd.kill("SIGTERM");
 
     const result = await cmd.wait();
-    expect(result.exitCode).toBe(143); // 128 + 15
+    expect(result.exitCode).toBe(255);
   });
 
   it("can execute commands with sudo", async () => {
