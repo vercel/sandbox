@@ -23,6 +23,12 @@ export interface RenderSnapshotTreeParams {
   currentSnapshotExpiresAt?: number;
   ancestors: TreeResponse;
   descendants: TreeResponse;
+  /**
+   * When true, suppress the "current" snapshot node. Used when rendering a
+   * single-direction paginated view, where the anchor was already shown on
+   * the previous page.
+   */
+  hideCurrent?: boolean;
 }
 
 function compactDuration(expiresAt: number | undefined): string {
@@ -88,6 +94,7 @@ export function renderSnapshotTree(
     currentSnapshotExpiresAt,
     ancestors,
     descendants,
+    hideCurrent,
   } = params;
   const lines: string[] = [];
 
@@ -116,23 +123,25 @@ export function renderSnapshotTree(
   }
 
   // Current snapshot
-  const currentTreeNode =
-    ancestors.snapshots.find(
-      (n) => n.snapshot.id === currentSnapshotId,
-    ) ??
-    descendants.snapshots.find(
-      (n) => n.snapshot.id === currentSnapshotId,
-    );
-  const currentNode: TreeNode = currentTreeNode ?? {
-    snapshot: {
-      id: currentSnapshotId,
-      sourceSessionId: "",
-      expiresAt: currentSnapshotExpiresAt,
-    },
-    siblings: [],
-    count: "1",
-  };
-  pushNode(currentNode, true);
+  if (!hideCurrent) {
+    const currentTreeNode =
+      ancestors.snapshots.find(
+        (n) => n.snapshot.id === currentSnapshotId,
+      ) ??
+      descendants.snapshots.find(
+        (n) => n.snapshot.id === currentSnapshotId,
+      );
+    const currentNode: TreeNode = currentTreeNode ?? {
+      snapshot: {
+        id: currentSnapshotId,
+        sourceSessionId: "",
+        expiresAt: currentSnapshotExpiresAt,
+      },
+      siblings: [],
+      count: "1",
+    };
+    pushNode(currentNode, true);
+  }
 
   // Ancestors (parent at top, root at bottom)
   const ancestorNodes = ancestors.snapshots.filter(

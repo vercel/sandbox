@@ -410,6 +410,35 @@ describe("renderSnapshotTree", () => {
     ).not.toThrow();
   });
 
+  test("suppresses the current-snapshot node when hideCurrent is true", () => {
+    const parent = makeSnapshot({
+      id: "snap_parent",
+      parentId: "snap_grandparent",
+    });
+    const grandparent = makeSnapshot({ id: "snap_grandparent" });
+
+    const plain = strip(
+      renderSnapshotTree({
+        currentSnapshotId: "snap_anchor_already_shown",
+        hideCurrent: true,
+        ancestors: {
+          snapshots: [makeTreeNode(parent), makeTreeNode(grandparent)],
+          pagination: { count: 2, next: null },
+        },
+        descendants: emptyTree(),
+      }),
+    );
+
+    expect(plain).toContain("snap_parent");
+    expect(plain).toContain("snap_grandparent");
+    expect(plain).not.toContain("snap_anchor_already_shown");
+    expect(plain).not.toContain("◂ current");
+
+    const idxParent = plain.indexOf("snap_parent");
+    const idxGrandparent = plain.indexOf("snap_grandparent");
+    expect(idxGrandparent).toBeGreaterThan(idxParent);
+  });
+
   test("renders the full picture: descendants at top, current in middle, ancestors below", () => {
     const child = makeSnapshot({ id: "snap_child" });
     const parent = makeSnapshot({

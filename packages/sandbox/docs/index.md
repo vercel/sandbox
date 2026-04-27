@@ -328,6 +328,7 @@ Commands:
 
     ls | list                                    List snapshots for the specified account and project.
     get          <snapshot_id>                   Get details of a snapshot.
+    tree         <name>                          Show the snapshot ancestry tree for a sandbox.
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
 ```
 

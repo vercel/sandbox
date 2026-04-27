@@ -78,3 +78,40 @@ export function formatRunDuration(d: number): string {
   }
   return `${d/1000}s`
 }
+
+type FlagValue = string | number | boolean | string[] | undefined;
+
+export function formatNextCursorHint(
+  command: string,
+  flags: Record<string, FlagValue>,
+  cursor: string,
+  positionals: string[] = [],
+  label: string = "More results",
+): string {
+  const parts = [command, ...positionals.map(shellEscape)];
+  for (const [name, value] of Object.entries(flags)) {
+    if (value === undefined || value === false) {
+      continue;
+    }
+
+    if (value === true) {
+      parts.push(`--${name}`);
+    } else if (Array.isArray(value)) {
+      for (const v of value) {
+        parts.push(`--${name}`, shellEscape(v));
+      }
+    } else {
+      parts.push(`--${name}`, shellEscape(String(value)));
+    }
+  }
+
+  parts.push("--cursor", shellEscape(cursor));
+  return `${label}: ${parts.join(" ")}`;
+}
+
+function shellEscape(value: string): string {
+  if (/^[\w\-.:/=@]+$/.test(value)) {
+    return value;
+  }
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
