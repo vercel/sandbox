@@ -966,4 +966,225 @@ describe("APIClient", () => {
       );
     });
   });
+
+  describe("deleteSnapshot", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const snapshotResponse = () =>
+      new Response(
+        JSON.stringify({
+          snapshot: {
+            id: "snap_123",
+            sourceSessionId: "sbx_123",
+            region: "iad1",
+            status: "deleted",
+            sizeBytes: 1024,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("does not send forceDelete query param by default", async () => {
+      mockFetch.mockResolvedValue(snapshotResponse());
+
+      await client.deleteSnapshot({ snapshotId: "snap_123" });
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(String(url)).toContain("/v2/sandboxes/snapshots/snap_123");
+      expect(String(url)).not.toContain("forceDelete");
+      expect(opts.method).toBe("DELETE");
+    });
+
+    it("appends forceDelete=true when forceDelete is set", async () => {
+      mockFetch.mockResolvedValue(snapshotResponse());
+
+      await client.deleteSnapshot({
+        snapshotId: "snap_123",
+        forceDelete: true,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(String(url)).toContain("forceDelete=true");
+    });
+
+    it("omits forceDelete when explicitly false", async () => {
+      mockFetch.mockResolvedValue(snapshotResponse());
+
+      await client.deleteSnapshot({
+        snapshotId: "snap_123",
+        forceDelete: false,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(String(url)).not.toContain("forceDelete");
+    });
+  });
+
+  describe("createSandbox with keepLastSnapshots", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const sandboxResponse = () =>
+      new Response(
+        JSON.stringify({
+          sandbox: {
+            name: "my-sandbox",
+            persistent: true,
+            region: "iad1",
+            vcpus: 1,
+            memory: 2048,
+            runtime: "node24",
+            timeout: 300000,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            status: "running",
+            currentSessionId: "sbx_123",
+            keepLastSnapshots: {
+              count: 3,
+              expiration: 604800000,
+              deleteEvicted: true,
+            },
+          },
+          session: {
+            id: "sbx_123",
+            memory: 2048,
+            vcpus: 1,
+            region: "iad1",
+            runtime: "node24",
+            timeout: 300000,
+            status: "running",
+            requestedAt: Date.now(),
+            createdAt: Date.now(),
+            cwd: "/",
+            updatedAt: Date.now(),
+          },
+          routes: [],
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("forwards keepLastSnapshots in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        keepLastSnapshots: {
+          count: 3,
+          expiration: 604800000,
+          deleteEvicted: true,
+        },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.keepLastSnapshots).toEqual({
+        count: 3,
+        expiration: 604800000,
+        deleteEvicted: true,
+      });
+    });
+
+    it("omits keepLastSnapshots when not provided", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body).not.toHaveProperty("keepLastSnapshots");
+    });
+  });
+
+  describe("updateSandbox with keepLastSnapshots", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const makeSandboxMetadata = () => ({
+      name: "my-sandbox",
+      persistent: true,
+      region: "iad1",
+      vcpus: 2,
+      memory: 4096,
+      runtime: "node24",
+      timeout: 600000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      status: "running" as const,
+      currentSessionId: "sbx_123",
+    });
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("forwards keepLastSnapshots in the PATCH body", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        keepLastSnapshots: { count: 5, expiration: 0, deleteEvicted: false },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.keepLastSnapshots).toEqual({
+        count: 5,
+        expiration: 0,
+        deleteEvicted: false,
+      });
+    });
+
+    it("sends null to clear keepLastSnapshots", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        keepLastSnapshots: null,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      // Presence of the key with null — not undefined/missing — is the signal.
+      expect(Object.prototype.hasOwnProperty.call(body, "keepLastSnapshots")).toBe(
+        true,
+      );
+      expect(body.keepLastSnapshots).toBeNull();
+    });
+  });
 });

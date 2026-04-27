@@ -416,8 +416,17 @@ for (const port of ports) {
   });
 
   it("reflects updated resources after update", async () => {
-    const sandbox = await Sandbox.create({ timeout: 60_000, persistent: true, snapshotExpiration: 7 * 86400000 });
+    const sandbox = await Sandbox.create({
+      timeout: 60_000,
+      persistent: true,
+      snapshotExpiration: 7 * 86400000,
+      keepLastSnapshots: { count: 3 },
+    });
     expect(sandbox.snapshotExpiration).toBe(7 * 86400000);
+    expect(sandbox.keepLastSnapshots).toMatchObject({
+      count: 3,
+      deleteEvicted: true,
+    });
     await sandbox.stop();
 
     const { snapshotId } = await sandbox.snapshot();
@@ -427,6 +436,11 @@ for (const port of ports) {
       timeout: 30_000,
       persistent: false,
       snapshotExpiration: 2 * 86400000,
+      keepLastSnapshots: {
+        count: 5,
+        expiration: 3 * 86400000,
+        deleteEvicted: false,
+      },
       currentSnapshotId: snapshotId,
     });
 
@@ -439,7 +453,57 @@ for (const port of ports) {
     expect(updated.timeout).toBe(30_000);
     expect(updated.persistent).toBe(false);
     expect(updated.snapshotExpiration).toBe(2 * 86400000);
+    expect(updated.keepLastSnapshots).toEqual({
+      count: 5,
+      expiration: 3 * 86400000,
+      deleteEvicted: false,
+    });
     expect(updated.currentSnapshotId).toBe(snapshotId);
+  });
+
+  it("clears keepLastSnapshots when updated with null", async () => {
+    const sandbox = await Sandbox.create({
+      persistent: true,
+      keepLastSnapshots: {
+        count: 2,
+        expiration: 7 * 86400000,
+        deleteEvicted: true,
+      },
+    });
+    expect(sandbox.keepLastSnapshots).toMatchObject({ count: 2 });
+
+    await sandbox.update({ keepLastSnapshots: null });
+
+    const cleared = await Sandbox.get({
+      name: sandbox.name,
+      resume: false,
+    });
+    expect(cleared.keepLastSnapshots).toBeUndefined();
+  });
+
+  it("rejects snapshot deletion when the snapshot is in use, unless forceDelete is set", async () => {
+    const sandbox = await Sandbox.create({
+      name: `force-delete-${Date.now().toString(36)}`,
+      persistent: true,
+    });
+    try {
+      const snapshot = await sandbox.snapshot();
+      // The snapshot is now the sandbox's currentSnapshotId — deletion must fail.
+      await expect(snapshot.delete()).rejects.toMatchObject({
+        response: { status: 400 },
+        json: {
+          error: {
+            message: expect.stringMatching(/in use/i),
+          },
+        },
+      });
+
+      // With forceDelete the same call succeeds.
+      await snapshot.delete({ forceDelete: true });
+      expect(snapshot.status).toBe("deleted");
+    } finally {
+      await sandbox.delete();
+    }
   });
 
   it("appears in the sandbox list after creation", async () => {

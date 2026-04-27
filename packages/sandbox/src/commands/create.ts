@@ -81,6 +81,39 @@ export const args = {
     type: cmd.optional(SnapshotExpiration),
     description: 'Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d',
   }),
+  keepLastSnapshots: cmd.option({
+    long: "keep-last-snapshots",
+    type: cmd.optional(
+      cmd.extendType(cmd.number, {
+        displayName: "COUNT",
+        async from(n) {
+          if (!Number.isInteger(n) || n < 1 || n > 10) {
+            throw new Error(
+              `Invalid --keep-last-snapshots value: ${n}. Must be an integer between 1 and 10.`,
+            );
+          }
+          return n;
+        },
+      }),
+    ),
+    description:
+      "Keep only the N most recent snapshots of this sandbox (1-10).",
+  }),
+  keepLastSnapshotsFor: cmd.option({
+    long: "keep-last-snapshots-for",
+    type: cmd.optional(SnapshotExpiration),
+    description:
+      'Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d',
+  }),
+  deleteEvictedSnapshots: cmd.option({
+    long: "delete-evicted-snapshots",
+    type: cmd.optional({
+      ...cmd.oneOf(["true", "false"]),
+      displayName: "true|false",
+    }),
+    description:
+      'When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration.',
+  }),
   ...networkPolicyArgs,
   scope,
 } as const;
@@ -109,6 +142,9 @@ export const create = cmd.command({
     envVars,
     tags,
     snapshotExpiration,
+    keepLastSnapshots,
+    keepLastSnapshotsFor,
+    deleteEvictedSnapshots,
     networkPolicy: networkPolicyMode,
     allowedDomains,
     allowedCIDRs,
@@ -120,6 +156,34 @@ export const create = cmd.command({
       allowedCIDRs,
       deniedCIDRs,
     });
+
+    if (
+      keepLastSnapshots === undefined &&
+      (keepLastSnapshotsFor !== undefined ||
+        deleteEvictedSnapshots !== undefined)
+    ) {
+      throw new Error(
+        [
+          "--keep-last-snapshots-for and --delete-evicted-snapshots require --keep-last-snapshots.",
+          `${chalk.bold("hint:")} Pass --keep-last-snapshots <count> to enable the retention policy.`,
+        ].join("\n"),
+      );
+    }
+
+    const keepLastSnapshotsPayload =
+      keepLastSnapshots !== undefined
+        ? {
+            count: keepLastSnapshots,
+            expiration:
+              keepLastSnapshotsFor !== undefined
+                ? ms(keepLastSnapshotsFor)
+                : undefined,
+            deleteEvicted:
+              deleteEvictedSnapshots !== undefined
+                ? deleteEvictedSnapshots === "true"
+                : undefined,
+          }
+        : undefined;
 
     const persistent = !nonPersistent
     const resources = vcpus ? { vcpus } : undefined;
@@ -140,6 +204,7 @@ export const create = cmd.command({
           tags: tagsObj,
           persistent,
           snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
+          keepLastSnapshots: keepLastSnapshotsPayload,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -156,6 +221,7 @@ export const create = cmd.command({
           tags: tagsObj,
           persistent,
           snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
+          keepLastSnapshots: keepLastSnapshotsPayload,
           __interactive: true,
         });
     spinner?.stop();

@@ -202,6 +202,147 @@ const snapshotExpirationCommand = cmd.command({
   },
 });
 
+const keepLastCountType = cmd.extendType(cmd.number, {
+  displayName: "COUNT",
+  async from(n) {
+    if (!Number.isInteger(n) || n < 1 || n > 10) {
+      throw new Error(
+        `Invalid count: ${n}. Must be an integer between 1 and 10.`,
+      );
+    }
+    return n;
+  },
+});
+
+const keepLastSnapshotsCommand = cmd.command({
+  name: "keep-last-snapshots",
+  description:
+    "Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    count: cmd.positional({
+      type: cmd.optional(keepLastCountType),
+      description:
+        "Number of most recent snapshots to keep (1-10). Omit with --clear to remove the policy.",
+    }),
+    keepLastSnapshotsFor: cmd.option({
+      long: "keep-last-snapshots-for",
+      type: cmd.optional(SnapshotExpiration),
+      description:
+        'Expiration for kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d',
+    }),
+    deleteEvictedSnapshots: cmd.option({
+      long: "delete-evicted-snapshots",
+      type: cmd.optional({
+        ...cmd.oneOf(["true", "false"]),
+        displayName: "true|false",
+      }),
+      description:
+        'When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration.',
+    }),
+    clear: cmd.flag({
+      long: "clear",
+      description:
+        "Remove the snapshot retention policy from this sandbox.",
+    }),
+    scope,
+  },
+  async handler({
+    scope: { token, team, project },
+    sandbox: name,
+    count,
+    keepLastSnapshotsFor,
+    deleteEvictedSnapshots,
+    clear,
+  }) {
+    if (clear && count !== undefined) {
+      throw new Error(
+        "Cannot combine --clear with a <count> argument. Pass one or the other.",
+      );
+    }
+    if (!clear && count === undefined) {
+      throw new Error(
+        [
+          "Missing <count> argument.",
+          `${chalk.bold("hint:")} Pass a count between 1 and 10, or --clear to remove the policy.`,
+        ].join("\n"),
+      );
+    }
+    if (
+      clear &&
+      (keepLastSnapshotsFor !== undefined ||
+        deleteEvictedSnapshots !== undefined)
+    ) {
+      throw new Error(
+        "--keep-last-snapshots-for and --delete-evicted-snapshots cannot be combined with --clear.",
+      );
+    }
+
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      if (clear) {
+        await sandbox.update({ keepLastSnapshots: null });
+      } else {
+        await sandbox.update({
+          keepLastSnapshots: {
+            count: count!,
+            expiration:
+              keepLastSnapshotsFor !== undefined
+                ? ms(keepLastSnapshotsFor)
+                : undefined,
+            deleteEvicted:
+              deleteEvictedSnapshots !== undefined
+                ? deleteEvictedSnapshots === "true"
+                : undefined,
+          },
+        });
+      }
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      if (clear) {
+        process.stderr.write(
+          chalk.dim("   ╰ ") +
+            "keep-last-snapshots: " +
+            chalk.cyan("cleared") +
+            "\n",
+        );
+      } else {
+        const parts: string[] = [`count=${count}`];
+        if (keepLastSnapshotsFor !== undefined) {
+          const displayExp =
+            ms(keepLastSnapshotsFor) === 0 ? "none" : keepLastSnapshotsFor;
+          parts.push(`for=${displayExp}`);
+        }
+        if (deleteEvictedSnapshots === "false") {
+          parts.push("delete-evicted-snapshots=false");
+        }
+        process.stderr.write(
+          chalk.dim("   ╰ ") +
+            "keep-last-snapshots: " +
+            chalk.cyan(parts.join(", ")) +
+            "\n",
+        );
+      }
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
 const currentSnapshotCommand = cmd.command({
   name: "current-snapshot",
   description: "Update the current snapshot of a sandbox",
@@ -291,6 +432,7 @@ const listCommand = cmd.command({
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
       { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
+      { field: "Keep last snapshots", value: formatKeepLastSnapshots(sandbox.keepLastSnapshots) },
       { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
       { field: "Tags", value: tagsDisplay },
     ];
@@ -432,6 +574,24 @@ const tagsCommand = cmd.command({
   },
 });
 
+function formatKeepLastSnapshots(
+  keepLastSnapshots:
+    | { count: number; expiration?: number; deleteEvicted: boolean }
+    | undefined,
+): string {
+  if (!keepLastSnapshots) return "-";
+  const parts = [`count=${keepLastSnapshots.count}`];
+  if (keepLastSnapshots.expiration !== undefined) {
+    parts.push(
+      `for=${keepLastSnapshots.expiration === 0 ? "none" : ms(keepLastSnapshots.expiration, { long: true })}`,
+    );
+  }
+  if (!keepLastSnapshots.deleteEvicted) {
+    parts.push("delete-evicted-snapshots=false");
+  }
+  return parts.join(", ");
+}
+
 export const config = cmd.subcommands({
   name: "config",
   description: "View and update sandbox configuration",
@@ -442,6 +602,7 @@ export const config = cmd.subcommands({
     persistent: persistentCommand,
     "network-policy": networkPolicyCommand,
     "snapshot-expiration": snapshotExpirationCommand,
+    "keep-last-snapshots": keepLastSnapshotsCommand,
     "current-snapshot": currentSnapshotCommand,
     tags: tagsCommand,
   },

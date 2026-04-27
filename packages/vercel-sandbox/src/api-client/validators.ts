@@ -185,6 +185,13 @@ export const Sandbox = z.object({
   cwd: z.string().optional(),
   tags: z.record(z.string()).optional(),
   snapshotExpiration: z.number().optional(),
+  keepLastSnapshots: z
+    .object({
+      count: z.number(),
+      expiration: z.number().optional(),
+      deleteEvicted: z.boolean(),
+    })
+    .optional(),
 });
 
 export type SandboxMetaData = z.infer<typeof Sandbox>;

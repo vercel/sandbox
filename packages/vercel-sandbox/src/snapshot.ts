@@ -190,14 +190,21 @@ export class Snapshot {
    * Delete this snapshot.
    *
    * @param opts - Optional parameters.
+   * @param opts.forceDelete - Delete the snapshot even if it is currently set
+   *   as the `currentSnapshotId` of a sandbox. By default the server rejects
+   *   the deletion in that case.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves once the snapshot has been deleted.
    */
-  async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+  async delete(opts?: {
+    forceDelete?: boolean;
+    signal?: AbortSignal;
+  }): Promise<void> {
     "use step";
     const client = await this.ensureClient();
     const response = await client.deleteSnapshot({
       snapshotId: this.snapshot.id,
+      forceDelete: opts?.forceDelete,
       signal: opts?.signal,
     });
 

@@ -113,6 +113,26 @@ export interface BaseCreateSandboxParams {
    */
   snapshotExpiration?: number;
   /**
+   * Retention policy that keeps only the N most recent snapshots of this
+   * sandbox. Older snapshots are evicted when a new one is created.
+   */
+  keepLastSnapshots?: {
+    /**
+     * Number of snapshots to keep (1-10).
+     */
+    count: number;
+    /**
+     * Expiration in milliseconds applied to kept snapshots.
+     * Use `0` for no expiration. Falls back to `snapshotExpiration` when omitted.
+     */
+    expiration?: number;
+    /**
+     * When `true` (the default), evicted snapshots are deleted immediately;
+     * when `false`, they keep the default expiration.
+     */
+    deleteEvicted?: boolean;
+  };
+  /**
    * Called when the sandbox session is resumed (e.g., after a snapshot restore).
    * Use this to re-warm caches, restore transient state, or run other setup logic.
    */
@@ -395,6 +415,16 @@ export class Sandbox {
   }
 
   /**
+   * The snapshot retention policy (`keep-last-snapshots`) currently configured
+   * on this sandbox, if any.
+   */
+  public get keepLastSnapshots():
+    | { count: number; expiration?: number; deleteEvicted: boolean }
+    | undefined {
+    return this.sandbox.keepLastSnapshots;
+  }
+
+  /**
    * The amount of CPU used by the session. Only reported once the VM is stopped.
    */
   public get activeCpuUsageMs(): number | undefined {
@@ -512,6 +542,7 @@ export class Sandbox {
       env: params?.env,
       tags: params?.tags,
       snapshotExpiration: params?.snapshotExpiration,
+      keepLastSnapshots: params?.keepLastSnapshots,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -1009,6 +1040,11 @@ export class Sandbox {
       networkPolicy?: NetworkPolicy;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      keepLastSnapshots?: {
+        count: number;
+        expiration?: number;
+        deleteEvicted?: boolean;
+      } | null;
       currentSnapshotId?: string;
     },
     opts?: { signal?: AbortSignal },
@@ -1033,6 +1069,7 @@ export class Sandbox {
       networkPolicy: params.networkPolicy,
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
+      keepLastSnapshots: params.keepLastSnapshots,
       currentSnapshotId: params.currentSnapshotId,
       signal: opts?.signal,
     });
