@@ -649,7 +649,11 @@ for (const port of ports) {
       const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>(
         async () => {},
       );
-      sandbox = await Sandbox.getOrCreate({ onCreate });
+      sandbox = await Sandbox.getOrCreate({
+        persistent: false,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+        onCreate,
+      });
 
       expect(sandbox.status).toBe("running");
       expect(onCreate).toHaveBeenCalledTimes(1);
@@ -675,7 +679,12 @@ for (const port of ports) {
         async () => {},
       );
 
-      sandbox = await Sandbox.getOrCreate({ name, onCreate });
+      sandbox = await Sandbox.getOrCreate({
+        name,
+        persistent: false,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+        onCreate,
+      });
 
       expect(sandbox.name).toBe(name);
       expect(sandbox.status).toBe("running");
@@ -687,7 +696,10 @@ for (const port of ports) {
       // A persistent sandbox + stop() reliably creates a snapshot and
       // updates `currentSnapshotId`. Deleting that snapshot makes the next
       // resume fail with `snapshot_not_found`.
-      sandbox = await Sandbox.create({ persistent: true });
+      sandbox = await Sandbox.create({
+        persistent: true,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+      });
       const name = sandbox.name;
       const originalSessionId = sandbox.currentSession().sessionId;
       await sandbox.stop();
@@ -703,6 +715,7 @@ for (const port of ports) {
       sandbox = await Sandbox.getOrCreate({
         name,
         persistent: true,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
         resume: true,
         onCreate,
       });
