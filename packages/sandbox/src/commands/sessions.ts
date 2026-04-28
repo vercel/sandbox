@@ -6,7 +6,7 @@ import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { table, timeAgo, formatBytes, formatRunDuration } from "../util/output";
+import { table, timeAgo, formatBytes, formatRunDuration, formatNextCursorHint } from "../util/output";
 import type { Sandbox } from "@vercel/sandbox";
 
 const list = cmd.command({
@@ -28,9 +28,19 @@ const list = cmd.command({
       description: "Sort order. Options: asc, desc (default)",
       type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
     }),
+    limit: cmd.option({
+      long: "limit",
+      description: "Maximum number of sessions per page (default 50).",
+      type: cmd.optional(cmd.number),
+    }),
+    cursor: cmd.option({
+      long: "cursor",
+      description: "Pagination cursor from a previous 'More results' hint.",
+      type: cmd.optional(cmd.string),
+    }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, sandbox: name, sortOrder }) {
+  async handler({ scope: { token, team, project }, all, sandbox: name, sortOrder, limit, cursor }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -38,19 +48,21 @@ const list = cmd.command({
       token,
     });
 
-    let { sessions } = await (async () => {
+    const { sessions, pagination } = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sessions...").start(),
         (s) => s.stop(),
       );
       return sandbox.listSessions({
+        limit: limit ?? 50,
+        ...(cursor && { cursor }),
         ...(sortOrder && { sortOrder }),
       });
     })();
 
-    if (!all) {
-      sessions = sessions.filter((x) => x.status === "running");
-    }
+    const displayedSessions = all
+      ? sessions
+      : sessions.filter((x) => x.status === "running");
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
       style: "unit",
@@ -86,7 +98,11 @@ const list = cmd.command({
       };
     }
 
-    console.log(table({ rows: sessions, columns }));
+    console.log(table({ rows: displayedSessions, columns }));
+
+    if (pagination.next !== null) {
+      console.log(formatNextCursorHint(pagination.next));
+    }
   },
 });
 

@@ -644,6 +644,101 @@ for (const port of ports) {
     expect(called).toBe(false);
   });
 
+  it("paginates Sandbox.list across multiple pages", async () => {
+    const tag = `pagination-${Date.now()}`;
+    const [a, b] = await Promise.all([
+      Sandbox.create({
+        tags: { test: tag },
+        persistent: false,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+      }),
+      Sandbox.create({
+        tags: { test: tag },
+        persistent: false,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+      }),
+    ]);
+
+    try {
+      await Promise.all([a.stop(), b.stop()]);
+
+      const firstPage = await Sandbox.list({ limit: 1, tags: { test: tag } });
+      expect(firstPage.sandboxes).toHaveLength(1);
+      expect(firstPage.pagination.next).not.toBeNull();
+
+      const all = await firstPage.toArray();
+      expect(all).toHaveLength(2);
+      expect(new Set(all.map((s) => s.name))).toEqual(
+        new Set([a.name, b.name]),
+      );
+    } finally {
+      await Promise.all([a.delete(), b.delete()]);
+    }
+  });
+
+  it("paginates listSessions across multiple pages", async () => {
+    const sbx = await Sandbox.create({
+      persistent: true,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
+
+    try {
+      await sbx.stop();
+      await Sandbox.get({ name: sbx.name, resume: true });
+
+      const firstPage = await sbx.listSessions({ limit: 1 });
+      expect(firstPage.sessions).toHaveLength(1);
+      expect(firstPage.pagination.next).not.toBeNull();
+
+      const all = await firstPage.toArray();
+      expect(all).toHaveLength(2);
+    } finally {
+      await sbx.delete();
+    }
+  });
+
+  it("paginates listSnapshots across multiple pages", async () => {
+    const sbx = await Sandbox.create({
+      persistent: false,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
+
+    try {
+      await sbx.snapshot();
+      await sbx.snapshot();
+
+      const firstPage = await sbx.listSnapshots({ limit: 1 });
+      expect(firstPage.snapshots).toHaveLength(1);
+      expect(firstPage.pagination.next).not.toBeNull();
+
+      const all = await firstPage.toArray();
+      expect(all).toHaveLength(2);
+    } finally {
+      await sbx.delete();
+    }
+  });
+
+  it("paginates Snapshot.list across multiple pages", async () => {
+    const sbx = await Sandbox.create({
+      persistent: false,
+      snapshotExpiration: SNAPSHOT_EXPIRATION,
+    });
+
+    try {
+      await sbx.snapshot();
+      await sbx.snapshot();
+
+      const firstPage = await Snapshot.list({ name: sbx.name, limit: 1 });
+      expect(firstPage.snapshots).toHaveLength(1);
+      expect(firstPage.pagination.next).not.toBeNull();
+
+      const all = await firstPage.toArray();
+      expect(all).toHaveLength(2);
+    } finally {
+      await sbx.delete();
+    }
+  });
+
   describe("getOrCreate", () => {
     it("creates a new sandbox and fires onCreate when no name is provided", async () => {
       const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>(

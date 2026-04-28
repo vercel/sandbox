@@ -5,7 +5,7 @@ import { scope } from "../args/scope";
 import chalk, { ChalkInstance } from "chalk";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
-import { table, timeAgo, formatBytes, formatRunDuration } from "../util/output";
+import { table, timeAgo, formatBytes, formatRunDuration, formatNextCursorHint } from "../util/output";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 
 export const list = cmd.command({
@@ -40,9 +40,19 @@ export const list = cmd.command({
       description: 'Filter sandboxes by tag. Format: "key=value"',
       type: ObjectFromKeyValue,
     }),
+    limit: cmd.option({
+      long: "limit",
+      description: "Maximum number of sandboxes per page (default 50).",
+      type: cmd.optional(cmd.number),
+    }),
+    cursor: cmd.option({
+      long: "cursor",
+      description: "Pagination cursor from a previous 'More results' hint.",
+      type: cmd.optional(cmd.string),
+    }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, sortOrder, tags }) {
+  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, sortOrder, tags, limit, cursor }) {
     if (namePrefix) {
       if (sortBy && sortBy !== "name") {
         console.error(chalk.red("Error: --sort-by must be 'name' when using --name-prefix"));
@@ -52,29 +62,28 @@ export const list = cmd.command({
       sortBy = 'name';
     }
 
-    const sandboxes = await (async () => {
+    const { sandboxes, pagination } = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
         (s) => s.stop(),
       );
 
-      let { sandboxes } = await sandboxClient.list({
+      return sandboxClient.list({
         token,
         teamId: team,
         projectId: project,
-        limit: 50,
+        limit: limit ?? 50,
+        ...(cursor && { cursor }),
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
         ...(sortOrder && { sortOrder }),
         ...(Object.keys(tags).length > 0 && { tags }),
       });
-
-      if (!all) {
-        sandboxes = sandboxes.filter((x) => x.status === "running");
-      }
-
-      return sandboxes;
     })();
+
+    const displayedSandboxes = all
+      ? sandboxes
+      : sandboxes.filter((x) => x.status === "running");
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
       style: "unit",
@@ -110,7 +119,11 @@ export const list = cmd.command({
       };
     }
 
-    console.log(table({ rows: sandboxes, columns }));
+    console.log(table({ rows: displayedSandboxes, columns }));
+
+    if (pagination.next !== null) {
+      console.log(formatNextCursorHint(pagination.next));
+    }
   },
 });
 
