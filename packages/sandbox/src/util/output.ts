@@ -95,5 +95,5 @@ export function formatNextCursorHint(cursor: string): string {
 
     filtered.push(args[i]);
   }
-  return `More results: sandbox ${filtered.join(" ")} --cursor ${cursor}`;
+  return `\nMore results: sandbox ${filtered.join(" ")} --cursor ${cursor}`;
 }

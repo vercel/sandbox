@@ -19,42 +19,42 @@ describe("formatNextCursorHint", () => {
   it("appends --cursor when no cursor was passed", () => {
     setArgs(["list", "--limit", "2"]);
     expect(formatNextCursorHint("cur1")).toBe(
-      "More results: sandbox list --limit 2 --cursor cur1",
+      "\nMore results: sandbox list --limit 2 --cursor cur1",
     );
   });
 
   it("preserves boolean flags", () => {
     setArgs(["list", "--all"]);
     expect(formatNextCursorHint("cur1")).toBe(
-      "More results: sandbox list --all --cursor cur1",
+      "\nMore results: sandbox list --all --cursor cur1",
     );
   });
 
   it("preserves positional arguments", () => {
     setArgs(["sessions", "list", "my-sandbox", "--limit", "5"]);
     expect(formatNextCursorHint("abc")).toBe(
-      "More results: sandbox sessions list my-sandbox --limit 5 --cursor abc",
+      "\nMore results: sandbox sessions list my-sandbox --limit 5 --cursor abc",
     );
   });
 
   it("strips an existing --cursor X form", () => {
     setArgs(["list", "--limit", "2", "--cursor", "old"]);
     expect(formatNextCursorHint("new")).toBe(
-      "More results: sandbox list --limit 2 --cursor new",
+      "\nMore results: sandbox list --limit 2 --cursor new",
     );
   });
 
   it("strips an existing --cursor=X form", () => {
     setArgs(["list", "--limit", "2", "--cursor=old"]);
     expect(formatNextCursorHint("new")).toBe(
-      "More results: sandbox list --limit 2 --cursor new",
+      "\nMore results: sandbox list --limit 2 --cursor new",
     );
   });
 
   it("works with no arguments", () => {
     setArgs(["list"]);
     expect(formatNextCursorHint("cur")).toBe(
-      "More results: sandbox list --cursor cur",
+      "\nMore results: sandbox list --cursor cur",
     );
   });
 });
