@@ -1,10 +1,17 @@
 # sandbox
 
-## 3.0.0-beta.18
+## 3.0.0-beta.19
 
 ### Minor Changes
 
 - Support pagination (CLI and SDK) when listing sandboxes, snapshots, sessions
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @vercel/sandbox@2.0.0-beta.17
+
+## 3.0.0-beta.18
 
 ### Patch Changes
 

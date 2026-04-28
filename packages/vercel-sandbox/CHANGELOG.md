@@ -1,11 +1,16 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.17
+
+### Minor Changes
+
+- Support pagination (CLI and SDK) when listing sandboxes, snapshots, sessions
+
 ## 2.0.0-beta.16
 
 ### Minor Changes
 
 - Support a new method: Sandbox.getOrCreate()
-- Support pagination (CLI and SDK) when listing sandboxes, snapshots, sessions
 
 ## 2.0.0-beta.15
 
