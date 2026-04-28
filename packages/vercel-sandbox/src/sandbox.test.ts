@@ -2,6 +2,7 @@ import { it, beforeEach, afterEach, expect, describe, vi } from "vitest";
 import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable.js";
 import { Sandbox } from "./sandbox.js";
+import { Snapshot } from "./snapshot.js";
 import { APIError } from "./api-client/api-error.js";
 import type {
   APIClient,
@@ -194,6 +195,83 @@ describe("_runCommand error handling", () => {
 
     expect(detached.cmdId).toBe("cmd_123");
     await expect(errorEvent).resolves.toBe(logsError);
+  });
+});
+
+describe("Sandbox.getOrCreate", () => {
+  const CREDENTIALS = {
+    token: "test-token",
+    teamId: "team_123",
+    projectId: "proj_123",
+  };
+
+  const jsonResponse = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+
+  it("propagates non-404 errors from Sandbox.get without attempting create", async () => {
+    // 403 is non-retryable (<500 and !=429), so it surfaces immediately.
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(403, { error: { code: "forbidden", message: "nope" } }),
+    );
+    const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>();
+
+    await expect(
+      Sandbox.getOrCreate({
+        ...CREDENTIALS,
+        name: "my-sandbox",
+        fetch: mockFetch as unknown as typeof fetch,
+        onCreate,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    // Only the get call should have been made — no create attempt.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain("/v2/sandboxes/my-sandbox");
+    expect(init?.method ?? "GET").toBe("GET");
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("propagates create errors when a name race occurs after a 404 from get", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async (input, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET") {
+        return jsonResponse(404, {
+          error: { code: "not_found", message: "not found" },
+        });
+      }
+      if (method === "POST") {
+        return jsonResponse(400, {
+          error: {
+            code: "bad_request",
+            message:
+              "A sandbox with the name 'my-sandbox' already exists for this project.",
+          },
+        });
+      }
+      throw new Error(`Unexpected method ${method} to ${String(input)}`);
+    });
+    const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>();
+
+    const promise = Sandbox.getOrCreate({
+      ...CREDENTIALS,
+      name: "my-sandbox",
+      fetch: mockFetch as unknown as typeof fetch,
+      onCreate,
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(APIError);
+    await expect(promise).rejects.toMatchObject({
+      response: { status: 400 },
+      json: { error: { code: "bad_request" } },
+    });
+
+    // One GET (get-sandbox 404) + one POST (create 400). onCreate must not fire.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(onCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -564,5 +642,89 @@ for (const port of ports) {
     });
 
     expect(called).toBe(false);
+  });
+
+  describe("getOrCreate", () => {
+    it("creates a new sandbox and fires onCreate when no name is provided", async () => {
+      const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>(
+        async () => {},
+      );
+      sandbox = await Sandbox.getOrCreate({
+        persistent: false,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+        onCreate,
+      });
+
+      expect(sandbox.status).toBe("running");
+      expect(onCreate).toHaveBeenCalledTimes(1);
+      expect(onCreate.mock.calls[0][0]).toBe(sandbox);
+    });
+
+    it("returns the existing sandbox without firing onCreate when the name exists", async () => {
+      const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>(
+        async () => {},
+      );
+      const fetched = await Sandbox.getOrCreate({
+        name: sandbox.name,
+        onCreate,
+      });
+
+      expect(fetched.name).toBe(sandbox.name);
+      expect(onCreate).not.toHaveBeenCalled();
+    });
+
+    it("creates a new sandbox with the given name and fires onCreate when the name does not exist", async () => {
+      const name = `goc-new-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>(
+        async () => {},
+      );
+
+      sandbox = await Sandbox.getOrCreate({
+        name,
+        persistent: false,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+        onCreate,
+      });
+
+      expect(sandbox.name).toBe(name);
+      expect(sandbox.status).toBe("running");
+      expect(onCreate).toHaveBeenCalledTimes(1);
+      expect(onCreate.mock.calls[0][0]).toBe(sandbox);
+    });
+
+    it("recreates the sandbox with the same name when the snapshot is missing", async () => {
+      // A persistent sandbox + stop() reliably creates a snapshot and
+      // updates `currentSnapshotId`. Deleting that snapshot makes the next
+      // resume fail with `snapshot_not_found`.
+      sandbox = await Sandbox.create({
+        persistent: true,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+      });
+      const name = sandbox.name;
+      const originalSessionId = sandbox.currentSession().sessionId;
+      await sandbox.stop();
+
+      const snapshotId = sandbox.currentSnapshotId;
+      expect(snapshotId).not.toBeNull();
+      const snapshot = await Snapshot.get({ snapshotId: snapshotId! });
+      await snapshot.delete();
+
+      const onCreate = vi.fn<(sandbox: Sandbox) => Promise<void>>(
+        async () => {},
+      );
+      sandbox = await Sandbox.getOrCreate({
+        name,
+        persistent: true,
+        snapshotExpiration: SNAPSHOT_EXPIRATION,
+        resume: true,
+        onCreate,
+      });
+
+      expect(sandbox.name).toBe(name);
+      expect(sandbox.currentSession().sessionId).not.toBe(originalSessionId);
+      expect(sandbox.status).toBe("running");
+      expect(onCreate).toHaveBeenCalledTimes(1);
+      expect(onCreate.mock.calls[0][0]).toBe(sandbox);
+    });
   });
 });
