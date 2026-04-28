@@ -3,6 +3,7 @@ import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { SnapshotMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import { attachPaginator } from "./utils/paginator.js";
 
 export interface SerializedSnapshot {
   snapshot: SnapshotMetadata;
@@ -139,6 +140,15 @@ export class Snapshot {
    * Allow to get a list of snapshots for a team narrowed to the given params.
    * It returns both the snapshots and the pagination metadata to allow getting
    * the next page of results.
+   *
+   * The returned object is async-iterable to auto-paginate through all pages:
+   *
+   * ```ts
+   * const result = await Snapshot.list({ name: "my-sandbox" });
+   * for await (const snapshot of result) { ... }
+   * // or: await result.toArray();
+   * // or: for await (const page of result.pages()) { ... }
+   * ```
    */
   static async list(
     params?: Partial<Parameters<APIClient["listSnapshots"]>[0]> &
@@ -152,11 +162,20 @@ export class Snapshot {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    const response = await client.listSnapshots({
-      ...credentials,
-      ...params,
+    const fetchPage = async (cursor?: string) => {
+      const response = await client.listSnapshots({
+        ...credentials,
+        ...params,
+        ...(cursor !== undefined && { cursor }),
+      });
+      return response.json;
+    };
+    const firstPage = await fetchPage(params?.cursor);
+    return attachPaginator(firstPage, {
+      itemsKey: "snapshots",
+      fetchNext: fetchPage,
+      signal: params?.signal,
     });
-    return response.json;
   }
 
   /**

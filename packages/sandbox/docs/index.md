@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.0-beta.18
+sandbox 3.0.0-beta.19
 
 ▲ sandbox [options] <command>
 
@@ -59,6 +59,8 @@ Options:
     --sort-by <value>     Sort sandboxes by field. Options: createdAt (default), name, statusUpdatedAt [optional]
     --sort-order <value>  Sort order. Options: asc, desc (default) [optional]
     --tag <key=value>     Filter sandboxes by tag. Format: "key=value"
+    --limit <number>      Maximum number of sandboxes per page (default 50). [optional]
+    --cursor <str>        Pagination cursor from a previous 'More results' hint. [optional]
 
 Auth & Scope:
 

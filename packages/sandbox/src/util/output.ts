@@ -78,3 +78,22 @@ export function formatRunDuration(d: number): string {
   }
   return `${d/1000}s`
 }
+
+export function formatNextCursorHint(cursor: string): string {
+  const args = process.argv.slice(2);
+  const filtered: string[] = [];
+
+  for (let i = 0; i < args.length; i++) {
+    // Ignore `--cursor` parameter. We will overwrite it.
+    if (args[i] === "--cursor") {
+      i++;
+      continue;
+    }
+    if (args[i].startsWith("--cursor=")) {
+      continue;
+    }
+
+    filtered.push(args[i]);
+  }
+  return `\nMore results: sandbox ${filtered.join(" ")} --cursor ${cursor}`;
+}
