@@ -52,17 +52,18 @@ export function attachPaginator<
     }
   }
 
-  const paginator = firstPage as Paginator<Page, Key>;
-  paginator[Symbol.asyncIterator] = iterateItems;
-  paginator.pages = iteratePages;
-  paginator.toArray = async () => {
-    const all: ItemOf<Page, Key>[] = [];
-    for await (const item of iterateItems()) {
-      all.push(item);
-    }
-    return all;
+  return {
+    ...firstPage,
+    [Symbol.asyncIterator]: iterateItems,
+    pages: iteratePages,
+    toArray: async () => {
+      const all: ItemOf<Page, Key>[] = [];
+      for await (const item of iterateItems()) {
+        all.push(item);
+      }
+      return all;
+    },
   };
-  return paginator;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
