@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.10.1
+
+### Patch Changes
+
+- Update auth API base URL ([#166](https://github.com/vercel/sandbox/pull/166))
+
 ## 1.10.0
 
 ### Minor Changes
