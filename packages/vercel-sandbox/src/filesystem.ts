@@ -1,5 +1,12 @@
 import type { Stats, Dirent } from "fs";
 import * as constants from "node:constants";
+import type {
+  EncodingOption,
+  FileContent,
+  IFileSystem,
+  MkdirOptions,
+  RmOptions,
+} from "./filesystem-interface.js";
 
 const {
   S_IFMT,
@@ -21,24 +28,6 @@ const UV_DIRENT_FIFO = 4;
 const UV_DIRENT_SOCKET = 5;
 const UV_DIRENT_CHAR = 6;
 const UV_DIRENT_BLOCK = 7;
-
-type EncodingOption =
-  | { encoding?: BufferEncoding | null; signal?: AbortSignal }
-  | BufferEncoding
-  | null;
-
-type WriteFileData = string | Buffer | Uint8Array;
-
-interface MkdirOptions {
-  recursive?: boolean;
-  signal?: AbortSignal;
-}
-
-interface RmOptions {
-  recursive?: boolean;
-  force?: boolean;
-  signal?: AbortSignal;
-}
 
 function fsError(
   code: string,
@@ -234,7 +223,7 @@ const FIND_TYPE_TO_DIRENT: Record<string, number> = {
   s: UV_DIRENT_SOCKET,
 };
 
-export class FileSystem {
+export class FileSystem implements IFileSystem {
   /** @internal */
   private sandbox: SandboxHandle;
 
@@ -281,7 +270,7 @@ export class FileSystem {
    */
   async writeFile(
     path: string,
-    data: WriteFileData,
+    data: FileContent,
     options?:
       | { encoding?: BufferEncoding; signal?: AbortSignal }
       | BufferEncoding,
@@ -311,7 +300,7 @@ export class FileSystem {
    */
   async appendFile(
     path: string,
-    data: WriteFileData,
+    data: FileContent,
     options?:
       | { encoding?: BufferEncoding; signal?: AbortSignal }
       | BufferEncoding,

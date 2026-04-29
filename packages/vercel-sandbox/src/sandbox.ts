@@ -17,6 +17,7 @@ import type {
 import { Snapshot } from "./snapshot.js";
 import { consumeReadable } from "./utils/consume-readable.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
+import type { IFileSystem } from "./filesystem-interface.js";
 import {
   type SandboxSnapshot,
   toSandboxSnapshot,
@@ -214,7 +215,7 @@ export class Sandbox {
    * const files = await sandbox.fs.readdir('/tmp');
    * const stats = await sandbox.fs.stat('/tmp/hello.txt');
    */
-  public readonly fs: FileSystem;
+  public readonly fs: IFileSystem;
 
   /**
    * Unique ID of this sandbox.
