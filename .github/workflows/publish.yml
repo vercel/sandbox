@@ -52,6 +52,7 @@ jobs:
         with:
           version: pnpm version:prepare
           publish: pnpm release
+          commitMode: github-api
 
       - name: Trigger Vercel CLI Sandbox Sync
         if: steps.changesets.outputs.published == 'true'
