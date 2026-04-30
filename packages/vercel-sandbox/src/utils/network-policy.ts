@@ -16,14 +16,25 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
     const injectionRules: z.infer<typeof InjectionRuleValidator>[] = [];
 
     for (const [domain, rules] of Object.entries(policy.allow)) {
-      const merged: Record<string, string> = {};
-      for (const rule of rules) {
-        for (const t of rule.transform ?? []) {
-          Object.assign(merged, t.headers);
+      if (rules.some((rule) => rule.match !== undefined)) {
+        for (const rule of rules) {
+          const headers = mergeTransformHeaders(rule);
+          if (Object.keys(headers).length > 0) {
+            injectionRules.push({
+              domain,
+              headers,
+              ...(rule.match ? { match: rule.match } : {}),
+            });
+          }
         }
-      }
-      if (Object.keys(merged).length > 0) {
-        injectionRules.push({ domain, headers: merged });
+      } else {
+        const headers = rules.reduce(
+          (merged, rule) => Object.assign(merged, mergeTransformHeaders(rule)),
+          {} as Record<string, string>,
+        );
+        if (Object.keys(headers).length > 0) {
+          injectionRules.push({ domain, headers });
+        }
       }
     }
 
@@ -44,6 +55,14 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
   };
 }
 
+function mergeTransformHeaders(rule: NetworkPolicyRule): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const transform of rule.transform ?? []) {
+    Object.assign(headers, transform.headers);
+  }
+  return headers;
+}
+
 export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
   if (api.mode === "allow-all") return "allow-all";
   if (api.mode === "deny-all") return "deny-all";
@@ -62,29 +81,27 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
   // The API returns headerNames (secret values are stripped), so we
   // populate each header value with "<redacted>".
   if (api.injectionRules && api.injectionRules.length > 0) {
-    const rulesByDomain = new Map(
-      api.injectionRules.map((r) => [r.domain, r.headerNames ?? []]),
-    );
+    const rulesByDomain = new Map<string, NetworkPolicyRule[]>();
+    for (const rule of api.injectionRules) {
+      const headers = Object.fromEntries(
+        (rule.headerNames ?? []).map((n) => [n, "<redacted>"]),
+      );
+      const rules = rulesByDomain.get(rule.domain) ?? [];
+      rules.push({
+        ...(rule.match ? { match: rule.match } : {}),
+        transform: [{ headers }],
+      });
+      rulesByDomain.set(rule.domain, rules);
+    }
 
     const allow: Record<string, NetworkPolicyRule[]> = {};
     for (const domain of api.allowedDomains ?? []) {
-      const headerNames = rulesByDomain.get(domain);
-      if (headerNames && headerNames.length > 0) {
-        const headers = Object.fromEntries(
-          headerNames.map((n) => [n, "<redacted>"]),
-        );
-        allow[domain] = [{ transform: [{ headers }] }];
-      } else {
-        allow[domain] = [];
-      }
+      allow[domain] = rulesByDomain.get(domain) ?? [];
     }
     // Include injection rules for domains not in allowedDomains
     for (const rule of api.injectionRules) {
       if (!(rule.domain in allow)) {
-        const headers = Object.fromEntries(
-          (rule.headerNames ?? []).map((n) => [n, "<redacted>"]),
-        );
-        allow[rule.domain] = [{ transform: [{ headers }] }];
+        allow[rule.domain] = rulesByDomain.get(rule.domain) ?? [];
       }
     }
 

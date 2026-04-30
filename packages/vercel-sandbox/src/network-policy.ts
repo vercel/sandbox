@@ -12,9 +12,53 @@ export type NetworkTransformer = {
 };
 
 /**
+ * Defines how a request value is matched. Exactly one field should be set.
+ */
+export type NetworkPolicyMatcher = {
+  /** Match the value exactly. */
+  exact?: string;
+  /** Match values that start with the provided prefix. */
+  startsWith?: string;
+  /** Match values against an RE2 regular expression. */
+  regex?: string;
+};
+
+/**
+ * Matcher for key/value request entries such as headers and query parameters.
+ */
+export type NetworkPolicyKeyValueMatcher = {
+  /** Matcher for the entry key. */
+  key?: NetworkPolicyMatcher;
+  /** Matcher for the entry value. */
+  value?: NetworkPolicyMatcher;
+};
+
+/**
+ * Request matcher for a network policy rule.
+ *
+ * All specified dimensions must match. Multiple methods are ORed; multiple
+ * header and query-string matchers are ANDed.
+ */
+export type NetworkPolicyMatch = {
+  /** Match on the request path. */
+  path?: NetworkPolicyMatcher;
+  /** Match on the HTTP method. */
+  method?: string[];
+  /** Match on query-string entries. */
+  queryString?: NetworkPolicyKeyValueMatcher[];
+  /** Match on request headers. */
+  headers?: NetworkPolicyKeyValueMatcher[];
+};
+
+/**
  * A rule applied to requests matching a domain in the network policy.
  */
 export type NetworkPolicyRule = {
+  /**
+   * Optional request matcher. When provided, transforms only apply to requests
+   * that match every specified dimension.
+   */
+  match?: NetworkPolicyMatch;
   /** Transforms to apply to matching requests. */
   transform?: NetworkTransformer[];
 };
@@ -60,6 +104,13 @@ export type NetworkPolicyRule = {
  *   allow: {
  *     "ai-gateway.vercel.sh": [
  *       {
+ *         match: {
+ *           method: ["POST"],
+ *           path: { startsWith: "/v1/" },
+ *           headers: [
+ *             { key: { exact: "x-api-key" }, value: { exact: "placeholder" } }
+ *           ]
+ *         },
  *         transform: [{
  *           headers: { authorization: "Bearer ..." }
  *         }]
