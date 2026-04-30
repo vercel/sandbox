@@ -12,13 +12,15 @@ export type NetworkTransformer = {
 };
 
 /**
- * Defines how a request value is matched. Exactly one field should be set.
+ * Defines how a request value is matched.
  */
 export type NetworkPolicyMatcher = {
   /** Match the value exactly. */
   exact?: string;
+} | {
   /** Match values that start with the provided prefix. */
   startsWith?: string;
+} | {
   /** Match values against an RE2 regular expression. */
   regex?: string;
 };
