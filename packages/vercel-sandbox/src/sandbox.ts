@@ -11,6 +11,9 @@ import { Command, CommandFinished } from "./command.js";
 import type { RUNTIMES } from "./constants.js";
 import type {
   NetworkPolicy,
+  NetworkPolicyKeyValueMatcher,
+  NetworkPolicyMatch,
+  NetworkPolicyMatcher,
   NetworkPolicyRule,
   NetworkTransformer,
 } from "./network-policy.js";
@@ -24,7 +27,14 @@ import {
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import { FileSystem } from "./filesystem.js";
 
-export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
+export type {
+  NetworkPolicy,
+  NetworkPolicyKeyValueMatcher,
+  NetworkPolicyMatch,
+  NetworkPolicyMatcher,
+  NetworkPolicyRule,
+  NetworkTransformer,
+};
 
 /** @inline */
 export interface BaseCreateSandboxParams {

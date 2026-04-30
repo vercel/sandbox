@@ -111,6 +111,56 @@ describe("toAPINetworkPolicy", () => {
     });
   });
 
+  it("preserves matcher-bearing rules as ordered injectionRules", () => {
+    expect(
+      toAPINetworkPolicy({
+        allow: {
+          "api.example.com": [
+            {
+              match: {
+                method: ["POST"],
+                path: { startsWith: "/v1/" },
+                headers: [
+                  {
+                    key: { exact: "x-api-key" },
+                    value: { exact: "placeholder" },
+                  },
+                ],
+              },
+              transform: [{ headers: { "x-api-key": "real-secret" } }],
+            },
+            {
+              transform: [{ headers: { "x-api-key": "fallback-secret" } }],
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      mode: "custom",
+      allowedDomains: ["api.example.com"],
+      injectionRules: [
+        {
+          domain: "api.example.com",
+          headers: { "x-api-key": "real-secret" },
+          match: {
+            method: ["POST"],
+            path: { startsWith: "/v1/" },
+            headers: [
+              {
+                key: { exact: "x-api-key" },
+                value: { exact: "placeholder" },
+              },
+            ],
+          },
+        },
+        {
+          domain: "api.example.com",
+          headers: { "x-api-key": "fallback-secret" },
+        },
+      ],
+    });
+  });
+
   it("converts empty custom object", () => {
     expect(toAPINetworkPolicy({})).toEqual({ mode: "custom" });
   });
@@ -235,6 +285,46 @@ describe("fromAPINetworkPolicy", () => {
         "*": [],
       },
       subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
+    });
+  });
+
+  it("converts ordered injectionRules with matchers", () => {
+    expect(
+      fromAPINetworkPolicy({
+        mode: "custom",
+        allowedDomains: ["api.example.com"],
+        injectionRules: [
+          {
+            domain: "api.example.com",
+            headerNames: ["x-api-key"],
+            match: {
+              method: ["POST"],
+              path: { startsWith: "/v1/" },
+              queryString: [{ key: { exact: "model" } }],
+            },
+          },
+          {
+            domain: "api.example.com",
+            headerNames: ["x-api-key"],
+          },
+        ],
+      }),
+    ).toEqual({
+      allow: {
+        "api.example.com": [
+          {
+            match: {
+              method: ["POST"],
+              path: { startsWith: "/v1/" },
+              queryString: [{ key: { exact: "model" } }],
+            },
+            transform: [{ headers: { "x-api-key": "<redacted>" } }],
+          },
+          {
+            transform: [{ headers: { "x-api-key": "<redacted>" } }],
+          },
+        ],
+      },
     });
   });
 });
