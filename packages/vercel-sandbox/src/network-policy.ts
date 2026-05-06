@@ -63,6 +63,11 @@ export type NetworkPolicyRule = {
   match?: NetworkPolicyMatch;
   /** Transforms to apply to matching requests. */
   transform?: NetworkTransformer[];
+  /**
+   * Optional HTTPS proxy URL to forward matching requests to.
+   * Must not include query string or fragment.
+   */
+  forwardURL?: string;
 };
 
 /**

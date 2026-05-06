@@ -161,6 +161,45 @@ describe("toAPINetworkPolicy", () => {
     });
   });
 
+  it("converts record-form forwardURL rules to forwardRules", () => {
+    expect(
+      toAPINetworkPolicy({
+        allow: {
+          "api.example.com": [
+            {
+              match: {
+                method: ["POST"],
+                path: { startsWith: "/v1/" },
+              },
+              forwardURL: "https://proxy.example.com",
+            },
+            {
+              forwardURL: "https://fallback-proxy.example.com",
+            },
+          ],
+          "registry.npmjs.org": [],
+        },
+      }),
+    ).toEqual({
+      mode: "custom",
+      allowedDomains: ["api.example.com", "registry.npmjs.org"],
+      forwardRules: [
+        {
+          domain: "api.example.com",
+          match: {
+            method: ["POST"],
+            path: { startsWith: "/v1/" },
+          },
+          forwardURL: "https://proxy.example.com",
+        },
+        {
+          domain: "api.example.com",
+          forwardURL: "https://fallback-proxy.example.com",
+        },
+      ],
+    });
+  });
+
   it("converts empty custom object", () => {
     expect(toAPINetworkPolicy({})).toEqual({ mode: "custom" });
   });
@@ -230,6 +269,11 @@ describe("fromAPINetworkPolicy", () => {
       {
         allow: ["*.npmjs.org"],
         subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
+      },
+      {
+        allow: {
+          "api.example.com": [{ forwardURL: "https://proxy.example.com" }],
+        },
       },
     ];
 
@@ -322,6 +366,88 @@ describe("fromAPINetworkPolicy", () => {
           },
           {
             transform: [{ headers: { "x-api-key": "<redacted>" } }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("converts forwardRules with matchers", () => {
+    expect(
+      fromAPINetworkPolicy({
+        mode: "custom",
+        allowedDomains: ["api.example.com", "registry.npmjs.org"],
+        forwardRules: [
+          {
+            domain: "api.example.com",
+            match: {
+              method: ["POST"],
+              path: { startsWith: "/v1/" },
+              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+            },
+            forwardURL: "https://proxy.example.com",
+          },
+          {
+            domain: "api.example.com",
+            forwardURL: "https://fallback-proxy.example.com",
+          },
+        ],
+      }),
+    ).toEqual({
+      allow: {
+        "api.example.com": [
+          {
+            match: {
+              method: ["POST"],
+              path: { startsWith: "/v1/" },
+              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+            },
+            forwardURL: "https://proxy.example.com",
+          },
+          {
+            forwardURL: "https://fallback-proxy.example.com",
+          },
+        ],
+        "registry.npmjs.org": [],
+      },
+    });
+  });
+
+  it("converts mixed injectionRules and forwardRules", () => {
+    expect(
+      fromAPINetworkPolicy({
+        mode: "custom",
+        allowedDomains: ["api.example.com"],
+        injectionRules: [
+          {
+            domain: "api.example.com",
+            headerNames: ["authorization"],
+          },
+        ],
+        forwardRules: [
+          {
+            domain: "api.example.com",
+            forwardURL: "https://proxy.example.com",
+          },
+          {
+            domain: "proxy-only.example.com",
+            forwardURL: "https://proxy-only.example.com",
+          },
+        ],
+      }),
+    ).toEqual({
+      allow: {
+        "api.example.com": [
+          {
+            transform: [{ headers: { authorization: "<redacted>" } }],
+          },
+          {
+            forwardURL: "https://proxy.example.com",
+          },
+        ],
+        "proxy-only.example.com": [
+          {
+            forwardURL: "https://proxy-only.example.com",
           },
         ],
       },

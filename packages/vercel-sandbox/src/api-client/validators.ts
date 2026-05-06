@@ -29,6 +29,12 @@ export const InjectionRuleValidator = z.object({
   match: InjectionRuleMatchValidator.optional(),
 });
 
+export const ForwardRuleValidator = z.object({
+  domain: z.string(),
+  forwardURL: z.string(),
+  match: InjectionRuleMatchValidator.optional(),
+});
+
 export const NetworkPolicyValidator = z.union([
   z.object({ mode: z.literal("allow-all") }).passthrough(),
   z.object({ mode: z.literal("deny-all") }).passthrough(),
@@ -39,6 +45,7 @@ export const NetworkPolicyValidator = z.union([
       allowedCIDRs: z.array(z.string()).optional(),
       deniedCIDRs: z.array(z.string()).optional(),
       injectionRules: z.array(InjectionRuleValidator).optional(),
+      forwardRules: z.array(ForwardRuleValidator).optional(),
     })
     .passthrough(),
 ]);

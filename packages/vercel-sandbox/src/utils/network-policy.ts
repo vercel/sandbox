@@ -3,6 +3,7 @@ import { NetworkPolicy, NetworkPolicyRule } from "../network-policy.js";
 import {
   NetworkPolicyValidator,
   InjectionRuleValidator,
+  ForwardRuleValidator,
 } from "../api-client/validators.js";
 
 type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
@@ -14,6 +15,7 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
   if (policy.allow && !Array.isArray(policy.allow)) {
     const allowedDomains = Object.keys(policy.allow);
     const injectionRules: z.infer<typeof InjectionRuleValidator>[] = [];
+    const forwardRules: z.infer<typeof ForwardRuleValidator>[] = [];
 
     for (const [domain, rules] of Object.entries(policy.allow)) {
       if (rules.some((rule) => rule.match !== undefined)) {
@@ -36,12 +38,22 @@ export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
           injectionRules.push({ domain, headers });
         }
       }
+
+      for (const rule of rules) {
+        if (!rule.forwardURL) continue;
+        forwardRules.push({
+          domain,
+          forwardURL: rule.forwardURL,
+          ...(rule.match ? { match: rule.match } : {}),
+        });
+      }
     }
 
     return {
       mode: "custom",
       ...(allowedDomains.length > 0 && { allowedDomains }),
       ...(injectionRules.length > 0 && { injectionRules }),
+      ...(forwardRules.length > 0 && { forwardRules }),
       ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
       ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
     };
@@ -77,12 +89,15 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
         }
       : undefined;
 
-  // If injectionRules are present, reconstruct the record form.
+  // If L7 rules are present, reconstruct the record form.
   // The API returns headerNames (secret values are stripped), so we
   // populate each header value with "<redacted>".
-  if (api.injectionRules && api.injectionRules.length > 0) {
+  if (
+    (api.injectionRules && api.injectionRules.length > 0) ||
+    (api.forwardRules && api.forwardRules.length > 0)
+  ) {
     const rulesByDomain = new Map<string, NetworkPolicyRule[]>();
-    for (const rule of api.injectionRules) {
+    for (const rule of api.injectionRules ?? []) {
       const headers = Object.fromEntries(
         (rule.headerNames ?? []).map((n) => [n, "<redacted>"]),
       );
@@ -93,13 +108,21 @@ export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
       });
       rulesByDomain.set(rule.domain, rules);
     }
+    for (const rule of api.forwardRules ?? []) {
+      const rules = rulesByDomain.get(rule.domain) ?? [];
+      rules.push({
+        ...(rule.match ? { match: rule.match } : {}),
+        forwardURL: rule.forwardURL,
+      });
+      rulesByDomain.set(rule.domain, rules);
+    }
 
     const allow: Record<string, NetworkPolicyRule[]> = {};
     for (const domain of api.allowedDomains ?? []) {
       allow[domain] = rulesByDomain.get(domain) ?? [];
     }
-    // Include injection rules for domains not in allowedDomains
-    for (const rule of api.injectionRules) {
+    // Include L7 rules for domains not in allowedDomains
+    for (const rule of [...(api.injectionRules ?? []), ...(api.forwardRules ?? [])]) {
       if (!(rule.domain in allow)) {
         allow[rule.domain] = rulesByDomain.get(rule.domain) ?? [];
       }
