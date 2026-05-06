@@ -2,22 +2,22 @@ import { z } from "zod";
 
 export type SessionMetaData = z.infer<typeof Session>;
 
-const InjectionRuleMatcherValidator = z.object({
+const RuleMatcherValidator = z.object({
   exact: z.string().optional(),
   startsWith: z.string().optional(),
   regex: z.string().optional(),
 });
 
-const InjectionRuleKeyValueMatcherValidator = z.object({
-  key: InjectionRuleMatcherValidator.optional(),
-  value: InjectionRuleMatcherValidator.optional(),
+const KeyValueMatcherValidator = z.object({
+  key: RuleMatcherValidator.optional(),
+  value: RuleMatcherValidator.optional(),
 });
 
-const InjectionRuleMatchValidator = z.object({
-  path: InjectionRuleMatcherValidator.optional(),
+const RuleMatchValidator = z.object({
+  path: RuleMatcherValidator.optional(),
   method: z.array(z.string()).optional(),
-  queryString: z.array(InjectionRuleKeyValueMatcherValidator).optional(),
-  headers: z.array(InjectionRuleKeyValueMatcherValidator).optional(),
+  queryString: z.array(KeyValueMatcherValidator).optional(),
+  headers: z.array(KeyValueMatcherValidator).optional(),
 });
 
 export const InjectionRuleValidator = z.object({
@@ -26,13 +26,13 @@ export const InjectionRuleValidator = z.object({
   headers: z.record(z.string()).optional(),
   // headerNames are returned in responses
   headerNames: z.array(z.string()).optional(),
-  match: InjectionRuleMatchValidator.optional(),
+  match: RuleMatchValidator.optional(),
 });
 
 export const ForwardRuleValidator = z.object({
   domain: z.string(),
   forwardURL: z.string(),
-  match: InjectionRuleMatchValidator.optional(),
+  match: RuleMatchValidator.optional(),
 });
 
 export const NetworkPolicyValidator = z.union([
