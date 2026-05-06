@@ -2,12 +2,37 @@ import { z } from "zod";
 
 export type SessionMetaData = z.infer<typeof Session>;
 
+const InjectionRuleMatcherValidator = z.object({
+  exact: z.string().optional(),
+  startsWith: z.string().optional(),
+  regex: z.string().optional(),
+});
+
+const InjectionRuleKeyValueMatcherValidator = z.object({
+  key: InjectionRuleMatcherValidator.optional(),
+  value: InjectionRuleMatcherValidator.optional(),
+});
+
+const InjectionRuleMatchValidator = z.object({
+  path: InjectionRuleMatcherValidator.optional(),
+  method: z.array(z.string()).optional(),
+  queryString: z.array(InjectionRuleKeyValueMatcherValidator).optional(),
+  headers: z.array(InjectionRuleKeyValueMatcherValidator).optional(),
+});
+
 export const InjectionRuleValidator = z.object({
   domain: z.string(),
   // headers are only sent in requests
   headers: z.record(z.string()).optional(),
   // headerNames are returned in responses
   headerNames: z.array(z.string()).optional(),
+  match: InjectionRuleMatchValidator.optional(),
+});
+
+export const ForwardRuleValidator = z.object({
+  domain: z.string(),
+  forwardURL: z.string(),
+  match: InjectionRuleMatchValidator.optional(),
 });
 
 export const NetworkPolicyValidator = z.union([
@@ -20,6 +45,7 @@ export const NetworkPolicyValidator = z.union([
       allowedCIDRs: z.array(z.string()).optional(),
       deniedCIDRs: z.array(z.string()).optional(),
       injectionRules: z.array(InjectionRuleValidator).optional(),
+      forwardRules: z.array(ForwardRuleValidator).optional(),
     })
     .passthrough(),
 ]);

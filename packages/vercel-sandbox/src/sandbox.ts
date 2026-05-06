@@ -15,13 +15,23 @@ import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
-import type { NetworkPolicy } from "./network-policy.js";
+import type {
+  NetworkPolicy,
+  NetworkPolicyKeyValueMatcher,
+  NetworkPolicyMatch,
+  NetworkPolicyMatcher,
+} from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
 
-export type { NetworkPolicy };
+export type {
+  NetworkPolicy,
+  NetworkPolicyKeyValueMatcher,
+  NetworkPolicyMatch,
+  NetworkPolicyMatcher,
+};
 
 /** @inline */
 export interface BaseCreateSandboxParams {
