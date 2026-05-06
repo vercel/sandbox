@@ -35,19 +35,55 @@ export const ForwardRuleValidator = z.object({
   match: RuleMatchValidator.optional(),
 });
 
-export const NetworkPolicyValidator = z.union([
+export const NetworkPolicyTransformValidator = z.object({
+  headers: z.record(z.string()).optional(),
+});
+
+export const NetworkPolicyRuleValidator = z.object({
+  match: RuleMatchValidator.optional(),
+  transform: z.array(NetworkPolicyTransformValidator).optional(),
+  forwardURL: z.string().optional(),
+});
+
+export const V2NetworkPolicyObjectValidator = z.object({
+  allow: z
+    .union([
+      z.array(z.string()),
+      z.record(z.array(NetworkPolicyRuleValidator)),
+    ])
+    .optional(),
+  subnets: z
+    .object({
+      allow: z.array(z.string()).optional(),
+      deny: z.array(z.string()).optional(),
+    })
+    .optional(),
+});
+
+const NetworkPolicyModeValidator = z.union([
   z.object({ mode: z.literal("allow-all") }).passthrough(),
   z.object({ mode: z.literal("deny-all") }).passthrough(),
-  z
-    .object({
-      mode: z.literal("custom"),
-      allowedDomains: z.array(z.string()).optional(),
-      allowedCIDRs: z.array(z.string()).optional(),
-      deniedCIDRs: z.array(z.string()).optional(),
-      injectionRules: z.array(InjectionRuleValidator).optional(),
-      forwardRules: z.array(ForwardRuleValidator).optional(),
-    })
-    .passthrough(),
+]);
+
+const LegacyCustomNetworkPolicyValidator = z
+  .object({
+    mode: z.literal("custom"),
+    allowedDomains: z.array(z.string()).optional(),
+    allowedCIDRs: z.array(z.string()).optional(),
+    deniedCIDRs: z.array(z.string()).optional(),
+    injectionRules: z.array(InjectionRuleValidator).optional(),
+    forwardRules: z.array(ForwardRuleValidator).optional(),
+  })
+  .passthrough();
+
+export const NetworkPolicyRequestValidator = z.union([
+  NetworkPolicyModeValidator,
+  V2NetworkPolicyObjectValidator.passthrough(),
+]);
+
+export const NetworkPolicyResponseValidator = z.union([
+  NetworkPolicyModeValidator,
+  LegacyCustomNetworkPolicyValidator,
 ]);
 
 export const Session = z.object({
@@ -78,7 +114,7 @@ export const Session = z.object({
   cwd: z.string(),
   updatedAt: z.number(),
   interactivePort: z.number().optional(),
-  networkPolicy: NetworkPolicyValidator.optional(),
+  networkPolicy: NetworkPolicyResponseValidator.optional(),
   activeCpuDurationMs: z.number().optional(),
   networkTransfer: z.object({
     ingress: z.number(),
@@ -197,7 +233,7 @@ export const Sandbox = z.object({
   memory: z.number().optional(),
   runtime: z.string().optional(),
   timeout: z.number().optional(),
-  networkPolicy: NetworkPolicyValidator.optional(),
+  networkPolicy: NetworkPolicyResponseValidator.optional(),
   totalEgressBytes: z.number().optional(),
   totalIngressBytes: z.number().optional(),
   totalActiveCpuDurationMs: z.number().optional(),

@@ -1,83 +1,29 @@
 import { z } from "zod";
 import { NetworkPolicy, NetworkPolicyRule } from "../network-policy.js";
 import {
-  NetworkPolicyValidator,
-  InjectionRuleValidator,
-  ForwardRuleValidator,
+  NetworkPolicyRequestValidator,
+  NetworkPolicyResponseValidator,
 } from "../api-client/validators.js";
 
-type APINetworkPolicy = z.infer<typeof NetworkPolicyValidator>;
+type APIRequestNetworkPolicy = z.infer<typeof NetworkPolicyRequestValidator>;
+type APIResponseNetworkPolicy = z.infer<typeof NetworkPolicyResponseValidator>;
 
-export function toAPINetworkPolicy(policy: NetworkPolicy): APINetworkPolicy {
-  if (policy === "allow-all") return { mode: "allow-all" };
-  if (policy === "deny-all") return { mode: "deny-all" };
-
-  if (policy.allow && !Array.isArray(policy.allow)) {
-    const allowedDomains = Object.keys(policy.allow);
-    const injectionRules: z.infer<typeof InjectionRuleValidator>[] = [];
-    const forwardRules: z.infer<typeof ForwardRuleValidator>[] = [];
-
-    for (const [domain, rules] of Object.entries(policy.allow)) {
-      if (rules.some((rule) => rule.match !== undefined)) {
-        for (const rule of rules) {
-          const headers = mergeTransformHeaders(rule);
-          if (Object.keys(headers).length > 0) {
-            injectionRules.push({
-              domain,
-              headers,
-              ...(rule.match ? { match: rule.match } : {}),
-            });
-          }
-        }
-      } else {
-        const headers = rules.reduce(
-          (merged, rule) => Object.assign(merged, mergeTransformHeaders(rule)),
-          {} as Record<string, string>,
-        );
-        if (Object.keys(headers).length > 0) {
-          injectionRules.push({ domain, headers });
-        }
-      }
-
-      for (const rule of rules) {
-        if (!rule.forwardURL) continue;
-        forwardRules.push({
-          domain,
-          forwardURL: rule.forwardURL,
-          ...(rule.match ? { match: rule.match } : {}),
-        });
-      }
-    }
-
-    return {
-      mode: "custom",
-      ...(allowedDomains.length > 0 && { allowedDomains }),
-      ...(injectionRules.length > 0 && { injectionRules }),
-      ...(forwardRules.length > 0 && { forwardRules }),
-      ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
-      ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
-    };
+export function toAPINetworkPolicy(
+  policy: NetworkPolicy,
+): APIRequestNetworkPolicy {
+  if (policy === "allow-all" || policy === "deny-all") {
+    return { mode: policy };
   }
 
-  return {
-    mode: "custom",
-    ...(policy.allow && { allowedDomains: policy.allow }),
-    ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
-    ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
-  };
+  return policy;
 }
 
-function mergeTransformHeaders(rule: NetworkPolicyRule): Record<string, string> {
-  const headers: Record<string, string> = {};
-  for (const transform of rule.transform ?? []) {
-    Object.assign(headers, transform.headers);
+export function fromAPINetworkPolicy(
+  api: APIResponseNetworkPolicy,
+): NetworkPolicy {
+  if (api.mode === "allow-all" || api.mode === "deny-all") {
+    return api.mode;
   }
-  return headers;
-}
-
-export function fromAPINetworkPolicy(api: APINetworkPolicy): NetworkPolicy {
-  if (api.mode === "allow-all") return "allow-all";
-  if (api.mode === "deny-all") return "deny-all";
 
   const subnets =
     api.allowedCIDRs || api.deniedCIDRs

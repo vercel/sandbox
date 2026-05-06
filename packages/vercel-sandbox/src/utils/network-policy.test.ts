@@ -14,8 +14,7 @@ describe("toAPINetworkPolicy", () => {
     expect(
       toAPINetworkPolicy({ allow: ["*.npmjs.org", "github.com"] }),
     ).toEqual({
-      mode: "custom",
-      allowedDomains: ["*.npmjs.org", "github.com"],
+      allow: ["*.npmjs.org", "github.com"],
     });
   });
 
@@ -25,9 +24,10 @@ describe("toAPINetworkPolicy", () => {
         subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
       }),
     ).toEqual({
-      mode: "custom",
-      allowedCIDRs: ["10.0.0.0/8"],
-      deniedCIDRs: ["10.1.0.0/16"],
+      subnets: {
+        allow: ["10.0.0.0/8"],
+        deny: ["10.1.0.0/16"],
+      },
     });
   });
 
@@ -38,25 +38,25 @@ describe("toAPINetworkPolicy", () => {
         subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
       }),
     ).toEqual({
-      mode: "custom",
-      allowedDomains: ["github.com"],
-      allowedCIDRs: ["10.0.0.0/8"],
-      deniedCIDRs: ["10.1.0.0/16"],
+      allow: ["github.com"],
+      subnets: {
+        allow: ["10.0.0.0/8"],
+        deny: ["10.1.0.0/16"],
+      },
     });
   });
 
-  it("converts record-form domains to allowedDomains list", () => {
+  it("converts record-form domains to allow map", () => {
     expect(
       toAPINetworkPolicy({
         allow: { "api.github.com": [], "github.com": [] },
       }),
     ).toEqual({
-      mode: "custom",
-      allowedDomains: ["api.github.com", "github.com"],
+      allow: { "api.github.com": [], "github.com": [] },
     });
   });
 
-  it("converts record-form with multiple domains and transforms to injectionRules", () => {
+  it("keeps record-form rules in v2 allow-map shape", () => {
     expect(
       toAPINetworkPolicy({
         allow: {
@@ -86,32 +86,38 @@ describe("toAPINetworkPolicy", () => {
         subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
       }),
     ).toEqual({
-      mode: "custom",
-      allowedDomains: [
-        "api.github.com",
-        "ai-gateway.vercel.sh",
-        "registry.npmjs.org",
-        "*",
-      ],
-      injectionRules: [
-        {
-          domain: "api.github.com",
-          headers: { authorization: "Bearer sk-openai", "x-org-id": "org-123" },
-        },
-        {
-          domain: "ai-gateway.vercel.sh",
-          headers: {
-            "x-api-key": "sk-ant-test",
-            "anthropic-version": "2024-01-01",
+      allow: {
+        "api.github.com": [
+          {
+            transform: [
+              {
+                headers: {
+                  authorization: "Bearer sk-openai",
+                  "x-org-id": "org-123",
+                },
+              },
+            ],
           },
-        },
-      ],
-      allowedCIDRs: ["10.0.0.0/8"],
-      deniedCIDRs: ["10.1.0.0/16"],
+        ],
+        "ai-gateway.vercel.sh": [
+          {
+            transform: [
+              { headers: { "x-api-key": "sk-ant-test" } },
+              { headers: { "anthropic-version": "2024-01-01" } },
+            ],
+          },
+        ],
+        "registry.npmjs.org": [],
+        "*": [],
+      },
+      subnets: {
+        allow: ["10.0.0.0/8"],
+        deny: ["10.1.0.0/16"],
+      },
     });
   });
 
-  it("preserves matcher-bearing rules as ordered injectionRules", () => {
+  it("preserves matcher-bearing rules as ordered allow-map transform rules", () => {
     expect(
       toAPINetworkPolicy({
         allow: {
@@ -136,32 +142,30 @@ describe("toAPINetworkPolicy", () => {
         },
       }),
     ).toEqual({
-      mode: "custom",
-      allowedDomains: ["api.example.com"],
-      injectionRules: [
-        {
-          domain: "api.example.com",
-          headers: { "x-api-key": "real-secret" },
-          match: {
-            method: ["POST"],
-            path: { startsWith: "/v1/" },
-            headers: [
-              {
-                key: { exact: "x-api-key" },
-                value: { exact: "placeholder" },
-              },
-            ],
+      allow: {
+        "api.example.com": [
+          {
+            match: {
+              method: ["POST"],
+              path: { startsWith: "/v1/" },
+              headers: [
+                {
+                  key: { exact: "x-api-key" },
+                  value: { exact: "placeholder" },
+                },
+              ],
+            },
+            transform: [{ headers: { "x-api-key": "real-secret" } }],
           },
-        },
-        {
-          domain: "api.example.com",
-          headers: { "x-api-key": "fallback-secret" },
-        },
-      ],
+          {
+            transform: [{ headers: { "x-api-key": "fallback-secret" } }],
+          },
+        ],
+      },
     });
   });
 
-  it("converts record-form forwardURL rules to forwardRules", () => {
+  it("converts record-form forwardURL rules to allow-map forwardURL rules", () => {
     expect(
       toAPINetworkPolicy({
         allow: {
@@ -181,33 +185,31 @@ describe("toAPINetworkPolicy", () => {
         },
       }),
     ).toEqual({
-      mode: "custom",
-      allowedDomains: ["api.example.com", "registry.npmjs.org"],
-      forwardRules: [
-        {
-          domain: "api.example.com",
-          match: {
-            method: ["POST"],
-            path: { startsWith: "/v1/" },
+      allow: {
+        "api.example.com": [
+          {
+            match: {
+              method: ["POST"],
+              path: { startsWith: "/v1/" },
+            },
+            forwardURL: "https://proxy.example.com",
           },
-          forwardURL: "https://proxy.example.com",
-        },
-        {
-          domain: "api.example.com",
-          forwardURL: "https://fallback-proxy.example.com",
-        },
-      ],
+          {
+            forwardURL: "https://fallback-proxy.example.com",
+          },
+        ],
+        "registry.npmjs.org": [],
+      },
     });
   });
 
   it("converts empty custom object", () => {
-    expect(toAPINetworkPolicy({})).toEqual({ mode: "custom" });
+    expect(toAPINetworkPolicy({})).toEqual({});
   });
 
   it("omits undefined subnet fields", () => {
     expect(toAPINetworkPolicy({ subnets: { allow: ["10.0.0.0/8"] } })).toEqual({
-      mode: "custom",
-      allowedCIDRs: ["10.0.0.0/8"],
+      subnets: { allow: ["10.0.0.0/8"] },
     });
   });
 });
@@ -260,26 +262,24 @@ describe("fromAPINetworkPolicy", () => {
     expect(fromAPINetworkPolicy({ mode: "custom" })).toEqual({});
   });
 
-  it("roundtrips string-form policies through both conversions", () => {
-    const policies = [
-      "allow-all" as const,
-      "deny-all" as const,
-      { allow: ["github.com"] },
-      { subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] } },
-      {
-        allow: ["*.npmjs.org"],
-        subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
-      },
-      {
-        allow: {
-          "api.example.com": [{ forwardURL: "https://proxy.example.com" }],
-        },
-      },
-    ];
-
-    for (const policy of policies) {
-      expect(fromAPINetworkPolicy(toAPINetworkPolicy(policy))).toEqual(policy);
-    }
+  it("parses legacy/mode-form responses", () => {
+    expect(fromAPINetworkPolicy({ mode: "allow-all" })).toEqual("allow-all");
+    expect(fromAPINetworkPolicy({ mode: "deny-all" })).toEqual("deny-all");
+    expect(
+      fromAPINetworkPolicy({
+        mode: "custom",
+        allowedDomains: ["github.com"],
+      }),
+    ).toEqual({ allow: ["github.com"] });
+    expect(
+      fromAPINetworkPolicy({
+        mode: "custom",
+        allowedCIDRs: ["10.0.0.0/8"],
+        deniedCIDRs: ["10.1.0.0/16"],
+      }),
+    ).toEqual({
+      subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
+    });
   });
 
   it("converts injectionRules with multiple domains, headers, and subnets", () => {
