@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { NetworkPolicy, NetworkPolicyRule } from "../network-policy.js";
 import {
+  ForwardRuleValidator,
+  InjectionRuleValidator,
   NetworkPolicyRequestValidator,
   NetworkPolicyResponseValidator,
 } from "../api-client/validators.js";
@@ -15,7 +17,67 @@ export function toAPINetworkPolicy(
     return { mode: policy };
   }
 
-  return policy;
+  if (policy.allow && !Array.isArray(policy.allow)) {
+    const allowedDomains = Object.keys(policy.allow);
+    const injectionRules: z.infer<typeof InjectionRuleValidator>[] = [];
+    const forwardRules: z.infer<typeof ForwardRuleValidator>[] = [];
+
+    for (const [domain, rules] of Object.entries(policy.allow)) {
+      if (rules.some((rule) => rule.match !== undefined)) {
+        for (const rule of rules) {
+          const headers = mergeTransformHeaders(rule);
+          if (Object.keys(headers).length > 0) {
+            injectionRules.push({
+              domain,
+              headers,
+              ...(rule.match ? { match: rule.match } : {}),
+            });
+          }
+        }
+      } else {
+        const headers = rules.reduce(
+          (merged, rule) => Object.assign(merged, mergeTransformHeaders(rule)),
+          {} as Record<string, string>,
+        );
+        if (Object.keys(headers).length > 0) {
+          injectionRules.push({ domain, headers });
+        }
+      }
+
+      for (const rule of rules) {
+        if (!rule.forwardURL) continue;
+        forwardRules.push({
+          domain,
+          forwardURL: rule.forwardURL,
+          ...(rule.match ? { match: rule.match } : {}),
+        });
+      }
+    }
+
+    return {
+      mode: "custom",
+      ...(allowedDomains.length > 0 && { allowedDomains }),
+      ...(injectionRules.length > 0 && { injectionRules }),
+      ...(forwardRules.length > 0 && { forwardRules }),
+      ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
+      ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
+    };
+  }
+
+  return {
+    mode: "custom",
+    ...(policy.allow && { allowedDomains: policy.allow }),
+    ...(policy.subnets?.allow && { allowedCIDRs: policy.subnets.allow }),
+    ...(policy.subnets?.deny && { deniedCIDRs: policy.subnets.deny }),
+  };
+}
+
+function mergeTransformHeaders(rule: NetworkPolicyRule): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const transform of rule.transform ?? []) {
+    Object.assign(headers, transform.headers);
+  }
+  return headers;
 }
 
 export function fromAPINetworkPolicy(

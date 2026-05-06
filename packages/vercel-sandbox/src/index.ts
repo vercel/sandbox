@@ -1,5 +1,8 @@
 export {
   type NetworkPolicy,
+  type NetworkPolicyKeyValueMatcher,
+  type NetworkPolicyMatch,
+  type NetworkPolicyMatcher,
   Sandbox,
 } from "./sandbox.js";
 export {
