@@ -6,7 +6,7 @@ export async function fetchApi(opts: {
   method?: string;
   body?: string;
 }): Promise<unknown> {
-  const x = await fetch(`https://api.vercel.com${opts.endpoint}`, {
+  const x = await fetch(`https://vercel.com/api${opts.endpoint}`, {
     method: opts.method,
     body: opts.body,
     headers: {
