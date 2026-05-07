@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.18
+
+### Minor Changes
+
+- Add L7 request matchers and forward URLs support to network policy rules. ([#173](https://github.com/vercel/sandbox/pull/173))
+
 ## 2.0.0-beta.17
 
 ### Minor Changes
