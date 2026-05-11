@@ -94,6 +94,53 @@ const makeCommand = (): CommandData => ({
   startedAt: 1,
 });
 
+describe("updatePorts", () => {
+  it.each([
+    ["updatePorts", (sandbox: Sandbox) => sandbox.updatePorts([4000])],
+    ["update", (sandbox: Sandbox) => sandbox.update({ ports: [4000] })],
+  ])("%s sends a full port list to updateSandbox", async (_, updatePorts) => {
+    const updatedSandbox = makeSandboxMetadata();
+    const routes = [
+      {
+        url: "https://test-4000.vercel.run",
+        subdomain: "test-4000",
+        port: 4000,
+      },
+    ];
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: updatedSandbox, routes },
+    }));
+    const sandbox = new Sandbox({
+      client: {
+        updateSandbox: updateSandboxMock,
+      } as unknown as APIClient,
+      routes: [
+        {
+          url: "https://test-3000.vercel.run",
+          subdomain: "test-3000",
+          port: 3000,
+        },
+      ],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await updatePorts(sandbox);
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "test-name",
+        projectId: "test-project",
+        ports: [4000],
+      }),
+    );
+    expect(sandbox.routes).toEqual(routes);
+    expect(sandbox.domain(4000)).toBe("https://test-4000.vercel.run");
+    expect(() => sandbox.domain(3000)).toThrow("No route for port 3000");
+  });
+});
+
 describe("_runCommand error handling", () => {
   it("rejects non-detached runCommand when log streaming fails", async () => {
     const command = makeCommand();

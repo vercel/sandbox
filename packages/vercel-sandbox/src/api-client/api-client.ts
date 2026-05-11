@@ -770,6 +770,7 @@ export class APIClient extends BaseClient {
     timeout?: number;
     networkPolicy?: NetworkPolicy;
     tags?: Record<string, string>;
+    ports?: number[];
     snapshotExpiration?: number;
     currentSnapshotId?: string;
     signal?: AbortSignal;
@@ -790,6 +791,7 @@ export class APIClient extends BaseClient {
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
           tags: params.tags,
+          ports: params.ports,
           snapshotExpiration: params.snapshotExpiration,
           currentSnapshotId: params.currentSnapshotId,
         }),
