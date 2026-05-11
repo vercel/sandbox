@@ -406,7 +406,7 @@ const result = await sandbox.runCommand({
 | --------------- | -------------------------------------------- |
 | Max vCPUs       | 8 vCPUs (2048 MB RAM per vCPU)               |
 | Max ports       | 15 exposed ports                             |
-| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby) |
+| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby) |
 | Default timeout | 5 minutes                                    |
 | Base system     | Amazon Linux 2023                            |
 | User context    | `vercel-sandbox` user                        |
