@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 1.10.2
+
+### Patch Changes
+
+- Add Node 26 support. ([#179](https://github.com/vercel/sandbox/pull/179))
+
 ## 1.10.1
 
 ### Patch Changes
