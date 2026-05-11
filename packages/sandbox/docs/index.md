@@ -69,7 +69,7 @@ Create and run a command in a sandbox
 
 Options:
 
-    --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
+    --runtime <runtime>                One of 'node22', 'node24', 'node26', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run
@@ -118,7 +118,7 @@ Create a sandbox in the specified account and project.
 
 Options:
 
-    --runtime <runtime>                One of 'node22', 'node24', 'python3.13' [default: node24]
+    --runtime <runtime>                One of 'node22', 'node24', 'node26', 'python3.13' [default: node24]
     --timeout <num UNIT>               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>   Publish sandbox port(s) to DOMAIN.vercel.run

@@ -182,7 +182,7 @@ whois
 zstd
 ```
 
-- The `node24` and `node22` images ship Node runtimes under `/vercel/runtimes/node{22,24}`.
+- The `node` images ship their respective runtimes under `/vercel/runtimes/node{22,24,26}`.
 - The `python3.13` image ships a Python 3.13 runtime under `/vercel/runtimes/python`.
 - User code is executed as the `vercel-sandbox` user.
 - `/vercel/sandbox` is writable.

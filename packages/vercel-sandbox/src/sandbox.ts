@@ -71,7 +71,7 @@ export interface BaseCreateSandboxParams {
   resources?: { vcpus: number };
 
   /**
-   * The runtime of the sandbox, currently only `node24`, `node22` and `python3.13` are supported.
+   * The runtime of the sandbox, currently only `node24`, `node22`, `node26` and `python3.13` are supported.
    * If not specified, the default runtime `node24` will be used.
    */
   runtime?: RUNTIMES | (string & {});
