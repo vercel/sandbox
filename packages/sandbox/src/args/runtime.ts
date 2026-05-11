@@ -1,7 +1,7 @@
 import * as cmd from "cmd-ts";
 
 export const runtimeType = {
-  ...cmd.oneOf(["node22", "node24", "python3.13"] as const),
+  ...cmd.oneOf(["node22", "node24", "node26", "python3.13"] as const),
   displayName: "runtime",
 };
 
