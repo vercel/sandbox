@@ -1,5 +1,14 @@
 # sandbox
 
+## 2.5.12
+
+### Patch Changes
+
+- Add Node 26 support. ([#179](https://github.com/vercel/sandbox/pull/179))
+
+- Updated dependencies [[`6d905b4ddb4590c0b10a4522e3ed8f76019165fe`](https://github.com/vercel/sandbox/commit/6d905b4ddb4590c0b10a4522e3ed8f76019165fe)]:
+  - @vercel/sandbox@1.10.2
+
 ## 2.5.11
 
 ### Patch Changes
