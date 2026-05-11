@@ -1,5 +1,5 @@
 {
-  "name": "sandbox-filesystem-snapshots",
+  "name": "sandbox-filesystem-snapshots-example",
   "version": "0.0.17",
   "private": true,
   "description": "Example demonstrating filesystem snapshotting",
