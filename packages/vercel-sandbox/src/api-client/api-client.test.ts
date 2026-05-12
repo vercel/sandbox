@@ -844,6 +844,7 @@ describe("APIClient", () => {
         projectId: "proj_123",
         persistent: true,
         timeout: 600000,
+        ports: [3000, 4000],
         snapshotExpiration: 604800000,
         currentSnapshotId: "snap_abc123",
       });
@@ -858,6 +859,7 @@ describe("APIClient", () => {
       const parsedBody = JSON.parse(opts.body);
       expect(parsedBody.persistent).toBe(true);
       expect(parsedBody.timeout).toBe(600000);
+      expect(parsedBody.ports).toEqual([3000, 4000]);
       expect(parsedBody.snapshotExpiration).toBe(604800000);
       expect(parsedBody.currentSnapshotId).toBe("snap_abc123");
     });
