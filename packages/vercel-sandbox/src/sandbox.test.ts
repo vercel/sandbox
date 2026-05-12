@@ -96,7 +96,7 @@ const makeCommand = (): CommandData => ({
 
 describe("updatePorts", () => {
   it.each([
-    ["updatePorts", (sandbox: Sandbox) => sandbox.updatePorts([4000])],
+    ["updatePorts", (sandbox: Sandbox) => sandbox.update({ports: [4000]})],
     ["update", (sandbox: Sandbox) => sandbox.update({ ports: [4000] })],
   ])("%s sends a full port list to updateSandbox", async (_, updatePorts) => {
     const updatedSandbox = makeSandboxMetadata();

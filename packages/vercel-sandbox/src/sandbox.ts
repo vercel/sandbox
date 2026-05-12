@@ -1154,22 +1154,6 @@ export class Sandbox {
   }
 
   /**
-   * Replace the exposed ports for this sandbox.
-   *
-   * This is a full-state update: any currently exposed port omitted from
-   * `ports` will be deregistered.
-   *
-   * @param ports - Complete list of ports to expose.
-   * @param opts - Optional abort signal.
-   */
-  async updatePorts(
-    ports: number[],
-    opts?: { signal?: AbortSignal },
-  ): Promise<void> {
-    await this.update({ ports }, opts);
-  }
-
-  /**
    * Update the sandbox configuration.
    *
    * When `ports` is provided, it is treated as the full desired port list:
