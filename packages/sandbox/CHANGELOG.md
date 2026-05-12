@@ -202,6 +202,24 @@
 
 - Support named sandboxes
 
+## 2.5.12
+
+### Patch Changes
+
+- Add Node 26 support. ([#179](https://github.com/vercel/sandbox/pull/179))
+
+- Updated dependencies [[`6d905b4ddb4590c0b10a4522e3ed8f76019165fe`](https://github.com/vercel/sandbox/commit/6d905b4ddb4590c0b10a4522e3ed8f76019165fe)]:
+  - @vercel/sandbox@1.10.2
+
+## 2.5.11
+
+### Patch Changes
+
+- Improve timeout hour format and example values ([#150](https://github.com/vercel/sandbox/pull/150))
+
+- Updated dependencies [[`92725f07386f692c9492deff6ba4595fa754c465`](https://github.com/vercel/sandbox/commit/92725f07386f692c9492deff6ba4595fa754c465)]:
+  - @vercel/sandbox@1.10.1
+
 ## 2.5.10
 
 ### Patch Changes

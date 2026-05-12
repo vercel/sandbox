@@ -126,6 +126,18 @@
 
 - Introduce named and long-lived sandboxes ([`7407ec9ec419144ae49b0eb2704cb5cf2267b7f3`](https://github.com/vercel/sandbox/commit/7407ec9ec419144ae49b0eb2704cb5cf2267b7f3))
 
+## 1.10.2
+
+### Patch Changes
+
+- Add Node 26 support. ([#179](https://github.com/vercel/sandbox/pull/179))
+
+## 1.10.1
+
+### Patch Changes
+
+- Update auth API base URL ([#166](https://github.com/vercel/sandbox/pull/166))
+
 ## 1.10.0
 
 ### Minor Changes
