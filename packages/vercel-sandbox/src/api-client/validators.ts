@@ -271,4 +271,5 @@ export const SandboxesPaginationResponse = z.object({
 
 export const UpdateSandboxResponse = z.object({
   sandbox: Sandbox,
+  routes: z.array(SandboxRoute).optional(),
 });

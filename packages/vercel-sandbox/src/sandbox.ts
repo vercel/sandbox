@@ -1156,6 +1156,9 @@ export class Sandbox {
   /**
    * Update the sandbox configuration.
    *
+   * When `ports` is provided, it is treated as the full desired port list:
+   * any currently exposed port omitted from the array will be deregistered.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1166,6 +1169,7 @@ export class Sandbox {
       timeout?: number;
       networkPolicy?: NetworkPolicy;
       tags?: Record<string, string>;
+      ports?: number[];
       snapshotExpiration?: number;
       currentSnapshotId?: string;
     },
@@ -1190,11 +1194,15 @@ export class Sandbox {
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
       tags: params.tags,
+      ports: params.ports,
       snapshotExpiration: params.snapshotExpiration,
       currentSnapshotId: params.currentSnapshotId,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;
+    if (params.ports !== undefined && response.json.routes) {
+      this.session?.updateRoutes(response.json.routes);
+    }
 
     // Update the current session config. This only applies to network policy.
     if (params.networkPolicy) {

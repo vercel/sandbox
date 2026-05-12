@@ -315,6 +315,11 @@ export class Session {
     }
   }
 
+  /** @internal */
+  updateRoutes(routes: SandboxRouteData[]): void {
+    (this as { routes: SandboxRouteData[] }).routes = routes;
+  }
+
   /**
    * Get a previously run command by its ID.
    *
