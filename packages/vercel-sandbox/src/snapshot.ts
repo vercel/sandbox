@@ -2,7 +2,6 @@ import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { SnapshotMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
-import { Sandbox } from "./sandbox.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { attachPaginator } from "./utils/paginator.js";
 
@@ -203,19 +202,25 @@ export class Snapshot {
     opts?: Partial<Credentials> & WithFetchOptions & { signal?: AbortSignal },
   ): Promise<string> {
     "use step";
-    const sandbox = await Sandbox.get({
+    const credentials = await getCredentials(opts);
+    const client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+      fetch: opts?.fetch,
+    });
+
+    const response = await client.getSandbox({
       name,
+      projectId: credentials.projectId,
       resume: false,
       signal: opts?.signal,
-      fetch: opts?.fetch,
-      teamId: opts?.teamId,
-      projectId: opts?.projectId,
-      token: opts?.token,
     });
-    if (!sandbox.currentSnapshotId) {
+
+    const snapshotId = response.json.sandbox.currentSnapshotId;
+    if (!snapshotId) {
       throw new Error(`Sandbox "${name}" has no current snapshot.`);
     }
-    return sandbox.currentSnapshotId;
+    return snapshotId;
   }
 
   /**
