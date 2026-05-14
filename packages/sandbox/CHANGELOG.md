@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.22
+
+### Minor Changes
+
+- Support new CLI --sandbox-snapshot parameter and new SDK static method Snapshot.fromSandbox(<sandbox-name>) ([#189](https://github.com/vercel/sandbox/pull/189))
+
+### Patch Changes
+
+- Updated dependencies [[`4a0ff5fb141597ff536b0ff900d595b92e8a6a6e`](https://github.com/vercel/sandbox/commit/4a0ff5fb141597ff536b0ff900d595b92e8a6a6e), [`ecfb31fddea2368ba20ec30de5ef836819f6b706`](https://github.com/vercel/sandbox/commit/ecfb31fddea2368ba20ec30de5ef836819f6b706)]:
+  - @vercel/sandbox@2.0.0-beta.20
+
 ## 3.0.0-beta.21
 
 ### Patch Changes

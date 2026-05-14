@@ -1,5 +1,13 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.20
+
+### Minor Changes
+
+- Support new CLI --sandbox-snapshot parameter and new SDK static method Snapshot.fromSandbox(<sandbox-name>) ([#189](https://github.com/vercel/sandbox/pull/189))
+
+- Add sandbox port replacement support through `update`. ([#177](https://github.com/vercel/sandbox/pull/177))
+
 ## 2.0.0-beta.19
 
 ### Patch Changes
