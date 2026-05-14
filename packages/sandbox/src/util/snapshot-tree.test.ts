@@ -406,7 +406,6 @@ describe("renderSnapshotTree", () => {
 
     const plain = strip(
       renderSnapshotTree({
-        currentSnapshotId: "snap_anchor_already_shown",
         hideCurrent: true,
         ancestors: {
           snapshots: [makeTreeNode(parent), makeTreeNode(grandparent)],
@@ -418,7 +417,6 @@ describe("renderSnapshotTree", () => {
 
     expect(plain).toContain("snap_parent");
     expect(plain).toContain("snap_grandparent");
-    expect(plain).not.toContain("snap_anchor_already_shown");
     expect(plain).not.toContain("◂ current");
 
     const idxParent = plain.indexOf("snap_parent");

@@ -224,7 +224,7 @@ export class Snapshot {
   }
 
   /**
-      * Fetch the snapshot ancestry tree for a given snapshot.
+   * Fetch the snapshot ancestry tree for a given snapshot.
    * Returns both the tree nodes and pagination metadata.
    *
    * The returned object is async-iterable to auto-paginate through all pages

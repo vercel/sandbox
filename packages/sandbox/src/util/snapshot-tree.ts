@@ -19,18 +19,24 @@ interface TreeResponse {
   pagination: { count: number; next: string | null };
 }
 
-export interface RenderSnapshotTreeParams {
-  currentSnapshotId: string;
-  currentSnapshotExpiresAt?: number;
-  ancestors: TreeResponse;
-  descendants: TreeResponse;
-  /**
-   * When true, suppress the "current" snapshot node. Used when rendering a
-   * single-direction paginated view, where the anchor was already shown on
-   * the previous page.
-   */
-  hideCurrent?: boolean;
-}
+export type RenderSnapshotTreeParams =
+  | {
+      currentSnapshotId: string;
+      currentSnapshotExpiresAt?: number;
+      ancestors: TreeResponse;
+      descendants: TreeResponse;
+      hideCurrent?: false;
+    }
+  | {
+      /**
+       * Suppress the "current" snapshot node. Used when rendering a
+       * single-direction paginated view, where the anchor was already shown
+       * on the previous page.
+       */
+      hideCurrent: true;
+      ancestors: TreeResponse;
+      descendants: TreeResponse;
+    };
 
 function formatExpires(expiresAt: number | undefined): string {
   if (expiresAt === undefined) {
@@ -60,7 +66,7 @@ function renderSiblings(siblings: SnapshotData[], count: string): string[] {
   const lines: string[] = [];
   const maxShow = 5;
   const shown = siblings.slice(0, maxShow);
-  const totalCount = parseInt(count);
+  const totalCount = parseInt(count, 10);
   const hasPlus = count.endsWith("+");
   const totalSiblings = totalCount - 1; // count includes the main snapshot
   const remaining = totalSiblings - shown.length;
@@ -84,13 +90,9 @@ function renderSiblings(siblings: SnapshotData[], count: string): string[] {
 export function renderSnapshotTree(
   params: RenderSnapshotTreeParams,
 ): string {
-  const {
-    currentSnapshotId,
-    currentSnapshotExpiresAt,
-    ancestors,
-    descendants,
-    hideCurrent,
-  } = params;
+  const { ancestors, descendants } = params;
+  const hideCurrent = params.hideCurrent === true;
+  const currentSnapshotId = hideCurrent ? undefined : params.currentSnapshotId;
   const lines: string[] = [];
 
   // Helper: push a snapshot node with optional siblings and a trailing connector
@@ -119,16 +121,13 @@ export function renderSnapshotTree(
 
   // Current snapshot
   if (!hideCurrent) {
+    const { currentSnapshotId: id, currentSnapshotExpiresAt } = params;
     const currentTreeNode =
-      ancestors.snapshots.find(
-        (n) => n.snapshot.id === currentSnapshotId,
-      ) ??
-      descendants.snapshots.find(
-        (n) => n.snapshot.id === currentSnapshotId,
-      );
+      ancestors.snapshots.find((n) => n.snapshot.id === id) ??
+      descendants.snapshots.find((n) => n.snapshot.id === id);
     const currentNode: TreeNode = currentTreeNode ?? {
       snapshot: {
-        id: currentSnapshotId,
+        id,
         sourceSessionId: "",
         expiresAt: currentSnapshotExpiresAt,
       },
@@ -146,16 +145,21 @@ export function renderSnapshotTree(
     pushNode(node, false);
   }
 
-  // Root marker: show when we've reached the end of ancestor pagination
-  const lastAncestor = ancestorNodes[ancestorNodes.length - 1];
-  const hasReachedEnd = ancestors.pagination.next === null;
-  if (hasReachedEnd) {
-    if (
-      (lastAncestor && !lastAncestor.snapshot.parentId) ||
-      ancestorNodes.length === 0
-    ) {
-      lines.push("│");
-      lines.push(`${chalk.white("○")} ${chalk.gray("(root)")}`);
+  // Root marker: only meaningful in the bidirectional (non-paginated) view.
+  // In a single-direction paginated view we can't tell whether the root has
+  // been reached from ancestors alone, and it would be wrong to render
+  // "(root)" when paginating descendants.
+  if (!hideCurrent) {
+    const lastAncestor = ancestorNodes[ancestorNodes.length - 1];
+    const hasReachedEnd = ancestors.pagination.next === null;
+    if (hasReachedEnd) {
+      if (
+        (lastAncestor && !lastAncestor.snapshot.parentId) ||
+        ancestorNodes.length === 0
+      ) {
+        lines.push("│");
+        lines.push(`${chalk.white("○")} ${chalk.gray("(root)")}`);
+      }
     }
   }
 

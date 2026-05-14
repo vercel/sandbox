@@ -197,7 +197,7 @@ const tree = cmd.command({
     direction: cmd.option({
       long: "direction",
       description:
-        "Pagination direction (default desc). 'desc' = ancestors, 'asc' = descendants. Only used with --cursor.",
+        "Pagination direction (default desc). 'desc' = ancestors, 'asc' = descendants. Requires --cursor.",
       type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
     }),
   },
@@ -211,6 +211,14 @@ const tree = cmd.command({
     if (limit !== undefined && (limit < 1 || limit > 10)) {
       console.error(
         chalk.red("Error: --limit must be between 1 and 10."),
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    if (direction !== undefined && !cursor) {
+      console.error(
+        chalk.red("Error: --direction requires --cursor."),
       );
       process.exitCode = 1;
       return;
@@ -247,7 +255,6 @@ const tree = cmd.command({
 
       console.log(
         renderSnapshotTree({
-          currentSnapshotId: "",
           hideCurrent: true,
           ancestors,
           descendants,
