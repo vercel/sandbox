@@ -320,6 +320,9 @@ importers:
       '@vercel/sandbox':
         specifier: workspace:*
         version: link:../vercel-sandbox
+      async-retry:
+        specifier: 1.3.3
+        version: 1.3.3
       debug:
         specifier: ^4.4.1
         version: 4.4.3(supports-color@8.1.1)
@@ -327,6 +330,9 @@ importers:
         specifier: ^4.1.1
         version: 4.1.5
     devDependencies:
+      '@types/async-retry':
+        specifier: 1.4.9
+        version: 1.4.9
       '@types/debug':
         specifier: ^4.1.12
         version: 4.1.12

@@ -2,6 +2,7 @@ import { token } from "./auth";
 import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import { inferScope } from "../util/infer-scope";
+import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import chalk from "chalk";
 
@@ -101,10 +102,12 @@ export const scope: ArgParser<{
       typeof teamId.value === "undefined"
     ) {
       try {
-        const scope = await inferScope({
-          token: t.value,
-          team: teamId.value,
-        });
+        const scope = await withFreshAuthRetry(() =>
+          inferScope({
+            token: t.value,
+            team: teamId.value,
+          }),
+        );
         projectId.value ??= scope.project;
         teamId.value ??= scope.owner;
         projectSlug = scope.projectSlug;

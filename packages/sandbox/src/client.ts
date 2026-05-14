@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import Path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { StyledError } from "./error";
+import { withFreshAuthRetry } from "./util/fresh-auth-retry";
 import { z } from "zod";
 
 /**
@@ -12,11 +13,15 @@ import { z } from "zod";
  */
 export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
   get: (params) =>
-    withErrorHandling(Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params })),
+    withErrorHandling(() =>
+      Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params }),
+    ),
   create: (params) =>
-    withErrorHandling(Sandbox.create({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() =>
+      Sandbox.create({ fetch: fetchWithUserAgent, ...params }),
+    ),
   list: (params) =>
-    withErrorHandling(
+    withErrorHandling(() =>
       Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
     ),
 };
@@ -26,11 +31,13 @@ export const snapshotClient: Pick<
   "get" | "list" | "fromSandbox"
 > = {
   list: (params) =>
-    withErrorHandling(Snapshot.list({ fetch: fetchWithUserAgent, ...params })),
-  get: (params) => withErrorHandling(Snapshot.get({ ...params })),
+    withErrorHandling(() =>
+      Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
+    ),
+  get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
   fromSandbox: (name, opts) =>
     withErrorHandling(
-      Snapshot.fromSandbox(name, { fetch: fetchWithUserAgent, ...opts }),
+      () => Snapshot.fromSandbox(name, { fetch: fetchWithUserAgent, ...opts }),
     ),
 };
 
@@ -53,9 +60,9 @@ const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
   return fetch(input, { ...init, headers });
 };
 
-async function withErrorHandling<T>(promise: Promise<T>) {
+async function withErrorHandling<T>(factory: () => Promise<T>): Promise<T> {
   try {
-    return await promise;
+    return await withFreshAuthRetry(factory);
   } catch (error) {
     if (error instanceof APIError) {
       return await handleApiError(error);
