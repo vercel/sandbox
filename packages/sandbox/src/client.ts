@@ -28,7 +28,7 @@ export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
 
 export const snapshotClient: Pick<
   typeof Snapshot,
-  "get" | "list" | "fromSandbox"
+  "get" | "list" | "fromSandbox" | "tree"
 > = {
   list: (params) =>
     withErrorHandling(() =>
@@ -39,6 +39,8 @@ export const snapshotClient: Pick<
     withErrorHandling(
       () => Snapshot.fromSandbox(name, { fetch: fetchWithUserAgent, ...opts }),
     ),
+  tree: (params) =>
+    withErrorHandling(Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
