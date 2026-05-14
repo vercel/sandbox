@@ -188,7 +188,7 @@ function isNotFoundError(err: unknown): boolean {
 function isSnapshotNotFoundError(err: unknown): boolean {
   return (
     err instanceof APIError &&
-    err.response.status === 400 &&
+    err.response.status === 410 &&
     (err.json as any)?.error?.code === "snapshot_not_found"
   );
 }
