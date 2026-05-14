@@ -58,6 +58,20 @@ export type InvalidRequestProxyHandler = (
  * 
  * This function automatically verifies the OIDC token included in proxied requests to ensure the request
  * is legitimate: if invalid, the `invalidRequestHandler` is called (by default, a 403 response is returned).
+ *
+ * @example
+ * ```ts
+ * export default {
+ *   fetch: defineSandboxProxy(async (request, meta) => {
+ *     console.log(meta) // contains the original host/scheme/port & source team/project/sandbox ids
+ *
+ *     return new Response("Response from my proxy");
+ *   }, (request, error) => {
+ *     // optional, handle any authorization error
+ *     return new Response("Forbidden", { status: 403 });
+ *   })
+ * }
+ * ```
  * 
  * @see https://vercel.com/docs/vercel-sandbox/concepts/firewall#requests-proxying
  */
