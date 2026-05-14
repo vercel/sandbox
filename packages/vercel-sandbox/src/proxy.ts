@@ -63,12 +63,19 @@ export type InvalidRequestProxyHandler = (
  * ```ts
  * export default {
  *   fetch: defineSandboxProxy(async (request, meta) => {
- *     console.log(meta) // contains the original host/scheme/port & source team/project/sandbox ids
+ *     // meta contains the original host/scheme/port & source team/project/sandbox ids
+ *     console.log(meta)
  *
- *     return new Response("Response from my proxy");
+ *     // return a custom response, or proxy upstream:
+ *     const url = new URL(request.url)
+ *     return await fetch(`${meta.scheme}://${meta.host}:${meta.port}/${url.pathname}${url.search}`, {
+ *       method: request.method,
+ *       headers: request.headers,
+ *       body: request.body
+ *     })
  *   }, (request, error) => {
  *     // optional, handle any authorization error
- *     return new Response("Forbidden", { status: 403 });
+ *     return new Response("Forbidden", { status: 403 })
  *   })
  * }
  * ```
