@@ -12,17 +12,9 @@ const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 export interface ProxyMeta {
   /**
-   * The original host of the proxied request.
+   * The host of the request as received by this proxy.
    */
   host: string;
-  /**
-   * The original scheme of the proxied request.
-   */
-  scheme: string;
-  /**
-   * The original port of the proxied request.
-   */
-  port: string;
   /**
    * The ID of the team that owns the sandbox that proxied the request.
    */
@@ -63,16 +55,11 @@ export type InvalidRequestProxyHandler = (
  * ```ts
  * export default {
  *   fetch: defineSandboxProxy(async (request, meta) => {
- *     // meta contains the original host/scheme/port & source team/project/sandbox ids
+ *     // meta contains the original host & source team/project/sandbox ids
  *     console.log(meta)
  *
  *     // return a custom response, or proxy upstream:
- *     const url = new URL(request.url)
- *     return await fetch(`${meta.scheme}://${meta.host}:${meta.port}/${url.pathname}${url.search}`, {
- *       method: request.method,
- *       headers: request.headers,
- *       body: request.body
- *     })
+ *     return await fetch(request)
  *   }, (request, error) => {
  *     // optional, handle any authorization error
  *     return new Response("Forbidden", { status: 403 })
@@ -98,18 +85,40 @@ export function defineSandboxProxy(
     headers.delete(FORWARDED_PORT_HEADER);
     headers.delete(SANDBOX_OIDC_TOKEN_HEADER);
 
-    const sanitizedRequest = new Request(request, { headers });
-
     if (!host || !scheme || !port || !oidcToken) {
       return invalidRequestHandler(
-        sanitizedRequest,
+        request,
         new Error("Missing required proxy headers"),
       );
     }
 
+    let sanitizedRequest: Request;
+
     try {
-      const claims = await verifyOidcToken(oidcToken);
-      const meta = getProxyMeta({ host, scheme, port }, claims);
+      const url = new URL(request.url);
+      sanitizedRequest = new Request(
+        `${scheme}://${host}:${port}${url.pathname}${url.search}${url.hash}`,
+        {
+          method: request.method,
+          body: request.body,
+          headers,
+          duplex: "half",
+        },
+      );
+    } catch {
+      return invalidRequestHandler(
+        new Request(request, { headers }),
+        new Error("Invalid proxied request URL"),
+      );
+    }
+
+    sanitizedRequest.headers.set("host", host);
+    sanitizedRequest.headers.set("x-forwarded-host", host);
+
+    try {
+      const originalUrl = new URL(request.url);
+      const claims = await verifyOidcToken(oidcToken, originalUrl);
+      const meta = getProxyMeta(originalUrl.host, claims);
 
       return handler(sanitizedRequest, meta);
     } catch (error) {
@@ -126,7 +135,7 @@ function defaultInvalidRequestHandler(): Response {
 }
 
 function getProxyMeta(
-  forwarded: Pick<ProxyMeta, "host" | "scheme" | "port">,
+  host: string,
   claims: Record<string, unknown>,
 ): ProxyMeta {
   const teamId = getClaim(claims, "team_id");
@@ -139,7 +148,7 @@ function getProxyMeta(
   }
 
   return {
-    ...forwarded,
+    host,
     teamId,
     projectId,
     sandboxId,
@@ -149,6 +158,7 @@ function getProxyMeta(
 
 async function verifyOidcToken(
   token: string,
+  originalUrl: URL,
 ): Promise<Record<string, unknown>> {
   const claims = decodeJwt(token);
   const issuer = getClaim(claims, "iss");
@@ -173,6 +183,7 @@ async function verifyOidcToken(
   }
 
   const { payload } = await jwtVerify(token, getJwks(issuer), {
+    audience: originalUrl.origin + originalUrl.pathname,
     algorithms: ["RS256"],
     clockTolerance: CLOCK_TOLERANCE_SECONDS,
     issuer,
