@@ -13,6 +13,12 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
     },
+    "./proxy": {
+      "types": "./dist/proxy.d.ts",
+      "import": "./dist/proxy.js",
+      "require": "./dist/proxy.cjs",
+      "default": "./dist/proxy.cjs"
+    },
     "./dist/auth/index.js": {
       "types": "./dist/auth/index.d.ts",
       "import": "./dist/auth/index.js",
@@ -50,6 +56,7 @@
     "@vercel/oidc": "3.2.0",
     "@workflow/serde": "4.1.0-beta.2",
     "async-retry": "1.3.3",
+    "jose": "6.2.3",
     "jsonlines": "0.1.1",
     "ms": "2.1.3",
     "picocolors": "^1.1.1",

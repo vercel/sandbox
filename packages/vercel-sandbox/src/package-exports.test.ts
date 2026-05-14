@@ -11,6 +11,9 @@ it("defines import/require export targets", () => {
   expect(packageJson.exports?.["."]?.import).toBe("./dist/index.js");
   expect(packageJson.exports?.["."]?.require).toBe("./dist/index.cjs");
   expect(packageJson.exports?.["."]?.types).toBe("./dist/index.d.ts");
+  expect(packageJson.exports?.["./proxy"]?.import).toBe("./dist/proxy.js");
+  expect(packageJson.exports?.["./proxy"]?.require).toBe("./dist/proxy.cjs");
+  expect(packageJson.exports?.["./proxy"]?.types).toBe("./dist/proxy.d.ts");
   expect(packageJson.exports?.["./dist/auth/index.js"]?.import).toBe(
     "./dist/auth/index.js",
   );
@@ -20,6 +23,31 @@ it("defines import/require export targets", () => {
   expect(packageJson.exports?.["./dist/auth/index.js"]?.types).toBe(
     "./dist/auth/index.d.ts",
   );
+});
+
+it("resolves proxy subpath with format-appropriate files", () => {
+  const packageRoot = resolve(__dirname, "..");
+
+  const cjsResolution = execFileSync(
+    process.execPath,
+    ["-e", "console.log(require.resolve('@vercel/sandbox/proxy'))"],
+    { cwd: packageRoot, encoding: "utf8" },
+  ).trim();
+
+  const esmResolutionUrl = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      "console.log(await import.meta.resolve('@vercel/sandbox/proxy'))",
+    ],
+    { cwd: packageRoot, encoding: "utf8" },
+  ).trim();
+
+  const esmResolution = fileURLToPath(esmResolutionUrl);
+
+  expect(cjsResolution).toBe(resolve(packageRoot, "dist/proxy.cjs"));
+  expect(esmResolution).toBe(resolve(packageRoot, "dist/proxy.js"));
 });
 
 it("resolves import and require to different entrypoints", () => {
