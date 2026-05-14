@@ -182,10 +182,16 @@ const tree = cmd.command({
       type: sandboxName,
       description: "Sandbox name",
     }),
+    sortOrder: cmd.option({
+      long: "sort-order",
+      description:
+        "Sort order. Options: asc, desc (default). 'desc' walks ancestors, 'asc' walks descendants. Requires --cursor.",
+      type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
+    }),
     limit: cmd.option({
       long: "limit",
       description:
-        "Maximum number of snapshots per page and direction (1–10, default 10).",
+        "Maximum number of snapshots per page (1–10, default 10).",
       type: cmd.optional(cmd.number),
     }),
     cursor: cmd.option({
@@ -194,19 +200,13 @@ const tree = cmd.command({
         "Pagination cursor from a previous 'More ancestors' or 'More descendants' hint.",
       type: cmd.optional(cmd.string),
     }),
-    direction: cmd.option({
-      long: "direction",
-      description:
-        "Pagination direction (default desc). 'desc' = ancestors, 'asc' = descendants. Requires --cursor.",
-      type: cmd.optional(cmd.oneOf(["asc", "desc"] as const)),
-    }),
   },
   async handler({
     scope: { token, team, project },
     sandboxName: name,
+    sortOrder,
     limit,
     cursor,
-    direction,
   }) {
     if (limit !== undefined && (limit < 1 || limit > 10)) {
       console.error(
@@ -216,9 +216,9 @@ const tree = cmd.command({
       return;
     }
 
-    if (direction !== undefined && !cursor) {
+    if (sortOrder !== undefined && !cursor) {
       console.error(
-        chalk.red("Error: --direction requires --cursor."),
+        chalk.red("Error: --sort-order requires --cursor."),
       );
       process.exitCode = 1;
       return;
@@ -228,7 +228,7 @@ const tree = cmd.command({
 
     // Paginated single-direction branch.
     if (cursor) {
-      const sortOrder = direction ?? "desc";
+      const effectiveSortOrder = sortOrder ?? "desc";
       const page = await (async () => {
         using _spinner = acquireRelease(
           () => ora("Fetching snapshot tree...").start(),
@@ -236,7 +236,7 @@ const tree = cmd.command({
         );
         return snapshotClient.tree({
           snapshotId: cursor,
-          sortOrder,
+          sortOrder: effectiveSortOrder,
           limit: pageLimit,
           token,
           teamId: team,
@@ -245,11 +245,11 @@ const tree = cmd.command({
       })();
 
       const ancestors =
-        sortOrder === "desc"
+        effectiveSortOrder === "desc"
           ? page
           : { snapshots: [], pagination: { count: 0, next: null } };
       const descendants =
-        sortOrder === "asc"
+        effectiveSortOrder === "asc"
           ? page
           : { snapshots: [], pagination: { count: 0, next: null } };
 
@@ -336,12 +336,12 @@ const tree = cmd.command({
     const limitArg = limit !== undefined ? ` --limit ${limit}` : "";
     if (result.ancestors.pagination.next !== null) {
       console.log(
-        `\nMore ancestors: sandbox snapshots tree ${name} --direction desc${limitArg} --cursor ${result.ancestors.pagination.next}`,
+        `\nMore ancestors: sandbox snapshots tree ${name} --sort-order desc${limitArg} --cursor ${result.ancestors.pagination.next}`,
       );
     }
     if (result.descendants.pagination.next !== null) {
       console.log(
-        `More descendants: sandbox snapshots tree ${name} --direction asc${limitArg} --cursor ${result.descendants.pagination.next}`,
+        `More descendants: sandbox snapshots tree ${name} --sort-order asc${limitArg} --cursor ${result.descendants.pagination.next}`,
       );
     }
   },
