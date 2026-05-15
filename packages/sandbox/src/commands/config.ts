@@ -573,7 +573,7 @@ const tagsCommand = cmd.command({
 
 function formatKeepLastSnapshots(
   keepLastSnapshots:
-    | { count: number; expiration?: number; deleteEvicted: boolean }
+    | { count: number; expiration?: number; deleteEvicted?: boolean }
     | undefined,
 ): string {
   if (!keepLastSnapshots) {
@@ -586,9 +586,9 @@ function formatKeepLastSnapshots(
       `for=${keepLastSnapshots.expiration === 0 ? "none" : ms(keepLastSnapshots.expiration, { long: true })}`,
     );
   }
-  parts.push(
-    `delete-evicted-snapshots=${keepLastSnapshots.deleteEvicted ?? true}`,
-  );
+  if (keepLastSnapshots.deleteEvicted !== undefined) {
+    parts.push(`delete-evicted-snapshots=${keepLastSnapshots.deleteEvicted}`);
+  }
 
   return parts.join(", ");
 }

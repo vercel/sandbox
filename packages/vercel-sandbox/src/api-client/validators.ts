@@ -251,7 +251,7 @@ export const Sandbox = z.object({
     .object({
       count: z.number(),
       expiration: z.number().optional(),
-      deleteEvicted: z.boolean(),
+      deleteEvicted: z.boolean().optional(),
     })
     .optional(),
 });

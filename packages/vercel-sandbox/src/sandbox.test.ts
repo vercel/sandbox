@@ -625,7 +625,7 @@ for (const port of ports) {
   });
 
   it("clears keepLastSnapshots when updated with null", async () => {
-    const sandbox = await Sandbox.create({
+    const sbx = await Sandbox.create({
       persistent: true,
       keepLastSnapshots: {
         count: 2,
@@ -633,15 +633,20 @@ for (const port of ports) {
         deleteEvicted: true,
       },
     });
-    expect(sandbox.keepLastSnapshots).toMatchObject({ count: 2 });
 
-    await sandbox.update({ keepLastSnapshots: null });
+    try {
+      expect(sbx.keepLastSnapshots).toMatchObject({ count: 2 });
 
-    const cleared = await Sandbox.get({
-      name: sandbox.name,
-      resume: false,
-    });
-    expect(cleared.keepLastSnapshots).toBeUndefined();
+      await sbx.update({ keepLastSnapshots: null });
+
+      const cleared = await Sandbox.get({
+        name: sbx.name,
+        resume: false,
+      });
+      expect(cleared.keepLastSnapshots).toBeUndefined();
+    } finally {
+      await sbx.delete();
+    }
   });
 
   it("appears in the sandbox list after creation", async () => {

@@ -462,7 +462,7 @@ export class Sandbox {
    * on this sandbox, if any.
    */
   public get keepLastSnapshots():
-    | { count: number; expiration?: number; deleteEvicted: boolean }
+    | { count: number; expiration?: number; deleteEvicted?: boolean }
     | undefined {
     return this.sandbox.keepLastSnapshots;
   }
