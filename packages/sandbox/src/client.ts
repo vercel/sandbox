@@ -40,7 +40,7 @@ export const snapshotClient: Pick<
       () => Snapshot.fromSandbox(name, { fetch: fetchWithUserAgent, ...opts }),
     ),
   tree: (params) =>
-    withErrorHandling(Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
