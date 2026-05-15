@@ -52,7 +52,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
 
     await cmd.kill("SIGINT");
     const result = await cmd.wait();
-    expect(result.exitCode).toBe(255);
+    expect(result.exitCode).toBe(130);
   });
 
   it("Kills a command with a SIGTERM", async () => {
@@ -65,7 +65,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     await cmd.kill("SIGTERM");
 
     const result = await cmd.wait();
-    expect(result.exitCode).toBe(255);
+    expect(result.exitCode).toBe(143);
   });
 
   it("can execute commands with sudo", async () => {
