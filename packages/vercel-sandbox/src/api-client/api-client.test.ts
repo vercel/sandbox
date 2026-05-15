@@ -846,6 +846,7 @@ describe("APIClient", () => {
         timeout: 600000,
         ports: [3000, 4000],
         snapshotExpiration: 604800000,
+        keepLastSnapshots: { count: 5, expiration: 0, deleteEvicted: false },
         currentSnapshotId: "snap_abc123",
       });
 
@@ -861,7 +862,34 @@ describe("APIClient", () => {
       expect(parsedBody.timeout).toBe(600000);
       expect(parsedBody.ports).toEqual([3000, 4000]);
       expect(parsedBody.snapshotExpiration).toBe(604800000);
+      expect(parsedBody.keepLastSnapshots).toEqual({
+        count: 5,
+        expiration: 0,
+        deleteEvicted: false,
+      });
       expect(parsedBody.currentSnapshotId).toBe("snap_abc123");
+    });
+
+    it("sends null to clear keepLastSnapshots", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        keepLastSnapshots: null,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      // Presence of the key with null — not undefined/missing — is the signal.
+      expect(Object.prototype.hasOwnProperty.call(body, "keepLastSnapshots")).toBe(
+        true,
+      );
+      expect(body.keepLastSnapshots).toBeNull();
     });
   });
 
@@ -968,4 +996,89 @@ describe("APIClient", () => {
       );
     });
   });
+
+  describe("createSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const sandboxResponse = () =>
+      new Response(
+        JSON.stringify({
+          sandbox: {
+            name: "my-sandbox",
+            persistent: true,
+            region: "iad1",
+            vcpus: 1,
+            memory: 2048,
+            runtime: "node24",
+            timeout: 300000,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            status: "running",
+            currentSessionId: "sbx_123",
+            keepLastSnapshots: {
+              count: 3,
+              expiration: 604800000,
+              deleteEvicted: true,
+            },
+          },
+          session: {
+            id: "sbx_123",
+            memory: 2048,
+            vcpus: 1,
+            region: "iad1",
+            runtime: "node24",
+            timeout: 300000,
+            status: "running",
+            requestedAt: Date.now(),
+            createdAt: Date.now(),
+            cwd: "/",
+            updatedAt: Date.now(),
+          },
+          routes: [],
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("forwards keepLastSnapshots in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        keepLastSnapshots: {
+          count: 3,
+          expiration: 604800000,
+          deleteEvicted: true,
+        },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.keepLastSnapshots).toEqual({
+        count: 3,
+        expiration: 604800000,
+        deleteEvicted: true,
+      });
+    });
+
+    it("omits keepLastSnapshots when not provided", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body).not.toHaveProperty("keepLastSnapshots");
+    });
+  });
+
 });
