@@ -1,5 +1,18 @@
 # sandbox
 
+## 3.0.0-beta.23
+
+### Minor Changes
+
+- Support keepLastSnapshots feature for CLI and SDK ([#193](https://github.com/vercel/sandbox/pull/193))
+
+### Patch Changes
+
+- Fix transient 401 on the first sandbox command after auto-login by retrying the command when the token was just obtained, to absorb cross-region auth token replication lag. ([#192](https://github.com/vercel/sandbox/pull/192))
+
+- Updated dependencies [[`c6bd09c3f5bad4305ce64e5f1ef38746af0d0f7e`](https://github.com/vercel/sandbox/commit/c6bd09c3f5bad4305ce64e5f1ef38746af0d0f7e)]:
+  - @vercel/sandbox@2.0.0-beta.21
+
 ## 3.0.0-beta.22
 
 ### Minor Changes
