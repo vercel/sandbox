@@ -3,6 +3,8 @@ export {
   type NetworkPolicyKeyValueMatcher,
   type NetworkPolicyMatch,
   type NetworkPolicyMatcher,
+  type SandboxMountMode,
+  type SandboxMounts,
   Sandbox,
 } from "./sandbox.js";
 export {

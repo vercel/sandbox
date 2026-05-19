@@ -284,6 +284,14 @@ export const Sandbox = z.object({
   statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
   tags: z.record(z.string()).optional(),
+  mounts: z
+    .record(
+      z.object({
+        volume: z.string(),
+        mode: z.enum(["read-only", "read-write"]).optional(),
+      }),
+    )
+    .optional(),
   snapshotExpiration: z.number().optional(),
   keepLastSnapshots: z
     .object({

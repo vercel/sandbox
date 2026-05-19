@@ -178,6 +178,9 @@ export interface BaseCreateSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
+export type SandboxMounts = NonNullable<BaseCreateSandboxParams["mounts"]>;
+export type SandboxMountMode = NonNullable<SandboxMounts[string]["mode"]>;
+
 export type CreateSandboxParams =
   | BaseCreateSandboxParams
   | (Omit<BaseCreateSandboxParams, "runtime" | "source"> & {
@@ -476,6 +479,13 @@ export class Sandbox {
    */
   public get tags(): Record<string, string> | undefined {
     return this.sandbox.tags;
+  }
+
+  /**
+   * Volumes mounted on the sandbox, keyed by mount path.
+   */
+  public get mounts(): SandboxMounts | undefined {
+    return this.sandbox.mounts;
   }
 
   /**
