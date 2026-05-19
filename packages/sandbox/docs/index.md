@@ -22,6 +22,7 @@ Commands:
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
     snapshots                                  Manage sandbox snapshots
     sessions                                   Manage sandbox sessions
+    volumes                                    Manage sandbox volumes
     login                                      Log in to the Sandbox CLI
     logout                                     Log out of the Sandbox CLI
 
@@ -89,6 +90,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Environment variables to set for the command
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <volume:path[:mode]>               Attach a volume to the sandbox. Format: "volume:/path[:read-only|read-write]".
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -146,6 +148,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <volume:path[:mode]>               Attach a volume to the sandbox. Format: "volume:/path[:read-only|read-write]".
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -398,6 +401,22 @@ Commands:
     get          <snapshot_id>                   Get details of a snapshot.
     tree         <name>                          Show the snapshot ancestry tree for a sandbox.
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
+```
+
+## `sandbox volumes`
+
+```
+sandbox volumes
+
+▲ sandbox volumes [options] <command>
+
+For command help, run `sandbox volumes <command> --help`
+
+Commands:
+
+    ls | list                        List volumes for the specified account and project.
+    get-or-create  <name>            Create a volume if it does not already exist, or retrieve it.
+    rm | delete    <name> [...name]  Delete one or more volumes.
 ```
 
 ## `sandbox config`

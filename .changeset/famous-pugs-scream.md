@@ -1,5 +1,6 @@
 ---
 "@vercel/sandbox": minor
+"sandbox": minor
 ---
 
-Add support for volumes via a new `Volume` class
+Add support for volumes via a new `Volume` class and CLI commands.

@@ -15,6 +15,7 @@ import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
 import { sessions } from "./commands/sessions";
 import { config } from "./commands/config";
+import { volumes } from "./commands/volumes";
 
 export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
   subcommands({
@@ -35,6 +36,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
       snapshot,
       snapshots,
       sessions,
+      volumes,
       ...(!opts?.withoutAuth && {
         login,
         logout,

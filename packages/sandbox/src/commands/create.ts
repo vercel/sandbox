@@ -16,6 +16,7 @@ import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
+import { mounts } from "../args/volume";
 
 export const args = {
   name: cmd.option({
@@ -58,6 +59,7 @@ export const args = {
     type: ObjectFromKeyValue,
     description: "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
   }),
+  mounts,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -86,6 +88,7 @@ export const create = cmd.command({
     connect,
     envVars,
     tags,
+    mounts,
     snapshotExpiration,
     keepLastSnapshots,
     keepLastSnapshotsFor,
@@ -111,6 +114,7 @@ export const create = cmd.command({
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
+    const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -125,6 +129,7 @@ export const create = cmd.command({
           networkPolicy,
           env: envVars,
           tags: tagsObj,
+          mounts: mountsObj,
           persistent,
           snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
@@ -142,6 +147,7 @@ export const create = cmd.command({
           networkPolicy,
           env: envVars,
           tags: tagsObj,
+          mounts: mountsObj,
           persistent,
           snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,

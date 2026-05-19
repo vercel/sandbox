@@ -1,4 +1,4 @@
-import { Sandbox, APIError, Snapshot } from "@vercel/sandbox";
+import { Sandbox, APIError, Snapshot, Volume } from "@vercel/sandbox";
 import { version } from "./pkg";
 import chalk from "chalk";
 import { tmpdir } from "node:os";
@@ -44,6 +44,20 @@ export const snapshotClient: Pick<
   get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
   tree: (params) =>
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+};
+
+export const volumeClient: Pick<typeof Volume, "getOrCreate" | "list"> & {
+  delete(volume: Volume): Promise<void>;
+} = {
+  getOrCreate: (params) =>
+    withErrorHandling(() =>
+      Volume.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
+    ),
+  list: (params) =>
+    withErrorHandling(() =>
+      Volume.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
+    ),
+  delete: (volume) => withErrorHandling(() => volume.delete()),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
