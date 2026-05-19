@@ -242,6 +242,27 @@ export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
+export const Volume = z.object({
+  name: z.string(),
+  projectId: z.string(),
+  maxSizeBytes: z.number().optional(),
+  currentSessionId: z.string().optional(),
+  currentSandboxName: z.string().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+export type VolumeMetadata = z.infer<typeof Volume>;
+
+export const VolumesResponse = z.object({
+  volumes: z.array(Volume),
+  pagination: CursorPagination,
+});
+
+export const VolumeResponse = z.object({
+  volume: Volume,
+});
+
 export const Sandbox = z.object({
   name: z.string(),
   persistent: z.boolean(),

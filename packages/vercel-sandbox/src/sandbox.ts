@@ -110,6 +110,34 @@ export interface BaseCreateSandboxParams {
   tags?: Record<string, string>;
 
   /**
+   * List of volumes to attach to the sandbox, keyed by the desired mount path.
+   * The volume must be created beforehand with `Volume.getOrCreate`.
+   *
+   * The mount paths must be absolute and cannot overlap with each other.
+   *
+   * @example
+   * const volume = await Volume.getOrCreate({ name: "my-volume" });
+   * const sandbox = await Sandbox.create({
+   *   mounts: {
+   *     "/data": { volume: volume.name, mode: "read-write" },
+   *   },
+   * });
+   */
+  mounts?: Record<
+    string,
+    {
+      /**
+       * The volume name to mount.
+       */
+      volume: string;
+      /**
+       * Mount mode. Defaults to `read-write` if unspecified.
+       */
+      mode?: "read-only" | "read-write";
+    }
+  >;
+
+  /**
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
@@ -625,6 +653,7 @@ export class Sandbox {
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,
+      mounts: params?.mounts,
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
       signal: params?.signal,

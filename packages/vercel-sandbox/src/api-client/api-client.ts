@@ -23,6 +23,8 @@ import {
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
+  VolumesResponse,
+  VolumeResponse,
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
@@ -36,12 +38,10 @@ import { Readable } from "stream";
 import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
-import {
-  toAPINetworkPolicy,
-  fromAPINetworkPolicy,
-} from "../utils/network-policy.js";
+import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { RUNTIMES } from "../constants.js";
+import { BaseCreateSandboxParams } from "../sandbox.js";
 
 interface Claims {
   owner_id: string;
@@ -182,6 +182,7 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      mounts?: BaseCreateSandboxParams["mounts"];
       signal?: AbortSignal;
     }>,
   ) {
@@ -206,6 +207,7 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
+          mounts: params.mounts,
           ...privateParams,
         }),
         signal: params.signal,
@@ -522,6 +524,57 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async listVolumes(params: {
+    projectId: string;
+    limit?: number;
+    cursor?: string | number;
+    since?: number | string;
+    until?: number | string;
+    sortBy?: "createdAt" | "updatedAt" | "name";
+    sortOrder?: "asc" | "desc";
+    namePrefix?: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      VolumesResponse,
+      await this.request(`/v2/sandboxes/volumes`, {
+        query: {
+          projectId: params.projectId,
+          limit: params.limit,
+          cursor: params.cursor ?? params.until,
+          since: params.since,
+          sortBy: params.sortBy,
+          sortOrder: params.sortOrder,
+          namePrefix: params.namePrefix,
+        },
+        method: "GET",
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async getOrCreateVolume(params: {
+    projectId: string;
+    name: string;
+    maxSizeBytes?: number;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      VolumeResponse,
+      await this.request(
+        `/v2/sandboxes/volumes/${encodeURIComponent(params.name)}`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            projectId: params.projectId,
+            maxSizeBytes: params.maxSizeBytes,
+          }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async writeFiles(params: {
     sessionId: string;
     cwd: string;
@@ -817,6 +870,24 @@ export class APIClient extends BaseClient {
           tags: toTagsFilter(params.tags),
         },
         method: "GET",
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async deleteVolume(params: {
+    projectId: string;
+    name: string;
+    signal?: AbortSignal;
+  }) {
+    const url = `/v2/sandboxes/volumes/${encodeURIComponent(params.name)}`;
+    return parseOrThrow(
+      VolumeResponse,
+      await this.request(url, {
+        method: "DELETE",
+        query: {
+          projectId: params.projectId,
+        },
         signal: params.signal,
       }),
     );
