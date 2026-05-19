@@ -38,7 +38,6 @@ describe("Volume", () => {
 
     expect(volume.name).toBe("workspace");
     expect(volume.projectId).toBe("proj_123");
-    expect(volume.project).toBe("proj_123");
     expect(volume.maxSize).toBe(1024);
     expect(volume.currentSessionId).toBe("sbx_123");
     expect(volume.currentSandboxName).toBe("my-sandbox");

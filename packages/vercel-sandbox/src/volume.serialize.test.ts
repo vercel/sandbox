@@ -87,7 +87,6 @@ describe("Volume serialization", () => {
 
       expect(result.name).toBe("workspace");
       expect(result.projectId).toBe("proj_test");
-      expect(result.project).toBe("proj_test");
       expect(result.maxSize).toBe(1073741824);
       expect(result.currentSessionId).toBe("sess_test123");
       expect(result.currentSandboxName).toBe("test-sandbox");
