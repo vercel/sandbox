@@ -98,12 +98,15 @@ export function defineSandboxProxy(
     let sanitizedRequest: Request;
 
     try {
-      sanitizedRequest = new Request(`${scheme}://${host}:${port}${path}`, {
-        method: request.method,
-        body: request.body,
-        headers,
-        duplex: "half",
-      });
+      sanitizedRequest = new Request(
+        getProxiedRequestUrl(scheme, host, port, path),
+        {
+          method: request.method,
+          body: request.body,
+          headers,
+          duplex: "half",
+        },
+      );
     } catch {
       return invalidRequestHandler(
         new Request(request, { headers }),
@@ -132,20 +135,37 @@ function defaultInvalidRequestHandler(): Response {
   return new Response("Forbidden", { status: 403 });
 }
 
+function getProxiedRequestUrl(
+  scheme: string,
+  host: string,
+  port: string,
+  path: string,
+): string {
+  const origin = `${scheme}://${host}:${port}`;
+
+  return path === "/" ? origin : `${origin}${path}`;
+}
+
 function normalizeForwardUrl(url: URL, forwardedPath: string): URL {
   const forwardedUrl = new URL(forwardedPath, url.origin);
-  const forwardedPathname = forwardedUrl.pathname;
+  const forwardedPathname = stripTrailingPathSlash(forwardedUrl.pathname);
   const normalizedUrl = new URL(url);
+  normalizedUrl.pathname = stripTrailingPathSlash(normalizedUrl.pathname);
 
   if (
     forwardedPathname !== "/" &&
     normalizedUrl.pathname.endsWith(forwardedPathname)
   ) {
-    normalizedUrl.pathname =
-      normalizedUrl.pathname.slice(0, -forwardedPathname.length) || "/";
+    normalizedUrl.pathname = stripTrailingPathSlash(
+      normalizedUrl.pathname.slice(0, -forwardedPathname.length),
+    );
   }
 
   return normalizedUrl;
+}
+
+function stripTrailingPathSlash(pathname: string): string {
+  return pathname.replace(/\/+$/, "") || "/";
 }
 
 function getProxyMeta(
@@ -197,7 +217,7 @@ async function verifyOidcToken(
   }
 
   const { payload } = await jwtVerify(token, getJwks(issuer), {
-    audience: getForwardUrlAudiences(originalUrl),
+    audience: getForwardUrlAudience(originalUrl),
     algorithms: ["RS256"],
     clockTolerance: CLOCK_TOLERANCE_SECONDS,
     issuer,
@@ -206,12 +226,10 @@ async function verifyOidcToken(
   return payload;
 }
 
-function getForwardUrlAudiences(url: URL): string | string[] {
-  if (url.pathname === "/") {
-    return [url.origin, `${url.origin}/`];
-  }
+function getForwardUrlAudience(url: URL): string {
+  const pathname = stripTrailingPathSlash(url.pathname);
 
-  return url.origin + url.pathname;
+  return pathname === "/" ? url.origin : url.origin + pathname;
 }
 
 function getJwks(issuer: string): ReturnType<typeof createRemoteJWKSet> {

@@ -74,6 +74,25 @@ describe("defineSandboxProxy", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
+  it("sanitizes and forwards root proxied requests", async () => {
+    const handler = vi.fn((request: Request) => {
+      expect(request.url).toBe("https://example.com/");
+
+      return new Response("ok");
+    });
+    const proxy = defineSandboxProxy(handler);
+
+    const response = await proxy(
+      makeProxyRequest({
+        url: "https://proxy.vercel.app/proxy",
+        headers: { "vercel-forwarded-path": "/" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
   it("verifies OIDC tokens against the forward URL instead of the appended proxied path", async () => {
     const handler = vi.fn(() => new Response("ok"));
     const proxy = defineSandboxProxy(handler);
@@ -99,7 +118,47 @@ describe("defineSandboxProxy", () => {
       "token_123",
       expect.any(Function),
       expect.objectContaining({
-        audience: ["https://proxy.vercel.app", "https://proxy.vercel.app/"],
+        audience: "https://proxy.vercel.app",
+      }),
+    );
+  });
+
+  it("normalizes trailing slashes before verifying forward URL audiences", async () => {
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler);
+
+    await proxy(
+      makeProxyRequest({
+        url: "https://proxy.vercel.app/proxy/some/path/",
+        headers: { "vercel-forwarded-path": "/some/path/" },
+      }),
+    );
+
+    expect(jwtVerifyMock).toHaveBeenCalledWith(
+      "token_123",
+      expect.any(Function),
+      expect.objectContaining({
+        audience: "https://proxy.vercel.app/proxy",
+      }),
+    );
+  });
+
+  it("accepts forwarded paths with a trailing slash when the proxy request URL omits it", async () => {
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler);
+
+    await proxy(
+      makeProxyRequest({
+        url: "https://proxy.vercel.app/api/proxy/docs",
+        headers: { "vercel-forwarded-path": "/docs/" },
+      }),
+    );
+
+    expect(jwtVerifyMock).toHaveBeenCalledWith(
+      "token_123",
+      expect.any(Function),
+      expect.objectContaining({
+        audience: "https://proxy.vercel.app/api/proxy",
       }),
     );
   });
