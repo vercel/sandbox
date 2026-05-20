@@ -3,6 +3,7 @@ import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 const FORWARDED_HOST_HEADER = "vercel-forwarded-host";
 const FORWARDED_SCHEME_HEADER = "vercel-forwarded-scheme";
 const FORWARDED_PORT_HEADER = "vercel-forwarded-port";
+const FORWARDED_PATH_HEADER = "vercel-forwarded-path";
 const SANDBOX_OIDC_TOKEN_HEADER = "vercel-sandbox-oidc-token";
 
 const VERCEL_OIDC_HOSTNAME = "oidc.vercel.com";
@@ -78,14 +79,16 @@ export function defineSandboxProxy(
     const host = headers.get(FORWARDED_HOST_HEADER);
     const scheme = headers.get(FORWARDED_SCHEME_HEADER);
     const port = headers.get(FORWARDED_PORT_HEADER);
+    const path = headers.get(FORWARDED_PATH_HEADER);
     const oidcToken = headers.get(SANDBOX_OIDC_TOKEN_HEADER);
 
     headers.delete(FORWARDED_HOST_HEADER);
     headers.delete(FORWARDED_SCHEME_HEADER);
     headers.delete(FORWARDED_PORT_HEADER);
+    headers.delete(FORWARDED_PATH_HEADER);
     headers.delete(SANDBOX_OIDC_TOKEN_HEADER);
 
-    if (!host || !scheme || !port || !oidcToken) {
+    if (!host || !scheme || !port || !path || !oidcToken) {
       return invalidRequestHandler(
         request,
         new Error("Missing required proxy headers"),
@@ -95,9 +98,8 @@ export function defineSandboxProxy(
     let sanitizedRequest: Request;
 
     try {
-      const url = new URL(request.url);
       sanitizedRequest = new Request(
-        `${scheme}://${host}:${port}${url.pathname}${url.search}${url.hash}`,
+        `${scheme}://${host}:${port}${path}`,
         {
           method: request.method,
           body: request.body,
@@ -113,7 +115,6 @@ export function defineSandboxProxy(
     }
 
     sanitizedRequest.headers.set("host", host);
-    sanitizedRequest.headers.set("x-forwarded-host", host);
 
     try {
       const originalUrl = new URL(request.url);
