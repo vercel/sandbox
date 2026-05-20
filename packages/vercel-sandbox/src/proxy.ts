@@ -48,7 +48,7 @@ export type InvalidRequestProxyHandler = (
  * Creates a Web Handler for proxied requests from Vercel Sandboxes using the network policy `forwardURL`
  * option. The provided `handler` is called for each valid proxied request, with the original request
  * alongside extracted metadata used to identify the source sandbox and request details.
- * 
+ *
  * This function automatically verifies the OIDC token included in proxied requests to ensure the request
  * is legitimate: if invalid, the `invalidRequestHandler` is called (by default, a 403 response is returned).
  *
@@ -67,7 +67,7 @@ export type InvalidRequestProxyHandler = (
  *   })
  * }
  * ```
- * 
+ *
  * @see https://vercel.com/docs/vercel-sandbox/concepts/firewall#requests-proxying
  */
 export function defineSandboxProxy(
@@ -98,15 +98,12 @@ export function defineSandboxProxy(
     let sanitizedRequest: Request;
 
     try {
-      sanitizedRequest = new Request(
-        `${scheme}://${host}:${port}${path}`,
-        {
-          method: request.method,
-          body: request.body,
-          headers,
-          duplex: "half",
-        },
-      );
+      sanitizedRequest = new Request(`${scheme}://${host}:${port}${path}`, {
+        method: request.method,
+        body: request.body,
+        headers,
+        duplex: "half",
+      });
     } catch {
       return invalidRequestHandler(
         new Request(request, { headers }),
@@ -117,7 +114,7 @@ export function defineSandboxProxy(
     sanitizedRequest.headers.set("host", host);
 
     try {
-      const originalUrl = new URL(request.url);
+      const originalUrl = normalizeForwardUrl(new URL(request.url), path);
       const claims = await verifyOidcToken(oidcToken, originalUrl);
       const meta = getProxyMeta(originalUrl.host, claims);
 
@@ -133,6 +130,22 @@ export function defineSandboxProxy(
 
 function defaultInvalidRequestHandler(): Response {
   return new Response("Forbidden", { status: 403 });
+}
+
+function normalizeForwardUrl(url: URL, forwardedPath: string): URL {
+  const forwardedUrl = new URL(forwardedPath, url.origin);
+  const forwardedPathname = forwardedUrl.pathname;
+  const normalizedUrl = new URL(url);
+
+  if (
+    forwardedPathname !== "/" &&
+    normalizedUrl.pathname.endsWith(forwardedPathname)
+  ) {
+    normalizedUrl.pathname =
+      normalizedUrl.pathname.slice(0, -forwardedPathname.length) || "/";
+  }
+
+  return normalizedUrl;
 }
 
 function getProxyMeta(
