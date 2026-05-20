@@ -89,6 +89,21 @@ describe("defineSandboxProxy", () => {
     );
   });
 
+  it("accepts origin-only forward URL audiences", async () => {
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler);
+
+    await proxy(makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }));
+
+    expect(jwtVerifyMock).toHaveBeenCalledWith(
+      "token_123",
+      expect.any(Function),
+      expect.objectContaining({
+        audience: ["https://proxy.vercel.app", "https://proxy.vercel.app/"],
+      }),
+    );
+  });
+
   it("defaults sandboxName to sandboxId when the token has no sandbox_name claim", async () => {
     jwtVerifyMock.mockResolvedValue(
       makeJwtVerifyResult({

@@ -197,13 +197,21 @@ async function verifyOidcToken(
   }
 
   const { payload } = await jwtVerify(token, getJwks(issuer), {
-    audience: originalUrl.origin + originalUrl.pathname,
+    audience: getForwardUrlAudiences(originalUrl),
     algorithms: ["RS256"],
     clockTolerance: CLOCK_TOLERANCE_SECONDS,
     issuer,
   });
 
   return payload;
+}
+
+function getForwardUrlAudiences(url: URL): string | string[] {
+  if (url.pathname === "/") {
+    return [url.origin, `${url.origin}/`];
+  }
+
+  return url.origin + url.pathname;
 }
 
 function getJwks(issuer: string): ReturnType<typeof createRemoteJWKSet> {
