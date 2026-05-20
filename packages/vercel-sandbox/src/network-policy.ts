@@ -67,6 +67,11 @@ export type NetworkPolicyRule = {
   transform?: NetworkTransformer[];
   /**
    * HTTPS proxy URL to forward matching requests to. Must not include query string or fragment.
+   *
+   * You can use the `defineSandboxProxy` helper from `@vercel/sandbox/proxy` to implement the proxy handler
+   * automatically, which handles authorization and extracts metadata about the request and sandbox.
+   *
+   * @see https://vercel.com/docs/vercel-sandbox/concepts/firewall#requests-proxying
    */
   forwardURL?: string;
 };

@@ -23,3 +23,9 @@ export type {
 export { StreamError } from "./api-client/api-error.js";
 export { APIError } from "./api-client/api-error.js";
 export { FileSystem } from "./filesystem.js";
+export { defineSandboxProxy } from "./proxy.js";
+export type {
+  InvalidRequestProxyHandler,
+  ProxyMeta,
+  ProxyHandler,
+} from "./proxy.js";
