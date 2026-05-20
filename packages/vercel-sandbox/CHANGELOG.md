@@ -1,5 +1,13 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.22
+
+### Minor Changes
+
+- Add `defineSandboxProxy` helper in `@vercel/sandbox/proxy` to easily implement network policies forwarding rules ([#188](https://github.com/vercel/sandbox/pull/188))
+
+- Support snapshot tree pagination ([#191](https://github.com/vercel/sandbox/pull/191))
+
 ## 2.0.0-beta.21
 
 ### Minor Changes

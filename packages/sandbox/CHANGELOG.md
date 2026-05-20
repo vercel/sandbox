@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.24
+
+### Minor Changes
+
+- Support snapshot tree pagination ([#191](https://github.com/vercel/sandbox/pull/191))
+
+### Patch Changes
+
+- Updated dependencies [[`88cfb449d6bef767bca1967ec371fdb8b9d7d48d`](https://github.com/vercel/sandbox/commit/88cfb449d6bef767bca1967ec371fdb8b9d7d48d), [`f618e137ede7b4d0605f20897ff27d9cccf0b5c4`](https://github.com/vercel/sandbox/commit/f618e137ede7b4d0605f20897ff27d9cccf0b5c4)]:
+  - @vercel/sandbox@2.0.0-beta.22
+
 ## 3.0.0-beta.23
 
 ### Minor Changes
