@@ -639,8 +639,11 @@ care about the latest snapshot — it lets the SDK keep snapshot storage costs f
 ### List, Get, and Delete
 
 ```typescript
-// List all snapshots in the project
-const { snapshots, pagination } = await Snapshot.list();
+// List all snapshots in the project (auto-paginates)
+const snapshots = await Snapshot.list();
+for await (const snapshot of snapshots) {
+  console.log(snapshot.snapshotId, snapshot.status);
+}
 
 // Get a specific snapshot
 const snapshot = await Snapshot.get({ snapshotId: "snap_abc123" });
