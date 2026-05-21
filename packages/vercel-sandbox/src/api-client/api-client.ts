@@ -41,7 +41,7 @@ import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { RUNTIMES } from "../constants.js";
-import { BaseCreateSandboxParams } from "../sandbox.js";
+import { type BaseCreateSandboxParams } from "../sandbox.js";
 
 interface Claims {
   owner_id: string;
