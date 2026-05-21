@@ -211,9 +211,9 @@ async function getVolumeByName({
     namePrefix: name,
     sortBy: "name",
     sortOrder: "asc",
-    limit: 1,
+    limit: 50,
   });
-  const volume = volumes[0];
+  const volume = volumes.find((volume) => volume.name === name);
 
   if (!volume) {
     throw new Error(
