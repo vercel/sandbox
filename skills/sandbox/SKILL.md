@@ -95,10 +95,8 @@ console.log(sandbox.name);
 ### Retrieve an Existing Sandbox
 
 ```typescript
-// Retrieve by name. Resumes the sandbox by default.
-const sandbox = await Sandbox.get({ name: "my-dev-env" });
-
-// The sandbox will resume automatically the next time you run a command.
+// Retrieve by name. The sandbox will resume automatically the next time
+// you run a command.
 const sandbox = await Sandbox.get({ name: "my-dev-env" });
 ```
 
@@ -445,14 +443,24 @@ Implement the proxy handler with `defineSandboxProxy` — it verifies the
 sandbox OIDC token and extracts metadata about the source sandbox:
 
 ```typescript
-// app/api/sandbox-proxy/route.ts (or any Web Handler)
+// app/api/sandbox-proxy/route.ts
 import { defineSandboxProxy } from "@vercel/sandbox/proxy";
 
-export const POST = defineSandboxProxy(async (request, meta) => {
+const handler = defineSandboxProxy(async (request, meta) => {
   // meta: { host, teamId, projectId, sandboxId, sandboxName }
   console.log("Proxied from sandbox", meta.sandboxName);
   return fetch(request);
 });
+
+// Sandboxes forward requests using their original method, so the handler
+// must be exposed under every verb the network policy can route.
+export {
+  handler as GET,
+  handler as POST,
+  handler as PUT,
+  handler as PATCH,
+  handler as DELETE,
+};
 ```
 
 ### Updating Network Policy at Runtime
@@ -851,7 +859,8 @@ sandbox snapshot <name>
 sandbox snapshots list --name <name>
 sandbox snapshots get <snapshot-id>
 sandbox snapshots remove <snapshot-id>
-sandbox snapshots tree <snapshot-id>         # Show the snapshot tree
+sandbox snapshots tree <name>                # Walk the tree from the sandbox's current snapshot
+sandbox snapshots tree <name> --cursor <snapshot-id> --sort-order asc
 
 # Config (view + update any sandbox parameter)
 sandbox config list <name>
