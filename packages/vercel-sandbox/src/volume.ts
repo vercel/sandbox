@@ -64,7 +64,7 @@ export class Volume {
    * The project ID that owns the volume.
    */
   public get projectId(): string {
-    return this.volume.projectId;
+    return this._projectId;
   }
 
   /**
