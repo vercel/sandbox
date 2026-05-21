@@ -400,7 +400,8 @@ Commands:
     ls | list                                    List snapshots for the specified account and project.
     get          <snapshot_id>                   Get details of a snapshot.
     tree         <name>                          Show the snapshot ancestry tree for a sandbox.
-    rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
+    rm | remove  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
+>>>>>>> c87efa5 (Update docs)
 ```
 
 ## `sandbox volumes`
@@ -416,7 +417,7 @@ Commands:
 
     ls | list                        List volumes for the specified account and project.
     get-or-create  <name>            Create a volume if it does not already exist, or retrieve it.
-    rm | delete    <name> [...name]  Delete one or more volumes.
+    rm | remove    <name> [...name]  Delete one or more volumes.
 ```
 
 ## `sandbox config`
