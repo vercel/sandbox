@@ -569,8 +569,23 @@ export class APIClient extends BaseClient {
       return null;
     }
 
-    if (!response.ok) {
-      await parseOrThrow(z.any(), response);
+    // The file endpoint must return the file as an octet-stream. Any other
+    // content type (e.g. application/json) indicates an error payload that
+    // would otherwise be piped verbatim into the destination file.
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok || !contentType.includes("application/octet-stream")) {
+      const text = await response.text().catch(() => "");
+      let json: unknown;
+      try {
+        json = JSON.parse(text || "{}");
+      } catch {
+        json = undefined;
+      }
+      throw new APIError(response, {
+        message: `Unexpected response reading file: status ${response.status}, content-type ${contentType || "(none)"}`,
+        json,
+        text,
+      });
     }
 
     if (response.body === null) {

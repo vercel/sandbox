@@ -1190,4 +1190,94 @@ describe("APIClient", () => {
     });
   });
 
+  describe("readFile", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("throws APIError when the API returns a non-2xx with an error payload", async () => {
+      const errorBody = JSON.stringify({
+        error: {
+          code: "sandbox_stopped",
+          message: "Sandbox has stopped execution and is no longer available",
+        },
+      });
+
+      mockFetch.mockResolvedValue(
+        new Response(errorBody, {
+          status: 410,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(
+        client.readFile({ sessionId: "sbx_123", path: "/probe.txt" }),
+      ).rejects.toThrow(APIError);
+    });
+
+    it("throws APIError when the response is 2xx but the content-type is not octet-stream", async () => {
+      const errorBody = JSON.stringify({
+        error: {
+          code: "sandbox_stopped",
+          message: "Sandbox has stopped execution and is no longer available",
+        },
+      });
+
+      mockFetch.mockResolvedValue(
+        new Response(errorBody, {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(
+        client.readFile({ sessionId: "sbx_123", path: "/probe.txt" }),
+      ).rejects.toThrow(APIError);
+    });
+
+    it("returns the readable stream when the content-type is octet-stream", async () => {
+      mockFetch.mockResolvedValue(
+        new Response("hello world", {
+          status: 200,
+          headers: { "content-type": "application/octet-stream" },
+        }),
+      );
+
+      const stream = await client.readFile({
+        sessionId: "sbx_123",
+        path: "/probe.txt",
+      });
+      expect(stream).not.toBeNull();
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream!) {
+        chunks.push(chunk as Buffer);
+      }
+      expect(Buffer.concat(chunks).toString()).toBe("hello world");
+    });
+
+    it("returns null when the API returns 404", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(null, {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const stream = await client.readFile({
+        sessionId: "sbx_123",
+        path: "/probe.txt",
+      });
+      expect(stream).toBeNull();
+    });
+  });
+
 });
