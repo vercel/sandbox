@@ -3,7 +3,7 @@ name: sandbox
 description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
 metadata:
   author: Vercel Inc.
-  version: "1.1"
+  version: "2.0"
 ---
 
 ## _CRITICAL_: Always Use Correct `@vercel/sandbox` Documentation
@@ -14,12 +14,30 @@ Follow these instructions before starting on any sandbox-related tasks:
 ### Official Resources
 
 - **Documentation**: https://vercel.com/docs/vercel-sandbox
-- **Documentation (beta)**: https://vercel.com/docs/vercel-sandbox/concepts/persistent-sandboxes
 - **SDK Reference**: https://vercel.com/docs/vercel-sandbox/sdk-reference
 - **CLI Reference**: https://vercel.com/docs/vercel-sandbox/cli-reference
 - **GitHub**: https://github.com/vercel/sandbox
 - **REST API**: https://vercel.com/docs/rest-api/sandboxes
-- **REST API (Beta)**: https://vercel.com/docs/rest-api/sandboxes-v2-beta
+
+### What changed in v2
+
+The `@vercel/sandbox@2` SDK and `sandbox@3` CLI replace anonymous, ephemeral
+sandboxes with **named, persistent** sandboxes. Key differences from v1:
+
+- Sandboxes are identified by **`name`** (not `sandboxId`). Names are unique per project.
+- Sandboxes are **persistent by default** — when a sandbox stops, the SDK
+  automatically snapshots it and restores the filesystem on the next resume.
+- A **Session** is a single running VM instance inside a sandbox. SDK calls
+  like `runCommand`, `writeFiles`, etc. automatically resume a stopped sandbox.
+- New methods: `Sandbox.getOrCreate`, `sandbox.update`, `sandbox.delete`,
+  `sandbox.listSessions`, `sandbox.listSnapshots`, `Snapshot.fromSandbox`,
+  `Snapshot.tree`, `defineSandboxProxy`.
+- New params: `name`, `persistent`, `tags`, `onResume`, `snapshotExpiration`,
+  `keepLastSnapshots`, L7 network policy matchers, `forwardURL`.
+- Pagination uses **cursor-based** iterators (async-iterable) instead of `since`/`until`.
+- `Sandbox.list({ since, until })` → `Sandbox.list({ cursor, namePrefix, sortBy, tags })`.
+- v1 sandboxes are backfilled so the only required code change is using `name`
+  instead of `sandboxId`.
 
 ### Quick Reference
 
@@ -27,11 +45,20 @@ Follow these instructions before starting on any sandbox-related tasks:
 
 ```typescript
 // Core SDK
-import { Sandbox, Snapshot, Command, CommandFinished } from "@vercel/sandbox";
+import {
+  Sandbox,
+  Session,
+  Snapshot,
+  Command,
+  CommandFinished,
+} from "@vercel/sandbox";
 import { APIError, StreamError } from "@vercel/sandbox";
 
-// For advanced network policy with credential brokering
+// For advanced network policy with credential brokering and L7 matchers
 import type { NetworkPolicyRule, NetworkTransformer } from "@vercel/sandbox";
+
+// For implementing a request-forwarding proxy (forwardURL)
+import { defineSandboxProxy } from "@vercel/sandbox/proxy";
 
 // For timeouts
 import ms from "ms"; // e.g., ms("5m"), ms("1h")
@@ -40,7 +67,7 @@ import ms from "ms"; // e.g., ms("5m"), ms("1h")
 **Available runtimes:**
 
 ```typescript
-type RUNTIMES = "node24" | "node22" | "python3.13";
+type RUNTIMES = "node26" | "node24" | "node22" | "python3.13";
 ```
 
 ## Creating Sandboxes
@@ -51,13 +78,75 @@ type RUNTIMES = "node24" | "node22" | "python3.13";
 import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create({
+  name: "my-dev-env", // Optional, random if omitted. Unique per project.
   runtime: "node24",
   resources: { vcpus: 4 }, // 2048 MB RAM per vCPU
   ports: [3000], // Expose up to 15 ports
   timeout: ms("10m"), // Default: 5 minutes
   env: { NODE_ENV: "production" }, // Env vars inherited by all commands
+  tags: { env: "staging", team: "infra" }, // Up to 5 key:value tags
+  persistent: true, // Default: true. Auto-snapshots on stop, restores on resume.
+  snapshotExpiration: ms("7d"), // Default TTL for snapshots. Use 0 for no expiration.
+});
+
+console.log(sandbox.name);
+```
+
+### Retrieve an Existing Sandbox
+
+```typescript
+// Retrieve by name. Resumes the sandbox by default.
+const sandbox = await Sandbox.get({ name: "my-dev-env" });
+
+// The sandbox will resume automatically the next time you run a command.
+const sandbox = await Sandbox.get({ name: "my-dev-env" });
+```
+
+### Get-or-Create (Idempotent)
+
+`Sandbox.getOrCreate` is the recommended pattern for long-lived sandboxes.
+
+```typescript
+const sandbox = await Sandbox.getOrCreate({
+  name: "my-workspace",
+  runtime: "node24",
+  // Runs only the first time the sandbox is created.
+  onCreate: async (sbx) => {
+    await sbx.writeFiles([
+      { path: "README.md", content: Buffer.from("# Hello") },
+    ]);
+    await sbx.runCommand("npm", ["install"]);
+  },
+  // Runs every time the sandbox session is resumed (including after auto-resume).
+  onResume: async (sbx) => {
+    await sbx.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
+  },
 });
 ```
+
+Behavior:
+
+- If a sandbox with that `name` exists → resumes it and fires `onResume`.
+- If it does not exist → creates a fresh sandbox and fires `onCreate`.
+- If the sandbox exists but its snapshot expired → deletes the stale sandbox,
+  re-creates it with the same name, and fires `onCreate`.
+
+### Re-warming on Resume
+
+Use `onResume` to restart background services or rehydrate caches whenever a
+persistent sandbox's session is resumed:
+
+```typescript
+const sandbox = await Sandbox.get({
+  name: "my-workspace",
+  onResume: async (sbx) => {
+    await sbx.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
+  },
+});
+```
+
+`onResume` also fires when a SDK call (e.g. `runCommand`, `writeFiles`)
+auto-resumes a stopped sandbox.
 
 ### With Git Source
 
@@ -101,7 +190,7 @@ const sandbox = await Sandbox.create({
 });
 ```
 
-### From Snapshot
+### From a Snapshot
 
 ```typescript
 const sandbox = await Sandbox.create({
@@ -110,6 +199,21 @@ const sandbox = await Sandbox.create({
     snapshotId: "snap_abc123",
   },
   ports: [3000],
+});
+```
+
+### From Another Sandbox's Current Snapshot
+
+You don't need to track snapshot IDs manually. `Snapshot.fromSandbox`
+resolves the current snapshot of another sandbox, so any future snapshot of
+that source sandbox is automatically picked up by downstream creates.
+
+```typescript
+const sandbox = await Sandbox.create({
+  source: {
+    type: "snapshot",
+    snapshotId: await Snapshot.fromSandbox("my-base-sandbox"),
+  },
 });
 ```
 
@@ -190,6 +294,7 @@ await sandbox.writeFiles([
   {
     path: "/vercel/sandbox/script.sh",
     content: Buffer.from("#!/bin/bash\necho 'Hello'"),
+    mode: 0o755,
   },
 ]);
 ```
@@ -224,6 +329,15 @@ const localPath = await sandbox.downloadFile(
 await sandbox.mkDir("/vercel/sandbox/my-app/src");
 ```
 
+### `sandbox.fs` — `node:fs/promises`-compatible API
+
+```typescript
+const content = await sandbox.fs.readFile("/etc/hostname", "utf8");
+await sandbox.fs.writeFile("/tmp/hello.txt", "Hello, world!");
+const files = await sandbox.fs.readdir("/tmp");
+const stats = await sandbox.fs.stat("/tmp/hello.txt");
+```
+
 ## Network Policy
 
 ### Full Internet Access (Default)
@@ -254,11 +368,6 @@ const sandbox = await Sandbox.create({
     },
   },
 });
-
-// Update policy at runtime
-await sandbox.updateNetworkPolicy({
-  allow: ["api.openai.com"],
-});
 ```
 
 ### Restricted Access with Credential Brokering
@@ -282,16 +391,215 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+### L7 Request Matchers
+
+Rules can match on method, path, query string, and headers. All specified
+dimensions must match; multiple methods are ORed; multiple header and
+query-string matchers are ANDed.
+
+```typescript
+const sandbox = await Sandbox.create({
+  networkPolicy: {
+    allow: {
+      "ai-gateway.vercel.sh": [
+        {
+          match: {
+            method: ["POST"],
+            path: { startsWith: "/v1/" },
+            headers: [
+              { key: { exact: "x-api-key" }, value: { exact: "placeholder" } },
+            ],
+          },
+          transform: [{ headers: { authorization: "Bearer ..." } }],
+        },
+      ],
+    },
+  },
+});
+```
+
+Matchers support `exact`, `startsWith`, and `regex` (RE2).
+
+### Forward Matching Requests to a Proxy
+
+Use `forwardURL` to redirect any matching request through an HTTPS proxy you
+control. The proxy receives the original request along with sandbox metadata in
+forwarded headers.
+
+```typescript
+const sandbox = await Sandbox.create({
+  networkPolicy: {
+    allow: {
+      "api.example.com": [
+        {
+          match: { path: { startsWith: "/secure/" } },
+          forwardURL: "https://my-proxy.example.com",
+        },
+      ],
+    },
+  },
+});
+```
+
+Implement the proxy handler with `defineSandboxProxy` — it verifies the
+sandbox OIDC token and extracts metadata about the source sandbox:
+
+```typescript
+// app/api/sandbox-proxy/route.ts (or any Web Handler)
+import { defineSandboxProxy } from "@vercel/sandbox/proxy";
+
+export const POST = defineSandboxProxy(async (request, meta) => {
+  // meta: { host, teamId, projectId, sandboxId, sandboxName }
+  console.log("Proxied from sandbox", meta.sandboxName);
+  return fetch(request);
+});
+```
+
+### Updating Network Policy at Runtime
+
+Use `sandbox.update` (preferred). `updateNetworkPolicy` is deprecated but still
+works.
+
+```typescript
+await sandbox.update({ networkPolicy: { allow: ["api.openai.com"] } });
+```
+
+## Updating Sandbox Configuration
+
+`sandbox.update` replaces individual update helpers and accepts any of the
+mutable parameters. When `ports` is provided, it is treated as the **full**
+desired port list — any currently exposed port not present in the array is
+deregistered.
+
+```typescript
+await sandbox.update({
+  resources: { vcpus: 4 }, // Memory auto-scales to 2048 MB per vCPU
+  timeout: ms("30m"),
+  networkPolicy: "deny-all",
+  ports: [3000, 8000],
+  tags: { env: "prod" },
+  persistent: false,
+  snapshotExpiration: ms("14d"),
+  keepLastSnapshots: { count: 1 },
+  currentSnapshotId: "snap_xyz", // Rollback to a previous snapshot
+});
+```
+
+## Deleting a Sandbox
+
+```typescript
+// Permanently remove a sandbox and all its snapshots.
+await sandbox.delete();
+```
+
+## Stopping a Sandbox
+
+`stop()` is synchronous: it blocks until the VM is fully stopped and returns
+the final session state, including the snapshot created during shutdown (when
+`persistent: true`).
+
+```typescript
+const result = await sandbox.stop();
+console.log(result.snapshot?.id);
+console.log(result.activeCpuUsageMs);
+console.log(result.networkTransfer); // { ingress, egress }
+```
+
+## Tags
+
+Sandboxes support up to 5 key-value tags. Tags can be set at creation, updated
+via `sandbox.update({ tags })`, and used as filters when listing.
+
+```typescript
+await Sandbox.create({ tags: { env: "staging", team: "infra" } });
+
+const result = await Sandbox.list({ tags: { env: "staging" } });
+```
+
+## Listing Sandboxes, Sessions, and Snapshots
+
+All list APIs use **cursor-based pagination** and return an async-iterable that
+auto-paginates through every page. You can also iterate page-by-page or
+collect all items at once.
+
+### `Sandbox.list`
+
+```typescript
+const result = await Sandbox.list({
+  namePrefix: "ci-", // Filter by name prefix
+  tags: { env: "staging" }, // Filter by tags
+  sortBy: "createdAt", // "createdAt" (default), "name", or "statusUpdatedAt"
+  sortOrder: "desc", // "asc" or "desc" (default)
+  limit: 50,
+});
+
+// Per-item async iteration (auto-paginates)
+for await (const sandbox of result) {
+  console.log(sandbox.name);
+}
+
+// Per-page iteration
+for await (const page of result.pages()) {
+  console.log(page.sandboxes.length);
+}
+
+// Collect everything
+const all = await result.toArray();
+
+// Or use the cursor directly
+const next = result.pagination.next;
+```
+
+### `sandbox.listSessions` and `sandbox.listSnapshots`
+
+```typescript
+// List all VM sessions for this sandbox
+const sessions = await sandbox.listSessions();
+for await (const session of sessions) {
+  console.log(session.sessionId, session.status);
+}
+
+// List snapshots belonging to this sandbox
+const snapshots = await sandbox.listSnapshots();
+for await (const snapshot of snapshots) {
+  console.log(snapshot.snapshotId, snapshot.status);
+}
+```
+
+### `Snapshot.list`
+
+```typescript
+const snapshots = await Snapshot.list({
+  name: "my-dev-env", // Filter by sandbox name
+  sortOrder: "desc",
+  limit: 50,
+});
+for await (const snapshot of snapshots) {
+  console.log(snapshot.snapshotId, snapshot.status);
+}
+```
+
+## Sessions
+
+A **Session** is a single running VM instance inside a sandbox. You typically
+do not interact with sessions directly — the SDK creates and resumes them for
+you — but you can inspect the current one.
+
+```typescript
+const session = sandbox.currentSession();
+console.log(session.sessionId);
+console.log(session.status); // "pending" | "running" | "stopping" | "stopped" | ...
+```
+
 ## Snapshots
 
-Snapshots save the entire sandbox filesystem to be reused later on, for any number of sandboxes.
+Snapshots save the entire sandbox filesystem to be reused later, for any
+number of sandboxes.
 
 ### Create a Snapshot
 
 ```typescript
 const sandbox = await Sandbox.create({ runtime: "node24" });
-
-// Install dependencies
 await sandbox.runCommand("npm", ["install"]);
 
 // Create snapshot (stops the sandbox)
@@ -301,32 +609,94 @@ const snapshot = await sandbox.snapshot({
 console.log("Snapshot ID:", snapshot.snapshotId);
 ```
 
-### List and Manage Snapshots
+### Default Snapshot Expiration and Retention
+
+Configure default expiration and retention policy per sandbox:
 
 ```typescript
-// List snapshots
+await Sandbox.create({
+  name: "my-app",
+  snapshotExpiration: ms("7d"), // Default TTL for any snapshot of this sandbox
+  keepLastSnapshots: {
+    count: 1, // Keep only the most recent snapshot (1-10)
+    expiration: ms("30d"), // Override expiration for kept snapshots
+    deleteEvicted: true, // Delete evicted snapshots immediately (default)
+  },
+});
+```
+
+`keepLastSnapshots: { count: 1 }` is the recommended setting when you only
+care about the latest snapshot — it lets the SDK keep snapshot storage costs flat.
+
+### List, Get, and Delete
+
+```typescript
+// List all snapshots in the project
 const { snapshots, pagination } = await Snapshot.list();
 
 // Get a specific snapshot
 const snapshot = await Snapshot.get({ snapshotId: "snap_abc123" });
 
-// Delete snapshot
+// Delete a snapshot
 await snapshot.delete();
+```
+
+### Snapshot Tree
+
+Snapshots form a tree: any sandbox created from another snapshot inherits a
+parent → child relationship. Walk that tree to see ancestors or descendants of
+a given snapshot.
+
+```typescript
+// Walk ancestors (default direction)
+const ancestors = await Snapshot.tree({
+  snapshotId: "snap_abc",
+  sortOrder: "desc",
+});
+for await (const node of ancestors) {
+  console.log(node.snapshotId, node.parentId);
+}
+
+// Walk descendants
+const descendants = await Snapshot.tree({
+  snapshotId: "snap_abc",
+  sortOrder: "asc",
+});
+```
+
+### Snapshot Rollback
+
+Point an existing sandbox at a previous snapshot by updating
+`currentSnapshotId`. New sessions will resume from that snapshot.
+
+```typescript
+await sandbox.update({ currentSnapshotId: "snap_previous" });
+```
+
+### Resolve the Current Snapshot of Another Sandbox
+
+```typescript
+const id = await Snapshot.fromSandbox("my-base-sandbox");
+const child = await Sandbox.create({
+  source: { type: "snapshot", snapshotId: id },
+});
 ```
 
 ## Exposed Ports
 
 ```typescript
-const sandbox = await Sandbox.create({
-  ports: [3000, 8080],
-});
+const sandbox = await Sandbox.create({ ports: [3000, 8000] });
 
 // Get public URL for a port
 const url = sandbox.domain(3000);
 // Returns: https://subdomain.vercel.run
+```
 
-// Open in browser
-spawn("open", [url]);
+Replace the exposed port list at runtime with `sandbox.update({ ports })`. Any
+currently exposed port not present in the new array is deregistered.
+
+```typescript
+await sandbox.update({ ports: [3000, 8443] });
 ```
 
 ## Timeout Management
@@ -373,7 +743,7 @@ try {
   const sandbox = await Sandbox.create();
 } catch (error) {
   if (error instanceof APIError) {
-    console.error("API Error:", error.message, error.statusCode);
+    console.error("API Error:", error.message, error.response.status);
   } else if (error instanceof StreamError) {
     console.error("Stream Error:", error.message);
   }
@@ -402,15 +772,16 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation      | Details                                      |
-| --------------- | -------------------------------------------- |
-| Max vCPUs       | 8 vCPUs (2048 MB RAM per vCPU)               |
-| Max ports       | 15 exposed ports                             |
-| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby) |
-| Default timeout | 5 minutes                                    |
-| Base system     | Amazon Linux 2023                            |
-| User context    | `vercel-sandbox` user                        |
-| Writable path   | `/vercel/sandbox`                            |
+| Limitation      | Details                                                             |
+| --------------- | ------------------------------------------------------------------- |
+| Max vCPUs       | 8 vCPUs on Hobby/Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
+| Max ports       | 15 exposed ports                                                    |
+| Max tags        | 5 key-value tags per sandbox                                        |
+| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby)                        |
+| Default timeout | 5 minutes                                                           |
+| Base system     | Amazon Linux 2023                                                   |
+| User context    | `vercel-sandbox` user                                               |
+| Writable path   | `/vercel/sandbox`                                                   |
 
 ## System Packages
 
@@ -438,59 +809,92 @@ sandbox logout
 
 # Create and connect
 sandbox create --connect
+sandbox create --name my-app
+sandbox create --non-persistent              # Disable filesystem persistence
+sandbox create --snapshot-expiration 7d      # Default snapshot TTL
+sandbox create --keep-last-snapshots 1       # Retention policy
+sandbox create --tag env=staging             # Repeatable
+sandbox create --sandbox-snapshot my-base    # From another sandbox's snapshot
 
-# List sandboxes
+# List sandboxes (paginated, filterable)
 sandbox ls
-
-# Execute command
-sandbox exec <sandbox-id> -- npm install
+sandbox ls --name-prefix ci- --sort-by name
+sandbox ls --tag env=staging --limit 100 --cursor <token>
 
 # Run a command in a new sandbox (create + exec in one step)
 sandbox run -- node -e "console.log('hello')"
+sandbox run --name my-app -- npm test        # Resumes existing sandbox if present
+sandbox run --stop -- npm build              # Stop the session when the command exits
+sandbox run --rm -- npm build                # DELETES the sandbox after running
+
+# Execute command in an existing sandbox
+sandbox exec <name> -- npm install
+sandbox exec <name> --stop -- npm build
 
 # Start an interactive shell
-sandbox connect <sandbox-id>
+sandbox connect <name>
 
 # Copy files
-sandbox cp local-file.txt <sandbox-id>:/vercel/sandbox/
+sandbox cp local-file.txt <name>:/vercel/sandbox/
 
-# Stop sandbox
-sandbox stop <sandbox-id>
+# Stop sandbox (synchronous; reports snapshot + usage)
+sandbox stop <name>
+
+# Permanently delete sandbox and all its snapshots
+sandbox remove <name>
+
+# Sessions
+sandbox sessions list <name>
 
 # Snapshots
-sandbox snapshot <sandbox-id>
-sandbox snapshots ls
+sandbox snapshot <name>
+sandbox snapshots list --name <name>
 sandbox snapshots get <snapshot-id>
-sandbox snapshots rm <snapshot-id>
+sandbox snapshots remove <snapshot-id>
+sandbox snapshots tree <snapshot-id>         # Show the snapshot tree
 
-# Update network policy
-sandbox config network-policy <sandbox-id> --network-policy deny-all
+# Config (view + update any sandbox parameter)
+sandbox config list <name>
+sandbox config vcpus <name> <count>
+sandbox config timeout <name> <duration>
+sandbox config persistent <name> <true|false>
+sandbox config snapshot-expiration <name> <duration|none>
+sandbox config keep-last-snapshots <name> <count>
+sandbox config keep-last-snapshots-for <name> <duration|none>
+sandbox config delete-evicted-snapshots <name> <true|false>
+sandbox config current-snapshot <name> <snapshot-id>
+sandbox config network-policy <name> --network-policy deny-all
+sandbox config tags <name> --tag env=prod
 ```
 
 ## Common Patterns
 
-### Dev Server Pattern
+### Dev Server Pattern (Persistent)
 
 ```typescript
-const sandbox = await Sandbox.create({
+const sandbox = await Sandbox.getOrCreate({
+  name: "my-dev-env",
   source: { type: "git", url: "https://github.com/org/repo.git" },
   ports: [3000],
   timeout: ms("30m"),
+  onCreate: async (sbx) => {
+    await sbx.runCommand("npm", ["install"]);
+  },
+  onResume: async (sbx) => {
+    await sbx.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
+  },
 });
 
-await sandbox.runCommand("npm", ["install"]);
-await sandbox.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
-
-// Wait for server to start
-await new Promise((r) => setTimeout(r, 2000));
 console.log("App running at:", sandbox.domain(3000));
 ```
 
-### Build and Test Pattern
+### Build and Test Pattern (Ephemeral)
 
 ```typescript
 await using sandbox = await Sandbox.create({
   source: { type: "git", url: repoUrl },
+  persistent: false, // Skip snapshotting on shutdown
+  snapshotExpiration: ms("1d"), // Short TTL for any incidental snapshot
 });
 
 const install = await sandbox.runCommand("npm", ["ci"]);
@@ -503,21 +907,31 @@ const test = await sandbox.runCommand("npm", ["test"]);
 process.exit(test.exitCode);
 ```
 
-### Snapshot Warm Start Pattern
+### Base Snapshot + Children Pattern
+
+Maintain a single "base" sandbox with dependencies installed, and spawn fresh
+children from its current snapshot. New base snapshots are automatically
+picked up — no need to store snapshot IDs in your code.
 
 ```typescript
-// First time: create snapshot with dependencies installed
-async function createBaseSnapshot() {
-  const sandbox = await Sandbox.create({ runtime: "node24" });
-  await sandbox.runCommand("npm", ["install", "-g", "typescript", "tsx"]);
-  const snapshot = await sandbox.snapshot();
-  return snapshot.snapshotId;
-}
+// Once: bootstrap the base sandbox
+await Sandbox.getOrCreate({
+  name: "my-base",
+  runtime: "node24",
+  keepLastSnapshots: { count: 5 }, // Keep storage flat
+  onCreate: async (sbx) => {
+    await sbx.runCommand("npm", ["install", "-g", "typescript", "tsx"]);
+  },
+});
 
-// Subsequent runs: fast start from snapshot
-async function runFromSnapshot(snapshotId: string, code: string) {
+// On every run: spawn a child from the base's latest snapshot
+async function runFromBase(code: string) {
   await using sandbox = await Sandbox.create({
-    source: { type: "snapshot", snapshotId },
+    source: {
+      type: "snapshot",
+      snapshotId: await Snapshot.fromSandbox("my-base"),
+    },
+    persistent: false,
   });
   await sandbox.writeFiles([
     { path: "/vercel/sandbox/index.ts", content: Buffer.from(code) },
@@ -526,158 +940,20 @@ async function runFromSnapshot(snapshotId: string, code: string) {
 }
 ```
 
-## Beta: Persistent Sandboxes (`@vercel/sandbox@beta` and `sandbox@beta`)
-
-The beta introduces **persistent, long-lived sandboxes** with a new **Session** layer. Install with:
-
-```bash
-pnpm i @vercel/sandbox@beta  # SDK 2.0.0-beta.x
-pnpm i -g sandbox@beta       # CLI 3.0.0-beta.x
-```
-
-IMPORTANT:
-
-- This is a beta, not a stable version. Do not use for production.
-- If the user had installed a previous major version (`@vercel/sandbox@1`, `sandbox@1`, `sandbox@2`), make it clear that sandboxes are by default persistent: they will automatically create snapshots to preserve the state.
-
-### Key Concepts
-
-- **Sandbox** = a persistent, named entity that survives across multiple VM boots.
-- **Session** = a running VM instance within a sandbox. Sessions are created/resumed automatically and are identified by ID.
-- Sandboxes are identified by **name** (not ID). Names are unique per project.
-- When a sandbox stops, it will automatically snapshot and restore the state on the next resume (with `persistent: true`, the default).
-- **Migration**: Old V1 sandboxes are backfilled with `sandboxId` as their `name` (e.g., `sbx_123`), so the only change needed is using `name` instead of `sandboxId`.
-
-### New Exports
+### Long-Lived Workspace Pattern
 
 ```typescript
-import { Session } from "@vercel/sandbox";
-```
-
-### Migration from Stable (`1.x`) to Beta (`2.x`)
-
-#### Creating sandboxes — new `name` and `persistent` params
-
-```typescript
-// Stable (1.x): anonymous, ephemeral sandboxes identified by sandboxId
-const sandbox = await Sandbox.create({ runtime: "node24" });
-console.log(sandbox.sandboxId);
-
-// Beta (2.x): persistent sandboxes identified by name
-const sandbox = await Sandbox.create({
-  name: "my-dev-env", // Optional, random if omitted. Unique per project.
+// Idempotent: first call creates, subsequent calls resume
+const sandbox = await Sandbox.getOrCreate({
+  name: `workspace-${userId}`,
   runtime: "node24",
-  persistent: true, // Default: true. Auto-snapshots on shutdown and restores on resume.
-  snapshotExpiration: ms("7d"), // Optional. Default TTL for snapshots. Use 0 for no expiration.
+  keepLastSnapshots: { count: 1, expiration: ms("5d") },
+  onCreate: async (sbx) => {
+    await sbx.runCommand("git", ["clone", repoUrl, "."]);
+    await sbx.runCommand("npm", ["install"]);
+  },
 });
-console.log(sandbox.name);
+
+// Use the sandbox — auto-resumes if it was stopped
+await sandbox.runCommand("git", ["pull"]);
 ```
-
-#### Retrieving sandboxes — `name` replaces `sandboxId`
-
-```typescript
-// Stable (1.x)
-const sandbox = await Sandbox.get({ sandboxId: "sbx_abc123" });
-
-// Beta (2.x) — retrieves by name.
-const sandbox = await Sandbox.get({ name: "my-dev-env" });
-// Pass `resume: true` to to automatically resume the sandbox. Otherwise, it will
-// be resumed when the next command is run.
-const sandbox = await Sandbox.get({ name: "my-dev-env", resume: false });
-```
-
-#### Listing sandboxes — pagination and filtering changes
-
-```typescript
-// Stable (1.x): used since/until for pagination
-const {
-  json: { sandboxes },
-} = await Sandbox.list({ since, until });
-
-// Beta (2.x): cursor-based pagination, new filtering params
-const { sandboxes, pagination } = await Sandbox.list({
-  cursor: pagination.next, // string token (replaces since/until)
-  namePrefix: "my-app-", // Filter by name prefix
-  sortBy: "name", // "createdAt" (default) or "name"
-});
-```
-
-#### Listing snapshots — new `name` filter
-
-```typescript
-// Beta (2.x): filter snapshots by sandbox name
-const { snapshots } = await Snapshot.list({
-  name: "my-dev-env", // Only snapshots belonging to this sandbox
-});
-```
-
-#### Auto-resume for persistent sandboxes
-
-If a sandbox created with `persistent: true` is stopped, and you call
-`runCommand`, `writeFiles`, or similar SDK methods with the same sandbox name, the SDK automatically
-starts a new session and retries the operation. You do not need to resume
-manually.
-
-#### New `Session` class
-
-```typescript
-// Access the current running VM session
-const session = sandbox.currentSession();
-console.log(session.sessionId);
-console.log(session.status); // "pending" | "running" | "stopping" | "stopped" | ...
-```
-
-#### New `sandbox.update()` method (replaces `updateNetworkPolicy`)
-
-```typescript
-// Stable (1.x)
-await sandbox.updateNetworkPolicy("deny-all");
-
-// Beta (2.x) — updateNetworkPolicy still works but is deprecated
-await sandbox.update({
-  networkPolicy: "deny-all",
-  persistent: false,
-  resources: { vcpus: 4 },
-  timeout: ms("30m"),
-  snapshotExpiration: ms("14d"), // Update default snapshot TTL. Use 0 for no expiration.
-});
-```
-
-#### New `sandbox.delete()` method
-
-```typescript
-// Permanently remove a sandbox and all its snapshots
-await sandbox.delete();
-```
-
-#### New `sandbox.listSessions()` and `sandbox.listSnapshots()`
-
-```typescript
-// List all VM sessions for this sandbox
-const sessions = await sandbox.listSessions();
-
-// List snapshots belonging to this sandbox
-const snapshots = await sandbox.listSnapshots();
-```
-
-### CLI Changes (3.0.0-beta)
-
-Key differences from the stable CLI:
-
-- All commands now use **sandbox name** instead of sandbox ID.
-- `sandbox rm` / `sandbox remove` **permanently deletes** the sandbox.
-- New: `sandbox sessions` command to manage sessions.
-- New: `sandbox create --name <name>` to set a sandbox name.
-- New: `sandbox create --snapshot-expiration <duration|none>` to set default snapshot TTL.
-- New: `sandbox create --non-persistent` to disable state persistence.
-- New: `sandbox run --stop` to stop the session when the command exits.
-- New: `sandbox run --name <name>` resumes from an existing sandbox if it exists.
-- Breaking: `sandbox run --rm` now **deletes** the sandbox (previously just stopped it).
-- New: `sandbox snapshots list --name <name>` to filter snapshots by sandbox name.
-- New: `sandbox config list <name>` to view sandbox configuration.
-- New: `sandbox config vcpus <name> <count>` to update vCPUs.
-- New: `sandbox config timeout <name> <duration>` to update timeout.
-- New: `sandbox config persistent <name> <true|false>` to toggle persistence.
-- New: `sandbox config snapshot-expiration <name> <duration|none>` to set default snapshot TTL.
-- `sandbox cp` now uses `<sandbox_name>:path` instead of `<sandbox_id>:path`.
-- `sandbox ls` supports `--name-prefix` and `--sort-by` filtering.
