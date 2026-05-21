@@ -68,9 +68,9 @@ export class Volume {
   }
 
   /**
-   * The maximum volume size in bytes, if set. Default is 100 GiB if not set.
+   * The maximum volume size in bytes.
    */
-  public get maxSize(): number | undefined {
+  public get maxSize(): number {
     return this.volume.maxSizeBytes;
   }
 

@@ -245,7 +245,7 @@ export const SnapshotResponse = z.object({
 export const Volume = z.object({
   name: z.string(),
   projectId: z.string(),
-  maxSizeBytes: z.number().optional(),
+  maxSizeBytes: z.number(),
   currentSessionId: z.string().optional(),
   currentSandboxName: z.string().optional(),
   createdAt: z.number(),
