@@ -7,13 +7,15 @@ import chalk from "chalk";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
+import { publishPorts } from "../args/ports";
+import { snapshotRetentionArgs } from "../args/snapshot-retention";
 import ora from "ora";
 import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
-import { SnapshotExpiration } from "../types/snapshot-expiration";
-import { publishPorts } from "../args/ports";
+import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
+import { printSandboxSummary } from "../util/print-sandbox-summary";
 
 export const args = {
   name: cmd.option({
@@ -56,44 +58,7 @@ export const args = {
     type: ObjectFromKeyValue,
     description: "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
   }),
-  snapshotExpiration: cmd.option({
-    long: "snapshot-expiration",
-    type: cmd.optional(SnapshotExpiration),
-    description: 'Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d',
-  }),
-  keepLastSnapshots: cmd.option({
-    long: "keep-last-snapshots",
-    type: cmd.optional(
-      cmd.extendType(cmd.number, {
-        displayName: "COUNT",
-        async from(n) {
-          if (!Number.isInteger(n) || n < 1 || n > 10) {
-            throw new Error(
-              `Invalid --keep-last-snapshots value: ${n}. Must be an integer between 1 and 10.`,
-            );
-          }
-          return n;
-        },
-      }),
-    ),
-    description:
-      "Keep only the N most recent snapshots of this sandbox (1-10).",
-  }),
-  keepLastSnapshotsFor: cmd.option({
-    long: "keep-last-snapshots-for",
-    type: cmd.optional(SnapshotExpiration),
-    description:
-      'Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d',
-  }),
-  deleteEvictedSnapshots: cmd.option({
-    long: "delete-evicted-snapshots",
-    type: cmd.optional({
-      ...cmd.oneOf(["true", "false"]),
-      displayName: "true|false",
-    }),
-    description:
-      'When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration.',
-  }),
+  ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
 } as const;
@@ -137,35 +102,13 @@ export const create = cmd.command({
       deniedCIDRs,
     });
 
-    if (
-      keepLastSnapshots === undefined &&
-      (keepLastSnapshotsFor !== undefined ||
-        deleteEvictedSnapshots !== undefined)
-    ) {
-      throw new Error(
-        [
-          "--keep-last-snapshots-for and --delete-evicted-snapshots require --keep-last-snapshots.",
-          `${chalk.bold("hint:")} Pass --keep-last-snapshots <count> to enable the retention policy.`,
-        ].join("\n"),
-      );
-    }
+    const keepLastSnapshotsPayload = buildKeepLastSnapshotsPayload({
+      keepLastSnapshots,
+      keepLastSnapshotsFor,
+      deleteEvictedSnapshots,
+    });
 
-    const keepLastSnapshotsPayload =
-      keepLastSnapshots !== undefined
-        ? {
-            count: keepLastSnapshots,
-            expiration:
-              keepLastSnapshotsFor !== undefined
-                ? ms(keepLastSnapshotsFor)
-                : undefined,
-            deleteEvicted:
-              deleteEvictedSnapshots !== undefined
-                ? deleteEvictedSnapshots === "true"
-                : undefined,
-          }
-        : undefined;
-
-    const persistent = !nonPersistent
+    const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
@@ -216,40 +159,8 @@ export const create = cmd.command({
       );
     }
 
-    const routes = sandbox.routes.filter(
-      (x) => x.port !== sandbox.interactivePort,
-    );
-
     if (!silent) {
-      const teamDisplay = scope.teamSlug ?? scope.team;
-      const projectDisplay = scope.projectSlug ?? scope.project;
-      const hasPorts = routes.length > 0;
-
-      process.stderr.write("✅ Sandbox ");
-      process.stdout.write(chalk.cyan(sandbox.name));
-      process.stderr.write(" created.\n");
-      process.stderr.write(
-        chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",
-      );
-
-      if (hasPorts) {
-        process.stderr.write(
-          chalk.dim("   │ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
-        );
-        process.stderr.write(chalk.dim("   │ ") + "ports:\n");
-        for (let i = 0; i < routes.length; i++) {
-          const route = routes[i];
-          const isLast = i === routes.length - 1;
-          const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
-          process.stderr.write(
-            prefix + "• " + route.port + " -> " + chalk.cyan(route.url) + "\n",
-          );
-        }
-      } else {
-        process.stderr.write(
-          chalk.dim("   ╰ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
-        );
-      }
+      printSandboxSummary({ sandbox, scope, action: "created" });
     }
 
     if (connect) {

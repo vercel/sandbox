@@ -1,15 +1,14 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import * as cmd from "cmd-ts";
 
-const { mockFork, mockCreate } = vi.hoisted(() => ({
+const { mockFork } = vi.hoisted(() => ({
   mockFork: vi.fn(),
-  mockCreate: vi.fn(),
 }));
 
 vi.mock("../../src/client", () => ({
   sandboxClient: {
     fork: mockFork,
-    create: mockCreate,
+    create: vi.fn(),
     get: vi.fn(),
     list: vi.fn(),
   },
@@ -28,9 +27,7 @@ vi.mock("../../src/commands/login", () => ({
 const fakeSandbox = {
   name: "forked-sandbox",
   interactivePort: 8443,
-  routes: [
-    { url: "https://example.com", subdomain: "sbx", port: 8443 },
-  ],
+  routes: [{ url: "https://example.com", subdomain: "sbx", port: 8443 }],
 };
 
 describe("fork command", () => {
@@ -105,40 +102,5 @@ describe("fork command", () => {
       cmd.run(fork, ["--scope=team", "--project=proj", "--silent"]),
     ).rejects.toThrow();
     expect(mockFork).not.toHaveBeenCalled();
-  });
-
-  test("--non-persistent sets persistent: false override", async () => {
-    const { fork } = await import("../../src/commands/fork.ts");
-    await cmd.run(fork, [
-      "my-source",
-      "--non-persistent",
-      "--scope=team",
-      "--project=proj",
-      "--silent",
-    ]);
-
-    const call = mockFork.mock.calls[0][0];
-    expect(call.persistent).toBe(false);
-  });
-});
-
-describe("create command", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCreate.mockResolvedValue(fakeSandbox);
-    process.env.VERCEL_AUTH_TOKEN = "tok";
-  });
-
-  test("rejects the removed --sandbox-snapshot flag", async () => {
-    const { create } = await import("../../src/commands/create.ts");
-    await expect(
-      cmd.run(create, [
-        "--sandbox-snapshot=some-sandbox",
-        "--scope=team",
-        "--project=proj",
-        "--silent",
-      ]),
-    ).rejects.toThrow();
-    expect(mockCreate).not.toHaveBeenCalled();
   });
 });

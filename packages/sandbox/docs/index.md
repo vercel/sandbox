@@ -200,7 +200,7 @@ Options:
     --env <key=value>, -e=<key=value>          Environment variables to set on the fork. Env vars from the source sandbox are not copied (encrypted server-side).
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork (overrides tags copied from the source)
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of the fork (1-10). [optional]
+    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
     --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"

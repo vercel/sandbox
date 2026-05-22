@@ -668,9 +668,9 @@ export class Sandbox {
    * Copied today: `resources` (vcpus), `timeout`, `networkPolicy`, `tags`,
    * `ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`.
    *
-   * If the source sandbox has a current snapshot, the fork is seeded from
-   * it. If not (e.g. the source was never snapshotted), a fresh sandbox is
-   * created with the same config plus the source's runtime.
+   * Throws if the source sandbox has no current snapshot — take a snapshot
+   * of the source first, or use {@link Sandbox.create} with the desired
+   * config instead.
    *
    * Not copied: `env` (encrypted server-side and not exposed to the client).
    * Pass `env` explicitly to set environment variables on the fork.
@@ -714,6 +714,10 @@ export class Sandbox {
     } as Parameters<typeof Sandbox.get>[0]);
 
     const snapshotId = sourceSandbox.currentSnapshotId;
+    if (!snapshotId) {
+      throw new Error(`Sandbox "${source}" has no current snapshot.`);
+    }
+
     const copied: Omit<BaseCreateSandboxParams, "source" | "runtime"> = {
       ...(sourceSandbox.vcpus !== undefined && {
         resources: { vcpus: sourceSandbox.vcpus },
@@ -739,23 +743,10 @@ export class Sandbox {
       }),
     };
 
-    // If the source sandbox has a current snapshot, seed the fork from it.
-    // Otherwise (e.g. the source was never snapshotted), create a fresh
-    // sandbox with the same config plus the source's runtime.
-    if (snapshotId) {
-      return Sandbox.create({
-        ...copied,
-        ...overrides,
-        source: { type: "snapshot", snapshotId },
-      } as Parameters<typeof Sandbox.create>[0]);
-    }
-
     return Sandbox.create({
       ...copied,
-      ...(sourceSandbox.runtime !== undefined && {
-        runtime: sourceSandbox.runtime,
-      }),
       ...overrides,
+      source: { type: "snapshot", snapshotId },
     } as Parameters<typeof Sandbox.create>[0]);
   }
 
