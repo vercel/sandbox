@@ -168,8 +168,7 @@ export type CreateSandboxParams =
  * fork.
  *
  * `runtime` is intentionally omitted — when the source has a snapshot, the
- * runtime is inherited from it; when not, the runtime is copied from the
- * source sandbox.
+ * runtime is inherited from it.
  * @inline
  */
 export type ForkSandboxParams = Omit<
@@ -178,10 +177,7 @@ export type ForkSandboxParams = Omit<
 > & {
   /**
    * Either:
-   * - a `string`: the name of the source sandbox to fork from. The fork
-   *   copies its config and seeds the filesystem from its current snapshot
-   *   (or, if the source has no current snapshot, creates a fresh sandbox
-   *   with the same config plus the source's runtime).
+   * - a `string`: the name of the source sandbox to fork from.
    * - a create-style source object (`{ type: "git" | "tarball" | "snapshot",
    *   ... }`): directly used as the filesystem seed for the new sandbox.
    *   No source sandbox is looked up and no config is copied — fork
@@ -658,17 +654,8 @@ export class Sandbox {
   }
 
   /**
-   * Fork an existing sandbox into a new one.
-   *
-   * Fetches the source sandbox's config and current snapshot in a single
-   * request, copies as many parameters as the server exposes, then creates a
-   * new sandbox seeded from that snapshot. Any field passed in `params`
-   * overrides the copied value. When the override is a structured value
-   * (e.g. `tags`, `resources`), it fully replaces the copied value — there
-   * is no per-key merge.
-   *
-   * Copied today: `resources` (vcpus), `timeout`, `networkPolicy`, `tags`,
-   * `ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`.
+   * Fork an existing sandbox into a new one. Any field passed in `params`
+   * overrides the source value.
    *
    * If the source sandbox has no current snapshot, the fork falls back to
    * creating a fresh sandbox with the same copied config plus the source's
@@ -689,7 +676,7 @@ export class Sandbox {
    * <caption>Fork with an explicit new name and overridden vcpus</caption>
    * const fork = await Sandbox.fork({
    *   source: "prod-agent",
-   *   name: "experiment-1",
+   *   name: "forked-prod-agent",
    *   resources: { vcpus: 4 },
    * });
    */
@@ -759,9 +746,7 @@ export class Sandbox {
     }
 
     // Source has no current snapshot — create a fresh sandbox with the
-    // copied config plus the source's runtime. Any user-supplied `source`
-    // override in `overrides` would have hit the early-return above, so we
-    // know there is no caller-provided seed here.
+    // copied config plus the source's runtime.
     return Sandbox.create({
       ...copied,
       ...(sourceSandbox.runtime !== undefined && {
