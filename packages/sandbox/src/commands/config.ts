@@ -492,13 +492,15 @@ const portsCommand = cmd.command({
       if (ports.length === 0) {
         process.stderr.write(chalk.dim("   ╰ ") + "all ports unpublished\n");
       } else {
+        const routes = getPublishedRoutes(sandbox);
+        process.stderr.write(chalk.dim("   │ ") + "ports:\n");
         for (let i = 0; i < ports.length; i++) {
           const port = ports[i];
+          const route = routes?.find((route) => route.port === port);
           const isLast = i === ports.length - 1;
           const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
-          process.stderr.write(
-            prefix + "publish-port: " + chalk.cyan(port) + "\n",
-          );
+          const url = route ? " -> " + chalk.cyan(route.url) : "";
+          process.stderr.write(prefix + "• " + port + url + "\n");
         }
       }
     } catch (error) {
@@ -708,30 +710,29 @@ function formatKeepLastSnapshots(
 }
 
 function formatPorts(sandbox: Sandbox): string {
-  let routes: Sandbox["routes"];
-  let interactivePort: Sandbox["interactivePort"];
-  try {
-    routes = sandbox.routes;
-    interactivePort = sandbox.interactivePort;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "No active session. Run a command or call resume first."
-    ) {
-      return "-";
-    }
-    throw error;
-  }
-
-  const ports = routes
-    .filter((route) => route.port !== interactivePort)
-    .map((route) => route.port);
+  const ports = getPublishedRoutes(sandbox)?.map((route) => route.port) ?? [];
 
   if (ports.length === 0) {
     return "-";
   }
 
   return ports.join(", ");
+}
+
+function getPublishedRoutes(sandbox: Sandbox): Sandbox["routes"] | undefined {
+  try {
+    return sandbox.routes.filter(
+      (route) => route.port !== sandbox.interactivePort,
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "No active session. Run a command or call resume first."
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 export const config = cmd.subcommands({
