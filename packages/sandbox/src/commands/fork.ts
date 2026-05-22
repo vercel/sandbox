@@ -130,7 +130,7 @@ export const fork = cmd.command({
       ? undefined
       : ora(`Forking sandbox ${chalk.cyan(source)}...`).start();
     const sandbox = await sandboxClient.fork({
-      source,
+      sourceSandbox: source,
       teamId: scope.team,
       projectId: scope.project,
       token: scope.token,

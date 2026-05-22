@@ -17,7 +17,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
       ]);
       await baseSandbox.stop();
 
-      const fork = await Sandbox.fork({ source: baseSandbox.name });
+      const fork = await Sandbox.fork({ sourceSandbox: baseSandbox.name });
 
       try {
         expect(fork.sourceSnapshotId).toBe(baseSandbox.currentSnapshotId);
@@ -46,7 +46,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
       await baseSandbox.stop();
 
       const fork = await Sandbox.fork({
-        source: baseSandbox.name,
+        sourceSandbox: baseSandbox.name,
         name: `${baseSandbox.name}-fork`,
         resources: { vcpus: 2 },
         timeout: ms("10m"),

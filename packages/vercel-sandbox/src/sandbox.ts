@@ -163,12 +163,10 @@ export type CreateSandboxParams =
  * as many config fields from the source as the server exposes. Any field set
  * here acts as an override of the copied value.
  *
- * Note: environment variables (`env`) are encrypted server-side and cannot be
- * copied from the source sandbox. Pass them explicitly to set them on the
- * fork.
- *
- * `runtime` is intentionally omitted — when the source has a snapshot, the
- * runtime is inherited from it.
+ * `env` is not copied (encrypted server-side); pass it explicitly to set
+ * environment variables on the fork. `runtime` is not exposed: when the
+ * source has a snapshot, it is inherited; otherwise it is copied from the
+ * source sandbox.
  * @inline
  */
 export type ForkSandboxParams = Omit<
@@ -176,17 +174,9 @@ export type ForkSandboxParams = Omit<
   "source" | "runtime"
 > & {
   /**
-   * Either:
-   * - a `string`: the name of the source sandbox to fork from.
-   * - a create-style source object (`{ type: "git" | "tarball" | "snapshot",
-   *   ... }`): directly used as the filesystem seed for the new sandbox.
-   *   No source sandbox is looked up and no config is copied — fork
-   *   behaves like {@link Sandbox.create} in this form.
+   * Name of the source sandbox to fork from.
    */
-  source:
-    | string
-    | NonNullable<BaseCreateSandboxParams["source"]>
-    | { type: "snapshot"; snapshotId: string };
+  sourceSandbox: string;
 };
 
 /** @inline */
@@ -657,25 +647,25 @@ export class Sandbox {
    * Fork an existing sandbox into a new one. Any field passed in `params`
    * overrides the source value.
    *
-   * If the source sandbox has no current snapshot, the fork falls back to
-   * creating a fresh sandbox with the same copied config plus the source's
-   * `runtime`.
+   * If the source sandbox has no current snapshot, falls back to creating a
+   * fresh sandbox with the same copied config plus the source's `runtime`.
    *
-   * Not copied: `env` (encrypted server-side and not exposed to the client).
-   * Pass `env` explicitly to set environment variables on the fork.
+   * `env` is not copied (encrypted server-side); pass it explicitly to set
+   * environment variables on the fork.
    *
-   * @param params - Fork parameters and optional credentials. `source` is the
-   *   name of the source sandbox; everything else acts as an override.
+   * @param params - Fork parameters and optional credentials.
+   *   `sourceSandbox` is the name of the source sandbox; everything else
+   *   acts as an override.
    * @returns A promise resolving to the new {@link Sandbox}.
    *
    * @example
    * <caption>Fork with all config copied from the source</caption>
-   * const fork = await Sandbox.fork({ source: "prod-agent" });
+   * const fork = await Sandbox.fork({ sourceSandbox: "prod-agent" });
    *
    * @example
    * <caption>Fork with an explicit new name and overridden vcpus</caption>
    * const fork = await Sandbox.fork({
-   *   source: "prod-agent",
+   *   sourceSandbox: "prod-agent",
    *   name: "forked-prod-agent",
    *   resources: { vcpus: 4 },
    * });
@@ -685,20 +675,9 @@ export class Sandbox {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-    const { source, ...overrides } = params;
+    const { sourceSandbox: sourceName, ...overrides } = params;
 
-    // Object form: no source sandbox to copy from; forward to Sandbox.create
-    // directly with the user-supplied source.
-    if (typeof source !== "string") {
-      return Sandbox.create({
-        ...overrides,
-        source,
-      } as Parameters<typeof Sandbox.create>[0]);
-    }
-
-    // Forward only the fields `Sandbox.get` consumes — credentials, fetch,
-    // signal, and private params — so unrelated fork inputs (env, tags,
-    // ports, etc.) don't leak into the get call.
+    // Forward only what `Sandbox.get` consumes; don't leak fork-only inputs.
     const credentialFields = params as Partial<Credentials>;
     const sourceSandbox = await Sandbox.get({
       token: credentialFields.token,
@@ -707,7 +686,7 @@ export class Sandbox {
       fetch: params.fetch,
       signal: params.signal,
       ...getPrivateParams(params),
-      name: source,
+      name: sourceName,
       resume: false,
     } as Parameters<typeof Sandbox.get>[0]);
 
@@ -745,8 +724,7 @@ export class Sandbox {
       } as Parameters<typeof Sandbox.create>[0]);
     }
 
-    // Source has no current snapshot — create a fresh sandbox with the
-    // copied config plus the source's runtime.
+    // No snapshot: seed a fresh sandbox using the source's runtime.
     return Sandbox.create({
       ...copied,
       ...(sourceSandbox.runtime !== undefined && {

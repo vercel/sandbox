@@ -48,7 +48,7 @@ describe("fork command", () => {
 
     expect(mockFork).toHaveBeenCalledTimes(1);
     const call = mockFork.mock.calls[0][0];
-    expect(call.source).toBe("my-source");
+    expect(call.sourceSandbox).toBe("my-source");
     expect(call.teamId).toBe("team");
     expect(call.projectId).toBe("proj");
   });
