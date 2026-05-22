@@ -13,6 +13,7 @@ import { vcpusType } from "../args/vcpus";
 import { Duration } from "../types/duration";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
+import { publishPorts } from "../args/ports";
 import ora from "ora";
 import chalk from "chalk";
 import ms from "ms";
@@ -460,6 +461,53 @@ const currentSnapshotCommand = cmd.command({
   },
 });
 
+const portsCommand = cmd.command({
+  name: "ports",
+  description:
+    "Update the published ports of a sandbox. Replaces all existing published ports.",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    ports: publishPorts,
+    scope,
+  },
+  async handler({ scope: { token, team, project }, sandbox: name, ports }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox ports...").start();
+    try {
+      await sandbox.update({ ports });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Ports updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      if (ports.length === 0) {
+        process.stderr.write(chalk.dim("   ╰ ") + "all ports unpublished\n");
+      } else {
+        for (let i = 0; i < ports.length; i++) {
+          const port = ports[i];
+          const isLast = i === ports.length - 1;
+          const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
+          process.stderr.write(
+            prefix + "publish-port: " + chalk.cyan(port) + "\n",
+          );
+        }
+      }
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
 const listCommand = cmd.command({
   name: "list",
   description: "Display the current configuration of a sandbox",
@@ -672,6 +720,7 @@ export const config = cmd.subcommands({
     "keep-last-snapshots-for": keepLastSnapshotsForCommand,
     "delete-evicted-snapshots": deleteEvictedSnapshotsCommand,
     "current-snapshot": currentSnapshotCommand,
+    ports: portsCommand,
     tags: tagsCommand,
   },
 });

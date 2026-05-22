@@ -363,6 +363,7 @@ Commands:
     keep-last-snapshots-for   <name> <DURATION|none>  Update the expiration applied to snapshots kept by the retention policy
     delete-evicted-snapshots  <name> <true|false>     When "true" (the default), snapshots evicted by the keep-last-snapshots policy are deleted immediately; when "false", they keep the default expiration.
     current-snapshot          <name> <snapshot_id>    Update the current snapshot of a sandbox
+    ports                     <name>                  Update the published ports of a sandbox. Replaces all existing published ports.
     tags                      <name>                  Update the tags of a sandbox. Replaces all existing tags with the provided tags.
 ```
 

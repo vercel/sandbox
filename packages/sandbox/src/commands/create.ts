@@ -14,6 +14,7 @@ import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
+import { publishPorts } from "../args/ports";
 
 export const args = {
   name: cmd.option({
@@ -28,28 +29,7 @@ export const args = {
   runtime,
   timeout,
   vcpus,
-  ports: cmd.multioption({
-    long: "publish-port",
-    short: "p",
-    description: "Publish sandbox port(s) to DOMAIN.vercel.run",
-    type: cmd.array(
-      cmd.extendType(cmd.number, {
-        displayName: "PORT",
-        async from(number) {
-          if (number < 1024 || number > 65535) {
-            throw new Error(
-              [
-                `Invalid port: ${number}.`,
-                `${chalk.bold("hint:")} Ports must be between 1024-65535 (privileged ports 0-1023 are reserved).`,
-                "╰▶ Examples: 3000, 8080, 8443",
-              ].join("\n"),
-            );
-          }
-          return number;
-        },
-      }),
-    ),
-  }),
+  ports: publishPorts,
   silent: cmd.flag({
     long: "silent",
     description: "Don't write sandbox name to stdout",
