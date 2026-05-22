@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.0-beta.23
+
+### Patch Changes
+
+- Fix `readFile` writing the API error JSON into the destination when the file response is not an octet-stream. The SDK now rejects any non-`application/octet-stream` response (including 2xx with a JSON error body) instead of piping it verbatim to the caller's stream. ([#202](https://github.com/vercel/sandbox/pull/202))
+
 ## 2.0.0-beta.22
 
 ### Minor Changes
