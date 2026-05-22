@@ -439,7 +439,7 @@ const sandbox = await Sandbox.create({
 });
 ```
 
-Implement the proxy handler with `defineSandboxProxy` — it verifies the
+Implement the proxy handler with `defineSandboxProxy`, using the Web `Request` & `Response` objects — it verifies the
 sandbox OIDC token and extracts metadata about the source sandbox:
 
 ```typescript
