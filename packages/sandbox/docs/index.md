@@ -11,6 +11,7 @@ Commands:
 
     ls | list                                  List all sandboxes for the specified account and project.
     create                                     Create a sandbox in the specified account and project.
+    fork           <source>                    Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
@@ -86,7 +87,6 @@ Options:
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
-    --sandbox-snapshot <name>                  Start the sandbox from another sandbox's current snapshot [optional]
     --env <key=value>, -e=<key=value>          Environment variables to set for the command
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -144,7 +144,6 @@ Options:
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
-    --sandbox-snapshot <name>                  Start the sandbox from another sandbox's current snapshot [optional]
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -177,6 +176,63 @@ Examples:
 – Create and connect to a sandbox without a network access
 
   $ sandbox run --network-policy=none --connect
+```
+
+## `sandbox fork`
+
+```
+fork
+
+▲ sandbox fork [options]
+
+Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.
+
+Arguments:
+
+    <source>  Name of the source sandbox to fork from.
+
+Options:
+
+    --name <str>                               A user-chosen name for the forked sandbox. Must be unique per project. [optional]
+    --timeout <num UNIT>                       Override the maximum sandbox runtime (inherited from source if omitted). Example: 5m, 30m [optional]
+    --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
+    --env <key=value>, -e=<key=value>          Environment variables to set on the fork. Env vars from the source sandbox are not copied (encrypted server-side).
+    --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork (overrides tags copied from the source)
+    --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of the fork (1-10). [optional]
+    --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
+    --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+    --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+
+Flags:
+
+    --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
+    --silent          Don't write sandbox name to stdout [optional]
+    --connect         Start an interactive shell session after creating the forked sandbox [optional]
+    --help, -h        show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Examples:
+
+– Fork a sandbox with all config copied from the source
+
+  $ sandbox fork my-source
+
+– Fork with a specific name and overridden vcpus
+
+  $ sandbox fork my-source --name experiment-1 --vcpus 4
 ```
 
 ## `sandbox exec`

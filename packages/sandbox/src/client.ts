@@ -11,7 +11,10 @@ import { z } from "zod";
 /**
  * A {@link Sandbox} wrapper that adds user-agent headers and error handling.
  */
-export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
+export const sandboxClient: Pick<
+  typeof Sandbox,
+  "get" | "list" | "create" | "fork"
+> = {
   get: (params) =>
     withErrorHandling(() =>
       Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params }),
@@ -19,6 +22,10 @@ export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
   create: (params) =>
     withErrorHandling(() =>
       Sandbox.create({ fetch: fetchWithUserAgent, ...params }),
+    ),
+  fork: (params) =>
+    withErrorHandling(() =>
+      Sandbox.fork({ fetch: fetchWithUserAgent, ...params }),
     ),
   list: (params) =>
     withErrorHandling(() =>
@@ -28,17 +35,13 @@ export const sandboxClient: Pick<typeof Sandbox, "get" | "list" | "create"> = {
 
 export const snapshotClient: Pick<
   typeof Snapshot,
-  "get" | "list" | "fromSandbox" | "tree"
+  "get" | "list" | "tree"
 > = {
   list: (params) =>
     withErrorHandling(() =>
       Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
     ),
   get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
-  fromSandbox: (name, opts) =>
-    withErrorHandling(
-      () => Snapshot.fromSandbox(name, { fetch: fetchWithUserAgent, ...opts }),
-    ),
   tree: (params) =>
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };

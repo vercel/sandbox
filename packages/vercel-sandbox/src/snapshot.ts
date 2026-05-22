@@ -179,51 +179,6 @@ export class Snapshot {
   }
 
   /**
-   * Resolve the current snapshot ID of an existing sandbox by name.
-   *
-   * Useful to feed into {@link Sandbox.create} as `source.snapshotId` without
-   * having to first look up the sandbox yourself.
-   *
-   * @param name - The name of the source sandbox.
-   * @param opts - Optional credentials, fetch override, and abort signal.
-   * @returns The current snapshot ID of the named sandbox.
-   * @throws If the sandbox has no current snapshot.
-   *
-   * @example
-   * const sandbox = await Sandbox.create({
-   *   source: {
-   *     type: "snapshot",
-   *     snapshotId: await Snapshot.fromSandbox("my-sandbox"),
-   *   },
-   * });
-   */
-  static async fromSandbox(
-    name: string,
-    opts?: Partial<Credentials> & WithFetchOptions & { signal?: AbortSignal },
-  ): Promise<string> {
-    "use step";
-    const credentials = await getCredentials(opts);
-    const client = new APIClient({
-      teamId: credentials.teamId,
-      token: credentials.token,
-      fetch: opts?.fetch,
-    });
-
-    const response = await client.getSandbox({
-      name,
-      projectId: credentials.projectId,
-      resume: false,
-      signal: opts?.signal,
-    });
-
-    const snapshotId = response.json.sandbox.currentSnapshotId;
-    if (!snapshotId) {
-      throw new Error(`Sandbox "${name}" has no current snapshot.`);
-    }
-    return snapshotId;
-  }
-
-  /**
    * Fetch the snapshot ancestry tree anchored on a given snapshot.
    * It returns both the tree nodes and the pagination metadata to allow
    * walking the next page of results in the same direction.

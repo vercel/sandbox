@@ -9,6 +9,7 @@ const docs = {
   "sandbox list": "list --help",
   "sandbox run": "run --help",
   "sandbox create": "create --help",
+  "sandbox fork": "fork --help",
   "sandbox exec": "exec --help",
   "sandbox stop": "stop --help",
   "sandbox copy": "copy --help",

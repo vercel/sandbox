@@ -1,65 +1,90 @@
 import * as cmd from "cmd-ts";
-import { runtime } from "../args/runtime";
 import ms from "ms";
-import { timeout } from "../args/timeout";
-import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
+import ora from "ora";
+import { vcpus } from "../args/vcpus";
+import { Duration } from "../types/duration";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
-import { snapshotId } from "../args/snapshot-id";
-import ora from "ora";
+import { sandboxName } from "../args/sandbox-name";
 import * as Exec from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
-import { publishPorts } from "../args/ports";
 
 export const args = {
+  source: cmd.positional({
+    displayName: "source",
+    description: "Name of the source sandbox to fork from.",
+    type: sandboxName,
+  }),
   name: cmd.option({
     long: "name",
-    description: "A user-chosen name for the sandbox. It must be unique per project.",
+    description: "A user-chosen name for the forked sandbox. Must be unique per project.",
     type: cmd.optional(cmd.string),
   }),
   nonPersistent: cmd.flag({
     long: "non-persistent",
     description: "Disable automatic restore of the filesystem between sessions.",
   }),
-  runtime,
-  timeout,
+  timeout: cmd.option({
+    long: "timeout",
+    type: cmd.optional(Duration),
+    description:
+      "Override the maximum sandbox runtime (inherited from source if omitted). Example: 5m, 30m",
+  }),
   vcpus,
-  ports: publishPorts,
+  ports: cmd.multioption({
+    long: "publish-port",
+    short: "p",
+    description: "Publish sandbox port(s) to DOMAIN.vercel.run",
+    type: cmd.array(
+      cmd.extendType(cmd.number, {
+        displayName: "PORT",
+        async from(number) {
+          if (number < 1024 || number > 65535) {
+            throw new Error(
+              [
+                `Invalid port: ${number}.`,
+                `${chalk.bold("hint:")} Ports must be between 1024-65535 (privileged ports 0-1023 are reserved).`,
+                "╰▶ Examples: 3000, 8080, 8443",
+              ].join("\n"),
+            );
+          }
+          return number;
+        },
+      }),
+    ),
+  }),
   silent: cmd.flag({
     long: "silent",
     description: "Don't write sandbox name to stdout",
   }),
-  snapshot: cmd.option({
-    long: "snapshot",
-    short: "s",
-    description: "Start the sandbox from a snapshot ID",
-    type: cmd.optional(snapshotId),
-  }),
   connect: cmd.flag({
     long: "connect",
     description:
-      "Start an interactive shell session after creating the sandbox",
+      "Start an interactive shell session after creating the forked sandbox",
   }),
   envVars: cmd.multioption({
     long: "env",
     short: "e",
     type: ObjectFromKeyValue,
-    description: "Default environment variables for sandbox commands",
+    description:
+      "Environment variables to set on the fork. Env vars from the source sandbox are not copied (encrypted server-side).",
   }),
   tags: cmd.multioption({
     long: "tag",
     short: "t",
     type: ObjectFromKeyValue,
-    description: "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
+    description:
+      "Key-value tags to associate with the fork (overrides tags copied from the source)",
   }),
   snapshotExpiration: cmd.option({
     long: "snapshot-expiration",
     type: cmd.optional(SnapshotExpiration),
-    description: 'Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d',
+    description:
+      'Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d',
   }),
   keepLastSnapshots: cmd.option({
     long: "keep-last-snapshots",
@@ -77,7 +102,7 @@ export const args = {
       }),
     ),
     description:
-      "Keep only the N most recent snapshots of this sandbox (1-10).",
+      "Keep only the N most recent snapshots of the fork (1-10).",
   }),
   keepLastSnapshotsFor: cmd.option({
     long: "keep-last-snapshots-for",
@@ -98,26 +123,30 @@ export const args = {
   scope,
 } as const;
 
-export const create = cmd.command({
-  name: "create",
-  description: "Create a sandbox in the specified account and project.",
+export const fork = cmd.command({
+  name: "fork",
+  description:
+    "Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.",
   args,
   examples: [
     {
-      description: "Create and connect to a sandbox without a network access",
-      command: `sandbox run --network-policy=none --connect`,
+      description: "Fork a sandbox with all config copied from the source",
+      command: `sandbox fork my-source`,
+    },
+    {
+      description: "Fork with a specific name and overridden vcpus",
+      command: `sandbox fork my-source --name experiment-1 --vcpus 4`,
     },
   ],
   async handler({
+    source,
     name,
     nonPersistent,
     ports,
     scope,
-    runtime,
     timeout,
     vcpus,
     silent,
-    snapshot,
     connect,
     envVars,
     tags,
@@ -130,12 +159,19 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
-    const networkPolicy = buildNetworkPolicy({
-      networkPolicy: networkPolicyMode,
-      allowedDomains,
-      allowedCIDRs,
-      deniedCIDRs,
-    });
+    const networkPolicyProvided =
+      networkPolicyMode !== undefined ||
+      allowedDomains.length > 0 ||
+      allowedCIDRs.length > 0 ||
+      deniedCIDRs.length > 0;
+    const networkPolicy = networkPolicyProvided
+      ? buildNetworkPolicy({
+          networkPolicy: networkPolicyMode,
+          allowedDomains,
+          allowedCIDRs,
+          deniedCIDRs,
+        })
+      : undefined;
 
     if (
       keepLastSnapshots === undefined &&
@@ -165,51 +201,39 @@ export const create = cmd.command({
           }
         : undefined;
 
-    const persistent = !nonPersistent
-    const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
-    const spinner = silent ? undefined : ora("Creating sandbox...").start();
-    const sandbox = snapshot
-      ? await sandboxClient.create({
-          name,
-          source: { type: "snapshot", snapshotId: snapshot },
-          teamId: scope.team,
-          projectId: scope.project,
-          token: scope.token,
-          ports,
-          timeout: ms(timeout),
-          resources,
-          networkPolicy,
-          env: envVars,
-          tags: tagsObj,
-          persistent,
-          snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
-          keepLastSnapshots: keepLastSnapshotsPayload,
-          __interactive: true,
-        })
-      : await sandboxClient.create({
-          name,
-          teamId: scope.team,
-          projectId: scope.project,
-          token: scope.token,
-          ports,
-          runtime,
-          timeout: ms(timeout),
-          resources,
-          networkPolicy,
-          env: envVars,
-          tags: tagsObj,
-          persistent,
-          snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
-          keepLastSnapshots: keepLastSnapshotsPayload,
-          __interactive: true,
-        });
+    const envObj = Object.keys(envVars).length > 0 ? envVars : undefined;
+
+    const spinner = silent
+      ? undefined
+      : ora(`Forking sandbox ${chalk.cyan(source)}...`).start();
+    const sandbox = await sandboxClient.fork({
+      source,
+      teamId: scope.team,
+      projectId: scope.project,
+      token: scope.token,
+      ...(name !== undefined && { name }),
+      ...(ports.length > 0 && { ports }),
+      ...(timeout !== undefined && { timeout: ms(timeout) }),
+      ...(vcpus !== undefined && { resources: { vcpus } }),
+      ...(networkPolicy !== undefined && { networkPolicy }),
+      ...(envObj !== undefined && { env: envObj }),
+      ...(tagsObj !== undefined && { tags: tagsObj }),
+      ...(nonPersistent && { persistent: false }),
+      ...(snapshotExpiration !== undefined && {
+        snapshotExpiration: ms(snapshotExpiration),
+      }),
+      ...(keepLastSnapshotsPayload !== undefined && {
+        keepLastSnapshots: keepLastSnapshotsPayload,
+      }),
+      __interactive: true,
+    });
     spinner?.stop();
 
     if (!sandbox.interactivePort) {
       throw new Error(
         [
-          `Sandbox created but interactive port is missing.`,
+          `Sandbox forked but interactive port is missing.`,
           `${chalk.bold("hint:")} This is an internal error. Please try again.`,
           "╰▶ Report this issue: https://github.com/vercel/sandbox/issues",
         ].join("\n"),
@@ -227,7 +251,7 @@ export const create = cmd.command({
 
       process.stderr.write("✅ Sandbox ");
       process.stdout.write(chalk.cyan(sandbox.name));
-      process.stderr.write(" created.\n");
+      process.stderr.write(" forked from " + chalk.cyan(source) + ".\n");
       process.stderr.write(
         chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",
       );

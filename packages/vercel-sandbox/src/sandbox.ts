@@ -156,6 +156,30 @@ export type CreateSandboxParams =
       source: { type: "snapshot"; snapshotId: string };
     });
 
+/**
+ * Parameters for {@link Sandbox.fork}.
+ *
+ * The fork inherits the source sandbox's current filesystem snapshot and copies
+ * as many config fields from the source as the server exposes. Any field set
+ * here acts as an override of the copied value.
+ *
+ * Note: environment variables (`env`) are encrypted server-side and cannot be
+ * copied from the source sandbox. Pass them explicitly to set them on the
+ * fork.
+ *
+ * `runtime` is intentionally omitted — the runtime is inherited from the
+ * source snapshot and the API rejects `runtime` when the source is a snapshot.
+ * @inline
+ */
+export interface ForkSandboxParams
+  extends Omit<BaseCreateSandboxParams, "source" | "runtime"> {
+  /**
+   * The name of the source sandbox to fork from. Its current snapshot is
+   * used to seed the new sandbox's filesystem.
+   */
+  source: string;
+}
+
 /** @inline */
 interface GetSandboxParams {
   /**
@@ -618,6 +642,85 @@ export class Sandbox {
       projectId: credentials.projectId,
       onResume: params?.onResume,
     });
+  }
+
+  /**
+   * Fork an existing sandbox into a new one.
+   *
+   * Fetches the source sandbox's config and current snapshot in a single
+   * request, copies as many parameters as the server exposes, then creates a
+   * new sandbox seeded from that snapshot. Any field passed in `params`
+   * overrides the copied value.
+   *
+   * Copied today: `resources` (vcpus), `timeout`, `networkPolicy`, `tags`,
+   * `ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`.
+   *
+   * Not copied: `env` (encrypted server-side and not exposed to the client).
+   * Pass `env` explicitly to set environment variables on the fork.
+   *
+   * @param params - Fork parameters and optional credentials. `source` is the
+   *   name of the source sandbox; everything else acts as an override.
+   * @returns A promise resolving to the new {@link Sandbox}.
+   *
+   * @example
+   * <caption>Fork with all config copied from the source</caption>
+   * const fork = await Sandbox.fork({ source: "prod-agent" });
+   *
+   * @example
+   * <caption>Fork with an explicit new name and overridden vcpus</caption>
+   * const fork = await Sandbox.fork({
+   *   source: "prod-agent",
+   *   name: "experiment-1",
+   *   resources: { vcpus: 4 },
+   * });
+   */
+  static async fork(
+    params: WithPrivate<ForkSandboxParams | (ForkSandboxParams & Credentials)> &
+      WithFetchOptions,
+  ): Promise<Sandbox & AsyncDisposable> {
+    "use step";
+    const { source, ...overrides } = params;
+    const sourceSandbox = await Sandbox.get({
+      ...params,
+      name: source,
+      resume: false,
+    } as Parameters<typeof Sandbox.get>[0]);
+
+    const snapshotId = sourceSandbox.currentSnapshotId;
+    if (!snapshotId) {
+      throw new Error(`Sandbox "${source}" has no current snapshot.`);
+    }
+
+    const copied: Omit<BaseCreateSandboxParams, "source" | "runtime"> = {
+      ...(sourceSandbox.vcpus !== undefined && {
+        resources: { vcpus: sourceSandbox.vcpus },
+      }),
+      ...(sourceSandbox.timeout !== undefined && {
+        timeout: sourceSandbox.timeout,
+      }),
+      ...(sourceSandbox.networkPolicy !== undefined && {
+        networkPolicy: sourceSandbox.networkPolicy,
+      }),
+      ...(sourceSandbox.tags !== undefined && { tags: sourceSandbox.tags }),
+      ...(sourceSandbox.routes.length > 0 && {
+        ports: sourceSandbox.routes
+          .filter((r) => r.port !== sourceSandbox.interactivePort)
+          .map((r) => r.port),
+      }),
+      persistent: sourceSandbox.persistent,
+      ...(sourceSandbox.snapshotExpiration !== undefined && {
+        snapshotExpiration: sourceSandbox.snapshotExpiration,
+      }),
+      ...(sourceSandbox.keepLastSnapshots !== undefined && {
+        keepLastSnapshots: sourceSandbox.keepLastSnapshots,
+      }),
+    };
+
+    return Sandbox.create({
+      ...copied,
+      ...overrides,
+      source: { type: "snapshot", snapshotId },
+    } as Parameters<typeof Sandbox.create>[0]);
   }
 
   /**

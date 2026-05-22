@@ -1,5 +1,6 @@
 import { subcommands } from "cmd-ts";
 import { create } from "./commands/create";
+import { fork } from "./commands/fork";
 import { run } from "./commands/run";
 import { list } from "./commands/list";
 import { exec } from "./commands/exec";
@@ -23,6 +24,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
     cmds: {
       list,
       create,
+      fork,
       config,
       copy: cp,
       exec,
