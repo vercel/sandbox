@@ -232,7 +232,7 @@ Examples:
 
 – Fork with a specific name and overridden vcpus
 
-  $ sandbox fork my-source --name experiment-1 --vcpus 4
+  $ sandbox fork my-source --name my-forked-sandbox --vcpus 4
 ```
 
 ## `sandbox exec`

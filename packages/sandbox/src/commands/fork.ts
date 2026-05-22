@@ -135,7 +135,7 @@ export const fork = cmd.command({
     },
     {
       description: "Fork with a specific name and overridden vcpus",
-      command: `sandbox fork my-source --name experiment-1 --vcpus 4`,
+      command: `sandbox fork my-source --name my-forked-sandbox --vcpus 4`,
     },
   ],
   async handler({
