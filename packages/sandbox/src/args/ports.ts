@@ -14,7 +14,7 @@ export const publishPorts = cmd.multioption({
             [
               `Invalid port: ${number}.`,
               `${chalk.bold("hint:")} Ports must be integers between 1024-65535 (privileged ports 0-1023 are reserved).`,
-              "Examples: 3000, 8080, 8443",
+              "Examples: 3000, 8443",
             ].join("\n"),
           );
         }

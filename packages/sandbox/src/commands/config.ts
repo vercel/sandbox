@@ -720,19 +720,9 @@ function formatPorts(sandbox: Sandbox): string {
 }
 
 function getPublishedRoutes(sandbox: Sandbox): Sandbox["routes"] | undefined {
-  try {
-    return sandbox.routes.filter(
-      (route) => route.port !== sandbox.interactivePort,
-    );
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "No active session. Run a command or call resume first."
-    ) {
-      return undefined;
-    }
-    throw error;
-  }
+  return sandbox.routes.filter(
+    (route) => route.port !== sandbox.interactivePort,
+  );
 }
 
 export const config = cmd.subcommands({
