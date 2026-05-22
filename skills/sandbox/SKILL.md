@@ -29,8 +29,8 @@ sandboxes with **named, persistent** sandboxes. Key differences from v1:
   automatically snapshots it and restores the filesystem on the next resume.
 - A **Session** is a single running VM instance inside a sandbox. SDK calls
   like `runCommand`, `writeFiles`, etc. automatically resume a stopped sandbox.
-- New methods: `Sandbox.getOrCreate`, `sandbox.update`, `sandbox.delete`,
-  `sandbox.listSessions`, `sandbox.listSnapshots`, `Snapshot.fromSandbox`,
+- New methods: `Sandbox.getOrCreate`, `Sandbox.fork`, `sandbox.update`,
+  `sandbox.delete`, `sandbox.listSessions`, `sandbox.listSnapshots`,
   `Snapshot.tree`, `defineSandboxProxy`.
 - New params: `name`, `persistent`, `tags`, `onResume`, `snapshotExpiration`,
   `keepLastSnapshots`, L7 network policy matchers, `forwardURL`.
@@ -204,18 +204,26 @@ const sandbox = await Sandbox.create({
 });
 ```
 
-### From Another Sandbox's Current Snapshot
+### Forking an Existing Sandbox
 
-You don't need to track snapshot IDs manually. `Snapshot.fromSandbox`
-resolves the current snapshot of another sandbox, so any future snapshot of
-that source sandbox is automatically picked up by downstream creates.
+`Sandbox.fork` seeds a new sandbox from another sandbox's current snapshot
+and copies its config (`resources`, `timeout`, `networkPolicy`, `tags`,
+`ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`). Any field
+you pass overrides the inherited value. `env` is not copied (encrypted
+server-side) and must be re-supplied. If the source has no current snapshot,
+the fork falls back to a fresh create using the source's `runtime` plus the
+copied config.
 
 ```typescript
-const sandbox = await Sandbox.create({
-  source: {
-    type: "snapshot",
-    snapshotId: await Snapshot.fromSandbox("my-base-sandbox"),
-  },
+// Inherit everything from the source
+const fork = await Sandbox.fork({ sourceSandbox: "prod-agent" });
+
+// Override specific fields; the rest are copied from the source
+const fork = await Sandbox.fork({
+  sourceSandbox: "prod-agent",
+  name: "forked-prod-agent",
+  resources: { vcpus: 4 },
+  env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY! },
 });
 ```
 
@@ -688,15 +696,6 @@ Point an existing sandbox at a previous snapshot by updating
 await sandbox.update({ currentSnapshotId: "snap_previous" });
 ```
 
-### Resolve the Current Snapshot of Another Sandbox
-
-```typescript
-const id = await Snapshot.fromSandbox("my-base-sandbox");
-const child = await Sandbox.create({
-  source: { type: "snapshot", snapshotId: id },
-});
-```
-
 ## Exposed Ports
 
 ```typescript
@@ -829,7 +828,10 @@ sandbox create --non-persistent              # Disable filesystem persistence
 sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
-sandbox create --sandbox-snapshot my-base    # From another sandbox's snapshot
+
+# Fork an existing sandbox (inherits config; env is NOT copied)
+sandbox fork <source>
+sandbox fork <source> --name my-fork --vcpus 4 --env FOO=1
 
 # List sandboxes (paginated, filterable)
 sandbox ls
@@ -923,11 +925,12 @@ const test = await sandbox.runCommand("npm", ["test"]);
 process.exit(test.exitCode);
 ```
 
-### Base Snapshot + Children Pattern
+### Base Sandbox + Forks Pattern
 
 Maintain a single "base" sandbox with dependencies installed, and spawn fresh
-children from its current snapshot. New base snapshots are automatically
-picked up — no need to store snapshot IDs in your code.
+children from it with `Sandbox.fork`. Each fork inherits the base's config
+and is seeded from its current snapshot — no need to store snapshot IDs in
+your code. New base snapshots are picked up automatically on the next fork.
 
 ```typescript
 // Once: bootstrap the base sandbox
@@ -940,13 +943,10 @@ await Sandbox.getOrCreate({
   },
 });
 
-// On every run: spawn a child from the base's latest snapshot
+// On every run: fork the base sandbox
 async function runFromBase(code: string) {
-  await using sandbox = await Sandbox.create({
-    source: {
-      type: "snapshot",
-      snapshotId: await Snapshot.fromSandbox("my-base"),
-    },
+  await using sandbox = await Sandbox.fork({
+    sourceSandbox: "my-base",
     persistent: false,
   });
   await sandbox.writeFiles([
