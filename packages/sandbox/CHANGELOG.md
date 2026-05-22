@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.0-beta.25
+
+### Minor Changes
+
+- Add `sandbox config ports` subcommand to update the sandbox's ports. ([#203](https://github.com/vercel/sandbox/pull/203))
+
+### Patch Changes
+
+- Updated dependencies [[`864eb6f502ef8b54ab73c3e3a9f2c484152ca528`](https://github.com/vercel/sandbox/commit/864eb6f502ef8b54ab73c3e3a9f2c484152ca528)]:
+  - @vercel/sandbox@2.0.0-beta.23
+
 ## 3.0.0-beta.24
 
 ### Minor Changes
