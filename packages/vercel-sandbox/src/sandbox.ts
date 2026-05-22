@@ -167,18 +167,31 @@ export type CreateSandboxParams =
  * copied from the source sandbox. Pass them explicitly to set them on the
  * fork.
  *
- * `runtime` is intentionally omitted — the runtime is inherited from the
- * source snapshot and the API rejects `runtime` when the source is a snapshot.
+ * `runtime` is intentionally omitted — when the source has a snapshot, the
+ * runtime is inherited from it; when not, the runtime is copied from the
+ * source sandbox.
  * @inline
  */
-export interface ForkSandboxParams
-  extends Omit<BaseCreateSandboxParams, "source" | "runtime"> {
+export type ForkSandboxParams = Omit<
+  BaseCreateSandboxParams,
+  "source" | "runtime"
+> & {
   /**
-   * The name of the source sandbox to fork from. Its current snapshot is
-   * used to seed the new sandbox's filesystem.
+   * Either:
+   * - a `string`: the name of the source sandbox to fork from. The fork
+   *   copies its config and seeds the filesystem from its current snapshot
+   *   (or, if the source has no current snapshot, creates a fresh sandbox
+   *   with the same config plus the source's runtime).
+   * - a create-style source object (`{ type: "git" | "tarball" | "snapshot",
+   *   ... }`): directly used as the filesystem seed for the new sandbox.
+   *   No source sandbox is looked up and no config is copied — fork
+   *   behaves like {@link Sandbox.create} in this form.
    */
-  source: string;
-}
+  source:
+    | string
+    | NonNullable<BaseCreateSandboxParams["source"]>
+    | { type: "snapshot"; snapshotId: string };
+};
 
 /** @inline */
 interface GetSandboxParams {
@@ -655,6 +668,10 @@ export class Sandbox {
    * Copied today: `resources` (vcpus), `timeout`, `networkPolicy`, `tags`,
    * `ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`.
    *
+   * If the source sandbox has a current snapshot, the fork is seeded from
+   * it. If not (e.g. the source was never snapshotted), a fresh sandbox is
+   * created with the same config plus the source's runtime.
+   *
    * Not copied: `env` (encrypted server-side and not exposed to the client).
    * Pass `env` explicitly to set environment variables on the fork.
    *
@@ -680,6 +697,16 @@ export class Sandbox {
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
     const { source, ...overrides } = params;
+
+    // Object form: no source sandbox to copy from; forward to Sandbox.create
+    // directly with the user-supplied source.
+    if (typeof source !== "string") {
+      return Sandbox.create({
+        ...overrides,
+        source,
+      } as Parameters<typeof Sandbox.create>[0]);
+    }
+
     const sourceSandbox = await Sandbox.get({
       ...params,
       name: source,
@@ -687,10 +714,6 @@ export class Sandbox {
     } as Parameters<typeof Sandbox.get>[0]);
 
     const snapshotId = sourceSandbox.currentSnapshotId;
-    if (!snapshotId) {
-      throw new Error(`Sandbox "${source}" has no current snapshot.`);
-    }
-
     const copied: Omit<BaseCreateSandboxParams, "source" | "runtime"> = {
       ...(sourceSandbox.vcpus !== undefined && {
         resources: { vcpus: sourceSandbox.vcpus },
@@ -716,10 +739,23 @@ export class Sandbox {
       }),
     };
 
+    // If the source sandbox has a current snapshot, seed the fork from it.
+    // Otherwise (e.g. the source was never snapshotted), create a fresh
+    // sandbox with the same config plus the source's runtime.
+    if (snapshotId) {
+      return Sandbox.create({
+        ...copied,
+        ...overrides,
+        source: { type: "snapshot", snapshotId },
+      } as Parameters<typeof Sandbox.create>[0]);
+    }
+
     return Sandbox.create({
       ...copied,
+      ...(sourceSandbox.runtime !== undefined && {
+        runtime: sourceSandbox.runtime,
+      }),
       ...overrides,
-      source: { type: "snapshot", snapshotId },
     } as Parameters<typeof Sandbox.create>[0]);
   }
 

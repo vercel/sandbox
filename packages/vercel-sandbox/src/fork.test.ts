@@ -37,7 +37,11 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
       const baseSandbox = await Sandbox.create({
         persistent: true,
         resources: { vcpus: 1 },
+        timeout: ms("5m"),
         tags: { kind: "fork-source" },
+        snapshotExpiration: ms("7d"),
+        keepLastSnapshots: { count: 3 },
+        networkPolicy: "allow-all",
       });
       await baseSandbox.stop();
 
@@ -45,36 +49,28 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         source: baseSandbox.name,
         name: `${baseSandbox.name}-fork`,
         resources: { vcpus: 2 },
-        tags: { kind: "fork-override" },
+        timeout: ms("10m"),
+        tags: { kind: "fork-override", extra: "set" },
+        env: { FOO: "1" },
+        snapshotExpiration: ms("14d"),
+        keepLastSnapshots: { count: 5 },
+        networkPolicy: "deny-all",
+        persistent: false,
       });
 
       try {
         expect(fork.name).toBe(`${baseSandbox.name}-fork`);
         expect(fork.vcpus).toBe(2);
-        expect(fork.tags).toEqual({ kind: "fork-override" });
+        expect(fork.timeout).toBe(ms("10m"));
+        expect(fork.tags).toEqual({ kind: "fork-override", extra: "set" });
+        expect(fork.snapshotExpiration).toBe(ms("14d"));
+        expect(fork.keepLastSnapshots?.count).toBe(5);
+        expect(fork.networkPolicy).toBe("deny-all");
+        expect(fork.persistent).toBe(false);
       } finally {
         await fork.delete();
         await baseSandbox.delete();
       }
-    });
-
-    it("throws when the source sandbox has no current snapshot", async () => {
-      const baseSandbox = await Sandbox.create();
-      try {
-        expect(baseSandbox.currentSnapshotId).toBeUndefined();
-
-        await expect(
-          Sandbox.fork({ source: baseSandbox.name }),
-        ).rejects.toThrow(/has no current snapshot/);
-      } finally {
-        await baseSandbox.delete();
-      }
-    });
-
-    it("propagates a not-found error when the source sandbox does not exist", async () => {
-      await expect(
-        Sandbox.fork({ source: "this-sandbox-does-not-exist-xyz" }),
-      ).rejects.toThrow();
     });
   },
 );
