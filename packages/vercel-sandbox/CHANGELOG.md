@@ -1,5 +1,65 @@
 # @vercel/sandbox
 
+## 2.0.0
+
+### Major Changes
+
+- Introduce named and long-lived sandboxes ([#177](https://github.com/vercel/sandbox/pull/177))
+
+### Minor Changes
+
+- Add L7 request matchers and forward URLs support to network policy rules. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support pagination (CLI and SDK) when listing sandboxes, snapshots, sessions ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add `defineSandboxProxy` helper in `@vercel/sandbox/proxy` to easily implement network policies forwarding rules ([#188](https://github.com/vercel/sandbox/pull/188))
+
+- Rename sandbox to session, namedSandbox to sandbox ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support keepLastSnapshots feature for CLI and SDK ([#193](https://github.com/vercel/sandbox/pull/193))
+
+- Add sandbox port replacement support through `update`. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support default snapshot expiration for persistent sandboxes ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Refactor the sandbox update and deprecate old network-policy update ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support a new method: Sandbox.getOrCreate() ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Rename snapshotOnShutdown to persistent ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Automatically scale memory to vcpu when updating ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Move to cursor pagination. Support new sortyBy parameter for lists. Support new statusUpdatedAt filter ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add `Sandbox.fork(...)` to the SDK and `sandbox fork <source>` to the CLI for forking an existing sandbox into a new one. ([#205](https://github.com/vercel/sandbox/pull/205))
+
+- Remove support for blocking parameter in .stop() and default to always blocking. Improve CLI output when stopping a sandbox. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Lists now unwrap the json and return the items and pagination fields directly ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support new onResume parameter in Sandbox.create and Sandbox.get ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support snapshot tree pagination ([#191](https://github.com/vercel/sandbox/pull/191))
+
+### Patch Changes
+
+- Add support for tags ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix an 422 error when trying to resume a sandbox after snapshotting ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add Node 26 support. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add support for patch + delete v2 endpoints for named sandboxes. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix `readFile` writing the API error JSON into the destination when the file response is not an octet-stream. The SDK now rejects any non-`application/octet-stream` response (including 2xx with a JSON error body) instead of piping it verbatim to the caller's stream. ([#202](https://github.com/vercel/sandbox/pull/202))
+
+- Fix bug where the first ssh connection hang ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support updading current-snapshot-id of an existing sandbox ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix JsDocs, messages and double-error message bug ([#177](https://github.com/vercel/sandbox/pull/177))
+
 ## 2.0.0-beta.24
 
 ### Minor Changes

@@ -1,5 +1,66 @@
 # sandbox
 
+## 3.0.0
+
+### Major Changes
+
+- Introduce long-lived sandboxes to the CLI ([#177](https://github.com/vercel/sandbox/pull/177))
+
+### Minor Changes
+
+- Support pagination (CLI and SDK) when listing sandboxes, snapshots, sessions ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add `sandbox config ports` subcommand to update the sandbox's ports. ([#203](https://github.com/vercel/sandbox/pull/203))
+
+- Rename sandbox to session, namedSandbox to sandbox ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support keepLastSnapshots feature for CLI and SDK ([#193](https://github.com/vercel/sandbox/pull/193))
+
+- Support default snapshot expiration for persistent sandboxes ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Refactor the sandbox update and deprecate old network-policy update ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Automatically scale memory to vcpu when updating ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Move to cursor pagination. Support new sortyBy parameter for lists. Support new statusUpdatedAt filter ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add `Sandbox.fork(...)` to the SDK and `sandbox fork <source>` to the CLI for forking an existing sandbox into a new one. ([#205](https://github.com/vercel/sandbox/pull/205))
+
+- Remove support for blocking parameter in .stop() and default to always blocking. Improve CLI output when stopping a sandbox. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Lists now unwrap the json and return the items and pagination fields directly ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support snapshot tree pagination ([#191](https://github.com/vercel/sandbox/pull/191))
+
+- support new --name option for snapshots list, support new --stop option for run ([#177](https://github.com/vercel/sandbox/pull/177))
+
+### Patch Changes
+
+- Default to `--sort-by=name` when using `--name-prefix` in `sandbox ls` ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix resume race-condition ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add support for patch + delete v2 endpoints for named sandboxes. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add support for tags ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix transient 401 on the first sandbox command after auto-login by retrying the command when the token was just obtained, to absorb cross-region auth token replication lag. ([#192](https://github.com/vercel/sandbox/pull/192))
+
+- Add Node 26 support. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix bug where the first ssh connection hang ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Improve timeout hour format and example values ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Support updading current-snapshot-id of an existing sandbox ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Add support for updating tags and displaying tags in config. ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Fix JsDocs, messages and double-error message bug ([#177](https://github.com/vercel/sandbox/pull/177))
+
+- Updated dependencies [[`87ddf050b0e196278becaf3550ee2857afa63c5d`](https://github.com/vercel/sandbox/commit/87ddf050b0e196278becaf3550ee2857afa63c5d), [`4a0ff5fb141597ff536b0ff900d595b92e8a6a6e`](https://github.com/vercel/sandbox/commit/4a0ff5fb141597ff536b0ff900d595b92e8a6a6e), [`f3b01827c3af58aecdcf70ce5247346cbd706654`](https://github.com/vercel/sandbox/commit/f3b01827c3af58aecdcf70ce5247346cbd706654), [`d9f6e1ca6f376a53ec9d0a81cc90a1323daa758b`](https://github.com/vercel/sandbox/commit/d9f6e1ca6f376a53ec9d0a81cc90a1323daa758b), [`88cfb449d6bef767bca1967ec371fdb8b9d7d48d`](https://github.com/vercel/sandbox/commit/88cfb449d6bef767bca1967ec371fdb8b9d7d48d), [`2ddaa6f794a409a140a2918910ccdaa1148ae4bc`](https://github.com/vercel/sandbox/commit/2ddaa6f794a409a140a2918910ccdaa1148ae4bc), [`087d659d40f06adac8e7b66f287c6424ec70539d`](https://github.com/vercel/sandbox/commit/087d659d40f06adac8e7b66f287c6424ec70539d), [`d06dbdc459917d8ab8ebde151a113c5124a2a49c`](https://github.com/vercel/sandbox/commit/d06dbdc459917d8ab8ebde151a113c5124a2a49c), [`c6bd09c3f5bad4305ce64e5f1ef38746af0d0f7e`](https://github.com/vercel/sandbox/commit/c6bd09c3f5bad4305ce64e5f1ef38746af0d0f7e), [`b4d5514d4715a2613d22b13dd81d420c873cb160`](https://github.com/vercel/sandbox/commit/b4d5514d4715a2613d22b13dd81d420c873cb160), [`ecfb31fddea2368ba20ec30de5ef836819f6b706`](https://github.com/vercel/sandbox/commit/ecfb31fddea2368ba20ec30de5ef836819f6b706), [`39bc7be123fdd9393577d4adf663cfc1b5282399`](https://github.com/vercel/sandbox/commit/39bc7be123fdd9393577d4adf663cfc1b5282399), [`562978ea03265bc4e2318ff733e037ee61b8e446`](https://github.com/vercel/sandbox/commit/562978ea03265bc4e2318ff733e037ee61b8e446), [`e9b2276693c47e6e2e0f91200be9650d5dfbc7f8`](https://github.com/vercel/sandbox/commit/e9b2276693c47e6e2e0f91200be9650d5dfbc7f8), [`8e4e138a78f38df4c15fa9bcc8c902fda9d5e662`](https://github.com/vercel/sandbox/commit/8e4e138a78f38df4c15fa9bcc8c902fda9d5e662), [`2bef94691e38c4f74e28b73f5459d4496fcbd798`](https://github.com/vercel/sandbox/commit/2bef94691e38c4f74e28b73f5459d4496fcbd798), [`4732c8d52cc64d84194470920c1b5f0fcdc45911`](https://github.com/vercel/sandbox/commit/4732c8d52cc64d84194470920c1b5f0fcdc45911), [`bac116b960cc8b4cca5c90be81e3f1936bb51965`](https://github.com/vercel/sandbox/commit/bac116b960cc8b4cca5c90be81e3f1936bb51965), [`4debd21d0c734393735b0b1b632a400b4aed6bc8`](https://github.com/vercel/sandbox/commit/4debd21d0c734393735b0b1b632a400b4aed6bc8), [`864eb6f502ef8b54ab73c3e3a9f2c484152ca528`](https://github.com/vercel/sandbox/commit/864eb6f502ef8b54ab73c3e3a9f2c484152ca528), [`7d753e83149f99c5c4b97a8f426f5c0f2aa00161`](https://github.com/vercel/sandbox/commit/7d753e83149f99c5c4b97a8f426f5c0f2aa00161), [`473650e619b1062a0969351d7533bde1f60be342`](https://github.com/vercel/sandbox/commit/473650e619b1062a0969351d7533bde1f60be342), [`1db1d95343317e8d4ad8fcbbdf5f2a694dc28259`](https://github.com/vercel/sandbox/commit/1db1d95343317e8d4ad8fcbbdf5f2a694dc28259), [`4e1c6f5849cb65e1e7e1136a9f728fa84bd7d3fa`](https://github.com/vercel/sandbox/commit/4e1c6f5849cb65e1e7e1136a9f728fa84bd7d3fa), [`aab45e2a81147075ecfb8c7ad7749f607f5fc1ce`](https://github.com/vercel/sandbox/commit/aab45e2a81147075ecfb8c7ad7749f607f5fc1ce), [`cae4ba94b7aa2bf1abf89865e72c6fa038477081`](https://github.com/vercel/sandbox/commit/cae4ba94b7aa2bf1abf89865e72c6fa038477081), [`f618e137ede7b4d0605f20897ff27d9cccf0b5c4`](https://github.com/vercel/sandbox/commit/f618e137ede7b4d0605f20897ff27d9cccf0b5c4), [`e3f14b01e161576793a8ae3b276cc9cc84b0d7ea`](https://github.com/vercel/sandbox/commit/e3f14b01e161576793a8ae3b276cc9cc84b0d7ea)]:
+  - @vercel/sandbox@2.0.0
+
 ## 3.0.0-beta.26
 
 ### Minor Changes
