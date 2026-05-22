@@ -541,6 +541,7 @@ const listCommand = cmd.command({
       { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
+      { field: "Ports", value: formatPorts(sandbox) },
       { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
       { field: "Keep last snapshots", value: formatKeepLastSnapshots(sandbox.keepLastSnapshots) },
       { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
@@ -704,6 +705,33 @@ function formatKeepLastSnapshots(
   }
 
   return parts.join(", ");
+}
+
+function formatPorts(sandbox: Sandbox): string {
+  let routes: Sandbox["routes"];
+  let interactivePort: Sandbox["interactivePort"];
+  try {
+    routes = sandbox.routes;
+    interactivePort = sandbox.interactivePort;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "No active session. Run a command or call resume first."
+    ) {
+      return "-";
+    }
+    throw error;
+  }
+
+  const ports = routes
+    .filter((route) => route.port !== interactivePort)
+    .map((route) => route.port);
+
+  if (ports.length === 0) {
+    return "-";
+  }
+
+  return ports.join(", ");
 }
 
 export const config = cmd.subcommands({
