@@ -55,7 +55,11 @@ import {
 import { APIError, StreamError } from "@vercel/sandbox";
 
 // For advanced network policy with credential brokering and L7 matchers
-import type { NetworkPolicyRule, NetworkTransformer } from "@vercel/sandbox";
+import type {
+  NetworkPolicy,
+  NetworkPolicyRule,
+  NetworkTransformer,
+} from "@vercel/sandbox";
 
 // For implementing a request-forwarding proxy (forwardURL)
 import { defineSandboxProxy } from "@vercel/sandbox/proxy";
@@ -783,16 +787,16 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation      | Details                                                             |
-| --------------- | ------------------------------------------------------------------- |
-| Max vCPUs       | 8 vCPUs on Hobby/Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
-| Max ports       | 15 exposed ports                                                    |
-| Max tags        | 5 key-value tags per sandbox                                        |
-| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby)                        |
-| Default timeout | 5 minutes                                                           |
-| Base system     | Amazon Linux 2023                                                   |
-| User context    | `vercel-sandbox` user                                               |
-| Writable path   | `/vercel/sandbox`                                                   |
+| Limitation      | Details                                                                         |
+| --------------- | ------------------------------------------------------------------------------- |
+| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
+| Max ports       | 15 exposed ports                                                                |
+| Max tags        | 5 key-value tags per sandbox                                                    |
+| Max timeout     | 5 hours (Pro/Enterprise), 45 minutes (Hobby)                                    |
+| Default timeout | 5 minutes                                                                       |
+| Base system     | Amazon Linux 2023                                                               |
+| User context    | `vercel-sandbox` user                                                           |
+| Writable path   | `/vercel/sandbox`                                                               |
 
 ## System Packages
 
