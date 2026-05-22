@@ -663,14 +663,16 @@ export class Sandbox {
    * Fetches the source sandbox's config and current snapshot in a single
    * request, copies as many parameters as the server exposes, then creates a
    * new sandbox seeded from that snapshot. Any field passed in `params`
-   * overrides the copied value.
+   * overrides the copied value. When the override is a structured value
+   * (e.g. `tags`, `resources`), it fully replaces the copied value — there
+   * is no per-key merge.
    *
    * Copied today: `resources` (vcpus), `timeout`, `networkPolicy`, `tags`,
    * `ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`.
    *
-   * Throws if the source sandbox has no current snapshot — take a snapshot
-   * of the source first, or use {@link Sandbox.create} with the desired
-   * config instead.
+   * If the source sandbox has no current snapshot, the fork falls back to
+   * creating a fresh sandbox with the same copied config plus the source's
+   * `runtime`.
    *
    * Not copied: `env` (encrypted server-side and not exposed to the client).
    * Pass `env` explicitly to set environment variables on the fork.
@@ -707,16 +709,24 @@ export class Sandbox {
       } as Parameters<typeof Sandbox.create>[0]);
     }
 
+    // Forward only the fields `Sandbox.get` consumes — credentials, fetch,
+    // signal, and private params — so unrelated fork inputs (env, tags,
+    // ports, etc.) don't leak into the get call.
+    const credentialFields = params as Partial<Credentials>;
     const sourceSandbox = await Sandbox.get({
-      ...params,
+      token: credentialFields.token,
+      projectId: credentialFields.projectId,
+      teamId: credentialFields.teamId,
+      fetch: params.fetch,
+      signal: params.signal,
+      ...getPrivateParams(params),
       name: source,
       resume: false,
     } as Parameters<typeof Sandbox.get>[0]);
 
-    const snapshotId = sourceSandbox.currentSnapshotId;
-    if (!snapshotId) {
-      throw new Error(`Sandbox "${source}" has no current snapshot.`);
-    }
+    const sourcePorts = sourceSandbox.routes
+      .filter((r) => r.port !== sourceSandbox.interactivePort)
+      .map((r) => r.port);
 
     const copied: Omit<BaseCreateSandboxParams, "source" | "runtime"> = {
       ...(sourceSandbox.vcpus !== undefined && {
@@ -729,11 +739,7 @@ export class Sandbox {
         networkPolicy: sourceSandbox.networkPolicy,
       }),
       ...(sourceSandbox.tags !== undefined && { tags: sourceSandbox.tags }),
-      ...(sourceSandbox.routes.length > 0 && {
-        ports: sourceSandbox.routes
-          .filter((r) => r.port !== sourceSandbox.interactivePort)
-          .map((r) => r.port),
-      }),
+      ...(sourcePorts.length > 0 && { ports: sourcePorts }),
       persistent: sourceSandbox.persistent,
       ...(sourceSandbox.snapshotExpiration !== undefined && {
         snapshotExpiration: sourceSandbox.snapshotExpiration,
@@ -743,10 +749,25 @@ export class Sandbox {
       }),
     };
 
+    const snapshotId = sourceSandbox.currentSnapshotId;
+    if (snapshotId) {
+      return Sandbox.create({
+        ...copied,
+        ...overrides,
+        source: { type: "snapshot", snapshotId },
+      } as Parameters<typeof Sandbox.create>[0]);
+    }
+
+    // Source has no current snapshot — create a fresh sandbox with the
+    // copied config plus the source's runtime. Any user-supplied `source`
+    // override in `overrides` would have hit the early-return above, so we
+    // know there is no caller-provided seed here.
     return Sandbox.create({
       ...copied,
+      ...(sourceSandbox.runtime !== undefined && {
+        runtime: sourceSandbox.runtime,
+      }),
       ...overrides,
-      source: { type: "snapshot", snapshotId },
     } as Parameters<typeof Sandbox.create>[0]);
   }
 

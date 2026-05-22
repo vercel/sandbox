@@ -60,7 +60,7 @@ export const args = {
     short: "t",
     type: ObjectFromKeyValue,
     description:
-      "Key-value tags to associate with the fork (overrides tags copied from the source)",
+      "Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).",
   }),
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
