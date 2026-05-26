@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.1
+
+### Patch Changes
+
+- Add `updatedAt` getter to the `Snapshot` class ([#208](https://github.com/vercel/sandbox/pull/208))
+
 ## 2.0.0
 
 ### Major Changes
