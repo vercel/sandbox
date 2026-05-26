@@ -83,6 +83,13 @@ export class Snapshot {
   }
 
   /**
+   * When this snapshot was last updated.
+   */
+  public get updatedAt(): Date {
+    return new Date(this.snapshot.updatedAt);
+  }
+
+  /**
    * The expiration date of this snapshot, or undefined if it does not expire.
    */
   public get expiresAt(): Date | undefined {
