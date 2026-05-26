@@ -5,12 +5,12 @@ import {
 } from "@workflow/core/serialization";
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { VolumeMetadata } from "./api-client";
+import type { DriveMetadata } from "./api-client";
 import { APIClient } from "./api-client";
-import { Volume, type SerializedVolume } from "./volume";
+import { Drive, type SerializedDrive } from "./drive";
 
-describe("Volume serialization", () => {
-  const mockVolumeMetadata: VolumeMetadata = {
+describe("Drive serialization", () => {
+  const mockDriveMetadata: DriveMetadata = {
     name: "workspace",
     projectId: "proj_test",
     maxSizeBytes: 1073741824,
@@ -20,27 +20,27 @@ describe("Volume serialization", () => {
     updatedAt: 1775650621393,
   };
 
-  const createMockVolume = (
-    metadata: VolumeMetadata = mockVolumeMetadata,
-  ): Volume => {
+  const createMockDrive = (
+    metadata: DriveMetadata = mockDriveMetadata,
+  ): Drive => {
     const client = new APIClient({
       teamId: "team_test",
       token: "test_token",
     });
 
-    return new Volume({
+    return new Drive({
       client,
-      volume: metadata,
+      drive: metadata,
       projectId: "proj_test",
     });
   };
 
-  const serializeVolume = (volume: Volume): SerializedVolume => {
-    return Volume[WORKFLOW_SERIALIZE](volume);
+  const serializeDrive = (drive: Drive): SerializedDrive => {
+    return Drive[WORKFLOW_SERIALIZE](drive);
   };
 
-  const deserializeVolume = (data: SerializedVolume): Volume => {
-    return Volume[WORKFLOW_DESERIALIZE](data);
+  const deserializeDrive = (data: SerializedDrive): Drive => {
+    return Drive[WORKFLOW_DESERIALIZE](data);
   };
 
   afterEach(() => {
@@ -48,19 +48,19 @@ describe("Volume serialization", () => {
   });
 
   describe("WORKFLOW_SERIALIZE", () => {
-    it("serializes volume metadata", () => {
-      const volume = createMockVolume();
-      const serialized = serializeVolume(volume);
+    it("serializes drive metadata", () => {
+      const drive = createMockDrive();
+      const serialized = serializeDrive(drive);
 
-      expect(serialized.volume.name).toBe("workspace");
-      expect(serialized.volume.projectId).toBe("proj_test");
-      expect(serialized.volume.maxSizeBytes).toBe(1073741824);
+      expect(serialized.drive.name).toBe("workspace");
+      expect(serialized.drive.projectId).toBe("proj_test");
+      expect(serialized.drive.maxSizeBytes).toBe(1073741824);
       expect(serialized.projectId).toBe("proj_test");
     });
 
     it("does not include the API client or credentials", () => {
-      const volume = createMockVolume();
-      const serialized = serializeVolume(volume);
+      const drive = createMockDrive();
+      const serialized = serializeDrive(drive);
 
       expect(serialized).not.toHaveProperty("client");
       expect(serialized).not.toHaveProperty("_client");
@@ -70,20 +70,20 @@ describe("Volume serialization", () => {
 
   describe("WORKFLOW_DESERIALIZE", () => {
     it("returns synchronously", () => {
-      const volume = createMockVolume();
-      const serialized = serializeVolume(volume);
+      const drive = createMockDrive();
+      const serialized = serializeDrive(drive);
 
-      const result = deserializeVolume(serialized);
+      const result = deserializeDrive(serialized);
 
-      expect(result).toBeInstanceOf(Volume);
+      expect(result).toBeInstanceOf(Drive);
       expect(result).not.toBeInstanceOf(Promise);
     });
 
     it("reconstructs a metadata-backed instance", () => {
-      const volume = createMockVolume();
-      const serialized = serializeVolume(volume);
+      const drive = createMockDrive();
+      const serialized = serializeDrive(drive);
 
-      const result = deserializeVolume(serialized);
+      const result = deserializeDrive(serialized);
 
       expect(result.name).toBe("workspace");
       expect(result.projectId).toBe("proj_test");
@@ -96,12 +96,12 @@ describe("Volume serialization", () => {
 
     it("does not require global credentials just to deserialize and read metadata", async () => {
       vi.resetModules();
-      const { Volume: FreshVolume } = await import("./volume");
+      const { Drive: FreshDrive } = await import("./drive");
 
-      const deserialized = FreshVolume[WORKFLOW_DESERIALIZE]({
-        volume: mockVolumeMetadata,
+      const deserialized = FreshDrive[WORKFLOW_DESERIALIZE]({
+        drive: mockDriveMetadata,
         projectId: "proj_test",
-      }) as Volume;
+      }) as Drive;
 
       expect(deserialized.name).toBe("workspace");
       expect(deserialized.maxSize).toBe(1073741824);
@@ -109,12 +109,12 @@ describe("Volume serialization", () => {
 
     it("deserialized instance has no client until ensureClient() is called", async () => {
       vi.resetModules();
-      const { Volume: FreshVolume } = await import("./volume");
+      const { Drive: FreshDrive } = await import("./drive");
 
-      const deserialized = FreshVolume[WORKFLOW_DESERIALIZE]({
-        volume: mockVolumeMetadata,
+      const deserialized = FreshDrive[WORKFLOW_DESERIALIZE]({
+        drive: mockDriveMetadata,
         projectId: "proj_test",
-      }) as Volume;
+      }) as Drive;
 
       expect((deserialized as any)._client).toBeNull();
     });
@@ -122,12 +122,12 @@ describe("Volume serialization", () => {
 
   describe("workflow runtime integration", () => {
     it("survives a step boundary roundtrip", async () => {
-      registerSerializationClass("Volume", Volume);
+      registerSerializationClass("Drive", Drive);
 
-      const volume = createMockVolume();
+      const drive = createMockDrive();
 
       const dehydrated = await dehydrateStepReturnValue(
-        volume,
+        drive,
         "run_123",
         undefined,
       );
@@ -137,7 +137,7 @@ describe("Volume serialization", () => {
         undefined,
       );
 
-      expect(rehydrated).toBeInstanceOf(Volume);
+      expect(rehydrated).toBeInstanceOf(Drive);
       expect(rehydrated.name).toBe("workspace");
       expect(rehydrated.maxSize).toBe(1073741824);
     });

@@ -110,16 +110,16 @@ export interface BaseCreateSandboxParams {
   tags?: Record<string, string>;
 
   /**
-   * List of volumes to attach to the sandbox, keyed by the desired mount path.
-   * The volume must be created beforehand with `Volume.getOrCreate`.
+   * List of drives to attach to the sandbox, keyed by the desired mount path.
+   * The drive must be created beforehand with `Drive.getOrCreate`.
    *
    * The mount paths must be absolute and cannot overlap with each other.
    *
    * @example
-   * const volume = await Volume.getOrCreate({ name: "my-volume" });
+   * const drive = await Drive.getOrCreate({ name: "my-drive" });
    * const sandbox = await Sandbox.create({
    *   mounts: {
-   *     "/data": { volume: volume.name, mode: "read-write" },
+   *     "/data": { drive: drive.name, mode: "read-write" },
    *   },
    * });
    */
@@ -127,9 +127,9 @@ export interface BaseCreateSandboxParams {
     string,
     {
       /**
-       * The volume name to mount.
+       * The drive name to mount.
        */
-      volume: string;
+      drive: string;
       /**
        * Mount mode. Defaults to `read-write` if unspecified.
        */
@@ -482,7 +482,7 @@ export class Sandbox {
   }
 
   /**
-   * Volumes mounted on the sandbox, keyed by mount path.
+   * Drives mounted on the sandbox, keyed by mount path.
    */
   public get mounts(): SandboxMounts | undefined {
     return this.sandbox.mounts;

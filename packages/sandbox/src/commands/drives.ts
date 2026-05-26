@@ -3,22 +3,22 @@ import { subcommands } from "cmd-ts";
 import { Listr } from "listr2";
 import chalk from "chalk";
 import ora from "ora";
-import type { Volume } from "@vercel/sandbox";
+import type { Drive } from "@vercel/sandbox";
 import { scope } from "../args/scope";
-import { volumeMaxSize, volumeName } from "../args/volume";
-import { volumeClient } from "../client";
+import { driveMaxSize, driveName } from "../args/drive";
+import { driveClient } from "../client";
 import { acquireRelease } from "../util/disposables";
 import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
 
 const list = cmd.command({
   name: "list",
   aliases: ["ls"],
-  description: "List volumes for the specified account and project.",
+  description: "List drives for the specified account and project.",
   args: {
     scope,
     namePrefix: cmd.option({
       long: "name-prefix",
-      description: "Filter volumes by name prefix.",
+      description: "Filter drives by name prefix.",
       type: cmd.optional(cmd.string),
     }),
     sortOrder: cmd.option({
@@ -28,7 +28,7 @@ const list = cmd.command({
     }),
     limit: cmd.option({
       long: "limit",
-      description: "Maximum number of volumes per page (default 50).",
+      description: "Maximum number of drives per page (default 50).",
       type: cmd.optional(cmd.number),
     }),
     cursor: cmd.option({
@@ -44,13 +44,13 @@ const list = cmd.command({
     limit,
     cursor,
   }) {
-    const { volumes, pagination } = await (async () => {
+    const { drives, pagination } = await (async () => {
       using _spinner = acquireRelease(
-        () => ora("Fetching volumes...").start(),
+        () => ora("Fetching drives...").start(),
         (s) => s.stop(),
       );
 
-      return volumeClient.list({
+      return driveClient.list({
         token,
         teamId: team,
         projectId: project,
@@ -61,7 +61,7 @@ const list = cmd.command({
       });
     })();
 
-    printVolumes(volumes);
+    printDrives(drives);
 
     if (pagination.next !== null) {
       console.log(formatNextCursorHint(pagination.next));
@@ -71,27 +71,27 @@ const list = cmd.command({
 
 const getOrCreate = cmd.command({
   name: "get-or-create",
-  description: "Create a volume if it does not already exist, or retrieve it.",
+  description: "Create a drive if it does not already exist, or retrieve it.",
   args: {
     name: cmd.positional({
-      type: volumeName,
-      description: "Volume name to create or retrieve",
+      type: driveName,
+      description: "Drive name to create or retrieve",
     }),
     maxSize: cmd.option({
       long: "max-size",
-      description: "Maximum volume size in bytes. If omitted, a default of 100 GiB is used.",
-      type: cmd.optional(volumeMaxSize),
+      description: "Maximum drive size in bytes. If omitted, a default of 100 GiB is used.",
+      type: cmd.optional(driveMaxSize),
     }),
     scope,
   },
   async handler({ scope: { token, team, project }, name, maxSize }) {
-    const volume = await (async () => {
+    const drive = await (async () => {
       using _spinner = acquireRelease(
-        () => ora("Creating volume...").start(),
+        () => ora("Creating drive...").start(),
         (s) => s.stop(),
       );
 
-      return volumeClient.getOrCreate({
+      return driveClient.getOrCreate({
         token,
         teamId: team,
         projectId: project,
@@ -100,17 +100,17 @@ const getOrCreate = cmd.command({
       });
     })();
 
-    process.stderr.write("✅ Volume " + chalk.cyan(volume.name) + " ready.\n");
+    process.stderr.write("✅ Drive " + chalk.cyan(drive.name) + " ready.\n");
     process.stderr.write(
       chalk.dim("   │ ") +
         "max size: " +
-        chalk.cyan(formatVolumeSize(volume)) +
+        chalk.cyan(formatDriveSize(drive)) +
         "\n",
     );
     process.stderr.write(
       chalk.dim("   ╰ ") +
         "created: " +
-        chalk.cyan(timeAgo(volume.createdAt)) +
+        chalk.cyan(timeAgo(drive.createdAt)) +
         "\n",
     );
   },
@@ -119,37 +119,37 @@ const getOrCreate = cmd.command({
 const remove = cmd.command({
   name: "delete",
   aliases: ["rm", "remove"],
-  description: "Delete one or more volumes.",
+  description: "Delete one or more drives.",
   args: {
     name: cmd.positional({
-      type: volumeName,
-      description: "Volume name to delete",
+      type: driveName,
+      description: "Drive name to delete",
     }),
     names: cmd.restPositionals({
-      type: volumeName,
-      description: "More volume names to delete",
+      type: driveName,
+      description: "More drive names to delete",
     }),
     scope,
   },
   async handler({ scope: { token, team, project }, name, names }) {
-    const tasks = Array.from(new Set([name, ...names]), (volumeName) => {
+    const tasks = Array.from(new Set([name, ...names]), (driveName) => {
       return {
-        title: `Deleting volume ${volumeName}`,
+        title: `Deleting drive ${driveName}`,
         async task() {
-          const volume = await getVolumeByName({
+          const drive = await getDriveByName({
             token,
             teamId: team,
             projectId: project,
-            name: volumeName,
+            name: driveName,
           });
 
-          if (volume.currentSandboxName || volume.currentSessionId) {
+          if (drive.currentSandboxName || drive.currentSessionId) {
             throw new Error(
-              `Volume ${volumeName} is attached to a sandbox and cannot be deleted.`,
+              `Drive ${driveName} is attached to a sandbox and cannot be deleted.`,
             );
           }
 
-          await volumeClient.delete(volume);
+          await driveClient.delete(drive);
         },
       };
     });
@@ -163,9 +163,9 @@ const remove = cmd.command({
   },
 });
 
-export const volumes = subcommands({
-  name: "volumes",
-  description: "Manage sandbox volumes",
+export const drives = subcommands({
+  name: "drives",
+  description: "Manage sandbox drives",
   cmds: {
     list,
     "get-or-create": getOrCreate,
@@ -173,15 +173,15 @@ export const volumes = subcommands({
   },
 });
 
-function printVolumes(volumes: Volume[]) {
+function printDrives(drives: Drive[]) {
   console.log(
     table({
-      rows: volumes,
+      rows: drives,
       columns: {
         NAME: { value: (v) => v.name },
         CREATED: { value: (v) => timeAgo(v.createdAt) },
         UPDATED: { value: (v) => timeAgo(v.updatedAt) },
-        SIZE: { value: formatVolumeSize },
+        SIZE: { value: formatDriveSize },
         ["ATTACHED SANDBOX"]: { value: (v) => v.currentSandboxName ?? "-" },
         ["ATTACHED SESSION"]: { value: (v) => v.currentSessionId ?? "-" },
       },
@@ -189,11 +189,11 @@ function printVolumes(volumes: Volume[]) {
   );
 }
 
-function formatVolumeSize(volume: Volume): string {
-  return volume.maxSize === undefined ? "-" : formatBytes(volume.maxSize);
+function formatDriveSize(drive: Drive): string {
+  return drive.maxSize === undefined ? "-" : formatBytes(drive.maxSize);
 }
 
-async function getVolumeByName({
+async function getDriveByName({
   token,
   teamId,
   projectId,
@@ -203,8 +203,8 @@ async function getVolumeByName({
   teamId: string;
   projectId: string;
   name: string;
-}): Promise<Volume> {
-  const { volumes } = await volumeClient.list({
+}): Promise<Drive> {
+  const { drives } = await driveClient.list({
     token,
     teamId,
     projectId,
@@ -213,16 +213,16 @@ async function getVolumeByName({
     sortOrder: "asc",
     limit: 50,
   });
-  const volume = volumes.find((volume) => volume.name === name);
+  const drive = drives.find((drive) => drive.name === name);
 
-  if (!volume) {
+  if (!drive) {
     throw new Error(
       [
-        `Volume ${name} was not found.`,
-        `${chalk.bold("hint:")} Create it with: sandbox volumes get-or-create ${name}`,
+        `Drive ${name} was not found.`,
+        `${chalk.bold("hint:")} Create it with: sandbox drives get-or-create ${name}`,
       ].join("\n"),
     );
   }
 
-  return volume;
+  return drive;
 }

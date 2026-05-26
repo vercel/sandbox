@@ -242,7 +242,7 @@ export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
-export const Volume = z.object({
+export const Drive = z.object({
   name: z.string(),
   projectId: z.string(),
   maxSizeBytes: z.number(),
@@ -252,15 +252,15 @@ export const Volume = z.object({
   updatedAt: z.number(),
 });
 
-export type VolumeMetadata = z.infer<typeof Volume>;
+export type DriveMetadata = z.infer<typeof Drive>;
 
-export const VolumesResponse = z.object({
-  volumes: z.array(Volume),
+export const DrivesResponse = z.object({
+  drives: z.array(Drive),
   pagination: CursorPagination,
 });
 
-export const VolumeResponse = z.object({
-  volume: Volume,
+export const DriveResponse = z.object({
+  drive: Drive,
 });
 
 export const Sandbox = z.object({
@@ -287,7 +287,7 @@ export const Sandbox = z.object({
   mounts: z
     .record(
       z.object({
-        volume: z.string(),
+        drive: z.string(),
         mode: z.enum(["read-only", "read-write"]).optional(),
       }),
     )

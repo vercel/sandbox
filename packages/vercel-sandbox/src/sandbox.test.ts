@@ -423,7 +423,7 @@ describe("Sandbox.create mounts", () => {
       name: "my-sandbox",
       mounts: {
         "/mnt/storage": {
-          volume: "my-volume",
+          drive: "my-drive",
           mode: "read-only",
         },
       },
@@ -436,7 +436,7 @@ describe("Sandbox.create mounts", () => {
       projectId: "proj_123",
       mounts: {
         "/mnt/storage": {
-          volume: "my-volume",
+          drive: "my-drive",
           mode: "read-only",
         },
       },

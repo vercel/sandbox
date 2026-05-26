@@ -15,8 +15,8 @@ export {
 export type { SerializedSandbox } from "./sandbox.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
-export { Volume } from "./volume.js";
-export type { SerializedVolume } from "./volume.js";
+export { Drive } from "./drive.js";
+export type { SerializedDrive } from "./drive.js";
 export type { SnapshotTreeNodeData } from "./api-client/validators.js";
 export { Command, CommandFinished } from "./command.js";
 export type {

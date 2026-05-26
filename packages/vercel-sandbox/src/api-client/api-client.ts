@@ -23,8 +23,8 @@ import {
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
-  VolumesResponse,
-  VolumeResponse,
+  DrivesResponse,
+  DriveResponse,
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
@@ -524,7 +524,7 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async listVolumes(params: {
+  async listDrives(params: {
     projectId: string;
     limit?: number;
     cursor?: string | number;
@@ -536,8 +536,8 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      VolumesResponse,
-      await this.request(`/v2/sandboxes/volumes`, {
+      DrivesResponse,
+      await this.request(`/v2/sandboxes/drives`, {
         query: {
           projectId: params.projectId,
           limit: params.limit,
@@ -553,16 +553,16 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async getOrCreateVolume(params: {
+  async getOrCreateDrive(params: {
     projectId: string;
     name: string;
     maxSizeBytes?: number;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
-      VolumeResponse,
+      DriveResponse,
       await this.request(
-        `/v2/sandboxes/volumes/${encodeURIComponent(params.name)}`,
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -875,14 +875,14 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async deleteVolume(params: {
+  async deleteDrive(params: {
     projectId: string;
     name: string;
     signal?: AbortSignal;
   }) {
-    const url = `/v2/sandboxes/volumes/${encodeURIComponent(params.name)}`;
+    const url = `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`;
     return parseOrThrow(
-      VolumeResponse,
+      DriveResponse,
       await this.request(url, {
         method: "DELETE",
         query: {

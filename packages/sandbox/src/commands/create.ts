@@ -16,7 +16,7 @@ import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
-import { mounts } from "../args/volume";
+import { mounts } from "../args/drive";
 
 export const args = {
   name: cmd.option({
