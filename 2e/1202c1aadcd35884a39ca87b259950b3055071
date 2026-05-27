@@ -1,0 +1,20 @@
+packages/vercel-sandbox/src/auth/project.ts
+  s_7c91d56bf01599::t_7295d088da0272 81,83-92,95-97,100-107,109-110,112-129,132,134,138-193,195-208,210-213,236-240,242-254,256-272,285-286,290,301-302,305,308
+  s_7c91d56bf01599::t_c9c2f753d09381 133,194,209,221-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2e1202c1aadcd35884a39ca87b259950b3055071",
+  "prompts": {},
+  "sessions": {
+    "s_7c91d56bf01599": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_194cf3dbeffetcva5I9wb0Gsef",
+        "model": "openai/gpt-5.5"
+      },
+      "human_author": "Gal Schlezinger <gal@spitfire.co.il>"
+    }
+  }
+}
