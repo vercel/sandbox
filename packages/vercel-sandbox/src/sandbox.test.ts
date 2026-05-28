@@ -245,6 +245,69 @@ describe("_runCommand error handling", () => {
   });
 });
 
+describe("runCommand timeoutMs", () => {
+  const makeRunningSandbox = (runCommandMock: ReturnType<typeof vi.fn>) =>
+    new Sandbox({
+      client: { runCommand: runCommandMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+  it("forwards timeoutMs to the API client as `timeout` on the wait path", async () => {
+    const command = makeCommand();
+    const runCommandMock = vi.fn(async () => ({
+      command,
+      finished: Promise.resolve({ ...command, exitCode: 0 }),
+    }));
+    const sandbox = makeRunningSandbox(runCommandMock);
+
+    await sandbox.runCommand({
+      cmd: "sleep",
+      args: ["60"],
+      timeoutMs: 2500,
+    });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        timeout: 2500,
+      }),
+    );
+  });
+
+  it("omits `timeout` when no timeoutMs is provided", async () => {
+    const command = makeCommand();
+    const runCommandMock = vi.fn(async () => ({
+      command,
+      finished: Promise.resolve({ ...command, exitCode: 0 }),
+    }));
+    const sandbox = makeRunningSandbox(runCommandMock);
+
+    await sandbox.runCommand({ cmd: "echo", args: ["hello"] });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({ wait: true, timeout: undefined }),
+    );
+  });
+
+  it("throws when detached and timeoutMs are combined", async () => {
+    const runCommandMock = vi.fn();
+    const sandbox = makeRunningSandbox(runCommandMock);
+
+    await expect(
+      sandbox.runCommand({
+        cmd: "sleep",
+        args: ["5"],
+        detached: true,
+        timeoutMs: 1000,
+      }),
+    ).rejects.toThrow(TypeError);
+    expect(runCommandMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("Sandbox.getOrCreate", () => {
   const CREDENTIALS = {
     token: "test-token",

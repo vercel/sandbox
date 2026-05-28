@@ -1005,12 +1005,14 @@ export class Sandbox {
    * @param args - Arguments to pass to the command.
    * @param opts - Optional parameters.
    * @param opts.signal - An AbortSignal to cancel the command execution.
+   * @param opts.timeoutMs - Maximum time in milliseconds to wait for the
+   * command to complete. On expiry the process is killed with SIGKILL.
    * @returns A {@link CommandFinished} result once execution is done.
    */
   async runCommand(
     command: string,
     args?: string[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<CommandFinished>;
   /**
    * Start executing a command in detached mode.
@@ -1034,7 +1036,7 @@ export class Sandbox {
   async runCommand(
     commandOrParams: string | RunCommandParams,
     args?: string[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<Command | CommandFinished> {
     "use step";
     const signal =

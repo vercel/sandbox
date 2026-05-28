@@ -1,11 +1,13 @@
 import { Sandbox } from "@vercel/sandbox";
 import * as cmd from "cmd-ts";
+import ms from "ms";
 import { sandboxName } from "../args/sandbox-name";
 import { isatty } from "node:tty";
 import { startInteractiveShell } from "../interactive-shell/interactive-shell";
 import { printCommand } from "../util/print-command";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { scope } from "../args/scope";
+import { Duration } from "../types/duration";
 import { sandboxClient } from "../client";
 import chalk from "chalk";
 
@@ -68,6 +70,14 @@ export const args = {
     type: ObjectFromKeyValue,
     description: "Environment variables to set for the command",
   }),
+  timeout: cmd.option({
+    long: "timeout",
+    type: cmd.optional(Duration),
+    description:
+      "Maximum duration to wait for the command (e.g. 30s, 5m). " +
+      "On expiry the process is killed with SIGKILL. " +
+      "Cannot be combined with --interactive.",
+  }),
   scope,
 } as const;
 
@@ -85,7 +95,17 @@ export const exec = cmd.command({
     interactive,
     envVars,
     skipExtendingTimeout,
+    timeout,
   }) {
+    if (interactive && timeout) {
+      throw new Error(
+        [
+          "--timeout cannot be combined with --interactive.",
+          `${chalk.bold("hint:")} Remove one of the two flags. Interactive sessions do not enforce a command timeout.`,
+        ].join("\n"),
+      );
+    }
+
     const sandbox =
       typeof sandboxName !== "string"
         ? sandboxName
@@ -107,6 +127,7 @@ export const exec = cmd.command({
         sudo: asSudo,
         cwd,
         env: envVars,
+        timeoutMs: timeout ? ms(timeout) : undefined,
       });
 
       process.exitCode = result.exitCode;
