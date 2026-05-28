@@ -25,6 +25,7 @@ export type RenderSnapshotTreeParams =
       currentSnapshotExpiresAt?: number;
       ancestors: TreeResponse;
       descendants: TreeResponse;
+      current?: TreeNode;
       hideCurrent?: false;
     }
   | {
@@ -123,6 +124,7 @@ export function renderSnapshotTree(
   if (!hideCurrent) {
     const { currentSnapshotId: id, currentSnapshotExpiresAt } = params;
     const currentTreeNode =
+      params.current ??
       ancestors.snapshots.find((n) => n.snapshot.id === id) ??
       descendants.snapshots.find((n) => n.snapshot.id === id);
     const currentNode: TreeNode = currentTreeNode ?? {

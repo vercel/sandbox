@@ -311,11 +311,14 @@ const tree = cmd.command({
         }),
       ]);
 
+      const current = ancestors.start ?? descendants.start;
+
       return {
         currentSnap,
         currentSnapshotId,
         ancestors,
         descendants,
+        current,
       };
     })();
 
@@ -330,6 +333,7 @@ const tree = cmd.command({
         currentSnapshotExpiresAt: result.currentSnap.expiresAt?.getTime(),
         ancestors: result.ancestors,
         descendants: result.descendants,
+        current: result.current,
       }),
     );
 

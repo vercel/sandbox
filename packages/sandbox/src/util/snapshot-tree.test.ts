@@ -458,4 +458,28 @@ describe("renderSnapshotTree", () => {
     expect(idxRoot).toBeGreaterThan(idxParent);
     expect(idxRootMarker).toBeGreaterThan(idxRoot);
   });
+
+  test("uses `current` node siblings when provided", () => {
+    const current = makeSnapshot({
+      id: "snap_current",
+      sourceSessionId: "sbx_current",
+    });
+    const sibling = makeSnapshot({
+      id: "snap_sibling",
+      sourceSessionId: "sbx_anchor_sibling",
+    });
+
+    const plain = strip(
+      renderSnapshotTree({
+        currentSnapshotId: "snap_current",
+        current: makeTreeNode(current, [sibling], "2"),
+        ancestors: emptyTree(),
+        descendants: emptyTree(),
+      }),
+    );
+
+    expect(plain).toContain("snap_current");
+    expect(plain).toContain("◂ current");
+    expect(plain).toContain("sbx_anchor_sibling");
+  });
 });
