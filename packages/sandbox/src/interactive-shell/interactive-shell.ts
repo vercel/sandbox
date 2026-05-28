@@ -389,8 +389,6 @@ async function connect(
   listener.stdoutStream.end();
 }
 
-const OPEN_ATTEMPT_TIMEOUT_MS = 2_500;
-
 async function openWithRetry<
   T extends { waitForOpen(): Promise<unknown>; close(): void },
 >(create: () => T): Promise<T> {
@@ -398,7 +396,7 @@ async function openWithRetry<
     async (_bail, attempt) => {
       const client = create();
       try {
-        await withTimeout(client.waitForOpen(), OPEN_ATTEMPT_TIMEOUT_MS);
+        await withTimeout(client.waitForOpen(), 2_500);
         return client;
       } catch (err) {
         debug("WebSocket open attempt %d failed: %o", attempt, err);
