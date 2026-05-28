@@ -282,12 +282,13 @@ async function attach({
   debug("Connecting to WebSocket URL:", url);
 
   const stdoutPipe = messageReader(process.stdout);
-  const client = details.createClient(url);
-  client.addEventListener("message", async ({ data }) => {
-    stdoutPipe.next(data);
+  const client = await openWithRetry(() => {
+    const c = details.createClient(url);
+    c.addEventListener("message", async ({ data }) => {
+      stdoutPipe.next(data);
+    });
+    return c;
   });
-
-  await client.waitForOpen();
   progress.stop();
 
   using extensionController = createAbortController("stopped extensions");
@@ -385,6 +386,35 @@ async function connect(
     }
   }
   listener.stdoutStream.end();
+}
+
+async function openWithRetry<T extends { waitForOpen(): Promise<unknown>; close(): void }>(
+  create: () => T,
+): Promise<T> {
+  const maxAttempts = 5;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
+    const client = create();
+    try {
+      await client.waitForOpen();
+      return client;
+    } catch (err) {
+      lastError = err;
+      debug(
+        "WebSocket open attempt %d/%d failed: %o",
+        attempt + 1,
+        maxAttempts,
+        err,
+      );
+      try {
+        client.close();
+      } catch {}
+    }
+  }
+  throw lastError ?? new Error("Failed to open interactive shell WebSocket");
 }
 
 function getStderrStream() {
