@@ -408,11 +408,13 @@ async function openWithRetry<
         debug("WebSocket open attempt %d failed: %o", attempt, err);
         try {
           client.close();
-        } catch {}
+        } catch (closeErr) {
+          debug("WebSocket close after failed open errored: %o", closeErr);
+        }
         throw err;
       }
     },
-    { retries: 2, minTimeout: 0, factor: 0 },
+    { retries: 2, minTimeout: 500, factor: 0 },
   );
 }
 
