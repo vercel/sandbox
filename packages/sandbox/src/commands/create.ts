@@ -175,6 +175,7 @@ export const create = cmd.command({
         interactive: true,
         tty: true,
         sandbox,
+        timeout: undefined,
       });
     }
 

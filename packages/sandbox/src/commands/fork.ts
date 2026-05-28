@@ -182,6 +182,7 @@ export const fork = cmd.command({
         interactive: true,
         tty: true,
         sandbox,
+        timeout: undefined,
       });
     }
 

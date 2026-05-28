@@ -8,7 +8,9 @@ import { omit } from "../util/omit";
 
 const args = {
   ...Create.args,
-  ...omit(Exec.args, "sandbox"),
+  // `timeout` is omitted because it collides with Create's `--timeout`
+  // (sandbox lifetime).
+  ...omit(Exec.args, "sandbox", "timeout"),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
@@ -53,7 +55,7 @@ export const run = cmd.command({
     }
 
     try {
-      await Exec.exec.handler({ ...rest, sandbox });
+      await Exec.exec.handler({ ...rest, sandbox, timeout: undefined });
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();
