@@ -5,6 +5,7 @@ import {
   type Listener,
 } from "@vercel/pty-tunnel";
 import createDebugger from "debug";
+import retry from "async-retry";
 import { printCommand } from "../util/print-command";
 import ora, { Ora, spinners } from "ora";
 import { PassThrough } from "node:stream";
@@ -388,33 +389,25 @@ async function connect(
   listener.stdoutStream.end();
 }
 
-async function openWithRetry<T extends { waitForOpen(): Promise<unknown>; close(): void }>(
-  create: () => T,
-): Promise<T> {
-  const maxAttempts = 5;
-  let lastError: unknown;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    if (attempt > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
-    }
-    const client = create();
-    try {
-      await client.waitForOpen();
-      return client;
-    } catch (err) {
-      lastError = err;
-      debug(
-        "WebSocket open attempt %d/%d failed: %o",
-        attempt + 1,
-        maxAttempts,
-        err,
-      );
+async function openWithRetry<
+  T extends { waitForOpen(): Promise<unknown>; close(): void },
+>(create: () => T): Promise<T> {
+  return retry<T>(
+    async (_bail, attempt) => {
+      const client = create();
       try {
-        client.close();
-      } catch {}
-    }
-  }
-  throw lastError ?? new Error("Failed to open interactive shell WebSocket");
+        await client.waitForOpen();
+        return client;
+      } catch (err) {
+        debug("WebSocket open attempt %d failed: %o", attempt, err);
+        try {
+          client.close();
+        } catch {}
+        throw err;
+      }
+    },
+    { retries: 4, minTimeout: 300, factor: 2, maxRetryTime: 5_000 },
+  );
 }
 
 function getStderrStream() {
