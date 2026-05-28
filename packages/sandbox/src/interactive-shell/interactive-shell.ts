@@ -398,11 +398,7 @@ async function openWithRetry<
     async (_bail, attempt) => {
       const client = create();
       try {
-        await withTimeout(
-          client.waitForOpen(),
-          OPEN_ATTEMPT_TIMEOUT_MS,
-          `WebSocket open timed out after ${OPEN_ATTEMPT_TIMEOUT_MS}ms`,
-        );
+        await withTimeout(client.waitForOpen(), OPEN_ATTEMPT_TIMEOUT_MS);
         return client;
       } catch (err) {
         debug("WebSocket open attempt %d failed: %o", attempt, err);
@@ -418,15 +414,14 @@ async function openWithRetry<
   );
 }
 
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message: string,
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   promise.catch(() => {});
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(message)), ms);
+    timer = setTimeout(
+      () => reject(new Error(`Operation timed out after ${ms}ms`)),
+      ms,
+    );
   });
   return Promise.race([promise, timeout]).finally(() => {
     if (timer) clearTimeout(timer);
