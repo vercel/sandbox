@@ -412,7 +412,7 @@ async function openWithRetry<
         throw err;
       }
     },
-    { retries: 3, minTimeout: 300, factor: 2, maxRetryTime: 12_000 },
+    { retries: 2, minTimeout: 0, factor: 0 },
   );
 }
 
