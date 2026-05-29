@@ -75,13 +75,13 @@ function renderSiblings(siblings: SnapshotData[], count: string): string[] {
   for (let i = 0; i < shown.length; i++) {
     const isLast = i === shown.length - 1 && remaining <= 0;
     const connector = isLast ? "╰──" : "├──";
-    lines.push(`│   ${connector} ${chalk.gray(shown[i].sourceSessionId)}`);
+    lines.push(`│   ${connector} ${chalk.gray(shown[i].id)}`);
   }
 
   if (remaining > 0) {
     const suffix = hasPlus ? "+" : "";
     lines.push(
-      `│   ╰── ${chalk.gray(`+${remaining}${suffix} more sandboxes`)}`,
+      `│   ╰── ${chalk.gray(`+${remaining}${suffix} more snapshots`)}`,
     );
   }
 

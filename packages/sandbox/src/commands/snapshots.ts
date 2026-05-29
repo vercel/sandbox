@@ -311,7 +311,7 @@ const tree = cmd.command({
         }),
       ]);
 
-      const current = ancestors.start ?? descendants.start;
+      const current = ancestors.anchor ?? descendants.anchor;
 
       return {
         currentSnap,

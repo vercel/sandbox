@@ -229,7 +229,7 @@ export type SnapshotTreeNodeData = z.infer<typeof SnapshotTreeNode>;
 
 export const SnapshotTreeResponse = z.object({
   snapshots: z.array(SnapshotTreeNode),
-  start: SnapshotTreeNode.optional(),
+  anchor: SnapshotTreeNode.optional(),
   pagination: CursorPagination,
 });
 

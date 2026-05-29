@@ -212,12 +212,12 @@ describe("renderSnapshotTree", () => {
       }),
     );
 
-    expect(plain).toContain("sbx_s1");
-    expect(plain).toContain("sbx_s2");
-    expect(plain).not.toContain("more sandboxes");
+    expect(plain).toContain("snap_s1");
+    expect(plain).toContain("snap_s2");
+    expect(plain).not.toContain("more snapshots");
   });
 
-  test("renders '+N more sandboxes' when siblings exceed the max-show limit", () => {
+  test("renders '+N more snapshots' when siblings exceed the max-show limit", () => {
     const parent = makeSnapshot({ id: "snap_parent" });
     // 7 siblings total (count = 8, main + 7 siblings), max shown is 5
     const siblings = Array.from({ length: 7 }, (_, i) =>
@@ -235,15 +235,15 @@ describe("renderSnapshotTree", () => {
       }),
     );
 
-    // First 5 sessions visible
+    // First 5 snapshots visible
     for (let i = 0; i < 5; i++) {
-      expect(plain).toContain(`sbx_s${i}`);
+      expect(plain).toContain(`snap_s${i}`);
     }
     // remaining = totalSiblings(7) - shown(5) = 2
-    expect(plain).toContain("+2 more sandboxes");
+    expect(plain).toContain("+2 more snapshots");
   });
 
-  test("renders '+N+ more sandboxes' when the count is truncated (e.g. '10+')", () => {
+  test("renders '+N+ more snapshots' when the count is truncated (e.g. '10+')", () => {
     const parent = makeSnapshot({ id: "snap_parent" });
     // Server returned "10+" with 9 siblings (CHILDREN_PER_NODE_LIMIT - 1)
     const siblings = Array.from({ length: 9 }, (_, i) =>
@@ -262,7 +262,7 @@ describe("renderSnapshotTree", () => {
     );
 
     // remaining = totalSiblings(9) - shown(5) = 4, with "+" suffix
-    expect(plain).toContain("+4+ more sandboxes");
+    expect(plain).toContain("+4+ more snapshots");
   });
 
   test("renders the root marker when ancestors have no parent and pagination is exhausted", () => {
@@ -480,6 +480,6 @@ describe("renderSnapshotTree", () => {
 
     expect(plain).toContain("snap_current");
     expect(plain).toContain("◂ current");
-    expect(plain).toContain("sbx_anchor_sibling");
+    expect(plain).toContain("snap_sibling");
   });
 });
