@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.0.2
+
+### Patch Changes
+
+- Show the current snapshot's siblings in `snapshots tree`. The tree now reads the API's `anchor` node so snapshots sharing the current snapshot's parent are listed, and siblings are rendered by snapshot ID instead of source session ID. ([#211](https://github.com/vercel/sandbox/pull/211))
+
 ## 2.0.1
 
 ### Patch Changes

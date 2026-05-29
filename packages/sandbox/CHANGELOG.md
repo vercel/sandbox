@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.0.2
+
+### Patch Changes
+
+- Retry the interactive shell WebSocket open on connection failure so `sandbox connect` recovers when the sandbox-router cache is briefly stale after a named-sandbox resume. ([#210](https://github.com/vercel/sandbox/pull/210))
+
+- Show the current snapshot's siblings in `snapshots tree`. The tree now reads the API's `anchor` node so snapshots sharing the current snapshot's parent are listed, and siblings are rendered by snapshot ID instead of source session ID. ([#211](https://github.com/vercel/sandbox/pull/211))
+
+- Updated dependencies [[`7a0cddea2848ad040a5281d6fd817cbc421ffc0e`](https://github.com/vercel/sandbox/commit/7a0cddea2848ad040a5281d6fd817cbc421ffc0e)]:
+  - @vercel/sandbox@2.0.2
+
 ## 3.0.1
 
 ### Patch Changes
