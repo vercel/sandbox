@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - drives-beta
   pull_request:
 
 env:
