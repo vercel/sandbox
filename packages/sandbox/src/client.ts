@@ -65,11 +65,6 @@ const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
   return fetch(input, { ...init, headers });
 };
 
-/**
- * Runs an SDK operation and rethrows any {@link APIError} as a friendly
- * {@link StyledError}. Wrap SDK instance methods (e.g. `sandbox.stop()`) with
- * this in commands that render errors themselves and skip `sandbox.ts`.
- */
 export async function withErrorHandling<T>(
   factory: () => Promise<T>,
 ): Promise<T> {
