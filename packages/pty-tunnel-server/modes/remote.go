@@ -33,10 +33,46 @@ var _ Bootstrapper = (*ExternalProcessBootstrapper)(nil)
 // GetOrCreateServer implements Bootstrapper.
 func (e *ExternalProcessBootstrapper) GetOrCreateServer() (info config.ServerInfo, err error) {
 	info, err = config.VerifyConnection(e.ConfigPath)
-	if err != nil {
-		return e.spawnServer()
+	if err == nil {
+		// A live PID is not sufficient evidence that the server is usable. Across
+		// a snapshot/resume the config file is restored from the snapshot while
+		// the original server process is gone: the recorded PID may have been
+		// reused by an unrelated process, or a memory-restored daemon may no
+		// longer be serving.
+		if healthErr := e.pingServer(info.Port); healthErr == nil {
+			return info, nil
+		} else {
+			e.Logger.Info(
+				"Existing server config is stale (failed health check), spawning a new server",
+				"port", info.Port,
+				"pid", info.PID,
+				"error", healthErr,
+			)
+		}
 	}
-	return
+	return e.spawnServer()
+}
+
+func (e *ExternalProcessBootstrapper) pingServer(port int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	url := fmt.Sprintf("http://localhost:%d/health", port)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d", res.StatusCode)
+	}
+	return nil
 }
 
 func (e *ExternalProcessBootstrapper) spawnServer() (info config.ServerInfo, err error) {
@@ -65,6 +101,11 @@ func (e *ExternalProcessBootstrapper) spawnServer() (info config.ServerInfo, err
 
 	basename := path.Join(os.TempDir(), fmt.Sprintf("pty-tunnel-server-%d", time.Now().Nanosecond()))
 	e.Logger.Debug("Creating temporary files for server stdout/stderr", "basename", basename)
+
+	// Remove any leftover config before starting the new server.
+	if rmErr := os.Remove(e.ConfigPath); rmErr != nil && !os.IsNotExist(rmErr) {
+		e.Logger.Debug("Could not remove stale server config", "path", e.ConfigPath, "error", rmErr)
+	}
 
 	e.Logger.Info("Spawning new pty-tunnel-server process", "args", cmd.Args)
 	cmd.SysProcAttr = &syscall.SysProcAttr{

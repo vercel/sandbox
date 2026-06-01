@@ -193,7 +193,7 @@ export async function startInteractiveShell(options: {
 
   using progress = acquireRelease(
     () => ora({ discardStdin: false }).start(),
-    (s) => s.clear(),
+    (s) => s.stop(),
   );
 
   progress.text = "Setting up sandbox environment";
@@ -226,7 +226,12 @@ export async function startInteractiveShell(options: {
   });
 
   await Promise.all([
-    throwIfCommandPrematurelyExited(command, waitForProcess.signal),
+    // `throwIfCommandPrematurelyExited` rejects with an abort error once the
+    // connection is established; swallow only that interruption (a genuine
+    // premature exit is thrown before the abort and still propagates).
+    throwIfCommandPrematurelyExited(command, waitForProcess.signal).catch(
+      waitForProcess.ignoreInterruptions,
+    ),
     attach({
       sandbox: options.sandbox,
       progress,
@@ -237,28 +242,40 @@ export async function startInteractiveShell(options: {
           printCommand(options.execution[0], options.execution.slice(1)),
         ),
     }),
-  ]).catch(waitForProcess.ignoreInterruptions);
+  ]);
 }
 
 async function throwIfCommandPrematurelyExited(
   command: Command,
   signal: AbortSignal,
 ) {
+  let exitCode: number;
   try {
-    const { exitCode } = await command.wait({ signal });
-    throw new Error(
-      [
-        `Interactive shell failed to start (exit code: ${exitCode}).`,
-        `${chalk.bold("hint:")} The sandbox may have timed out or encountered an error.`,
-        "╰▶ Check sandbox status with `sandbox list` or view logs for details.",
-      ].join("\n"),
-    );
+    ({ exitCode } = await command.wait({ signal }));
   } catch (err) {
     if (signal.aborted) {
       return;
     }
     throw err;
   }
+
+  // The interactive server process exited before a connection was established.
+  // Surface its stderr.
+  let serverError = "";
+  try {
+    serverError = (await command.stderr({ signal })).trim();
+  } catch {
+    // Best-effort: never let reading the failure output mask the real error.
+  }
+
+  throw new Error(
+    [
+      `Interactive shell failed to start (exit code: ${exitCode}).`,
+      `${chalk.bold("hint:")} The sandbox may have timed out or encountered an error.`,
+      ...(serverError ? [chalk.dim(serverError)] : []),
+      "╰▶ Check sandbox status with `sandbox list` or view logs for details.",
+    ].join("\n"),
+  );
 }
 
 async function attach({
