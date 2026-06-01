@@ -130,6 +130,13 @@ export const exec = cmd.command({
         timeoutMs: timeout ? ms(timeout) : undefined,
       });
 
+      // Exit code 137 (128 + SIGKILL) is how a `--timeout` kill surfaces.
+      if (timeout && result.exitCode === 137) {
+        console.error(
+          `${chalk.yellow("Command was killed (SIGKILL, exit code 137)")}.`,
+        );
+      }
+
       process.exitCode = result.exitCode;
     } else {
       await startInteractiveShell({

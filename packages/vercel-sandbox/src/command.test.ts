@@ -68,7 +68,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     expect(result.exitCode).toBe(143);
   });
 
-  it("kills a command with SIGKILL when timeoutMs elapses", async () => {
+  it("kills a non-detached (awaited) command with SIGKILL when timeoutMs elapses", async () => {
     const cmd = await sandbox.runCommand({
       cmd: "sleep",
       args: ["60"],
@@ -76,6 +76,18 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     });
 
     expect(cmd.exitCode).toBe(137);
+  });
+
+  it("kills a detached command with SIGKILL when timeoutMs elapses", async () => {
+    const cmd = await sandbox.runCommand({
+      cmd: "sleep",
+      args: ["60"],
+      detached: true,
+      timeoutMs: 1_000,
+    });
+
+    const result = await cmd.wait();
+    expect(result.exitCode).toBe(137);
   });
 
   it("can execute commands with sudo", async () => {
