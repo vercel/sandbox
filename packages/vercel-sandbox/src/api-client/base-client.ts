@@ -3,7 +3,7 @@ import { APIError } from "./api-error.js";
 import { ZodType } from "zod";
 import { array } from "../utils/array.js";
 import { withRetry, type RequestOptions } from "./with-retry.js";
-import { Agent } from "undici";
+import { Agent, fetch as undiciFetch } from "undici";
 
 export interface RequestParams extends RequestInit {
   headers?: Record<string, string>;
@@ -28,6 +28,12 @@ export class BaseClient {
   private debug: boolean;
   private baseUrl: string;
   private agent: Agent;
+  /**
+   * Only attach the undici Agent when using the bundled undici fetch.
+   * Passing an undici@7 Agent to Node's built-in fetch (undici@8 on Node 26+)
+   * breaks response headers and brotli decompression — see #198.
+   */
+  private useBundledAgent: boolean;
 
   constructor(params: {
     debug?: boolean;
@@ -35,7 +41,12 @@ export class BaseClient {
     token?: string;
     fetch?: typeof globalThis.fetch;
   }) {
-    this.fetch = withRetry(params.fetch ?? globalThis.fetch);
+    const usesCustomFetch =
+      params.fetch !== undefined && params.fetch !== globalThis.fetch;
+    this.fetch = withRetry(
+      usesCustomFetch ? params.fetch! : (undiciFetch as typeof globalThis.fetch),
+    );
+    this.useBundledAgent = !usesCustomFetch;
     this.baseUrl = params.baseUrl;
     this.debug = params.debug ?? process.env.DEBUG_FETCH === "true";
     this.token = params.token;
@@ -53,17 +64,21 @@ export class BaseClient {
     }
 
     const start = Date.now();
-    const response = await this.fetch(url.toString(), {
+    const requestInit: RequestInit = {
       ...opts,
       body: opts?.body,
       method: opts?.method || "GET",
       headers: this.token
         ? { Authorization: `Bearer ${this.token}`, ...opts?.headers }
         : opts?.headers,
-      // @ts-expect-error Node.js' and undici's Agent have different types
-      dispatcher: this.agent,
       signal: opts?.signal,
-    });
+    };
+    if (this.useBundledAgent) {
+      // @ts-expect-error undici Agent is compatible with undici fetch only
+      requestInit.dispatcher = this.agent;
+    }
+
+    const response = await this.fetch(url.toString(), requestInit);
 
     if (this.debug) {
       const duration = Date.now() - start;
