@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.1.0
+
+### Minor Changes
+
+- Add `timeoutMs` to `runCommand` (SDK) and a `--timeout <duration>` flag to `sandbox exec` (CLI). ([#212](https://github.com/vercel/sandbox/pull/212))
+
 ## 2.0.2
 
 ### Patch Changes

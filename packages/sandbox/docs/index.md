@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.0.2
+sandbox 3.1.0
 
 ▲ sandbox [options] <command>
 
@@ -262,6 +262,7 @@ Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
+    --timeout <num UNIT>               Maximum duration to wait for the command (e.g. 30s, 5m). On expiry the process is killed with SIGKILL. Cannot be combined with --interactive. [optional]
 
 Auth & Scope:
 
@@ -343,6 +344,7 @@ Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
+    --timeout <num UNIT>               Maximum duration to wait for the command (e.g. 30s, 5m). On expiry the process is killed with SIGKILL. Cannot be combined with --interactive. [optional]
 
 Auth & Scope:
 
