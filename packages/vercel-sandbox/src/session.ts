@@ -65,9 +65,9 @@ export interface RunCommandParams {
    */
   signal?: AbortSignal;
   /**
-   * Maximum time in milliseconds to wait for the command to complete.
-   * When elapsed, the process is killed with SIGKILL. Cannot be combined with
-   * `detached: true`.
+   * Maximum time in milliseconds the command may run before it is killed with
+   * SIGKILL. The timeout is enforced by the sandbox at exec time, so it applies
+   * whether or not the command is awaited (including `detached: true`).
    */
   timeoutMs?: number;
 }
@@ -404,13 +404,6 @@ export class Session {
             timeoutMs: opts?.timeoutMs,
           }
         : commandOrParams;
-
-    if (params.detached && params.timeoutMs !== undefined) {
-      throw new TypeError(
-        "`timeoutMs` cannot be used with `detached: true`; the command must be awaited for the timeout to apply.",
-      );
-    }
-
     const wait = params.detached ? false : true;
     const pipeLogs = async (command: Command): Promise<void> => {
       if (!params.stdout && !params.stderr) {
@@ -471,6 +464,7 @@ export class Session {
       cwd: params.cwd,
       env: params.env ?? {},
       sudo: params.sudo ?? false,
+      timeout: params.timeoutMs,
       signal: params.signal,
     });
 

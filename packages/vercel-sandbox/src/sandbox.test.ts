@@ -292,19 +292,24 @@ describe("runCommand timeoutMs", () => {
     );
   });
 
-  it("throws when detached and timeoutMs are combined", async () => {
-    const runCommandMock = vi.fn();
+  it("forwards timeoutMs as `timeout` on the detached (non-wait) path", async () => {
+    const command = makeCommand();
+    const runCommandMock = vi.fn(async () => ({ json: { command } }));
     const sandbox = makeRunningSandbox(runCommandMock);
 
-    await expect(
-      sandbox.runCommand({
-        cmd: "sleep",
-        args: ["5"],
-        detached: true,
-        timeoutMs: 1000,
-      }),
-    ).rejects.toThrow(TypeError);
-    expect(runCommandMock).not.toHaveBeenCalled();
+    await sandbox.runCommand({
+      cmd: "sleep",
+      args: ["5"],
+      detached: true,
+      timeoutMs: 1000,
+    });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeout: 1000 }),
+    );
+    expect(runCommandMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ wait: true }),
+    );
   });
 });
 
