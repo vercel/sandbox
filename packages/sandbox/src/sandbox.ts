@@ -1,7 +1,8 @@
 import { run, setDefaultHelpFormatter } from "cmd-ts";
+import { APIError } from "@vercel/sandbox";
 import { app } from "./app";
 import dotenv from "dotenv-flow";
-import { StyledError } from "./error";
+import { toFriendlyApiError } from "./client";
 import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 
 dotenv.config({
@@ -25,15 +26,30 @@ async function main() {
 
     await run(app(), args);
   } catch (e) {
-    if (e instanceof StyledError) {
-      console.error();
-      console.error(e.message);
-      process.exit(1);
-    }
-
-    console.error(e);
+    await reportError(e);
     process.exit(1);
   }
+}
+
+/**
+ * Renders a terminal error. Raw {@link APIError}s (thrown by SDK instance
+ * methods that skip the client wrapper) become a friendly message; any other
+ * error prints its message only, with the stack reserved for `DEBUG` runs.
+ */
+async function reportError(error: unknown): Promise<void> {
+  const normalized =
+    error instanceof APIError ? await toFriendlyApiError(error) : error;
+
+  if (normalized instanceof Error) {
+    console.error();
+    console.error(normalized.message);
+    if (process.env.DEBUG) {
+      console.error(normalized.stack);
+    }
+    return;
+  }
+
+  console.error(normalized);
 }
 
 main();

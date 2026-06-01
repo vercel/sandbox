@@ -4,7 +4,7 @@ import ora from "ora";
 import type { Sandbox } from "@vercel/sandbox";
 import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
-import { sandboxClient } from "../client";
+import { sandboxClient, withErrorHandling } from "../client";
 import { formatBytes, formatRunDuration, timeAgo } from "../util/output";
 
 type StopResult = Awaited<ReturnType<Sandbox["stop"]>>;
@@ -111,7 +111,7 @@ export const stop = cmd.command({
           projectId: project,
           name,
         });
-        const sessionSnapshot = await sandbox.stop();
+        const sessionSnapshot = await withErrorHandling(() => sandbox.stop());
         return { name, sandbox, sessionSnapshot };
       }),
     );

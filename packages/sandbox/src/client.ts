@@ -65,36 +65,74 @@ const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
   return fetch(input, { ...init, headers });
 };
 
-async function withErrorHandling<T>(factory: () => Promise<T>): Promise<T> {
+/**
+ * Runs an SDK operation and rethrows any {@link APIError} as a friendly
+ * {@link StyledError}. Wrap SDK instance methods (e.g. `sandbox.stop()`) with
+ * this in commands that render errors themselves and skip `sandbox.ts`.
+ */
+export async function withErrorHandling<T>(
+  factory: () => Promise<T>,
+): Promise<T> {
   try {
     return await withFreshAuthRetry(factory);
   } catch (error) {
     if (error instanceof APIError) {
-      return await handleApiError(error);
+      throw await toFriendlyApiError(error);
     }
     throw error;
   }
 }
 
-async function handleApiError(error: APIError<unknown>): Promise<never> {
-  const tmpPath = await writeResponseToTemp(error);
+/** Sandbox API error response shape (`@api/with-api-errors`). */
+const ApiErrorResponse = z.object({
+  error: z.object({
+    code: z.string().optional(),
+    message: z.string(),
+  }),
+});
+
+/**
+ * Converts an {@link APIError} into a {@link StyledError} safe to show users.
+ * Known errors surface the API's message; internal/unparseable ones get a
+ * generic message and the full response is saved to a temp file for debugging.
+ */
+export async function toFriendlyApiError(
+  error: APIError<unknown>,
+): Promise<StyledError> {
   const status = error.response.status;
-  const parsedError = ApiErrorResponse.safeParse(error.json);
-  const message = parsedError.data?.error.message ?? getErrorMessage(status);
+  const parsed = ApiErrorResponse.safeParse(error.json);
+  const code = parsed.success ? parsed.data.error.code : undefined;
+  const apiMessage = parsed.success ? parsed.data.error.message : undefined;
+
+  if (apiMessage && !isInternalApiError(status, code)) {
+    const lines = [apiMessage];
+    if (status === 401 || status === 403) {
+      lines.push(
+        `╰▶ ${chalk.bold("hint:")} check your token or run \`sandbox login\`.`,
+      );
+    } else {
+      lines.push(
+        chalk.dim(`╰▶ status code: ${status} ${error.response.statusText}`),
+      );
+    }
+    return new StyledError(lines.join("\n"), error);
+  }
+
+  // Internal/unexpected: hide details, persist the raw response for debugging.
+  const tmpPath = await writeResponseToTemp(error);
   const lines = [
-    message,
+    getErrorMessage(status),
     `├▶ requested url: ${error.response.url}`,
     `├▶ status code: ${status} ${error.response.statusText}`,
     `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
   ];
-  throw new StyledError(lines.join("\n"), error);
+  return new StyledError(lines.join("\n"), error);
 }
 
-const ApiErrorResponse = z.object({
-  error: z.object({
-    message: z.string(),
-  }),
-});
+/** Internal errors never carry a user-facing message. */
+function isInternalApiError(status: number, code?: string): boolean {
+  return status >= 500 || code === "internal_server_error";
+}
 
 function getErrorMessage(status: number): string {
   if (status === 401 || status === 403) {

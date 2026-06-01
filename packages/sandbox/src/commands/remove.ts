@@ -2,7 +2,7 @@ import * as cmd from "cmd-ts";
 import { Listr } from "listr2";
 import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
-import { sandboxClient } from "../client";
+import { sandboxClient, withErrorHandling } from "../client";
 
 export const remove = cmd.command({
   name: "remove",
@@ -35,7 +35,7 @@ export const remove = cmd.command({
             projectId: project,
             name,
           });
-          await sandbox.delete();
+          await withErrorHandling(() => sandbox.delete());
         },
       }),
     );

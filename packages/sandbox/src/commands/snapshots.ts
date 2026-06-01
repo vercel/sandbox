@@ -6,7 +6,7 @@ import ora from "ora";
 import { scope } from "../args/scope";
 import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
-import { sandboxClient, snapshotClient } from "../client";
+import { sandboxClient, snapshotClient, withErrorHandling } from "../client";
 import { acquireRelease } from "../util/disposables";
 import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
 import { renderSnapshotTree } from "../util/snapshot-tree";
@@ -159,7 +159,7 @@ const remove = cmd.command({
                 `Snapshot ${snapshotId} is in status "${snapshot.status}" and cannot be deleted.`,
               );
             }
-            await snapshot.delete();
+            await withErrorHandling(() => snapshot.delete());
           },
         };
       },
