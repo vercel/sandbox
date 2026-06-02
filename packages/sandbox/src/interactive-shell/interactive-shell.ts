@@ -7,7 +7,7 @@ import {
 import createDebugger from "debug";
 import retry from "async-retry";
 import { printCommand } from "../util/print-command";
-import ora, { Ora, spinners } from "ora";
+import ora, { Ora } from "ora";
 import { PassThrough } from "node:stream";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -30,8 +30,6 @@ const debugPty = createDebugger("sandbox:interactive-shell:pty");
  */
 const TERM = "xterm-256color";
 
-const neverResolvedPromise = new Promise<void>(() => {});
-
 /**
  * Prepares the sandbox environment for interactive shell by installing required dependencies
  * and copying the TTY server script.
@@ -43,25 +41,26 @@ async function setupSandboxEnvironment(
   sandbox: Sandbox,
   ora: Ora,
 ): Promise<void> {
-  using installed = createAbortController(`Finished installation`);
+  // Check whether the server is installed first, and only install it if it's
+  // missing. Doing these steps in parallel might cause a race condition where
+  // `checkIfServerInstalled` returns true but `installServerBinary` has already
+  // started modifying files.
+  let alreadyInstalled = false;
+  try {
+    alreadyInstalled = await checkIfServerInstalled(sandbox);
+  } catch (err) {
+    debug("Error checking if server is installed:", err);
+  }
 
-  const waitUntilInstalled = checkIfServerInstalled(
-    sandbox,
-    installed.signal,
-  ).then(
-    (installed) => (installed ? void 0 : neverResolvedPromise),
-    (err) => {
-      debug("Error checking if server is installed:", err);
-    },
-  );
+  if (alreadyInstalled) {
+    debug("Server binary already installed");
+    return;
+  }
 
-  await Promise.race([
-    installServerBinary(sandbox, ora, installed.signal),
-    waitUntilInstalled.then(() => debug("Server binary already installed")),
-  ]).catch(installed.ignoreInterruptions);
+  await installServerBinary(sandbox, ora);
 }
 
-async function checkIfServerInstalled(sandbox: Sandbox, signal: AbortSignal) {
+async function checkIfServerInstalled(sandbox: Sandbox, signal?: AbortSignal) {
   const exists = await sandbox.runCommand({
     cmd: "command",
     args: ["-v", SERVER_BIN_NAME],
@@ -73,7 +72,7 @@ async function checkIfServerInstalled(sandbox: Sandbox, signal: AbortSignal) {
 async function installServerBinary(
   sandbox: Sandbox,
   ora: Ora,
-  signal: AbortSignal,
+  signal?: AbortSignal,
 ) {
   let firstSent = false;
   const createPassthrough = () => {
