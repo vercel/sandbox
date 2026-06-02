@@ -938,6 +938,10 @@ export class Sandbox {
       resume: true,
       signal,
     });
+    // Do not update the session if it was not resumed.
+    if (!response.json.resumed && this.session) {
+      return;
+    }
     this.session = new Session({
       client,
       routes: response.json.routes,
