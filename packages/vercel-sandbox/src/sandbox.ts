@@ -1083,6 +1083,23 @@ export class Sandbox {
   }
 
   /**
+   * Open an interactive shell session, resuming the sandbox if needed.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns The WebSocket URL and token used to connect to the PTY.
+   */
+  async openInteractive(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ url: string; token: string }> {
+    "use step";
+    return this.withResume(
+      () => this.session!.openInteractive(opts),
+      opts?.signal,
+    );
+  }
+
+  /**
    * Read a file from the filesystem of this sandbox as a stream.
    *
    * @param file - File to read, with path and optional cwd
