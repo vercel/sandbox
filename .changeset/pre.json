@@ -15,5 +15,7 @@
     "sandbox": "3.0.0",
     "@vercel/sandbox": "2.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "famous-pugs-scream"
+  ]
 }

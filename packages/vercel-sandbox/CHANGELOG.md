@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.2.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
 ## 2.1.1
 
 ### Patch Changes
