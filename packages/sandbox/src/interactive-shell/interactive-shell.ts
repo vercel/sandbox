@@ -7,7 +7,7 @@ import {
 import createDebugger from "debug";
 import retry from "async-retry";
 import { printCommand } from "../util/print-command";
-import ora, { Ora, spinners } from "ora";
+import ora, { Ora } from "ora";
 import { PassThrough } from "node:stream";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -30,8 +30,6 @@ const debugPty = createDebugger("sandbox:interactive-shell:pty");
  */
 const TERM = "xterm-256color";
 
-const neverResolvedPromise = new Promise<void>(() => {});
-
 /**
  * Prepares the sandbox environment for interactive shell by installing required dependencies
  * and copying the TTY server script.
@@ -43,25 +41,26 @@ async function setupSandboxEnvironment(
   sandbox: Sandbox,
   ora: Ora,
 ): Promise<void> {
-  using installed = createAbortController(`Finished installation`);
+  // Check whether the server is installed first, and only install it if it's
+  // missing. Doing these steps in parallel might cause a race condition where
+  // `checkIfServerInstalled` returns true but `installServerBinary` has already
+  // started modifying files.
+  let alreadyInstalled = false;
+  try {
+    alreadyInstalled = await checkIfServerInstalled(sandbox);
+  } catch (err) {
+    debug("Error checking if server is installed:", err);
+  }
 
-  const waitUntilInstalled = checkIfServerInstalled(
-    sandbox,
-    installed.signal,
-  ).then(
-    (installed) => (installed ? void 0 : neverResolvedPromise),
-    (err) => {
-      debug("Error checking if server is installed:", err);
-    },
-  );
+  if (alreadyInstalled) {
+    debug("Server binary already installed");
+    return;
+  }
 
-  await Promise.race([
-    installServerBinary(sandbox, ora, installed.signal),
-    waitUntilInstalled.then(() => debug("Server binary already installed")),
-  ]).catch(installed.ignoreInterruptions);
+  await installServerBinary(sandbox, ora);
 }
 
-async function checkIfServerInstalled(sandbox: Sandbox, signal: AbortSignal) {
+async function checkIfServerInstalled(sandbox: Sandbox, signal?: AbortSignal) {
   const exists = await sandbox.runCommand({
     cmd: "command",
     args: ["-v", SERVER_BIN_NAME],
@@ -73,7 +72,7 @@ async function checkIfServerInstalled(sandbox: Sandbox, signal: AbortSignal) {
 async function installServerBinary(
   sandbox: Sandbox,
   ora: Ora,
-  signal: AbortSignal,
+  signal?: AbortSignal,
 ) {
   let firstSent = false;
   const createPassthrough = () => {
@@ -193,7 +192,7 @@ export async function startInteractiveShell(options: {
 
   using progress = acquireRelease(
     () => ora({ discardStdin: false }).start(),
-    (s) => s.clear(),
+    (s) => s.stop(),
   );
 
   progress.text = "Setting up sandbox environment";
@@ -226,7 +225,12 @@ export async function startInteractiveShell(options: {
   });
 
   await Promise.all([
-    throwIfCommandPrematurelyExited(command, waitForProcess.signal),
+    // `throwIfCommandPrematurelyExited` rejects with an abort error once the
+    // connection is established; swallow only that interruption (a genuine
+    // premature exit is thrown before the abort and still propagates).
+    throwIfCommandPrematurelyExited(command, waitForProcess.signal).catch(
+      waitForProcess.ignoreInterruptions,
+    ),
     attach({
       sandbox: options.sandbox,
       progress,
@@ -237,28 +241,40 @@ export async function startInteractiveShell(options: {
           printCommand(options.execution[0], options.execution.slice(1)),
         ),
     }),
-  ]).catch(waitForProcess.ignoreInterruptions);
+  ]);
 }
 
 async function throwIfCommandPrematurelyExited(
   command: Command,
   signal: AbortSignal,
 ) {
+  let exitCode: number;
   try {
-    const { exitCode } = await command.wait({ signal });
-    throw new Error(
-      [
-        `Interactive shell failed to start (exit code: ${exitCode}).`,
-        `${chalk.bold("hint:")} The sandbox may have timed out or encountered an error.`,
-        "╰▶ Check sandbox status with `sandbox list` or view logs for details.",
-      ].join("\n"),
-    );
+    ({ exitCode } = await command.wait({ signal }));
   } catch (err) {
     if (signal.aborted) {
       return;
     }
     throw err;
   }
+
+  // The interactive server process exited before a connection was established.
+  // Surface its stderr.
+  let serverError = "";
+  try {
+    serverError = (await command.stderr({ signal })).trim();
+  } catch {
+    // Best-effort: never let reading the failure output mask the real error.
+  }
+
+  throw new Error(
+    [
+      `Interactive shell failed to start (exit code: ${exitCode}).`,
+      `${chalk.bold("hint:")} The sandbox may have timed out or encountered an error.`,
+      ...(serverError ? [chalk.dim(serverError)] : []),
+      "╰▶ Check sandbox status with `sandbox list` or view logs for details.",
+    ].join("\n"),
+  );
 }
 
 async function attach({

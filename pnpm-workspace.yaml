@@ -7,3 +7,5 @@ catalog:
   vitest: 3.2.1
 
 minimumReleaseAge: 2880
+minimumReleaseAgeExclude:
+  - undici

@@ -114,6 +114,9 @@ export const exec = cmd.command({
             projectId: project,
             teamId: team,
             token,
+            // Resume up front so the sandbox is already running by the time the
+            // interactive-shell setup runs its parallel steps.
+            resume: true,
             __includeSystemRoutes: true,
           });
 
