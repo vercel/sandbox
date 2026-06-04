@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.1.1
+
+### Patch Changes
+
+- Update Undici version to fix incompatibility with Node.js 26 ([#220](https://github.com/vercel/sandbox/pull/220))
+
 ## 2.1.0
 
 ### Minor Changes
