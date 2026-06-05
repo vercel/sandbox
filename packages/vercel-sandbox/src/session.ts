@@ -405,26 +405,7 @@ export class Session {
           }
         : commandOrParams;
     const wait = params.detached ? false : true;
-    const pipeLogs = async (command: Command): Promise<void> => {
-      if (!params.stdout && !params.stderr) {
-        return;
-      }
-
-      try {
-        for await (const log of command.logs({ signal: params.signal })) {
-          if (log.stream === "stdout") {
-            params.stdout?.write(log.data);
-          } else if (log.stream === "stderr") {
-            params.stderr?.write(log.data);
-          }
-        }
-      } catch (err) {
-        if (params.signal?.aborted) {
-          return;
-        }
-        throw err;
-      }
-    };
+    const shouldPipeLogs = Boolean(params.stdout || params.stderr);
 
     if (wait) {
       const commandStream = await client.runCommand({
@@ -435,20 +416,22 @@ export class Session {
         env: params.env ?? {},
         sudo: params.sudo ?? false,
         wait: true,
+        logs: shouldPipeLogs,
+        onLog: shouldPipeLogs
+          ? (log) => {
+              if (log.stream === "stdout") {
+                params.stdout?.write(log.data);
+              } else {
+                params.stderr?.write(log.data);
+              }
+            }
+          : undefined,
         timeout: params.timeoutMs,
         signal: params.signal,
       });
 
-      const command = new Command({
-        client,
-        sessionId: this.session.id,
-        cmd: commandStream.command,
-      });
+      const finished = await commandStream.finished;
 
-      const [finished] = await Promise.all([
-        commandStream.finished,
-        pipeLogs(command),
-      ]);
       return new CommandFinished({
         client,
         sessionId: this.session.id,
@@ -474,12 +457,24 @@ export class Session {
       cmd: commandResponse.json.command,
     });
 
-    void pipeLogs(command).catch((err) => {
-      if (params.signal?.aborted) {
-        return;
-      }
-      (params.stderr ?? params.stdout)?.emit("error", err);
-    });
+    if (shouldPipeLogs) {
+      (async () => {
+        try {
+          for await (const log of command.logs({ signal: params.signal })) {
+            if (log.stream === "stdout") {
+              params.stdout?.write(log.data);
+            } else if (log.stream === "stderr") {
+              params.stderr?.write(log.data);
+            }
+          }
+        } catch (err) {
+          if (params.signal?.aborted) {
+            return;
+          }
+          (params.stderr ?? params.stdout)?.emit("error", err);
+        }
+      })();
+    }
 
     return command;
   }

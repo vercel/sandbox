@@ -142,7 +142,66 @@ describe("updatePorts", () => {
 });
 
 describe("_runCommand error handling", () => {
-  it("rejects non-detached runCommand when log streaming fails", async () => {
+  it("pipes non-detached runCommand logs from the wait stream", async () => {
+    const command = makeCommand();
+
+    const runCommandMock = vi.fn(
+      async ({
+        onLog,
+      }: {
+        onLog?: (log: { stream: "stdout" | "stderr"; data: string }) => void;
+      }) => {
+        onLog?.({ stream: "stdout", data: "hello\n" });
+        onLog?.({ stream: "stderr", data: "warning\n" });
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      },
+    );
+    const getLogsMock = vi.fn();
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+        getLogs: getLogsMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    let stdoutData = "";
+    let stderrData = "";
+    stdout.on("data", (chunk) => {
+      stdoutData += chunk.toString();
+    });
+    stderr.on("data", (chunk) => {
+      stderrData += chunk.toString();
+    });
+
+    await sandbox.runCommand({
+      cmd: "echo",
+      args: ["hello"],
+      stdout,
+      stderr,
+    });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        logs: true,
+      }),
+    );
+    expect(getLogsMock).not.toHaveBeenCalled();
+    expect(stdoutData).toBe("hello\n");
+    expect(stderrData).toBe("warning\n");
+  });
+
+  it("rejects non-detached runCommand when wait stream log streaming fails", async () => {
     const command = makeCommand();
     const logsError = new APIError(new Response("failed", { status: 500 }), {
       message: "Failed to stream logs",
@@ -153,23 +212,16 @@ describe("_runCommand error handling", () => {
       if (wait) {
         return {
           command,
-          finished: Promise.resolve({ ...command, exitCode: 0 }),
+          finished: Promise.reject(logsError),
         };
       }
 
       return { json: { command } };
     });
 
-    const getLogsMock = vi.fn(() =>
-      (async function* () {
-        throw logsError;
-      })(),
-    );
-
     const sandbox = new Sandbox({
       client: {
         runCommand: runCommandMock,
-        getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
       sandbox: makeSandboxMetadata(),

@@ -213,6 +213,8 @@ export const LogLine = z.discriminatedUnion("stream", [
   LogLineStderr,
   LogError,
 ]);
+export type LogLineData = z.infer<typeof LogLine>;
+export type LogOutputLine = Exclude<LogLineData, z.infer<typeof LogError>>;
 
 export const SnapshotsResponse = z.object({
   snapshots: z.array(Snapshot),
