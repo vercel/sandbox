@@ -23,6 +23,15 @@ export type {
 export { StreamError } from "./api-client/api-error.js";
 export { APIError } from "./api-client/api-error.js";
 export { FileSystem } from "./filesystem.js";
+export {
+  Containers,
+  Container,
+  ContainerRuntimeNotInstalledError,
+} from "./containers.js";
+export type {
+  StartContainerOptions,
+  InstallContainerRuntimeOptions,
+} from "./containers.js";
 export { defineSandboxProxy } from "./proxy.js";
 export type {
   InvalidRequestProxyHandler,

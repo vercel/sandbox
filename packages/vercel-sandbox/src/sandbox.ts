@@ -25,6 +25,7 @@ import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
+import { Containers } from "./containers.js";
 
 export type {
   NetworkPolicy,
@@ -307,6 +308,21 @@ export class Sandbox {
    * const stats = await sandbox.fs.stat('/tmp/hello.txt');
    */
   public readonly fs: FileSystem;
+
+  /**
+   * Run containers inside the sandbox with a Docker-compatible runtime
+   * (nerdctl + containerd). Call `containers.install()` to install the runtime,
+   * or create the sandbox from an image that already includes one.
+   *
+   * @example
+   * await sandbox.containers.install();
+   * const container = await sandbox.containers.start('redis:latest', {
+   *   ports: { 6379: 6379 },
+   *   volumes: { './redis-data': '/data' },
+   * });
+   * const result = await container.exec('redis-cli', 'PING');
+   */
+  public readonly containers: Containers;
 
   /**
    * Lazily resolve credentials and construct an API client.
@@ -904,6 +920,7 @@ export class Sandbox {
     this.projectId = projectId ?? "";
     this.onResume = onResume;
     this.fs = new FileSystem(this);
+    this.containers = new Containers(this);
   }
 
   /**
