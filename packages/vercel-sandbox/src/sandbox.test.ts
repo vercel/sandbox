@@ -183,7 +183,7 @@ describe("_runCommand error handling", () => {
       stderrData += chunk.toString();
     });
 
-    await sandbox.runCommand({
+    const result = await sandbox.runCommand({
       cmd: "echo",
       args: ["hello"],
       stdout,
@@ -199,6 +199,9 @@ describe("_runCommand error handling", () => {
     expect(getLogsMock).not.toHaveBeenCalled();
     expect(stdoutData).toBe("hello\n");
     expect(stderrData).toBe("warning\n");
+    await expect(result.stdout()).resolves.toBe("hello\n");
+    await expect(result.stderr()).resolves.toBe("warning\n");
+    expect(getLogsMock).not.toHaveBeenCalled();
   });
 
   it("rejects non-detached runCommand when wait stream log streaming fails", async () => {
@@ -236,6 +239,46 @@ describe("_runCommand error handling", () => {
         stdout: new PassThrough(),
       }),
     ).rejects.toBe(logsError);
+  });
+
+  it("caches non-detached runCommand logs for stdout and stderr methods", async () => {
+    const command = makeCommand();
+
+    const runCommandMock = vi.fn(
+      async ({
+        onLog,
+      }: {
+        onLog?: (log: { stream: "stdout" | "stderr"; data: string }) => void;
+      }) => {
+        onLog?.({ stream: "stdout", data: "hello\n" });
+        onLog?.({ stream: "stderr", data: "warning\n" });
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      },
+    );
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    const result = await sandbox.runCommand({ cmd: "echo", args: ["hello"] });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        logs: true,
+      }),
+    );
+    await expect(result.stdout()).resolves.toBe("hello\n");
+    await expect(result.stderr()).resolves.toBe("warning\n");
   });
 
   it("emits detached log streaming errors on the provided output stream", async () => {

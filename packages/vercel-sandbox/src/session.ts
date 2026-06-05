@@ -408,6 +408,7 @@ export class Session {
     const shouldPipeLogs = Boolean(params.stdout || params.stderr);
 
     if (wait) {
+      let stdout = "", stderr = "";
       const commandStream = await client.runCommand({
         sessionId: this.session.id,
         command: params.cmd,
@@ -416,16 +417,16 @@ export class Session {
         env: params.env ?? {},
         sudo: params.sudo ?? false,
         wait: true,
-        logs: shouldPipeLogs,
-        onLog: shouldPipeLogs
-          ? (log) => {
-              if (log.stream === "stdout") {
-                params.stdout?.write(log.data);
-              } else {
-                params.stderr?.write(log.data);
-              }
-            }
-          : undefined,
+        logs: true,
+        onLog: (log) => {
+          if (log.stream === "stdout") {
+            stdout += log.data;
+            params.stdout?.write(log.data);
+          } else {
+            stderr += log.data;
+            params.stderr?.write(log.data);
+          }
+        },
         timeout: params.timeoutMs,
         signal: params.signal,
       });
@@ -437,6 +438,7 @@ export class Session {
         sessionId: this.session.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
+        output: { stdout, stderr },
       });
     }
 
