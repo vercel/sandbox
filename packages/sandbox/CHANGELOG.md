@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.2.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+### Patch Changes
+
+- Updated dependencies [[`d51a1b7cd19de15018dab2140cbc08ba646c9e2f`](https://github.com/vercel/sandbox/commit/d51a1b7cd19de15018dab2140cbc08ba646c9e2f)]:
+  - @vercel/sandbox@2.2.0-beta.0
+
 ## 3.1.2
 
 ### Patch Changes

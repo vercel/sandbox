@@ -1,4 +1,4 @@
-import { Sandbox, APIError, Snapshot } from "@vercel/sandbox";
+import { Sandbox, APIError, Snapshot, Drive } from "@vercel/sandbox";
 import { version } from "./pkg";
 import chalk from "chalk";
 import { tmpdir } from "node:os";
@@ -44,6 +44,20 @@ export const snapshotClient: Pick<
   get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
   tree: (params) =>
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+};
+
+export const driveClient: Pick<typeof Drive, "getOrCreate" | "list"> & {
+  delete(drive: Drive): Promise<void>;
+} = {
+  getOrCreate: (params) =>
+    withErrorHandling(() =>
+      Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
+    ),
+  list: (params) =>
+    withErrorHandling(() =>
+      Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
+    ),
+  delete: (drive) => withErrorHandling(() => drive.delete()),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
