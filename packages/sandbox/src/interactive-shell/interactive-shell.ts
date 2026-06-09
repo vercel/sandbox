@@ -87,9 +87,6 @@ export async function startInteractiveShell(options: {
       command: execution[0],
       args: execution.slice(1),
       env: toEnvArray({ TERM, PS1, ...options.envVars }),
-      // Default to the sandbox's working directory (e.g. `/vercel/sandbox`).
-      // The PTY server runs as a system process at `/`, so without this the
-      // shell would inherit `/` instead of the sandbox home it used to start in.
       cwd: options.cwd ?? options.sandbox.cwd,
       cols: process.stdout.columns,
       rows: process.stdout.rows,
