@@ -430,6 +430,14 @@ export class Sandbox {
   }
 
   /**
+   * The default working directory of the current session (e.g.
+   * `/vercel/sandbox`).
+   */
+  public get cwd(): string {
+    return this.currentSession().cwd;
+  }
+
+  /**
    * The status of the current session.
    */
   public get status(): SessionMetaData["status"] {

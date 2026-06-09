@@ -15,9 +15,15 @@ const debug = createDebugger("sandbox:interactive-shell");
 const TERM = "xterm-256color";
 
 /**
- * Starts an interactive shell session with a sandbox. The PTY server lives in
- * the sandbox-controller; the API hands us a WebSocket URL and token, and we
- * tunnel stdin/stdout over it. No binary is installed in the sandbox.
+ * A custom prompt so interactive sessions show the Vercel triangle and the
+ * working directory (e.g. `▲ /vercel/sandbox/ `) instead of the shell's
+ * default prompt. The server passes this through to the shell verbatim.
+ */
+const PS1 = `▲ \\[\\e[2m\\]\\w/\\[\\e[0m\\] `;
+
+/**
+ * Starts an interactive shell session with a sandbox. The API hands us a
+ * WebSocket URL and token, and we tunnel stdin/stdout over it.
  */
 export async function startInteractiveShell(options: {
   sandbox: Sandbox;
@@ -29,11 +35,15 @@ export async function startInteractiveShell(options: {
 }) {
   let cleaned = false;
   const cleanup = () => {
-    if (cleaned) return;
+    if (cleaned) {
+      return;
+    }
+
     process.stdin.removeAllListeners();
     try {
       process.stdin.setRawMode(false);
       process.stdin.pause();
+      process.stdin.unref();
     } catch {
       // Ignore errors restoring stdin.
     }
@@ -76,8 +86,11 @@ export async function startInteractiveShell(options: {
       type: "start",
       command: execution[0],
       args: execution.slice(1),
-      env: toEnvArray({ TERM, ...options.envVars }),
-      cwd: options.cwd,
+      env: toEnvArray({ TERM, PS1, ...options.envVars }),
+      // Default to the sandbox's working directory (e.g. `/vercel/sandbox`).
+      // The PTY server runs as a system process at `/`, so without this the
+      // shell would inherit `/` instead of the sandbox home it used to start in.
+      cwd: options.cwd ?? options.sandbox.cwd,
       cols: process.stdout.columns,
       rows: process.stdout.rows,
     }),
@@ -110,7 +123,9 @@ export async function startInteractiveShell(options: {
   });
 
   // stdin -> server (binary frames).
-  if (process.stdin.isTTY) process.stdin.setRawMode(true);
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
   process.stdin.resume();
   const onStdin = (chunk: Buffer) => {
     if (client.readyState === WebSocket.OPEN) {
