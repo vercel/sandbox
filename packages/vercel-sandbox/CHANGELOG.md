@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 2.2.0
+
+### Minor Changes
+
+- Move the interactive shell server out of the sandbox and into the sandbox-controller. `sandbox connect`/`ssh` (CLI) and the new `Sandbox.openInteractive()` (SDK) now request a WebSocket URL and token from the API and connect to the controller-hosted PTY, instead of installing and bootstrapping the `vc-interactive-server` binary inside the sandbox at connect time. This removes the bundled server binary along with the `@vercel/pty-tunnel` and `@vercel/pty-tunnel-server` packages. ([#222](https://github.com/vercel/sandbox/pull/222))
+
+### Patch Changes
+
+- Upgrade Zod to v4 and update validators for Zod 4 compatibility. ([#219](https://github.com/vercel/sandbox/pull/219))
+
 ## 2.1.1
 
 ### Patch Changes
