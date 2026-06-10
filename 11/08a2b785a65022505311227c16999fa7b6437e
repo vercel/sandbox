@@ -1,0 +1,51 @@
+packages/sandbox/src/interactive-shell/interactive-shell.ts
+  s_321c8c9bf251de::t_1e7f939ce9f3ee 84,86-98,102-105,109-123,126-148,150,152-154,157-159,161-163
+packages/sandbox/src/util/snapshot-tree.ts
+  s_321c8c9bf251de::t_376dc9a7146883 28,78,84,122
+packages/vercel-sandbox/CHANGELOG.md
+  s_321c8c9bf251de::t_376dc9a7146883 3-30
+packages/vercel-sandbox/src/session.ts
+  s_321c8c9bf251de::t_376dc9a7146883 67-72,363-364,370,394,400-405,438,467,504-520
+packages/vercel-sandbox/src/sandbox.test.ts
+  s_321c8c9bf251de::t_376dc9a7146883 248-315
+packages/vercel-sandbox/src/version.ts
+  s_321c8c9bf251de::t_376dc9a7146883 2
+packages/vercel-sandbox/package.json
+  s_321c8c9bf251de::t_376dc9a7146883 3,64,66
+packages/sandbox/turbo.json
+  s_321c8c9bf251de::t_376dc9a7146883 5-6
+packages/vercel-sandbox/src/sandbox.ts
+  s_321c8c9bf251de::t_376dc9a7146883 433-439,1016-1017,1023,1047,1093-1105
+packages/vercel-sandbox/src/api-client/validators.ts
+  s_321c8c9bf251de::t_376dc9a7146883 26,39,52,178-184,239,272
+pnpm-workspace.yaml
+  s_321c8c9bf251de::t_376dc9a7146883 10-11
+packages/sandbox/src/util/snapshot-tree.test.ts
+  s_321c8c9bf251de::t_376dc9a7146883 215-217,220,238,240,243,246,265,461-483
+packages/vercel-sandbox/src/command.test.ts
+  s_321c8c9bf251de::t_376dc9a7146883 71-92
+packages/sandbox/CHANGELOG.md
+  s_321c8c9bf251de::t_376dc9a7146883 3-50
+packages/sandbox/docs/index.md
+  s_321c8c9bf251de::t_376dc9a7146883 4,265,347
+packages/vercel-sandbox/src/api-client/api-client.ts
+  s_321c8c9bf251de::t_376dc9a7146883 11,224,235,246,261,329,371-385
+packages/sandbox/package.json
+  s_321c8c9bf251de::t_376dc9a7146883 4,51,59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "1108a2b785a65022505311227c16999fa7b6437e",
+  "prompts": {},
+  "sessions": {
+    "s_321c8c9bf251de": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_14e36027fffeKcLCTUKRb9a1c1",
+        "model": "openai/gpt-5.5"
+      },
+      "human_author": "Gal Schlezinger <gal@spitfire.co.il>"
+    }
+  }
+}
