@@ -2,8 +2,8 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "env": ["VERCEL_ENV", "VC_TUNNEL_SERVER_INSTALLER"],
-      "inputs": ["package.json", "src/**", "../pty-tunnel-server/public"],
+      "env": ["VERCEL_ENV"],
+      "inputs": ["package.json", "src/**"],
       "outputs": ["dist"],
       "cache": true
     },

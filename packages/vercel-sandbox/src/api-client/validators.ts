@@ -175,6 +175,13 @@ export const SessionAndRoutesResponse = SessionResponse.extend({
   routes: z.array(SandboxRoute),
 });
 
+export type InteractiveSessionData = z.infer<typeof InteractiveSessionResponse>;
+
+export const InteractiveSessionResponse = z.object({
+  url: z.string(),
+  token: z.string(),
+});
+
 export const SessionsResponse = z.object({
   sessions: z.array(Session.passthrough()),
   pagination: CursorPagination,
