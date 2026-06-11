@@ -164,7 +164,7 @@ export async function inferScope(opts: {
 
   throw new NotOk({
     statusCode: 403,
-    responseText: `Authenticated as "${username}" but none of the available teams allow sandbox creation. Specify a team explicitly with --scope <team-id-or-slug>.`,
+    responseText: `Authenticated as "${username}" but none of the available teams allow sandbox creation.`,
   });
 }
 

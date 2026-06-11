@@ -118,7 +118,8 @@ export const scope: ArgParser<{
         teamSlug = scope.ownerSlug;
       } catch (err) {
         debug("scope inference failed: %O", err);
-        const detail = err instanceof NotOk ? ` ${err.message}` : "";
+        const detail =
+          err instanceof NotOk ? ` ${err.response.responseText}` : "";
         return {
           _tag: "error",
           error: {

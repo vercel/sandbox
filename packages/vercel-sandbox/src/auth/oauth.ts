@@ -290,8 +290,9 @@ class OAuthError extends Error {
     super(message);
     const error = processOAuthErrorResponse(response);
     if (error instanceof TypeError) {
-      const message = `Unexpected server response: ${JSON.stringify(response)}`;
-      this.cause = new Error(message, { cause: error });
+      this.cause = new Error(
+        "Unexpected response from the Vercel authorization server.",
+      );
       this.code = "server_error";
       return;
     }
