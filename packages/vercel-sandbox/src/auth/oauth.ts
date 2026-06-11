@@ -84,7 +84,7 @@ export async function OAuth() {
 
       if (!parsed.success) {
         throw new OAuthError(
-          `Failed to parse device authorization response: ${parsed.error.message}`,
+          "Failed to parse device authorization response from the Vercel authorization server.",
           json,
         );
       }
@@ -146,7 +146,7 @@ export async function OAuth() {
       if (!processed.success) {
         return [
           new OAuthError(
-            `Failed to parse token response: ${processed.error.message}`,
+            "Failed to parse token response from the Vercel authorization server.",
             json,
           ),
         ];
@@ -219,7 +219,7 @@ export async function OAuth() {
       const processed = IntrospectionResponse.safeParse(json);
       if (!processed.success) {
         throw new OAuthError(
-          `Failed to parse introspection response: ${processed.error.message}`,
+          "Failed to parse introspection response from the Vercel authorization server.",
           json,
         );
       }

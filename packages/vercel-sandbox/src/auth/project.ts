@@ -13,7 +13,7 @@ const UserSchema = z.object({
 const TeamSchema = z.object({
   id: z.string(),
   slug: z.string(),
-  updatedAt: z.number(),
+  updatedAt: z.number().optional(),
   membership: z.object({
     role: z.string(),
   }),
@@ -23,7 +23,15 @@ const TeamSchema = z.object({
 });
 
 const TeamsSchema = z.object({
-  teams: z.array(TeamSchema),
+  // Parse each team independently and drop any that don't validate, so a single
+  // malformed/limited team entry can never break candidate selection for the
+  // whole page.
+  teams: z.array(z.unknown()).transform((entries) =>
+    entries.flatMap((entry) => {
+      const parsed = TeamSchema.safeParse(entry);
+      return parsed.success ? [parsed.data] : [];
+    }),
+  ),
   pagination: z.object({
     count: z.number(),
     next: z.number().nullable(),
@@ -134,7 +142,7 @@ export async function inferScope(opts: {
 
     const bestHobbyTeam =
       hobbyOwnerTeams.find((t) => t.slug === username) ??
-      hobbyOwnerTeams.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      hobbyOwnerTeams.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
 
     if (bestHobbyTeam && bestHobbyTeam.id !== defaultTeamId) {
       try {
