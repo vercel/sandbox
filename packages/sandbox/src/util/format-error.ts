@@ -59,7 +59,7 @@ async function writeResponseToTemp({
   text,
 }: APIError<unknown>): Promise<string> {
   const unique = [process.pid, process.hrtime.bigint()]
-    .map((x) => x.toString(12))
+    .map((x) => x.toString(36))
     .join("");
   const tmpPath = Path.join(tmpdir(), `sandbox-cli-response-${unique}.http`);
 
