@@ -144,6 +144,56 @@ describe("team selection from paginated results", () => {
     expect(scope.teamId).toBe("team_good");
   });
 
+  test("keeps a team that is missing updatedAt (limited-access DTO)", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({
+        defaultTeamId: null,
+        username: "my-user",
+        // The limited-access team DTO omits `updatedAt`. The team must still be
+        // selectable rather than failing the whole page.
+        teams: [
+          {
+            id: "team_personal",
+            slug: "my-user",
+            membership: { role: "OWNER" },
+            billing: { plan: "hobby" },
+          } as never,
+        ],
+      }),
+    );
+
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("team_personal");
+  });
+
+  test("skips malformed team entries instead of throwing", async () => {
+    fetchApiMock.mockImplementation(async ({ endpoint }) => {
+      if (endpoint === "/v2/user") {
+        return { user: { defaultTeamId: null, username: "my-user" } };
+      }
+      if (endpoint.startsWith("/v2/teams")) {
+        return {
+          teams: [
+            // Fully malformed entry (missing membership/billing) — must be dropped.
+            { id: "team_broken", slug: "broken" },
+            {
+              id: "team_good",
+              slug: "good-team",
+              updatedAt: 100,
+              membership: { role: "OWNER" },
+              billing: { plan: "hobby" },
+            },
+          ],
+          pagination: { count: 2, next: null },
+        };
+      }
+      return {};
+    });
+
+    const scope = await inferScope({ token: "token" });
+    expect(scope.teamId).toBe("team_good");
+  });
+
   test("falls back to username when no hobby owner teams found", async () => {
     fetchApiMock.mockImplementation(
       mockUserAndTeams({
@@ -350,7 +400,7 @@ describe("inferScope", () => {
       });
 
       await expect(inferScope({ token: "token" })).rejects.toThrowError(
-        /Authenticated as "my-user" but none of the available teams allow sandbox creation\. Specify a team explicitly with --scope/,
+        /Authenticated as "my-user" but none of the available teams allow sandbox creation\./,
       );
     });
 

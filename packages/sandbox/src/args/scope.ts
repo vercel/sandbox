@@ -4,7 +4,11 @@ import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import { inferScope } from "../util/infer-scope";
 import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
+import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
 import chalk from "chalk";
+import createDebugger from "debug";
+
+const debug = createDebugger("sandbox:scope");
 
 const project = cmd.option({
   long: "project",
@@ -113,6 +117,9 @@ export const scope: ArgParser<{
         projectSlug = scope.projectSlug;
         teamSlug = scope.ownerSlug;
       } catch (err) {
+        debug("scope inference failed: %O", err);
+        const detail =
+          err instanceof NotOk ? ` ${err.response.responseText}` : "";
         return {
           _tag: "error",
           error: {
@@ -120,7 +127,7 @@ export const scope: ArgParser<{
               {
                 nodes,
                 message: [
-                  `Could not determine team/project scope: ${(err as Error).message}.`,
+                  `Could not determine team/project scope.${detail}`,
                   `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, or set VERCEL_OIDC_TOKEN.`,
                   "╰▶ Docs: https://vercel.com/docs/sandbox",
                 ].join("\n"),
