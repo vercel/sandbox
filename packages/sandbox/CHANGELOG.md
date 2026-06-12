@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.2.1
+
+### Patch Changes
+
+- Fix scope inference failing with a raw Zod validation error. Teams missing `updatedAt` are now kept and malformed team entries are skipped. The CLI also no longer leaks raw validation details when scope can't be determined, showing a friendly hint instead. OAuth response parse failures are masked the same way. ([#225](https://github.com/vercel/sandbox/pull/225))
+
+- Prettify timeout and API errors. Unknown errors print a single line; set `DEBUG=sandbox:errors` to see the full stack. ([#226](https://github.com/vercel/sandbox/pull/226))
+
+- Updated dependencies [[`d57891c7552f872a0ce659b4b55aaa8d85415a2f`](https://github.com/vercel/sandbox/commit/d57891c7552f872a0ce659b4b55aaa8d85415a2f)]:
+  - @vercel/sandbox@2.2.1
+
 ## 3.2.0
 
 ### Minor Changes
