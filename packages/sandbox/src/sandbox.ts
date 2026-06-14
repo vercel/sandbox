@@ -1,7 +1,7 @@
 import { run, setDefaultHelpFormatter } from "cmd-ts";
 import { app } from "./app";
 import dotenv from "dotenv-flow";
-import { StyledError } from "./error";
+import { printTopLevelError } from "./util/format-error";
 import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 
 dotenv.config({
@@ -25,13 +25,7 @@ async function main() {
 
     await run(app(), args);
   } catch (e) {
-    if (e instanceof StyledError) {
-      console.error();
-      console.error(e.message);
-      process.exit(1);
-    }
-
-    console.error(e);
+    await printTopLevelError(e);
     process.exit(1);
   }
 }

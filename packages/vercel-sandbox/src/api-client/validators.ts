@@ -23,7 +23,7 @@ const RuleMatchValidator = z.object({
 export const InjectionRuleValidator = z.object({
   domain: z.string(),
   // headers are only sent in requests
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   // headerNames are returned in responses
   headerNames: z.array(z.string()).optional(),
   match: RuleMatchValidator.optional(),
@@ -36,7 +36,7 @@ export const ForwardRuleValidator = z.object({
 });
 
 export const NetworkPolicyTransformValidator = z.object({
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
 });
 
 export const NetworkPolicyRuleValidator = z.object({
@@ -49,7 +49,7 @@ export const V2NetworkPolicyObjectValidator = z.object({
   allow: z
     .union([
       z.array(z.string()),
-      z.record(z.array(NetworkPolicyRuleValidator)),
+      z.record(z.string(), z.array(NetworkPolicyRuleValidator)),
     ])
     .optional(),
   subnets: z
@@ -175,6 +175,13 @@ export const SessionAndRoutesResponse = SessionResponse.extend({
   routes: z.array(SandboxRoute),
 });
 
+export type InteractiveSessionData = z.infer<typeof InteractiveSessionResponse>;
+
+export const InteractiveSessionResponse = z.object({
+  url: z.string(),
+  token: z.string(),
+});
+
 export const SessionsResponse = z.object({
   sessions: z.array(Session.passthrough()),
   pagination: CursorPagination,
@@ -264,7 +271,7 @@ export const Sandbox = z.object({
   status: Session.shape.status,
   statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
-  tags: z.record(z.string()).optional(),
+  tags: z.record(z.string(), z.string()).optional(),
   snapshotExpiration: z.number().optional(),
   keepLastSnapshots: z
     .object({

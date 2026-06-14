@@ -430,6 +430,14 @@ export class Sandbox {
   }
 
   /**
+   * The default working directory of the current session (e.g.
+   * `/vercel/sandbox`).
+   */
+  public get cwd(): string {
+    return this.currentSession().cwd;
+  }
+
+  /**
    * The status of the current session.
    */
   public get status(): SessionMetaData["status"] {
@@ -1078,6 +1086,23 @@ export class Sandbox {
     "use step";
     return this.withResume(
       () => this.session!.mkDir(path, opts),
+      opts?.signal,
+    );
+  }
+
+  /**
+   * Open an interactive shell session, resuming the sandbox if needed.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns The WebSocket URL and token used to connect to the PTY.
+   */
+  async openInteractive(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ url: string; token: string }> {
+    "use step";
+    return this.withResume(
+      () => this.session!.openInteractive(opts),
       opts?.signal,
     );
   }

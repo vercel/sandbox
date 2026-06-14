@@ -1,5 +1,27 @@
 # sandbox
 
+## 3.2.1
+
+### Patch Changes
+
+- Fix scope inference failing with a raw Zod validation error. Teams missing `updatedAt` are now kept and malformed team entries are skipped. The CLI also no longer leaks raw validation details when scope can't be determined, showing a friendly hint instead. OAuth response parse failures are masked the same way. ([#225](https://github.com/vercel/sandbox/pull/225))
+
+- Prettify timeout and API errors. Unknown errors print a single line; set `DEBUG=sandbox:errors` to see the full stack. ([#226](https://github.com/vercel/sandbox/pull/226))
+
+- Updated dependencies [[`d57891c7552f872a0ce659b4b55aaa8d85415a2f`](https://github.com/vercel/sandbox/commit/d57891c7552f872a0ce659b4b55aaa8d85415a2f)]:
+  - @vercel/sandbox@2.2.1
+
+## 3.2.0
+
+### Minor Changes
+
+- Move the interactive shell server out of the sandbox and into the sandbox-controller. `sandbox connect`/`ssh` (CLI) and the new `Sandbox.openInteractive()` (SDK) now request a WebSocket URL and token from the API and connect to the controller-hosted PTY, instead of installing and bootstrapping the `vc-interactive-server` binary inside the sandbox at connect time. This removes the bundled server binary along with the `@vercel/pty-tunnel` and `@vercel/pty-tunnel-server` packages. ([#222](https://github.com/vercel/sandbox/pull/222))
+
+### Patch Changes
+
+- Updated dependencies [[`4b8970d53239f50384063ddd8690ff0091f5eaa0`](https://github.com/vercel/sandbox/commit/4b8970d53239f50384063ddd8690ff0091f5eaa0), [`b37dcabfa323a1a8a13c5479dce8c28dcdbce7f4`](https://github.com/vercel/sandbox/commit/b37dcabfa323a1a8a13c5479dce8c28dcdbce7f4)]:
+  - @vercel/sandbox@2.2.0
+
 ## 3.1.2
 
 ### Patch Changes

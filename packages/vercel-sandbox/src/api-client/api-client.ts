@@ -8,6 +8,7 @@ import {
   type CommandFinishedData,
   SessionAndRoutesResponse,
   SessionResponse,
+  InteractiveSessionResponse,
   StopSessionResponse,
   SessionsResponse,
   CommandResponse,
@@ -391,6 +392,23 @@ export class APIClient extends BaseClient {
             { signal: params.signal },
           ),
         );
+  }
+
+  async openInteractive(params: {
+    sessionId: string;
+    signal?: AbortSignal;
+  }): Promise<Parsed<z.infer<typeof InteractiveSessionResponse>>> {
+    return parseOrThrow(
+      InteractiveSessionResponse,
+      await this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}/interactive`,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+          signal: params.signal,
+        },
+      ),
+    );
   }
 
   async mkDir(params: {

@@ -499,6 +499,25 @@ export class Session {
   }
 
   /**
+   * Open an interactive shell session. Returns the WebSocket URL and token the
+   * client uses to connect to the controller-hosted PTY.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   */
+  async openInteractive(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ url: string; token: string }> {
+    "use step";
+    const client = await this.ensureClient();
+    const { json } = await client.openInteractive({
+      sessionId: this.session.id,
+      signal: opts?.signal,
+    });
+    return { url: json.url, token: json.token };
+  }
+
+  /**
    * Read a file from the filesystem of this session as a stream.
    *
    * @param file - File to read, with path and optional cwd
