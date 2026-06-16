@@ -142,7 +142,69 @@ describe("updatePorts", () => {
 });
 
 describe("_runCommand error handling", () => {
-  it("rejects non-detached runCommand when log streaming fails", async () => {
+  it("pipes non-detached runCommand logs from the wait stream", async () => {
+    const command = makeCommand();
+
+    const runCommandMock = vi.fn(
+      async ({
+        onLog,
+      }: {
+        onLog?: (log: { stream: "stdout" | "stderr"; data: string }) => void;
+      }) => {
+        onLog?.({ stream: "stdout", data: "hello\n" });
+        onLog?.({ stream: "stderr", data: "warning\n" });
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      },
+    );
+    const getLogsMock = vi.fn();
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+        getLogs: getLogsMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    let stdoutData = "";
+    let stderrData = "";
+    stdout.on("data", (chunk) => {
+      stdoutData += chunk.toString();
+    });
+    stderr.on("data", (chunk) => {
+      stderrData += chunk.toString();
+    });
+
+    const result = await sandbox.runCommand({
+      cmd: "echo",
+      args: ["hello"],
+      stdout,
+      stderr,
+    });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        logs: true,
+      }),
+    );
+    expect(getLogsMock).not.toHaveBeenCalled();
+    expect(stdoutData).toBe("hello\n");
+    expect(stderrData).toBe("warning\n");
+    await expect(result.stdout()).resolves.toBe("hello\n");
+    await expect(result.stderr()).resolves.toBe("warning\n");
+    expect(getLogsMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-detached runCommand when wait stream log streaming fails", async () => {
     const command = makeCommand();
     const logsError = new APIError(new Response("failed", { status: 500 }), {
       message: "Failed to stream logs",
@@ -153,23 +215,16 @@ describe("_runCommand error handling", () => {
       if (wait) {
         return {
           command,
-          finished: Promise.resolve({ ...command, exitCode: 0 }),
+          finished: Promise.reject(logsError),
         };
       }
 
       return { json: { command } };
     });
 
-    const getLogsMock = vi.fn(() =>
-      (async function* () {
-        throw logsError;
-      })(),
-    );
-
     const sandbox = new Sandbox({
       client: {
         runCommand: runCommandMock,
-        getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
       sandbox: makeSandboxMetadata(),
@@ -184,6 +239,46 @@ describe("_runCommand error handling", () => {
         stdout: new PassThrough(),
       }),
     ).rejects.toBe(logsError);
+  });
+
+  it("caches non-detached runCommand logs for stdout and stderr methods", async () => {
+    const command = makeCommand();
+
+    const runCommandMock = vi.fn(
+      async ({
+        onLog,
+      }: {
+        onLog?: (log: { stream: "stdout" | "stderr"; data: string }) => void;
+      }) => {
+        onLog?.({ stream: "stdout", data: "hello\n" });
+        onLog?.({ stream: "stderr", data: "warning\n" });
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      },
+    );
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    const result = await sandbox.runCommand({ cmd: "echo", args: ["hello"] });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        logs: true,
+      }),
+    );
+    await expect(result.stdout()).resolves.toBe("hello\n");
+    await expect(result.stderr()).resolves.toBe("warning\n");
   });
 
   it("emits detached log streaming errors on the provided output stream", async () => {
