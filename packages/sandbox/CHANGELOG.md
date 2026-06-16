@@ -1,5 +1,11 @@
 # sandbox
 
+## 3.2.2
+
+### Patch Changes
+
+- Bump `ws` from `^8.18.3` to `^8.21.0` to address CVE-2026-48779, a high-severity memory exhaustion DoS triggered by a high volume of tiny fragments and data chunks. ([#228](https://github.com/vercel/sandbox/pull/228))
+
 ## 3.2.1
 
 ### Patch Changes

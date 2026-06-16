@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.2.1
+sandbox 3.2.2
 
 ▲ sandbox [options] <command>
 
