@@ -102,8 +102,6 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
-
-
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
