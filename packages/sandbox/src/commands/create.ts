@@ -143,8 +143,9 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          runtime,
-          image,
+          // `runtime` always carries its `node24` default, so only forward it
+          // when no image is given.
+          ...(image ? { image } : { runtime }),
           timeout: ms(timeout),
           resources,
           networkPolicy,

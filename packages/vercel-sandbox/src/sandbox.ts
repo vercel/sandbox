@@ -81,15 +81,6 @@ export interface BaseCreateSandboxParams {
    */
   resources?: { vcpus: number };
   /**
-   * The runtime of the sandbox, currently only `node24`, `node22`, `node26` and `python3.13` are supported.
-   * If not specified, the default runtime `node24` will be used.
-   */
-  runtime?: RUNTIMES | (string & {});
-  /**
-   * A Vercel Container Registry (VCR) image to start the sandbox from.
-   */
-  image?: string;
-  /**
    * Network policy to define network restrictions for the sandbox.
    * Defaults to full internet access if not specified.
    */
@@ -154,10 +145,37 @@ export interface BaseCreateSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
+/**
+ * `runtime` and `image` are mutually exclusive: a sandbox starts from either a
+ * stock runtime or a custom VCR image, never both. The `never` counterpart in
+ * each branch makes passing both a compile-time error.
+ * @inline
+ */
+export type RuntimeOrImage =
+  | {
+      /**
+       * The runtime of the sandbox, currently only `node24`, `node22`, `node26`
+       * and `python3.13` are supported.
+       * If not specified, the default runtime `node24` will be used.
+       */
+      runtime?: RUNTIMES | (string & {});
+      image?: never;
+    }
+  | {
+      /**
+       * A Vercel Container Registry (VCR) image to start the sandbox from.
+       */
+      image?: string;
+      runtime?: never;
+    };
+
 export type CreateSandboxParams =
-  | BaseCreateSandboxParams
-  | (Omit<BaseCreateSandboxParams, "runtime" | "source"> & {
+  | (BaseCreateSandboxParams & RuntimeOrImage)
+  | (Omit<BaseCreateSandboxParams, "source"> & {
       source: { type: "snapshot"; snapshotId: string };
+      // A snapshot already defines its runtime/image; neither may be set here.
+      runtime?: never;
+      image?: never;
     });
 
 /**
@@ -205,16 +223,15 @@ interface GetSandboxParams {
 }
 
 /**
- * Extends both {@link BaseCreateSandboxParams} and {@link GetSandboxParams}
- * (minus `name`, which is required on get but optional here) so that any
- * new parameter added to either flow is picked up automatically. The
- * structural overlap on `signal` / `onResume` is intentional — both
- * interfaces declare them with identical optional types.
+ * Combines {@link CreateSandboxParams} with get-specific options so that any
+ * new parameter added to either flow is picked up automatically.
  * @inline
  */
-interface GetOrCreateSandboxParams
-  extends BaseCreateSandboxParams,
-    Omit<GetSandboxParams, "name"> {
+type GetOrCreateSandboxParams = CreateSandboxParams & {
+  /**
+   * Whether to resume an existing session. Defaults to true.
+   */
+  resume?: boolean;
   /**
    * Called once after a sandbox is freshly created (not when an existing
    * sandbox is retrieved). Use this for one-time setup such as seeding
@@ -222,7 +239,7 @@ interface GetOrCreateSandboxParams
    * {@link Sandbox.getOrCreate} resolves.
    */
   onCreate?: (sandbox: Sandbox) => Promise<void>;
-}
+};
 
 function isSandboxStoppedError(err: unknown): boolean {
   return err instanceof APIError && err.response.status === 410;
@@ -619,15 +636,6 @@ export class Sandbox {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-    if (
-      params &&
-      "runtime" in params &&
-      params.runtime &&
-      "image" in params &&
-      params.image
-    ) {
-      throw new Error("`image` and `runtime` are mutually exclusive.");
-    }
 
 
     const credentials = await getCredentials(params);
@@ -644,8 +652,8 @@ export class Sandbox {
       ports: params?.ports ?? [],
       timeout: params?.timeout,
       resources: params?.resources,
-      runtime: params && "runtime" in params ? params?.runtime : undefined,
-      image: params && "image" in params ? params?.image : undefined,
+      runtime: params?.runtime,
+      image: params?.image,
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,

@@ -522,22 +522,6 @@ describe("Sandbox.create image", () => {
     expect(body.runtime).toBeUndefined();
   });
 
-  it("throws when image and runtime are both provided, without calling fetch", async () => {
-    const mockFetch = vi.fn<typeof fetch>(async () =>
-      jsonResponse(200, {}),
-    );
-
-    await expect(
-      Sandbox.create({
-        ...CREDENTIALS,
-        image: "my-repo:latest",
-        runtime: "node24",
-        fetch: mockFetch as unknown as typeof fetch,
-      }),
-    ).rejects.toThrow("`image` and `runtime` are mutually exclusive.");
-
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
 });
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
