@@ -86,6 +86,10 @@ export interface BaseCreateSandboxParams {
    */
   runtime?: RUNTIMES | (string & {});
   /**
+   * A Vercel Container Registry (VCR) image to start the sandbox from.
+   */
+  image?: string;
+  /**
    * Network policy to define network restrictions for the sandbox.
    * Defaults to full internet access if not specified.
    */
@@ -615,6 +619,17 @@ export class Sandbox {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
+    if (
+      params &&
+      "runtime" in params &&
+      params.runtime &&
+      "image" in params &&
+      params.image
+    ) {
+      throw new Error("`image` and `runtime` are mutually exclusive.");
+    }
+
+
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -630,6 +645,7 @@ export class Sandbox {
       timeout: params?.timeout,
       resources: params?.resources,
       runtime: params && "runtime" in params ? params?.runtime : undefined,
+      image: params && "image" in params ? params?.image : undefined,
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,

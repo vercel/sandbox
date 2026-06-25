@@ -28,6 +28,12 @@ export const args = {
     description: "Disable automatic restore of the filesystem between sessions.",
   }),
   runtime,
+  image: cmd.option({
+    long: "image",
+    description:
+      "A Vercel Container Registry (VCR) image to start the sandbox from (e.g. my-repo, my-repo:v1).",
+    type: cmd.optional(cmd.string),
+  }),
   timeout,
   vcpus,
   ports: publishPorts,
@@ -79,6 +85,7 @@ export const create = cmd.command({
     ports,
     scope,
     runtime,
+    image,
     timeout,
     vcpus,
     silent,
@@ -95,6 +102,8 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
+
+
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
@@ -137,6 +146,7 @@ export const create = cmd.command({
           token: scope.token,
           ports,
           runtime,
+          image,
           timeout: ms(timeout),
           resources,
           networkPolicy,
