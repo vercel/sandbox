@@ -204,6 +204,37 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+### From a Custom Image (VCR)
+
+Instead of a stock `runtime`, start a sandbox from a [Vercel Container
+Registry](https://vercel.com/docs/container-registry) (VCR) image stored in the
+sandbox's project. `image` and `runtime` are **mutually exclusive** — pass one
+or the other, never both.
+
+```typescript
+const sandbox = await Sandbox.create({
+  image: "my-repo:v1",
+  ports: [3000],
+});
+```
+
+`image` accepts a repository in the sandbox's project with an optional tag or
+digest, or a fully-qualified VCR URL. A bare repository name resolves to the
+`latest` tag:
+
+```typescript
+await Sandbox.create({ image: "my-repo" }); // latest tag
+await Sandbox.create({ image: "my-repo:v1" }); // specific tag
+await Sandbox.create({ image: "my-repo@sha256:..." }); // specific digest
+await Sandbox.create({
+  image: "vcr.vercel.com/my-team/my-project/my-repo:v1", // fully-qualified
+});
+```
+
+Push images to VCR with Docker-compatible tooling before referencing them. See the
+[Container Registry docs](https://vercel.com/docs/container-registry) for push
+instructions.
+
 ### Forking an Existing Sandbox
 
 `Sandbox.fork` seeds a new sandbox from another sandbox's current snapshot
@@ -824,6 +855,7 @@ sandbox logout
 # Create and connect
 sandbox create --connect
 sandbox create --name my-app
+sandbox create --image my-repo:v1            # Boot from a VCR image (not with --runtime)
 sandbox create --non-persistent              # Disable filesystem persistence
 sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
