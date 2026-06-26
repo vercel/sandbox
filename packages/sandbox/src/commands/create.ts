@@ -31,7 +31,7 @@ export const args = {
   image: cmd.option({
     long: "image",
     description:
-      "A Vercel Container Registry (VCR) image to start the sandbox from (e.g. my-repo, my-repo:v1).",
+      "A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1).",
     type: cmd.optional(cmd.string),
   }),
   timeout,

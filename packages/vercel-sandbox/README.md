@@ -239,6 +239,19 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+The `image` option accepts a repository in the sandbox's project, with an
+optional tag or digest. A bare repository name resolves to the `latest` tag.
+You can also pass a fully-qualified VCR URL:
+
+```typescript
+await Sandbox.create({ image: "my-repo" }); // latest tag
+await Sandbox.create({ image: "my-repo:v1" }); // specific tag
+await Sandbox.create({ image: "my-repo@sha256:..." }); // specific digest
+await Sandbox.create({
+  image: "vcr.vercel.com/my-team/my-project/my-repo:v1", // fully-qualified
+});
+```
+
 ## Sudo access
 
 The `nodeX` and `python3.13` images allow users to run commands as root. This

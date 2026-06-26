@@ -163,7 +163,15 @@ export type RuntimeOrImage =
     }
   | {
       /**
-       * A Vercel Container Registry (VCR) image to start the sandbox from.
+       * A Vercel Container Registry (VCR) image to start the sandbox from,
+       * scoped to the sandbox's project. Accepts a repository name, an
+       * optional tag or digest, or a fully-qualified VCR URL. A bare
+       * repository name resolves to the `latest` tag.
+       *
+       * @example "my-repo" // latest tag
+       * @example "my-repo:v1" // specific tag
+       * @example "my-repo@sha256:..." // specific digest
+       * @example "vcr.vercel.com/my-team/my-project/my-repo:v1" // fully-qualified
        */
       image?: string;
       runtime?: never;
