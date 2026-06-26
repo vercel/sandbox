@@ -636,8 +636,6 @@ export class Sandbox {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-
-
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,

@@ -521,7 +521,6 @@ describe("Sandbox.create image", () => {
     // Runtime must not be sent when only image is provided.
     expect(body.runtime).toBeUndefined();
   });
-
 });
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {

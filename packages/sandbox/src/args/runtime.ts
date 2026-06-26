@@ -7,7 +7,5 @@ export const runtimeType = {
 
 export const runtime = cmd.option({
   long: "runtime",
-  type: runtimeType,
-  defaultValue: () => "node24" as const,
-  defaultValueIsSerializable: true,
+  type: cmd.optional(runtimeType),
 });

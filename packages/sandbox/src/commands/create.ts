@@ -102,6 +102,10 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
+    if (image && runtime) {
+      throw new Error("--image and --runtime cannot be used together.");
+    }
+
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
@@ -143,9 +147,9 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          // `runtime` always carries its `node24` default, so only forward it
-          // when no image is given.
-          ...(image ? { image } : { runtime }),
+          // Start from either a custom image or a runtime, never both. When
+          // neither is given, default to the `node24` runtime.
+          ...(image ? { image } : { runtime: runtime ?? "node24" }),
           timeout: ms(timeout),
           resources,
           networkPolicy,
