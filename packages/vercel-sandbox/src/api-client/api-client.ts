@@ -170,6 +170,7 @@ export class APIClient extends BaseClient {
       resources?: { vcpus: number };
       persistent?: boolean;
       runtime?: RUNTIMES | (string & {});
+      image?: string;
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
       tags?: Record<string, string>;
@@ -194,6 +195,7 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
+          image: params.image,
           name: params.name,
           persistent: params.persistent,
           networkPolicy: params.networkPolicy

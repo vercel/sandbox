@@ -485,6 +485,44 @@ describe("Sandbox.getOrCreate", () => {
   });
 });
 
+describe("Sandbox.create image", () => {
+  const CREDENTIALS = {
+    token: "test-token",
+    teamId: "team_123",
+    projectId: "proj_123",
+  };
+
+  const jsonResponse = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+
+  it("sends image in the create request body", async () => {
+    // Return a 400 so create rejects predictably; we only assert the body.
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        image: "my-repo:latest",
+        fetch: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain("/v2/sandboxes");
+    expect(init?.method).toBe("POST");
+    const body = JSON.parse(String(init?.body));
+    expect(body.image).toBe("my-repo:latest");
+    // Runtime must not be sent when only image is provided.
+    expect(body.runtime).toBeUndefined();
+  });
+});
+
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Sandbox", () => {
   const PORTS = [3000, 4000];
   const SNAPSHOT_EXPIRATION = ms("1d");

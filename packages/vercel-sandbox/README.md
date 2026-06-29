@@ -226,6 +226,32 @@ zstd
 - User code is executed as the `vercel-sandbox` user.
 - `/vercel/sandbox` is writable.
 
+## Custom images
+
+Instead of a stock runtime, you can start a sandbox from a Vercel Container
+Registry (VCR) image with the `image` option:
+
+```typescript
+import { Sandbox } from "@vercel/sandbox";
+
+const sandbox = await Sandbox.create({
+  image: "my-repo:v1",
+});
+```
+
+The `image` option accepts a repository in the sandbox's project, with an
+optional tag or digest. A bare repository name resolves to the `latest` tag.
+You can also pass a fully-qualified VCR URL:
+
+```typescript
+await Sandbox.create({ image: "my-repo" }); // latest tag
+await Sandbox.create({ image: "my-repo:v1" }); // specific tag
+await Sandbox.create({ image: "my-repo@sha256:..." }); // specific digest
+await Sandbox.create({
+  image: "vcr.vercel.com/my-team/my-project/my-repo:v1", // fully-qualified
+});
+```
+
 ## Sudo access
 
 The `nodeX` and `python3.13` images allow users to run commands as root. This
