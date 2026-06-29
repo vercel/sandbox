@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 2.3.0
+
+### Minor Changes
+
+- Support creating a sandbox from a custom image via the new `image` option on `Sandbox.create` and the `--image` flag on `sandbox create` / `sandbox run`. ([#232](https://github.com/vercel/sandbox/pull/232))
+
+### Patch Changes
+
+- Single API call to run, wait and get logs of command ([#223](https://github.com/vercel/sandbox/pull/223))
+
 ## 2.2.1
 
 ### Patch Changes
