@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.3.0
+
+### Minor Changes
+
+- Support creating a sandbox from a custom image via the new `image` option on `Sandbox.create` and the `--image` flag on `sandbox create` / `sandbox run`. ([#232](https://github.com/vercel/sandbox/pull/232))
+
+### Patch Changes
+
+- Updated dependencies [[`4e1c5d868e66b9069a294ded3b2e20e08e0db10b`](https://github.com/vercel/sandbox/commit/4e1c5d868e66b9069a294ded3b2e20e08e0db10b), [`387675a3b46819e46362c359aed4b397065a180f`](https://github.com/vercel/sandbox/commit/387675a3b46819e46362c359aed4b397065a180f)]:
+  - @vercel/sandbox@2.3.0
+
 ## 3.2.2
 
 ### Patch Changes
