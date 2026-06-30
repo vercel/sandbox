@@ -1,5 +1,11 @@
 # sandbox
 
+## 3.3.1
+
+### Patch Changes
+
+- Fix the interactive shell prompt so that it is built from POSIX-portable primitives — it renders correctly regardless of which POSIX compatible shell (`bash`, `dash`, busybox `ash`) a custom image ships as `/bin/sh`. ([#236](https://github.com/vercel/sandbox/pull/236))
+
 ## 3.3.0
 
 ### Minor Changes
