@@ -21,8 +21,16 @@ const TERM = "xterm-256color";
  *
  * This is built from primitives every POSIX shell honors so it renders the
  * same regardless of which shell a customer image ships as `/bin/sh`.
+ *
+ * The color escapes are wrapped in the raw readline "ignore" markers
+ * `\x01` (RL_PROMPT_START_IGNORE) and `\x02` (RL_PROMPT_END_IGNORE) — the
+ * same bytes that bash's `\[` / `\]` decode into. This lets bash's readline
+ * exclude the (zero-width) escape sequences from its prompt-width calculation
+ * so cursor positioning stays correct on long/wrapping lines and during line
+ * editing. In non-bash shells these are C0 control bytes that terminals treat
+ * as non-printing, so they don't affect rendering there.
  */
-const PS1 = `▲ \x1b[2m$PWD/\x1b[0m `;
+const PS1 = `▲ \x01\x1b[2m\x02$PWD/\x01\x1b[0m\x02 `;
 
 /**
  * Starts an interactive shell session with a sandbox. The API hands us a
