@@ -18,8 +18,11 @@ const TERM = "xterm-256color";
  * A custom prompt so interactive sessions show the Vercel triangle and the
  * working directory (e.g. `▲ /vercel/sandbox/ `) instead of the shell's
  * default prompt. The server passes this through to the shell verbatim.
+ *
+ * This is built from primitives every POSIX shell honors so it renders the
+ * same regardless of which shell a customer image ships as `/bin/sh`.
  */
-const PS1 = `▲ \\[\\e[2m\\]\\w/\\[\\e[0m\\] `;
+const PS1 = `▲ \x1b[2m$PWD/\x1b[0m `;
 
 /**
  * Starts an interactive shell session with a sandbox. The API hands us a
