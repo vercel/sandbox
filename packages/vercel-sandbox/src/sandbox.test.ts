@@ -141,6 +141,157 @@ describe("updatePorts", () => {
   });
 });
 
+describe("update timeout", () => {
+  function setup(sessionOverrides?: Partial<SandboxMetaData>) {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const extendTimeoutMock = vi.fn(
+      async ({ duration }: { duration: number }) => ({
+        json: {
+          session: { id: "sbx_123", status: "running", timeout: duration },
+        },
+      }),
+    );
+    const sandbox = new Sandbox({
+      client: {
+        updateSandbox: updateSandboxMock,
+        extendTimeout: extendTimeoutMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        timeout: 300_000,
+        ...sessionOverrides,
+      } as any,
+      projectId: "test-project",
+    });
+    return { sandbox, updateSandboxMock, extendTimeoutMock };
+  }
+
+  it("extends the running session by the positive increment", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup();
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeout: 600_000 }),
+    );
+    // increment = new timeout (600_000) - current session timeout (300_000)
+    expect(extendTimeoutMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "sbx_123", duration: 300_000 }),
+    );
+  });
+
+  it("does not extend the session when the new timeout is not larger", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup({
+      timeout: 600_000,
+    });
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalled();
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extend the session when it is not running", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup({
+      status: "stopped",
+    });
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalled();
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extend the session when timeout is not part of the update", async () => {
+    const { sandbox, extendTimeoutMock } = setup();
+
+    await sandbox.update({ persistent: false });
+
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("expiresAt", () => {
+  it("computes the deadline from startedAt + timeout for a running session", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        startedAt: 1_000,
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_000 + 300_000));
+  });
+
+  it("falls back to createdAt when the running session has no startedAt", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(500 + 300_000));
+  });
+
+  it("falls back to the sandbox expiresAt when the session is not running", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: { ...makeSandboxMetadata(), expiresAt: 1_700_000_000_000 },
+      session: {
+        id: "sbx_123",
+        status: "stopped",
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_700_000_000_000));
+  });
+
+  it("returns the sandbox expiresAt when there is no session", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: { ...makeSandboxMetadata(), expiresAt: 1_700_000_000_000 },
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_700_000_000_000));
+  });
+
+  it("returns undefined when there is no session and no sandbox expiresAt", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toBeUndefined();
+  });
+});
+
 describe("_runCommand error handling", () => {
   it("pipes non-detached runCommand logs from the wait stream", async () => {
     const command = makeCommand();
