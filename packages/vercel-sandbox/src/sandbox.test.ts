@@ -141,6 +141,81 @@ describe("updatePorts", () => {
   });
 });
 
+describe("update timeout", () => {
+  function setup(sessionOverrides?: Partial<SandboxMetaData>) {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const extendTimeoutMock = vi.fn(
+      async ({ duration }: { duration: number }) => ({
+        json: {
+          session: { id: "sbx_123", status: "running", timeout: duration },
+        },
+      }),
+    );
+    const sandbox = new Sandbox({
+      client: {
+        updateSandbox: updateSandboxMock,
+        extendTimeout: extendTimeoutMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        timeout: 300_000,
+        ...sessionOverrides,
+      } as any,
+      projectId: "test-project",
+    });
+    return { sandbox, updateSandboxMock, extendTimeoutMock };
+  }
+
+  it("extends the running session by the positive increment", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup();
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeout: 600_000 }),
+    );
+    // increment = new timeout (600_000) - current session timeout (300_000)
+    expect(extendTimeoutMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "sbx_123", duration: 300_000 }),
+    );
+  });
+
+  it("does not extend the session when the new timeout is not larger", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup({
+      timeout: 600_000,
+    });
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalled();
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extend the session when it is not running", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup({
+      status: "stopped",
+    });
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalled();
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extend the session when timeout is not part of the update", async () => {
+    const { sandbox, extendTimeoutMock } = setup();
+
+    await sandbox.update({ persistent: false });
+
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("_runCommand error handling", () => {
   it("pipes non-detached runCommand logs from the wait stream", async () => {
     const command = makeCommand();

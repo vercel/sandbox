@@ -106,7 +106,14 @@ export const list = cmd.command({
       VCPUS: { value: (s) => s.vcpus ?? "-" },
       RUNTIME: { value: (s) => s.runtime ?? "-" },
       TIMEOUT: {
-        value: (s) => s.timeout != null ? timeAgo(s.createdAt + s.timeout) : "-",
+        // Prefer the live deadline (`expiresAt`) of the running session. Fall
+        // back to the configured timeout for non-running sandboxes that don't
+        // report `expiresAt`.
+        value: (s) => {
+          if (s.expiresAt != null) return timeAgo(s.expiresAt);
+          if (s.timeout != null) return timeAgo(s.createdAt + s.timeout);
+          return "-";
+        },
       },
       SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" },
       TAGS: { value: (s) => s.tags && Object.keys(s.tags).length > 0 ? Object.entries(s.tags).map(([k, v]) => `${k}:${v}`).join(", ") : "-" }

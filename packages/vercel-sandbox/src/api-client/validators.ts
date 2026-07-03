@@ -266,6 +266,7 @@ export const Sandbox = z.object({
   totalDurationMs: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  expiresAt: z.number().optional(),
   currentSessionId: z.string(),
   currentSnapshotId: z.string().optional(),
   status: Session.shape.status,

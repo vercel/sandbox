@@ -481,6 +481,24 @@ export class Sandbox {
   }
 
   /**
+   * When the currently running session will time out.
+   */
+  public get expiresAt(): Date | undefined {
+    if (this.session?.status === "running") {
+      const base = this.session.startedAt ?? this.session.createdAt;
+      return new Date(base.getTime() + this.session.timeout);
+    }
+
+    if (this.status === 'running') {
+      return this.sandbox.expiresAt !== undefined
+        ? new Date(this.sandbox.expiresAt)
+        : undefined;
+    }
+
+    return undefined;
+  }
+
+  /**
    * Key-value tags attached to the sandbox.
    */
   public get tags(): Record<string, string> | undefined {
@@ -1361,6 +1379,9 @@ export class Sandbox {
    * When `ports` is provided, it is treated as the full desired port list:
    * any currently exposed port omitted from the array will be deregistered.
    *
+   * When `timeout` is increased and a session is currently running, the running
+   * session's deadline is also extended.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1410,6 +1431,21 @@ export class Sandbox {
     this.sandbox = response.json.sandbox;
     if (params.ports !== undefined && response.json.routes) {
       this.session?.updateRoutes(response.json.routes);
+    }
+
+    // Apply the new timeout to the currently running session (only if it is a
+    // positive increment).
+    if (params.timeout !== undefined && this.session?.status === "running") {
+      const increment = params.timeout - this.session.timeout;
+      if (increment > 0) {
+        try {
+          await this.session.extendTimeout(increment, opts);
+        } catch (err) {
+          if (!isSandboxStoppedError(err) && !isSandboxStoppingError(err)) {
+            throw err;
+          }
+        }
+      }
     }
 
     // Update the current session config. This only applies to network policy.
