@@ -216,6 +216,82 @@ describe("update timeout", () => {
   });
 });
 
+describe("expiresAt", () => {
+  it("computes the deadline from startedAt + timeout for a running session", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        startedAt: 1_000,
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_000 + 300_000));
+  });
+
+  it("falls back to createdAt when the running session has no startedAt", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(500 + 300_000));
+  });
+
+  it("falls back to the sandbox expiresAt when the session is not running", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: { ...makeSandboxMetadata(), expiresAt: 1_700_000_000_000 },
+      session: {
+        id: "sbx_123",
+        status: "stopped",
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_700_000_000_000));
+  });
+
+  it("returns the sandbox expiresAt when there is no session", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: { ...makeSandboxMetadata(), expiresAt: 1_700_000_000_000 },
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_700_000_000_000));
+  });
+
+  it("returns undefined when there is no session and no sandbox expiresAt", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toBeUndefined();
+  });
+});
+
 describe("_runCommand error handling", () => {
   it("pipes non-detached runCommand logs from the wait stream", async () => {
     const command = makeCommand();

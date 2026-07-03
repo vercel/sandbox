@@ -489,13 +489,9 @@ export class Sandbox {
       return new Date(base.getTime() + this.session.timeout);
     }
 
-    if (this.status === 'running') {
-      return this.sandbox.expiresAt !== undefined
-        ? new Date(this.sandbox.expiresAt)
-        : undefined;
-    }
-
-    return undefined;
+    return this.sandbox.expiresAt !== undefined
+      ? new Date(this.sandbox.expiresAt)
+      : undefined;
   }
 
   /**
