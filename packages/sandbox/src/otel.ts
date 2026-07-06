@@ -38,6 +38,14 @@ export async function trace<T>(
   const tracer = otelTrace.getTracer("sandbox-cli");
 
   return tracer.startActiveSpan(name, async (span) => {
+    let setStatus: undefined | (typeof span)["setStatus"] =
+      span.setStatus.bind(span);
+    span.setStatus = (status) => {
+      setStatus?.(status);
+      setStatus = undefined;
+      return span;
+    };
+
     try {
       const result = await callback(span);
       span.setStatus({ code: SpanStatusCode.OK });
