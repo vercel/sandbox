@@ -227,6 +227,7 @@ describe("APIClient", () => {
         command: {
           ...first.command,
           exitCode: 0,
+          durationMs: 1234,
         },
       };
 
@@ -246,7 +247,10 @@ describe("APIClient", () => {
       });
 
       expect(result.command.exitCode).toBeNull();
-      await expect(result.finished).resolves.toMatchObject({ exitCode: 0 });
+      await expect(result.finished).resolves.toMatchObject({
+        exitCode: 0,
+        durationMs: 1234,
+      });
     });
 
     it("calls onLog for logs between command data when logs and wait are true", async () => {
@@ -265,6 +269,7 @@ describe("APIClient", () => {
         command: {
           ...first.command,
           exitCode: 0,
+          durationMs: 1234,
         },
       };
 
@@ -298,7 +303,10 @@ describe("APIClient", () => {
         wait: true,
         logs: true,
       });
-      await expect(result.finished).resolves.toMatchObject({ exitCode: 0 });
+      await expect(result.finished).resolves.toMatchObject({
+        exitCode: 0,
+        durationMs: 1234,
+      });
       expect(logLines).toEqual([
         { stream: "stdout", data: "hello\n" },
         { stream: "stderr", data: "warning\n" },

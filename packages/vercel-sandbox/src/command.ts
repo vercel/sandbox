@@ -1,5 +1,8 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import { APIClient, type CommandData } from "./api-client/index.js";
+import {
+  APIClient,
+  type CommandData,
+} from "./api-client/index.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
 
@@ -26,6 +29,7 @@ export interface SerializedCommand {
  */
 export interface SerializedCommandFinished extends SerializedCommand {
   exitCode: number;
+  durationMs?: number;
 }
 
 /**
@@ -74,6 +78,8 @@ export class Command {
   protected cmd: CommandData;
 
   public exitCode: number | null;
+
+  public durationMs?: number;
 
   protected outputCache: Promise<{
     stdout: string;
@@ -125,6 +131,7 @@ export class Command {
     this.sessionId = sessionId;
     this.cmd = cmd;
     this.exitCode = cmd.exitCode ?? null;
+    this.durationMs = cmd.durationMs;
     if (output) {
       this._resolvedOutput = output;
       // Note: `both` is reconstructed as stdout + stderr concatenation,
@@ -240,6 +247,7 @@ export class Command {
       sessionId: this.sessionId,
       cmd: command.json.command,
       exitCode: command.json.command.exitCode,
+      durationMs: command.json.command.durationMs,
     });
   }
 
@@ -371,11 +379,17 @@ export class CommandFinished extends Command {
   public exitCode: number;
 
   /**
+   * The duration of the command execution in milliseconds.
+   */
+  public durationMs?: number;
+
+  /**
    * @param params - Object containing client, sandbox ID, command data, and exit code.
    * @param params.client - Optional API client. If not provided, will be lazily created using global credentials.
    * @param params.sessionId - The ID of the session where the command ran.
    * @param params.cmd - The command data.
    * @param params.exitCode - The exit code of the completed command.
+   * @param params.durationMs - Optional duration of the command execution in milliseconds.
    * @param params.output - Optional cached output to restore (used during deserialization).
    */
   constructor(params: {
@@ -383,10 +397,12 @@ export class CommandFinished extends Command {
     sessionId: string;
     cmd: CommandData;
     exitCode: number;
+    durationMs?: number;
     output?: CommandOutput;
   }) {
     super({ ...params });
     this.exitCode = params.exitCode;
+    this.durationMs = params.durationMs;
   }
 
   /**
@@ -401,6 +417,7 @@ export class CommandFinished extends Command {
     return {
       ...Command[WORKFLOW_SERIALIZE](instance),
       exitCode: instance.exitCode,
+      durationMs: instance.durationMs,
     };
   }
 
@@ -420,6 +437,7 @@ export class CommandFinished extends Command {
       sessionId: data.sandboxId,
       cmd: data.cmd,
       exitCode: data.exitCode,
+      durationMs: data.durationMs,
       output: data.output,
     });
   }

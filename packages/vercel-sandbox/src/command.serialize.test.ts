@@ -12,11 +12,11 @@ import {
   SerializedCommandFinished,
   CommandOutput,
 } from "./command";
-import type { CommandData } from "./api-client";
+import type { CommandData, CommandFinishedData } from "./api-client";
 import { APIClient } from "./api-client";
 
 describe("CommandFinished serialization", () => {
-  const mockCommandData: CommandData = {
+  const mockCommandData: CommandFinishedData = {
     id: "cmd_test123",
     name: "echo",
     args: ["hello", "world"],
@@ -24,6 +24,7 @@ describe("CommandFinished serialization", () => {
     sandboxId: "sbx_test456",
     exitCode: 0,
     startedAt: 1700000000000,
+    durationMs: 1234,
   };
 
   const mockSandboxId = "sbx_test456";
@@ -34,7 +35,7 @@ describe("CommandFinished serialization", () => {
   };
 
   const createMockCommandFinished = (
-    cmd: CommandData = mockCommandData,
+    cmd: CommandFinishedData = mockCommandData,
     sandboxId: string = mockSandboxId,
     exitCode: number = 0,
     output?: CommandOutput,
@@ -205,6 +206,7 @@ describe("CommandFinished serialization", () => {
       expect(commandFinished.cmdId).toBe(mockCommandData.id);
       expect(commandFinished.cwd).toBe(mockCommandData.cwd);
       expect(commandFinished.startedAt).toBe(mockCommandData.startedAt);
+      expect(commandFinished.durationMs).toBe(mockCommandData.durationMs);
     });
 
     it("restores output for stdout() and stderr() methods", async () => {
@@ -256,6 +258,7 @@ describe("CommandFinished serialization", () => {
 
       expect(deserialized.cmdId).toBe(originalCommand.cmdId);
       expect(deserialized.exitCode).toBe(42);
+      expect(deserialized.durationMs).toBe(originalCommand.durationMs);
       expect(await deserialized.stdout()).toBe(mockOutput.stdout);
       expect(await deserialized.stderr()).toBe(mockOutput.stderr);
     });

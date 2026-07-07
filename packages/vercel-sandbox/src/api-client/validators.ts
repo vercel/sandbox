@@ -160,6 +160,8 @@ export const Command = z.object({
   cwd: z.string(),
   sessionId: z.string(),
   exitCode: z.number().nullable(),
+  // optional because the duration was not preserved for older commands
+  durationMs: z.number().optional(),
   startedAt: z.number(),
 });
 
