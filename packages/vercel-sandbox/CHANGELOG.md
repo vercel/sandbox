@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.5.0
+
+### Minor Changes
+
+- Commands now surface how long they took to execute with the `durationMs` field ([#243](https://github.com/vercel/sandbox/pull/243))
+
 ## 2.4.0
 
 ### Minor Changes

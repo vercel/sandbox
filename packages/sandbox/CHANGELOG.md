@@ -1,5 +1,14 @@
 # sandbox
 
+## 3.4.1
+
+### Patch Changes
+
+- Un-deprecate `sandbox sh` as a quick way to run a sandbox and SSH into it directly ([#241](https://github.com/vercel/sandbox/pull/241))
+
+- Updated dependencies [[`68d7fd6b124f27862ba5f7a0788d87be606eb9a3`](https://github.com/vercel/sandbox/commit/68d7fd6b124f27862ba5f7a0788d87be606eb9a3)]:
+  - @vercel/sandbox@2.5.0
+
 ## 3.4.0
 
 ### Minor Changes
