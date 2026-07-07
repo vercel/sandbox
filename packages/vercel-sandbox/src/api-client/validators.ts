@@ -23,7 +23,7 @@ const RuleMatchValidator = z.object({
 export const InjectionRuleValidator = z.object({
   domain: z.string(),
   // headers are only sent in requests
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   // headerNames are returned in responses
   headerNames: z.array(z.string()).optional(),
   match: RuleMatchValidator.optional(),
@@ -36,7 +36,7 @@ export const ForwardRuleValidator = z.object({
 });
 
 export const NetworkPolicyTransformValidator = z.object({
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
 });
 
 export const NetworkPolicyRuleValidator = z.object({
@@ -49,7 +49,7 @@ export const V2NetworkPolicyObjectValidator = z.object({
   allow: z
     .union([
       z.array(z.string()),
-      z.record(z.array(NetworkPolicyRuleValidator)),
+      z.record(z.string(), z.array(NetworkPolicyRuleValidator)),
     ])
     .optional(),
   subnets: z
@@ -160,6 +160,8 @@ export const Command = z.object({
   cwd: z.string(),
   sessionId: z.string(),
   exitCode: z.number().nullable(),
+  // optional because the duration was not preserved for older commands
+  durationMs: z.number().optional(),
   startedAt: z.number(),
 });
 
@@ -173,6 +175,13 @@ export const SessionResponse = z.object({
 
 export const SessionAndRoutesResponse = SessionResponse.extend({
   routes: z.array(SandboxRoute),
+});
+
+export type InteractiveSessionData = z.infer<typeof InteractiveSessionResponse>;
+
+export const InteractiveSessionResponse = z.object({
+  url: z.string(),
+  token: z.string(),
 });
 
 export const SessionsResponse = z.object({
@@ -213,6 +222,8 @@ export const LogLine = z.discriminatedUnion("stream", [
   LogLineStderr,
   LogError,
 ]);
+export type LogLineData = z.infer<typeof LogLine>;
+export type LogOutputLine = Exclude<LogLineData, z.infer<typeof LogError>>;
 
 export const SnapshotsResponse = z.object({
   snapshots: z.array(Snapshot),
@@ -278,14 +289,16 @@ export const Sandbox = z.object({
   totalDurationMs: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  expiresAt: z.number().optional(),
   currentSessionId: z.string(),
   currentSnapshotId: z.string().optional(),
   status: Session.shape.status,
   statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
-  tags: z.record(z.string()).optional(),
+  tags: z.record(z.string(), z.string()).optional(),
   mounts: z
     .record(
+      z.string(),
       z.object({
         drive: z.string(),
         mode: z.enum(["read-only", "read-write"]).optional(),

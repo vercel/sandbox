@@ -29,6 +29,12 @@ export const args = {
     description: "Disable automatic restore of the filesystem between sessions.",
   }),
   runtime,
+  image: cmd.option({
+    long: "image",
+    description:
+      "A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1).",
+    type: cmd.optional(cmd.string),
+  }),
   timeout,
   vcpus,
   ports: publishPorts,
@@ -81,6 +87,7 @@ export const create = cmd.command({
     ports,
     scope,
     runtime,
+    image,
     timeout,
     vcpus,
     silent,
@@ -98,6 +105,10 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
+    if (image && runtime) {
+      throw new Error("--image and --runtime cannot be used together.");
+    }
+
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
@@ -141,7 +152,9 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          runtime,
+          // Start from either a custom image or a runtime, never both. When
+          // neither is given, default to the `node24` runtime.
+          ...(image ? { image } : { runtime: runtime ?? "node24" }),
           timeout: ms(timeout),
           resources,
           networkPolicy,

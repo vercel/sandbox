@@ -174,7 +174,7 @@ const sandbox = await Sandbox.create({
     type: "git",
   },
   resources: { vcpus: 4 },
-  // Defaults to 5 minutes. The maximum is 5 hours for Pro/Enterprise, and 45 minutes for Hobby.
+  // Defaults to 5 minutes. The maximum is 24 hours for Pro/Enterprise, and 45 minutes for Hobby.
   timeout: ms("5m"),
   ports: [3000],
   runtime: "node24",
@@ -192,7 +192,7 @@ recreate an API client using OIDC or environment credentials when needed.
 ## Limitations
 
 - Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.
-- Sandboxes have a maximum runtime duration of 5 hours for Pro/Enterprise and 45 minutes for Hobby,
+- Sandboxes have a maximum runtime duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 
 ## System
@@ -225,6 +225,32 @@ zstd
 - The `python3.13` image ships a Python 3.13 runtime under `/vercel/runtimes/python`.
 - User code is executed as the `vercel-sandbox` user.
 - `/vercel/sandbox` is writable.
+
+## Custom images
+
+Instead of a stock runtime, you can start a sandbox from a Vercel Container
+Registry (VCR) image with the `image` option:
+
+```typescript
+import { Sandbox } from "@vercel/sandbox";
+
+const sandbox = await Sandbox.create({
+  image: "my-repo:v1",
+});
+```
+
+The `image` option accepts a repository in the sandbox's project, with an
+optional tag or digest. A bare repository name resolves to the `latest` tag.
+You can also pass a fully-qualified VCR URL:
+
+```typescript
+await Sandbox.create({ image: "my-repo" }); // latest tag
+await Sandbox.create({ image: "my-repo:v1" }); // specific tag
+await Sandbox.create({ image: "my-repo@sha256:..." }); // specific digest
+await Sandbox.create({
+  image: "vcr.vercel.com/my-team/my-project/my-repo:v1", // fully-qualified
+});
+```
 
 ## Sudo access
 

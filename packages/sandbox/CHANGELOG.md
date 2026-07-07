@@ -1,6 +1,6 @@
 # sandbox
 
-## 3.2.0-beta.0
+## 3.5.0-beta.0
 
 ### Minor Changes
 
@@ -9,7 +9,72 @@
 ### Patch Changes
 
 - Updated dependencies [[`d51a1b7cd19de15018dab2140cbc08ba646c9e2f`](https://github.com/vercel/sandbox/commit/d51a1b7cd19de15018dab2140cbc08ba646c9e2f)]:
-  - @vercel/sandbox@2.2.0-beta.0
+  - @vercel/sandbox@2.6.0-beta.0
+
+## 3.4.1
+
+### Patch Changes
+
+- Un-deprecate `sandbox sh` as a quick way to run a sandbox and SSH into it directly ([#241](https://github.com/vercel/sandbox/pull/241))
+
+- Updated dependencies [[`68d7fd6b124f27862ba5f7a0788d87be606eb9a3`](https://github.com/vercel/sandbox/commit/68d7fd6b124f27862ba5f7a0788d87be606eb9a3)]:
+  - @vercel/sandbox@2.5.0
+
+## 3.4.0
+
+### Minor Changes
+
+- Report the live timeout deadline of running sandboxes. `Sandbox.list` and `Sandbox.get` now expose `expiresAt`, reflecting the current session's deadline including any timeout extensions, and `sandbox list` renders it in the `TIMEOUT` column. `Sandbox.update({ timeout })` (and `sandbox config timeout`) now also extends the currently running session so an increased timeout takes effect immediately instead of only applying to future sessions. ([#239](https://github.com/vercel/sandbox/pull/239))
+
+### Patch Changes
+
+- Updated dependencies [[`144b3d9a6142de990326a932f3b7fcdb5593210c`](https://github.com/vercel/sandbox/commit/144b3d9a6142de990326a932f3b7fcdb5593210c)]:
+  - @vercel/sandbox@2.4.0
+
+## 3.3.1
+
+### Patch Changes
+
+- Fix the interactive shell prompt so that it is built from POSIX-portable primitives — it renders correctly regardless of which POSIX compatible shell (`bash`, `dash`, busybox `ash`) a custom image ships as `/bin/sh`. ([#236](https://github.com/vercel/sandbox/pull/236))
+
+## 3.3.0
+
+### Minor Changes
+
+- Support creating a sandbox from a custom image via the new `image` option on `Sandbox.create` and the `--image` flag on `sandbox create` / `sandbox run`. ([#232](https://github.com/vercel/sandbox/pull/232))
+
+### Patch Changes
+
+- Updated dependencies [[`4e1c5d868e66b9069a294ded3b2e20e08e0db10b`](https://github.com/vercel/sandbox/commit/4e1c5d868e66b9069a294ded3b2e20e08e0db10b), [`387675a3b46819e46362c359aed4b397065a180f`](https://github.com/vercel/sandbox/commit/387675a3b46819e46362c359aed4b397065a180f)]:
+  - @vercel/sandbox@2.3.0
+
+## 3.2.2
+
+### Patch Changes
+
+- Bump `ws` from `^8.18.3` to `^8.21.0` to address CVE-2026-48779, a high-severity memory exhaustion DoS triggered by a high volume of tiny fragments and data chunks. ([#228](https://github.com/vercel/sandbox/pull/228))
+
+## 3.2.1
+
+### Patch Changes
+
+- Fix scope inference failing with a raw Zod validation error. Teams missing `updatedAt` are now kept and malformed team entries are skipped. The CLI also no longer leaks raw validation details when scope can't be determined, showing a friendly hint instead. OAuth response parse failures are masked the same way. ([#225](https://github.com/vercel/sandbox/pull/225))
+
+- Prettify timeout and API errors. Unknown errors print a single line; set `DEBUG=sandbox:errors` to see the full stack. ([#226](https://github.com/vercel/sandbox/pull/226))
+
+- Updated dependencies [[`d57891c7552f872a0ce659b4b55aaa8d85415a2f`](https://github.com/vercel/sandbox/commit/d57891c7552f872a0ce659b4b55aaa8d85415a2f)]:
+  - @vercel/sandbox@2.2.1
+
+## 3.2.0
+
+### Minor Changes
+
+- Move the interactive shell server out of the sandbox and into the sandbox-controller. `sandbox connect`/`ssh` (CLI) and the new `Sandbox.openInteractive()` (SDK) now request a WebSocket URL and token from the API and connect to the controller-hosted PTY, instead of installing and bootstrapping the `vc-interactive-server` binary inside the sandbox at connect time. This removes the bundled server binary along with the `@vercel/pty-tunnel` and `@vercel/pty-tunnel-server` packages. ([#222](https://github.com/vercel/sandbox/pull/222))
+
+### Patch Changes
+
+- Updated dependencies [[`4b8970d53239f50384063ddd8690ff0091f5eaa0`](https://github.com/vercel/sandbox/commit/4b8970d53239f50384063ddd8690ff0091f5eaa0), [`b37dcabfa323a1a8a13c5479dce8c28dcdbce7f4`](https://github.com/vercel/sandbox/commit/b37dcabfa323a1a8a13c5479dce8c28dcdbce7f4)]:
+  - @vercel/sandbox@2.2.0
 
 ## 3.1.2
 

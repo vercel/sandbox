@@ -8,14 +8,14 @@ import {
   type CommandFinishedData,
   SessionAndRoutesResponse,
   SessionResponse,
+  InteractiveSessionResponse,
   StopSessionResponse,
   SessionsResponse,
   CommandResponse,
   CommandFinishedResponse,
   EmptyResponse,
   LogLine,
-  type LogLineStdout,
-  type LogLineStderr,
+  type LogOutputLine,
   SnapshotsResponse,
   SnapshotTreeResponse,
   SnapshotResponse,
@@ -173,6 +173,7 @@ export class APIClient extends BaseClient {
       resources?: { vcpus: number };
       persistent?: boolean;
       runtime?: RUNTIMES | (string & {});
+      image?: string;
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
       tags?: Record<string, string>;
@@ -198,6 +199,7 @@ export class APIClient extends BaseClient {
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
+          image: params.image,
           name: params.name,
           persistent: params.persistent,
           networkPolicy: params.networkPolicy
@@ -223,9 +225,14 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait: true;
+    logs?: boolean;
+    onLog?: (log: LogOutputLine) => void;
     timeout?: number;
     signal?: AbortSignal;
-  }): Promise<{ command: CommandData; finished: Promise<CommandFinishedData> }>;
+  }): Promise<{
+    command: CommandData;
+    finished: Promise<CommandFinishedData>;
+  }>;
   async runCommand(params: {
     sessionId: string;
     cwd?: string;
@@ -245,9 +252,17 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: boolean;
+    logs?: boolean;
+    onLog?: (log: LogOutputLine) => void;
     timeout?: number;
     signal?: AbortSignal;
-  }) {
+  }): Promise<
+    | {
+        command: CommandData;
+        finished: Promise<CommandFinishedData>;
+      }
+    | Parsed<z.infer<typeof CommandResponse>>
+  > {
     if (params.wait) {
       const response = await this.request(
         `/v2/sandboxes/sessions/${params.sessionId}/cmd`,
@@ -260,6 +275,7 @@ export class APIClient extends BaseClient {
             env: params.env,
             sudo: params.sudo,
             wait: true,
+            logs: params.logs || undefined,
             timeout: params.timeout,
           }),
           signal: params.signal,
@@ -303,16 +319,31 @@ export class APIClient extends BaseClient {
       const { command } = CommandResponse.parse(commandChunk.value);
 
       const finished = (async () => {
-        const finishedChunk = await iterator.next();
-        if (finishedChunk.done) {
-          throw new StreamError(
-            "stream_ended_early",
-            "Stream ended before command finished",
-            params.sessionId,
-          );
+        while (true) {
+          const chunk = await iterator.next();
+          if (chunk.done) {
+            throw new StreamError(
+              "stream_ended_early",
+              "Stream ended before command finished",
+              params.sessionId,
+            );
+          }
+
+          if (chunk.value?.command) {
+            const { command } = CommandFinishedResponse.parse(chunk.value);
+            return command;
+          }
+
+          const parsed = LogLine.parse(chunk.value);
+          if (parsed.stream === "error") {
+            throw new StreamError(
+              parsed.data.code,
+              parsed.data.message,
+              params.sessionId,
+            );
+          }
+          params.onLog?.(parsed);
         }
-        const { command } = CommandFinishedResponse.parse(finishedChunk.value);
-        return command;
       })();
 
       return { command, finished };
@@ -368,6 +399,23 @@ export class APIClient extends BaseClient {
             { signal: params.signal },
           ),
         );
+  }
+
+  async openInteractive(params: {
+    sessionId: string;
+    signal?: AbortSignal;
+  }): Promise<Parsed<z.infer<typeof InteractiveSessionResponse>>> {
+    return parseOrThrow(
+      InteractiveSessionResponse,
+      await this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}/interactive`,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+          signal: params.signal,
+        },
+      ),
+    );
   }
 
   async mkDir(params: {
@@ -676,11 +724,7 @@ export class APIClient extends BaseClient {
     sessionId: string;
     cmdId: string;
     signal?: AbortSignal;
-  }): AsyncGenerator<
-    z.infer<typeof LogLineStdout> | z.infer<typeof LogLineStderr>,
-    void,
-    void
-  > &
+  }): AsyncGenerator<LogOutputLine, void, void> &
     Disposable & { close(): void } {
     const self = this;
     const disposer = new AbortController();

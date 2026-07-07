@@ -1,164 +1,40 @@
-import { Command, Sandbox } from "@vercel/sandbox";
-import {
-  captureStdin,
-  createListener,
-  type Listener,
-} from "@vercel/pty-tunnel";
+import { Sandbox } from "@vercel/sandbox";
 import createDebugger from "debug";
-import retry from "async-retry";
+import { WebSocket } from "ws";
 import { printCommand } from "../util/print-command";
-import ora, { Ora } from "ora";
-import { PassThrough } from "node:stream";
-import fs from "node:fs/promises";
-import { randomUUID } from "node:crypto";
-import {
-  acquireRelease,
-  createAbortController,
-  defer,
-} from "../util/disposables";
-import { createWriteStream } from "node:fs";
+import ora from "ora";
+import { acquireRelease, createAbortController, defer } from "../util/disposables";
 import chalk from "chalk";
-import assert from "node:assert";
 import { extendSandboxTimeoutPeriodically } from "./extend-sandbox-timeout";
 
 const debug = createDebugger("sandbox:interactive-shell");
-const debugPty = createDebugger("sandbox:interactive-shell:pty");
 
 /**
- * A default TERM value to use if none is set in the environment.
- * That way, applications like `vim` and `nano` will work properly.
+ * A default TERM value so applications like `vim` and `nano` work properly.
  */
 const TERM = "xterm-256color";
 
 /**
- * Prepares the sandbox environment for interactive shell by installing required dependencies
- * and copying the TTY server script.
+ * A custom prompt so interactive sessions show the Vercel triangle and the
+ * working directory (e.g. `▲ /vercel/sandbox/ `) instead of the shell's
+ * default prompt. The server passes this through to the shell verbatim.
  *
- * @param sandbox - The sandbox instance to prepare
- * @returns Promise that resolves when environment is ready
+ * This is built from primitives every POSIX shell honors so it renders the
+ * same regardless of which shell a customer image ships as `/bin/sh`.
+ *
+ * The color escapes are wrapped in the raw readline "ignore" markers
+ * `\x01` (RL_PROMPT_START_IGNORE) and `\x02` (RL_PROMPT_END_IGNORE) — the
+ * same bytes that bash's `\[` / `\]` decode into. This lets bash's readline
+ * exclude the (zero-width) escape sequences from its prompt-width calculation
+ * so cursor positioning stays correct on long/wrapping lines and during line
+ * editing. In non-bash shells these are C0 control bytes that terminals treat
+ * as non-printing, so they don't affect rendering there.
  */
-async function setupSandboxEnvironment(
-  sandbox: Sandbox,
-  ora: Ora,
-): Promise<void> {
-  // Check whether the server is installed first, and only install it if it's
-  // missing. Doing these steps in parallel might cause a race condition where
-  // `checkIfServerInstalled` returns true but `installServerBinary` has already
-  // started modifying files.
-  let alreadyInstalled = false;
-  try {
-    alreadyInstalled = await checkIfServerInstalled(sandbox);
-  } catch (err) {
-    debug("Error checking if server is installed:", err);
-  }
-
-  if (alreadyInstalled) {
-    debug("Server binary already installed");
-    return;
-  }
-
-  await installServerBinary(sandbox, ora);
-}
-
-async function checkIfServerInstalled(sandbox: Sandbox, signal?: AbortSignal) {
-  const exists = await sandbox.runCommand({
-    cmd: "command",
-    args: ["-v", SERVER_BIN_NAME],
-    signal,
-  });
-  return exists.exitCode === 0;
-}
-
-async function installServerBinary(
-  sandbox: Sandbox,
-  ora: Ora,
-  signal?: AbortSignal,
-) {
-  let firstSent = false;
-  const createPassthrough = () => {
-    const passthrough = new PassThrough();
-    passthrough.on("data", (chunk) => {
-      if (!firstSent) {
-        firstSent = true;
-        ora.text += `\n`;
-      }
-      ora.text += chunk.toString();
-    });
-    return passthrough;
-  };
-
-  const pathname = `/tmp/vc-pty-tunnel-server-${randomUUID()}`;
-
-  // Upload the x86_64 binary to the sandbox
-  const currentPath = import.meta.url;
-  await sandbox.writeFiles(
-    [
-      {
-        path: pathname,
-        content: await fs.readFile(
-          process.env.VERCEL_DEV !== "0"
-            ? new URL("../../dist/pty-server-linux-x86_64", currentPath)
-            : new URL("./pty-server-linux-x86_64", currentPath),
-        ),
-      },
-    ],
-    { signal },
-  );
-
-  // Move the binary to /usr/local/bin and make it executable
-  await sandbox.runCommand({
-    cmd: "bash",
-    args: [
-      "-c",
-      `mv "${pathname}" /usr/local/bin/${SERVER_BIN_NAME}; chmod +x /usr/local/bin/${SERVER_BIN_NAME}`,
-    ],
-    sudo: true,
-    signal,
-    stdout: createPassthrough(),
-    stderr: createPassthrough(),
-  });
-}
-
-const SERVER_BIN_NAME = "vc-interactive-server";
-const INTERACTIVE_BIN_OUTPUT = process.env.VERCEL_CLI_INTERACTIVE_BIN_OUTPUT;
+const PS1 = `▲ \x01\x1b[2m\x02$PWD/\x01\x1b[0m\x02 `;
 
 /**
- * Starts the TTY server command inside the sandbox with proper WebRTC configuration.
- */
-async function startServerCommand(
-  sandbox: Sandbox,
-  _listener: Listener,
-  execution: [string, ...string[]],
-  sudo: boolean,
-  env: Record<string, string>,
-  cwd?: string,
-): Promise<Command> {
-  return sandbox.runCommand({
-    cmd: SERVER_BIN_NAME,
-    args: [
-      `--port=${sandbox.interactivePort}`,
-      `--mode=client`,
-      ...(debugPty.enabled ? [`--debug`] : []),
-      `--cols=${process.stdout.columns}`,
-      `--rows=${process.stdout.rows}`,
-      ...execution,
-    ],
-    sudo,
-    cwd,
-    env: {
-      TERM,
-      PS1: `▲ \\[\\e[2m\\]\\w/\\[\\e[0m\\] `,
-      ...env,
-    },
-    detached: true,
-  });
-}
-
-/**
- * Starts an interactive shell session with a sandbox using WebRTC for real-time communication.
- *
- * @param options - Configuration including sandbox, command to execute, and sudo flag
- * @returns Object with wait promise and cleanup function
+ * Starts an interactive shell session with a sandbox. The API hands us a
+ * WebSocket URL and token, and we tunnel stdin/stdout over it.
  */
 export async function startInteractiveShell(options: {
   sandbox: Sandbox;
@@ -168,25 +44,22 @@ export async function startInteractiveShell(options: {
   sudo: boolean;
   skipExtendingTimeout: boolean;
 }) {
-  const listener = createListener();
-
-  let command: Command | null = null;
-
   let cleaned = false;
   const cleanup = () => {
-    if (cleaned) return;
-    process.stdin.removeAllListeners();
-    listener.stdoutStream.end();
-    try {
-      process.stdin.destroy();
-    } catch {
-      // Ignore errors during stdin destruction
+    if (cleaned) {
+      return;
     }
-    process.stdin.setRawMode(false);
-    command?.kill().catch(() => {});
+
+    process.stdin.removeAllListeners();
+    try {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      process.stdin.unref();
+    } catch {
+      // Ignore errors restoring stdin.
+    }
     cleaned = true;
   };
-
   process.once("beforeExit", cleanup);
   using _cleanup = defer(cleanup);
 
@@ -195,278 +68,106 @@ export async function startInteractiveShell(options: {
     (s) => s.stop(),
   );
 
-  progress.text = "Setting up sandbox environment";
-  await setupSandboxEnvironment(options.sandbox, progress);
+  progress.text = "Opening interactive session...";
+  const { url, token } = await options.sandbox.openInteractive();
 
-  progress.text = "Booting up interactive listener...";
-  command = await startServerCommand(
-    options.sandbox,
-    listener,
-    options.execution,
-    options.sudo,
-    options.envVars,
-    options.cwd,
-  );
-  debug("startServerCommand completed, cmdId=%s, interactivePort=%s", command.cmdId, options.sandbox.interactivePort);
+  const [command, ...args] = options.execution;
+  const execution: [string, ...string[]] = options.sudo
+    ? ["sudo", command, ...args]
+    : [command, ...args];
 
-  using waitForProcess = createAbortController(
-    "Connection established successfully",
-  );
-  listener.connection.then(() => {
-    debug("listener.connection resolved");
-    waitForProcess.abort();
-  });
-  connect(command, listener, waitForProcess.signal).catch((err) => {
-    if (waitForProcess.signal.aborted) return;
-    // If connect() fails before the connection is established,
-    // propagate the error into the listener stream so attach() sees it
-    // instead of hanging forever.
-    listener.stdoutStream.destroy(err instanceof Error ? err : new Error(String(err)));
-  });
-
-  await Promise.all([
-    // `throwIfCommandPrematurelyExited` rejects with an abort error once the
-    // connection is established; swallow only that interruption (a genuine
-    // premature exit is thrown before the abort and still propagates).
-    throwIfCommandPrematurelyExited(command, waitForProcess.signal).catch(
-      waitForProcess.ignoreInterruptions,
-    ),
-    attach({
-      sandbox: options.sandbox,
-      progress,
-      listener,
-      skipExtendingTimeout: options.skipExtendingTimeout,
-      printCommand: () =>
-        console.error(
-          printCommand(options.execution[0], options.execution.slice(1)),
-        ),
-    }),
-  ]);
-}
-
-async function throwIfCommandPrematurelyExited(
-  command: Command,
-  signal: AbortSignal,
-) {
-  let exitCode: number;
-  try {
-    ({ exitCode } = await command.wait({ signal }));
-  } catch (err) {
-    if (signal.aborted) {
-      return;
+  progress.text = "Connecting...";
+  const client = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
+  using _client = defer(() => {
+    try {
+      client.close();
+    } catch {
+      // Ignore errors closing the socket.
     }
-    throw err;
-  }
-
-  // The interactive server process exited before a connection was established.
-  // Surface its stderr.
-  let serverError = "";
-  try {
-    serverError = (await command.stderr({ signal })).trim();
-  } catch {
-    // Best-effort: never let reading the failure output mask the real error.
-  }
-
-  throw new Error(
-    [
-      `Interactive shell failed to start (exit code: ${exitCode}).`,
-      `${chalk.bold("hint:")} The sandbox may have timed out or encountered an error.`,
-      ...(serverError ? [chalk.dim(serverError)] : []),
-      "╰▶ Check sandbox status with `sandbox list` or view logs for details.",
-    ].join("\n"),
-  );
-}
-
-async function attach({
-  progress,
-  listener,
-  printCommand,
-  sandbox,
-  skipExtendingTimeout,
-}: {
-  sandbox: Sandbox;
-  progress: Ora;
-  listener: Listener;
-  printCommand: () => void;
-  skipExtendingTimeout: boolean;
-}) {
-  progress.text = "Waiting for connection...";
-  const details = await listener.connection;
-
-  assert(sandbox.interactivePort, "Sandbox interactive port is not defined");
-  const url =
-    `wss://${sandbox.domain(sandbox.interactivePort).replace(/^https?:\/\//, "")}` as const;
-  debug("Connecting to WebSocket URL:", url);
-
-  const stdoutPipe = messageReader(process.stdout);
-  const client = await openWithRetry(() => {
-    const c = details.createClient(url);
-    c.addEventListener("message", async ({ data }) => {
-      stdoutPipe.next(data);
-    });
-    return c;
-  });
-  progress.stop();
-
-  using extensionController = createAbortController("stopped extensions");
-  if (!skipExtendingTimeout) {
-    extendSandboxTimeoutPeriodically(sandbox, extensionController.signal).catch(
-      extensionController.ignoreInterruptions,
-    );
-  }
-
-  client.sendMessage({ type: "ready" });
-  client.sendMessage({
-    type: "resize",
-    cols: process.stdout.columns,
-    rows: process.stdout.rows,
   });
 
-  process.on("SIGWINCH", () => {
-    client.sendMessage({
-      type: "resize",
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", (err) => reject(err));
+  });
+  debug("connected to %s", url);
+
+  client.send(
+    JSON.stringify({
+      type: "start",
+      command: execution[0],
+      args: execution.slice(1),
+      env: toEnvArray({ TERM, PS1, ...options.envVars }),
+      cwd: options.cwd ?? options.sandbox.cwd,
       cols: process.stdout.columns,
       rows: process.stdout.rows,
-    });
-  });
-  process.stdin.removeAllListeners();
-  captureStdin({ redirectTo: client });
-
-  printCommand();
-
-  await new Promise((resolve, reject) => {
-    client.addEventListener("close", (a) => resolve(a), { once: true });
-    client.addEventListener("error", (err) => reject(err), { once: true });
-  });
-
-  extensionController.abort("client disconnected");
-  client.close();
-
-  console.error(
-    chalk.dim(`\n╰▶ connection to ▲ ${sandbox.name} closed.`),
+    }),
   );
-}
 
-/**
- * Async generator to allow easy coordination of parsing the events from the {@link Listener}
- *
- * @example
- * const pipe = messageReader(process.stdout);
- * pipe.next(new Blob(["Hello, World!"]));
- */
-async function* messageReader(
-  stream: typeof process.stdout,
-): AsyncGenerator<
-  void,
-  never,
-  Blob | ArrayBuffer | Buffer | string | Buffer[]
-> {
-  while (true) {
-    const value = yield;
-    if (!value) continue;
+  progress.stop();
 
-    let output: string | Buffer;
-    if (typeof value === "string" || Buffer.isBuffer(value)) {
-      output = value;
-    } else if (
-      typeof value === "object" &&
-      "arrayBuffer" in value &&
-      typeof value.arrayBuffer === "function"
-    ) {
-      output = Buffer.from(await value.arrayBuffer());
-    } else if (value instanceof Blob) {
-      output = Buffer.from(await value.arrayBuffer());
-    } else if (Array.isArray(value)) {
-      output = Buffer.concat(value);
-    } else {
-      output = Buffer.from(value);
-    }
-    stream.write(output);
-  }
-}
-
-/**
- * Connects the command's logs to the listener's stdout and stderr streams.
- */
-async function connect(
-  command: Command,
-  listener: Listener,
-  signal: AbortSignal,
-) {
-  using logs = command.logs({ signal });
-  using stderrStream = getStderrStream();
-  for await (const chunk of logs) {
-    if (chunk.stream === "stdout") {
-      listener.stdoutStream.write(chunk.data);
-    } else {
-      stderrStream.write(chunk.data);
-    }
-  }
-  listener.stdoutStream.end();
-}
-
-async function openWithRetry<
-  T extends { waitForOpen(): Promise<unknown>; close(): void },
->(create: () => T): Promise<T> {
-  return retry<T>(
-    async (_bail, attempt) => {
-      const client = create();
-      try {
-        await withTimeout(client.waitForOpen(), 2_500);
-        return client;
-      } catch (err) {
-        debug("WebSocket open attempt %d failed: %o", attempt, err);
-        try {
-          client.close();
-        } catch (closeErr) {
-          debug("WebSocket close after failed open errored: %o", closeErr);
-        }
-        throw err;
-      }
-    },
-    { retries: 2, minTimeout: 500, factor: 0 },
-  );
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  promise.catch(() => {});
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Operation timed out after ${ms}ms`)),
-      ms,
+  using extension = createAbortController("stopped extensions");
+  if (!options.skipExtendingTimeout) {
+    extendSandboxTimeoutPeriodically(options.sandbox, extension.signal).catch(
+      extension.ignoreInterruptions,
     );
+  }
+
+  // server -> stdout (binary frames) and exit (text control frame).
+  client.on("message", (data: Buffer, isBinary: boolean) => {
+    if (isBinary) {
+      process.stdout.write(data);
+      return;
+    }
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === "exit") {
+        process.exitCode = typeof msg.code === "number" ? msg.code : undefined;
+      }
+    } catch {
+      // Non-JSON text frame; treat as output.
+      process.stdout.write(data);
+    }
   });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer);
+
+  // stdin -> server (binary frames).
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
+  process.stdin.resume();
+  const onStdin = (chunk: Buffer) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(chunk);
+    }
+  };
+  process.stdin.on("data", onStdin);
+
+  const onResize = () => {
+    if (client.readyState !== WebSocket.OPEN) return;
+    client.send(
+      JSON.stringify({
+        type: "resize",
+        cols: process.stdout.columns,
+        rows: process.stdout.rows,
+      }),
+    );
+  };
+  process.on("SIGWINCH", onResize);
+
+  console.error(printCommand(options.execution[0], options.execution.slice(1)));
+
+  await new Promise<void>((resolve, reject) => {
+    client.once("close", () => resolve());
+    client.once("error", (err) => reject(err));
   });
+
+  extension.abort("client disconnected");
+  process.removeListener("SIGWINCH", onResize);
+  process.stdin.removeListener("data", onStdin);
+
+  console.error(chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`));
 }
 
-function getStderrStream() {
-  return acquireRelease(
-    () => {
-      if (INTERACTIVE_BIN_OUTPUT) {
-        const writeStream = createWriteStream(INTERACTIVE_BIN_OUTPUT);
-        return {
-          write(chunk: any) {
-            writeStream.write(chunk);
-          },
-          close() {
-            writeStream.close();
-          },
-        };
-      }
-      if (debugPty.enabled) {
-        return {
-          write(chunk: any) {
-            process.stderr.write(chunk);
-          },
-        };
-      }
-      return { write() {} };
-    },
-    (s) => {
-      s.close?.();
-    },
-  );
+function toEnvArray(env: Record<string, string>): string[] {
+  return Object.entries(env).map(([key, value]) => `${key}=${value}`);
 }

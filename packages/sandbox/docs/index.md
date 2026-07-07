@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.2.0-beta.0
+sandbox 3.5.0-beta.0
 
 ▲ sandbox [options] <command>
 
@@ -11,6 +11,7 @@ Commands:
 
     ls | list                                  List all sandboxes for the specified account and project.
     create                                     Create a sandbox in the specified account and project.
+    sh                                         Create a sandbox and start an interactive shell
     fork           <source>                    Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
@@ -30,7 +31,7 @@ Examples:
 
 – Create a sandbox and start a shell
 
-  $ sandbox create --connect
+  $ sandbox sh
 
 – Run a command in a new sandbox
 
@@ -83,7 +84,8 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [default: node24]
+    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [optional]
+    --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
@@ -141,7 +143,8 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [default: node24]
+    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [optional]
+    --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
@@ -179,6 +182,51 @@ Examples:
 – Create and connect to a sandbox without a network access
 
   $ sandbox run --network-policy=none --connect
+```
+
+## `sandbox sh`
+
+```
+sh
+
+▲ sandbox sh [options]
+
+Create a sandbox and start an interactive shell
+
+Options:
+
+    --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [optional]
+    --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
+    --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
+    --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
+    --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
+    --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
+    --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+
+Flags:
+
+    --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
+    --silent          Don't write sandbox name to stdout [optional]
+    --help, -h        show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 ```
 
 ## `sandbox fork`

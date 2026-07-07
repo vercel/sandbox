@@ -405,28 +405,10 @@ export class Session {
           }
         : commandOrParams;
     const wait = params.detached ? false : true;
-    const pipeLogs = async (command: Command): Promise<void> => {
-      if (!params.stdout && !params.stderr) {
-        return;
-      }
-
-      try {
-        for await (const log of command.logs({ signal: params.signal })) {
-          if (log.stream === "stdout") {
-            params.stdout?.write(log.data);
-          } else if (log.stream === "stderr") {
-            params.stderr?.write(log.data);
-          }
-        }
-      } catch (err) {
-        if (params.signal?.aborted) {
-          return;
-        }
-        throw err;
-      }
-    };
+    const shouldPipeLogs = Boolean(params.stdout || params.stderr);
 
     if (wait) {
+      let stdout = "", stderr = "";
       const commandStream = await client.runCommand({
         sessionId: this.session.id,
         command: params.cmd,
@@ -435,25 +417,29 @@ export class Session {
         env: params.env ?? {},
         sudo: params.sudo ?? false,
         wait: true,
+        logs: true,
+        onLog: (log) => {
+          if (log.stream === "stdout") {
+            stdout += log.data;
+            params.stdout?.write(log.data);
+          } else {
+            stderr += log.data;
+            params.stderr?.write(log.data);
+          }
+        },
         timeout: params.timeoutMs,
         signal: params.signal,
       });
 
-      const command = new Command({
-        client,
-        sessionId: this.session.id,
-        cmd: commandStream.command,
-      });
+      const finished = await commandStream.finished;
 
-      const [finished] = await Promise.all([
-        commandStream.finished,
-        pipeLogs(command),
-      ]);
       return new CommandFinished({
         client,
         sessionId: this.session.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
+        durationMs: finished.durationMs,
+        output: { stdout, stderr },
       });
     }
 
@@ -474,12 +460,24 @@ export class Session {
       cmd: commandResponse.json.command,
     });
 
-    void pipeLogs(command).catch((err) => {
-      if (params.signal?.aborted) {
-        return;
-      }
-      (params.stderr ?? params.stdout)?.emit("error", err);
-    });
+    if (shouldPipeLogs) {
+      (async () => {
+        try {
+          for await (const log of command.logs({ signal: params.signal })) {
+            if (log.stream === "stdout") {
+              params.stdout?.write(log.data);
+            } else if (log.stream === "stderr") {
+              params.stderr?.write(log.data);
+            }
+          }
+        } catch (err) {
+          if (params.signal?.aborted) {
+            return;
+          }
+          (params.stderr ?? params.stdout)?.emit("error", err);
+        }
+      })();
+    }
 
     return command;
   }
@@ -499,6 +497,25 @@ export class Session {
       path: path,
       signal: opts?.signal,
     });
+  }
+
+  /**
+   * Open an interactive shell session. Returns the WebSocket URL and token the
+   * client uses to connect to the controller-hosted PTY.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   */
+  async openInteractive(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ url: string; token: string }> {
+    "use step";
+    const client = await this.ensureClient();
+    const { json } = await client.openInteractive({
+      sessionId: this.session.id,
+      signal: opts?.signal,
+    });
+    return { url: json.url, token: json.token };
   }
 
   /**

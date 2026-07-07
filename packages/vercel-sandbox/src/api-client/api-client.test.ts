@@ -227,6 +227,7 @@ describe("APIClient", () => {
         command: {
           ...first.command,
           exitCode: 0,
+          durationMs: 1234,
         },
       };
 
@@ -246,7 +247,70 @@ describe("APIClient", () => {
       });
 
       expect(result.command.exitCode).toBeNull();
-      await expect(result.finished).resolves.toMatchObject({ exitCode: 0 });
+      await expect(result.finished).resolves.toMatchObject({
+        exitCode: 0,
+        durationMs: 1234,
+      });
+    });
+
+    it("calls onLog for logs between command data when logs and wait are true", async () => {
+      const first = {
+        command: {
+          id: "cmd_123",
+          name: "echo",
+          args: ["hello"],
+          cwd: "/",
+          sessionId: "sbx_123",
+          exitCode: null,
+          startedAt: 1,
+        },
+      };
+      const second = {
+        command: {
+          ...first.command,
+          exitCode: 0,
+          durationMs: 1234,
+        },
+      };
+
+      mockFetch.mockResolvedValue(
+        new Response(
+          createNdjsonStream([
+            first,
+            { stream: "stdout", data: "hello\n" },
+            { stream: "stderr", data: "warning\n" },
+            second,
+          ]),
+          {
+            headers: { "content-type": "application/x-ndjson" },
+          },
+        ),
+      );
+
+      const logLines = [];
+      const result = await client.runCommand({
+        sessionId: "sbx_123",
+        command: "echo",
+        args: ["hello"],
+        env: {},
+        sudo: false,
+        wait: true,
+        logs: true,
+        onLog: (log) => logLines.push(log),
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+        wait: true,
+        logs: true,
+      });
+      await expect(result.finished).resolves.toMatchObject({
+        exitCode: 0,
+        durationMs: 1234,
+      });
+      expect(logLines).toEqual([
+        { stream: "stdout", data: "hello\n" },
+        { stream: "stderr", data: "warning\n" },
+      ]);
     });
 
     it("throws APIError when response status is not ok", async () => {

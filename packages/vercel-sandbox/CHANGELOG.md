@@ -1,10 +1,48 @@
 # @vercel/sandbox
 
-## 2.2.0-beta.0
+## 2.6.0-beta.0
 
 ### Minor Changes
 
 - Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+## 2.5.0
+
+### Minor Changes
+
+- Commands now surface how long they took to execute with the `durationMs` field ([#243](https://github.com/vercel/sandbox/pull/243))
+
+## 2.4.0
+
+### Minor Changes
+
+- Report the live timeout deadline of running sandboxes. `Sandbox.list` and `Sandbox.get` now expose `expiresAt`, reflecting the current session's deadline including any timeout extensions, and `sandbox list` renders it in the `TIMEOUT` column. `Sandbox.update({ timeout })` (and `sandbox config timeout`) now also extends the currently running session so an increased timeout takes effect immediately instead of only applying to future sessions. ([#239](https://github.com/vercel/sandbox/pull/239))
+
+## 2.3.0
+
+### Minor Changes
+
+- Support creating a sandbox from a custom image via the new `image` option on `Sandbox.create` and the `--image` flag on `sandbox create` / `sandbox run`. ([#232](https://github.com/vercel/sandbox/pull/232))
+
+### Patch Changes
+
+- Single API call to run, wait and get logs of command ([#223](https://github.com/vercel/sandbox/pull/223))
+
+## 2.2.1
+
+### Patch Changes
+
+- Fix scope inference failing with a raw Zod validation error. Teams missing `updatedAt` are now kept and malformed team entries are skipped. The CLI also no longer leaks raw validation details when scope can't be determined, showing a friendly hint instead. OAuth response parse failures are masked the same way. ([#225](https://github.com/vercel/sandbox/pull/225))
+
+## 2.2.0
+
+### Minor Changes
+
+- Move the interactive shell server out of the sandbox and into the sandbox-controller. `sandbox connect`/`ssh` (CLI) and the new `Sandbox.openInteractive()` (SDK) now request a WebSocket URL and token from the API and connect to the controller-hosted PTY, instead of installing and bootstrapping the `vc-interactive-server` binary inside the sandbox at connect time. This removes the bundled server binary along with the `@vercel/pty-tunnel` and `@vercel/pty-tunnel-server` packages. ([#222](https://github.com/vercel/sandbox/pull/222))
+
+### Patch Changes
+
+- Upgrade Zod to v4 and update validators for Zod 4 compatibility. ([#219](https://github.com/vercel/sandbox/pull/219))
 
 ## 2.1.1
 

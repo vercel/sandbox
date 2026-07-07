@@ -141,8 +141,221 @@ describe("updatePorts", () => {
   });
 });
 
+describe("update timeout", () => {
+  function setup(sessionOverrides?: Partial<SandboxMetaData>) {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const extendTimeoutMock = vi.fn(
+      async ({ duration }: { duration: number }) => ({
+        json: {
+          session: { id: "sbx_123", status: "running", timeout: duration },
+        },
+      }),
+    );
+    const sandbox = new Sandbox({
+      client: {
+        updateSandbox: updateSandboxMock,
+        extendTimeout: extendTimeoutMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        timeout: 300_000,
+        ...sessionOverrides,
+      } as any,
+      projectId: "test-project",
+    });
+    return { sandbox, updateSandboxMock, extendTimeoutMock };
+  }
+
+  it("extends the running session by the positive increment", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup();
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeout: 600_000 }),
+    );
+    // increment = new timeout (600_000) - current session timeout (300_000)
+    expect(extendTimeoutMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "sbx_123", duration: 300_000 }),
+    );
+  });
+
+  it("does not extend the session when the new timeout is not larger", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup({
+      timeout: 600_000,
+    });
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalled();
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extend the session when it is not running", async () => {
+    const { sandbox, updateSandboxMock, extendTimeoutMock } = setup({
+      status: "stopped",
+    });
+
+    await sandbox.update({ timeout: 600_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalled();
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extend the session when timeout is not part of the update", async () => {
+    const { sandbox, extendTimeoutMock } = setup();
+
+    await sandbox.update({ persistent: false });
+
+    expect(extendTimeoutMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("expiresAt", () => {
+  it("computes the deadline from startedAt + timeout for a running session", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        startedAt: 1_000,
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_000 + 300_000));
+  });
+
+  it("falls back to createdAt when the running session has no startedAt", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {
+        id: "sbx_123",
+        status: "running",
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(500 + 300_000));
+  });
+
+  it("falls back to the sandbox expiresAt when the session is not running", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: { ...makeSandboxMetadata(), expiresAt: 1_700_000_000_000 },
+      session: {
+        id: "sbx_123",
+        status: "stopped",
+        createdAt: 500,
+        timeout: 300_000,
+      } as any,
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_700_000_000_000));
+  });
+
+  it("returns the sandbox expiresAt when there is no session", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: { ...makeSandboxMetadata(), expiresAt: 1_700_000_000_000 },
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toEqual(new Date(1_700_000_000_000));
+  });
+
+  it("returns undefined when there is no session and no sandbox expiresAt", () => {
+    const sandbox = new Sandbox({
+      client: {} as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      projectId: "test-project",
+    });
+
+    expect(sandbox.expiresAt).toBeUndefined();
+  });
+});
+
 describe("_runCommand error handling", () => {
-  it("rejects non-detached runCommand when log streaming fails", async () => {
+  it("pipes non-detached runCommand logs from the wait stream", async () => {
+    const command = makeCommand();
+
+    const runCommandMock = vi.fn(
+      async ({
+        onLog,
+      }: {
+        onLog?: (log: { stream: "stdout" | "stderr"; data: string }) => void;
+      }) => {
+        onLog?.({ stream: "stdout", data: "hello\n" });
+        onLog?.({ stream: "stderr", data: "warning\n" });
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      },
+    );
+    const getLogsMock = vi.fn();
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+        getLogs: getLogsMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    let stdoutData = "";
+    let stderrData = "";
+    stdout.on("data", (chunk) => {
+      stdoutData += chunk.toString();
+    });
+    stderr.on("data", (chunk) => {
+      stderrData += chunk.toString();
+    });
+
+    const result = await sandbox.runCommand({
+      cmd: "echo",
+      args: ["hello"],
+      stdout,
+      stderr,
+    });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        logs: true,
+      }),
+    );
+    expect(getLogsMock).not.toHaveBeenCalled();
+    expect(stdoutData).toBe("hello\n");
+    expect(stderrData).toBe("warning\n");
+    await expect(result.stdout()).resolves.toBe("hello\n");
+    await expect(result.stderr()).resolves.toBe("warning\n");
+    expect(getLogsMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-detached runCommand when wait stream log streaming fails", async () => {
     const command = makeCommand();
     const logsError = new APIError(new Response("failed", { status: 500 }), {
       message: "Failed to stream logs",
@@ -153,23 +366,16 @@ describe("_runCommand error handling", () => {
       if (wait) {
         return {
           command,
-          finished: Promise.resolve({ ...command, exitCode: 0 }),
+          finished: Promise.reject(logsError),
         };
       }
 
       return { json: { command } };
     });
 
-    const getLogsMock = vi.fn(() =>
-      (async function* () {
-        throw logsError;
-      })(),
-    );
-
     const sandbox = new Sandbox({
       client: {
         runCommand: runCommandMock,
-        getLogs: getLogsMock,
       } as unknown as APIClient,
       routes: [],
       sandbox: makeSandboxMetadata(),
@@ -184,6 +390,46 @@ describe("_runCommand error handling", () => {
         stdout: new PassThrough(),
       }),
     ).rejects.toBe(logsError);
+  });
+
+  it("caches non-detached runCommand logs for stdout and stderr methods", async () => {
+    const command = makeCommand();
+
+    const runCommandMock = vi.fn(
+      async ({
+        onLog,
+      }: {
+        onLog?: (log: { stream: "stdout" | "stderr"; data: string }) => void;
+      }) => {
+        onLog?.({ stream: "stdout", data: "hello\n" });
+        onLog?.({ stream: "stderr", data: "warning\n" });
+        return {
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        };
+      },
+    );
+
+    const sandbox = new Sandbox({
+      client: {
+        runCommand: runCommandMock,
+      } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    const result = await sandbox.runCommand({ cmd: "echo", args: ["hello"] });
+
+    expect(runCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wait: true,
+        logs: true,
+      }),
+    );
+    await expect(result.stdout()).resolves.toBe("hello\n");
+    await expect(result.stderr()).resolves.toBe("warning\n");
   });
 
   it("emits detached log streaming errors on the provided output stream", async () => {
@@ -441,6 +687,44 @@ describe("Sandbox.create mounts", () => {
         },
       },
     });
+  });
+});
+
+describe("Sandbox.create image", () => {
+  const CREDENTIALS = {
+    token: "test-token",
+    teamId: "team_123",
+    projectId: "proj_123",
+  };
+
+  const jsonResponse = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+
+  it("sends image in the create request body", async () => {
+    // Return a 400 so create rejects predictably; we only assert the body.
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        image: "my-repo:latest",
+        fetch: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain("/v2/sandboxes");
+    expect(init?.method).toBe("POST");
+    const body = JSON.parse(String(init?.body));
+    expect(body.image).toBe("my-repo:latest");
+    // Runtime must not be sent when only image is provided.
+    expect(body.runtime).toBeUndefined();
   });
 });
 

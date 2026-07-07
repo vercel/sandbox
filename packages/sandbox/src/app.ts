@@ -1,5 +1,6 @@
 import { subcommands } from "cmd-ts";
 import { create } from "./commands/create";
+import { sh } from "./commands/sh";
 import { fork } from "./commands/fork";
 import { run } from "./commands/run";
 import { list } from "./commands/list";
@@ -25,6 +26,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
     cmds: {
       list,
       create,
+      sh,
       fork,
       config,
       copy: cp,
@@ -45,7 +47,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
     examples: [
       {
         description: "Create a sandbox and start a shell",
-        command: "sandbox create --connect",
+        command: "sandbox sh",
       },
       {
         description: "Run a command in a new sandbox",
