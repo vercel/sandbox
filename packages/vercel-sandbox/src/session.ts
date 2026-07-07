@@ -438,6 +438,7 @@ export class Session {
         sessionId: this.session.id,
         cmd: finished,
         exitCode: finished.exitCode ?? 0,
+        durationMs: finished.durationMs,
         output: { stdout, stderr },
       });
     }

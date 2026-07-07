@@ -402,7 +402,7 @@ export class CommandFinished extends Command {
   }) {
     super({ ...params });
     this.exitCode = params.exitCode;
-    this.durationMs = params.durationMs;
+    this.durationMs = params.durationMs ?? params.cmd.durationMs;
   }
 
   /**

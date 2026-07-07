@@ -69,6 +69,7 @@ describe("CommandFinished serialization", () => {
         sandboxId: mockSandboxId,
         cmd: mockCommandData,
         exitCode: 0,
+        durationMs: mockCommandData.durationMs,
         output: mockOutput,
       });
     });
