@@ -71,23 +71,20 @@ export class SandboxUser {
     // the backend cd's to `cwd` before exec, and SUID binaries (like sudo)
     // cannot be executed from directories with restricted permissions (770).
     //
-    // Instead, we use: sudo -u <user> -- [env K=V...] bash -c 'cd <dir> && exec "$@"' _ <cmd> <args>
-    // This pattern:
-    // - Uses bash's "$@" to properly handle arguments with spaces
-    // - Sets the working directory inside the user's context
-    // - Passes env vars via the `env` command before bash
+    // Instead, we use: sudo --chdir <dir> -u <user> -- [env K=V...] <cmd> <args>
+    // Passing `cwd` via `sudo --chdir` keeps it a separate argv element, so it
+    // is never shell-interpreted — this avoids injection by design rather than
+    // relying on quoting, and removes the need for a `bash -c` wrapper.
     const cwd = params.cwd ?? this.homeDir;
     return {
       cmd: "sudo",
       args: [
+        "--chdir",
+        cwd,
         "-u",
         this.username,
         "--",
         ...envArgs,
-        "bash",
-        "-c",
-        `cd ${cwd} && exec "$@"`,
-        "_",
         params.cmd,
         ...(params.args ?? []),
       ],
@@ -144,7 +141,7 @@ export class SandboxUser {
         cmd: commandOrParams,
         args,
       });
-      // Don't pass cwd to the sandbox API — the bash -c wrapper handles it.
+      // Don't pass cwd to the sandbox API — sudo --chdir handles it.
       // Don't pass sudo: true — vercel-sandbox already has sudo privileges.
       return this.sandbox.runCommand({
         ...wrapped,
@@ -173,7 +170,7 @@ export class SandboxUser {
     return this.sandbox.runCommand({
       cmd: wrapped.cmd,
       args: wrapped.args,
-      // Don't pass cwd — bash -c wrapper handles it (see buildUserCommand)
+      // Don't pass cwd — sudo --chdir handles it (see buildUserCommand)
       // Don't pass sudo: true — vercel-sandbox already has sudo privileges
       // env is already baked into the wrapped command via `env KEY=VAL`
       detached: params.detached,

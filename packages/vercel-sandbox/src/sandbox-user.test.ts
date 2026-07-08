@@ -61,7 +61,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         expect(result.exitCode).toBe(0);
       });
 
-      it("sets 750 permissions on home directory", async () => {
+      it("sets 770 permissions on home directory", async () => {
         await sandbox.createUser("alice");
 
         const stat = await sandbox.runCommand({
@@ -256,7 +256,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
     });
 
     describe("mkDir as user", () => {
-      it("creates a directory owned by the user with 750 permissions", async () => {
+      it("creates a directory owned by the user with 770 permissions", async () => {
         const alice = await sandbox.createUser("alice");
 
         await alice.mkDir("projects");

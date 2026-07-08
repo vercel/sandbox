@@ -1431,7 +1431,7 @@ export class Sandbox {
    * const root = sandbox.asUser("root");
    * await root.runCommand("whoami"); // "root"
    */
-  asUser(username: string): SandboxUser {
+  asUser(username: "root" | (string & {})): SandboxUser {
     validateName(username, "username");
     return new SandboxUser({ sandbox: this, username });
   }
