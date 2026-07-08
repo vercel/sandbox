@@ -1373,7 +1373,7 @@ export class Sandbox {
     validateName(username, "username");
 
     // Create user with home directory and default shell
-    const useradd = await this._runCommand({
+    const useradd = await this.runCommand({
       cmd: "useradd",
       args: ["-m", "-s", "/bin/bash", username],
       sudo: true,
@@ -1388,7 +1388,7 @@ export class Sandbox {
     // (which runs as the vercel-sandbox process) can read/write directly.
     // This avoids the stale-group problem that occurs with usermod -aG,
     // since vercel-sandbox already has gid=1000 in its process credentials.
-    const chown = await this._runCommand({
+    const chown = await this.runCommand({
       cmd: "chown",
       args: [`${username}:vercel-sandbox`, `/home/${username}`],
       sudo: true,
@@ -1404,7 +1404,7 @@ export class Sandbox {
     // Set home directory permissions: owner full, group (vercel-sandbox)
     // read+write+execute, others none. Other users can't access because
     // they are not in the vercel-sandbox group.
-    const chmod = await this._runCommand({
+    const chmod = await this.runCommand({
       cmd: "chmod",
       args: ["770", `/home/${username}`],
       sudo: true,
@@ -1462,7 +1462,7 @@ export class Sandbox {
     const sharedDir = `/shared/${groupname}`;
 
     // Create the group
-    const groupadd = await this._runCommand({
+    const groupadd = await this.runCommand({
       cmd: "groupadd",
       args: [groupname],
       sudo: true,
@@ -1474,7 +1474,7 @@ export class Sandbox {
     }
 
     // Create shared directory
-    const mkdirResult = await this._runCommand({
+    const mkdirResult = await this.runCommand({
       cmd: "mkdir",
       args: ["-p", sharedDir],
       sudo: true,
@@ -1486,7 +1486,7 @@ export class Sandbox {
     }
 
     // Set ownership: vercel-sandbox user, group-owned by the new group
-    const chown = await this._runCommand({
+    const chown = await this.runCommand({
       cmd: "chown",
       args: [`vercel-sandbox:${groupname}`, sharedDir],
       sudo: true,
@@ -1498,7 +1498,7 @@ export class Sandbox {
     }
 
     // Set permissions: setgid (2) + rwx for owner and group, none for others
-    const chmod = await this._runCommand({
+    const chmod = await this.runCommand({
       cmd: "chmod",
       args: ["2770", sharedDir],
       sudo: true,
@@ -1534,7 +1534,7 @@ export class Sandbox {
     validateName(username, "username");
     validateName(groupname, "group name");
 
-    const result = await this._runCommand({
+    const result = await this.runCommand({
       cmd: "usermod",
       args: ["-aG", groupname, username],
       sudo: true,
@@ -1567,7 +1567,7 @@ export class Sandbox {
     validateName(username, "username");
     validateName(groupname, "group name");
 
-    const result = await this._runCommand({
+    const result = await this.runCommand({
       cmd: "gpasswd",
       args: ["-d", username, groupname],
       sudo: true,
