@@ -15,6 +15,7 @@ export interface RequestParams extends RequestInit {
 
 const DEFAULT_AGENT = new Agent({
   bodyTimeout: 0, // disable body timeout to allow long logs streaming
+  headersTimeout: 0, // disable headers timeout so long-poll cmd.wait() doesn't abort after undici's 5-min default
 });
 
 /**
