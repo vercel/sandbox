@@ -28,6 +28,17 @@ describe("validateName (unit)", () => {
     expect(sandbox.asUser("user-name").username).toBe("user-name");
     expect(sandbox.asUser("user_123").username).toBe("user_123");
   });
+
+  it("asUser resolves the home directory", () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    // root's home is /root, not /home/root
+    expect(sandbox.asUser("root").homeDir).toBe("/root");
+    expect(sandbox.asUser("alice").homeDir).toBe("/home/alice");
+  });
 });
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
@@ -238,36 +249,71 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         expect((await stat.stdout()).trim()).toBe("alice");
       });
 
-      it("reads files created by user commands (umask makes them group-readable)", async () => {
+      it("reads files created by user commands", async () => {
         const alice = await sandbox.createUser("alice");
 
-        // User creates a file via runCommand — inherits alice:alice ownership + default umask
+        // User creates a file via runCommand — owned alice:alice.
         await alice.runCommand({
           cmd: "bash",
           args: ["-c", 'echo "from command" > /home/alice/cmd-file.txt'],
         });
 
-        // The HTTP file API (running as vercel-sandbox) should be able to read it
-        // because vercel-sandbox is in alice's group and default umask is 0022 (644)
+        // readFileToBuffer reads as alice (`sudo -u alice`), so it works
+        // regardless of the file's mode.
         const content = await alice.readFileToBuffer({
           path: "cmd-file.txt",
         });
         expect(content?.toString()).toBe("from command\n");
       });
+
+      it("reads a file the user kept private (mode 600)", async () => {
+        const alice = await sandbox.createUser("alice");
+
+        await alice.writeFiles([
+          { path: "private.txt", content: Buffer.from("top secret"), mode: 0o600 },
+        ]);
+
+        // The HTTP file API (vercel-sandbox) cannot read a 600 alice:alice
+        // file, but reading as alice herself can.
+        const content = await alice.readFileToBuffer({ path: "private.txt" });
+        expect(content?.toString()).toBe("top secret");
+      });
+
+      it("returns null when reading a missing file", async () => {
+        const alice = await sandbox.createUser("alice");
+        const content = await alice.readFileToBuffer({ path: "nope.txt" });
+        expect(content).toBeNull();
+      });
     });
 
     describe("mkDir as user", () => {
-      it("creates a directory owned by the user with 770 permissions", async () => {
+      it("creates a directory owned by the user, group vercel-sandbox, 770", async () => {
         const alice = await sandbox.createUser("alice");
 
         await alice.mkDir("projects");
 
+        // Group-owned by vercel-sandbox (like the home dir) so the HTTP file
+        // API can still write into it; mode 770 keeps other users out.
         const stat = await sandbox.runCommand({
           cmd: "stat",
           args: ["-c", "%U:%G %a", "/home/alice/projects"],
           sudo: true,
         });
-        expect((await stat.stdout()).trim()).toBe("alice:alice 770");
+        expect((await stat.stdout()).trim()).toBe("alice:vercel-sandbox 770");
+      });
+
+      it("writeFiles can write into a user-created directory", async () => {
+        const alice = await sandbox.createUser("alice");
+
+        await alice.mkDir("projects");
+        await alice.writeFiles([
+          { path: "projects/app.js", content: Buffer.from("ok") },
+        ]);
+
+        const content = await alice.readFileToBuffer({
+          path: "projects/app.js",
+        });
+        expect(content?.toString()).toBe("ok");
       });
     });
 
