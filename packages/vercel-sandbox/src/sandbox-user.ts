@@ -14,6 +14,7 @@ interface RunCommandParams {
   stdout?: Writable;
   stderr?: Writable;
   signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 /**
@@ -110,7 +111,7 @@ export class SandboxUser {
   async runCommand(
     command: string,
     args?: string[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<CommandFinished>;
 
   /**
@@ -134,7 +135,7 @@ export class SandboxUser {
   async runCommand(
     commandOrParams: string | RunCommandParams,
     args?: string[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal; timeoutMs?: number },
   ): Promise<Command | CommandFinished> {
     if (typeof commandOrParams === "string") {
       const wrapped = this.buildUserCommand({
@@ -146,6 +147,7 @@ export class SandboxUser {
       return this.sandbox.runCommand({
         ...wrapped,
         signal: opts?.signal,
+        timeoutMs: opts?.timeoutMs,
       });
     }
 
@@ -177,6 +179,7 @@ export class SandboxUser {
       stdout: params.stdout,
       stderr: params.stderr,
       signal: params.signal,
+      timeoutMs: params.timeoutMs,
     } as RunCommandParams & { detached: true });
   }
 
@@ -206,12 +209,19 @@ export class SandboxUser {
 
     // Chown all written files to this user
     const paths = absoluteFiles.map((f) => f.path);
-    await this.sandbox.runCommand({
+    if (paths.length === 0) return;
+    const chown = await this.sandbox.runCommand({
       cmd: "chown",
       args: [`${this.username}:${this.username}`, ...paths],
       sudo: true,
       signal: opts?.signal,
     });
+    if (chown.exitCode !== 0) {
+      const stderr = await chown.stderr();
+      throw new Error(
+        `Failed to set ownership on ${paths.join(", ")}: ${stderr}`,
+      );
+    }
   }
 
   /**
@@ -277,18 +287,26 @@ export class SandboxUser {
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
     const absPath = this.resolvePath(path);
     await this.sandbox.mkDir(absPath, opts);
-    await this.sandbox.runCommand({
+    const chown = await this.sandbox.runCommand({
       cmd: "chown",
       args: [`${this.username}:${this.username}`, absPath],
       sudo: true,
       signal: opts?.signal,
     });
-    await this.sandbox.runCommand({
+    if (chown.exitCode !== 0) {
+      const stderr = await chown.stderr();
+      throw new Error(`Failed to set ownership on ${absPath}: ${stderr}`);
+    }
+    const chmod = await this.sandbox.runCommand({
       cmd: "chmod",
       args: ["770", absPath],
       sudo: true,
       signal: opts?.signal,
     });
+    if (chmod.exitCode !== 0) {
+      const stderr = await chmod.stderr();
+      throw new Error(`Failed to set permissions on ${absPath}: ${stderr}`);
+    }
   }
 
   /**
