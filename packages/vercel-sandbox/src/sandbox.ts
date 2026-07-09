@@ -26,6 +26,7 @@ import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
 import { SandboxUser } from "./sandbox-user.js";
+import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
 
 export type {
@@ -304,7 +305,7 @@ export interface SerializedSandbox {
  * Use {@link Sandbox.create} or {@link Sandbox.get} to construct.
  * @hideconstructor
  */
-export class Sandbox {
+export class Sandbox implements ExecutionContext {
   private _client: APIClient | null = null;
   private readonly projectId: string;
 

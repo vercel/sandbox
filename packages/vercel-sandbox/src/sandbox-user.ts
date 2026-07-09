@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import type { Sandbox } from "./sandbox.js";
 import type { RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
+import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
 
 /**
@@ -23,7 +24,7 @@ const SANDBOX_GROUP = "vercel-sandbox";
  *
  * @hideconstructor
  */
-export class SandboxUser {
+export class SandboxUser implements ExecutionContext {
   /**
    * The Linux username.
    */

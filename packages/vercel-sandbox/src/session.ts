@@ -15,6 +15,7 @@ import type {
 } from "./network-policy.js";
 import { toSandboxSnapshot, type SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import { getCredentials } from "./utils/get-credentials.js";
+import type { ExecutionContext } from "./execution-context.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -77,7 +78,7 @@ export interface RunCommandParams {
  *
  * Obtain a session via {@link Sandbox.currentSession}.
  */
-export class Session {
+export class Session implements ExecutionContext {
   private _client: APIClient | null = null;
 
   /**
