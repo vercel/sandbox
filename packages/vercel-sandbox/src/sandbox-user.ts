@@ -1,6 +1,6 @@
-import { Readable } from "node:stream";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { Readable } from "stream";
+import { mkdir, writeFile } from "fs/promises";
+import { dirname, resolve } from "path";
 import type { Sandbox } from "./sandbox.js";
 import type { RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
@@ -252,6 +252,9 @@ export class SandboxUser implements ExecutionContext {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<NodeJS.ReadableStream | null> {
+    // `"use step"`: touches a Node built-in (`stream`), which the @workflow
+    // compiler only permits inside step functions (matches Session.readFile).
+    "use step";
     const buffer = await this.catAsUser(file, opts);
     return buffer === null ? null : Readable.from([buffer]);
   }
@@ -283,6 +286,9 @@ export class SandboxUser implements ExecutionContext {
     dst: { path: string; cwd?: string },
     opts?: { mkdirRecursive?: boolean; signal?: AbortSignal },
   ): Promise<string | null> {
+    // `"use step"`: touches Node built-ins (`fs`, `path`), which the @workflow
+    // compiler only permits inside step functions (matches Session.downloadFile).
+    "use step";
     const buffer = await this.catAsUser(src, opts);
     if (buffer === null) return null;
 
