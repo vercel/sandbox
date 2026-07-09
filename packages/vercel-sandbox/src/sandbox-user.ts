@@ -1,21 +1,7 @@
-import type { Writable } from "stream";
 import type { Sandbox } from "./sandbox.js";
+import type { RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import { validateName } from "./utils/validate-name.js";
-
-/** @inline */
-interface RunCommandParams {
-  cmd: string;
-  args?: string[];
-  cwd?: string;
-  env?: Record<string, string>;
-  sudo?: boolean;
-  detached?: boolean;
-  stdout?: Writable;
-  stderr?: Writable;
-  signal?: AbortSignal;
-  timeoutMs?: number;
-}
 
 /**
  * A user context within a sandbox.
@@ -194,7 +180,7 @@ export class SandboxUser {
    * @param opts - Optional parameters.
    */
   async writeFiles(
-    files: { path: string; content: Buffer; mode?: number }[],
+    files: { path: string; content: string | Uint8Array; mode?: number }[],
     opts?: { signal?: AbortSignal },
   ) {
     // Resolve relative paths to user's home directory

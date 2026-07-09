@@ -155,8 +155,9 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         });
         await cmd.kill("SIGTERM");
         const result = await cmd.wait();
-        // The command runs inside a bash -c wrapper, so the exit code
-        // may differ from a direct kill (e.g., 255 from bash vs 143 for SIGTERM).
+        // The command runs inside a `sudo -u` wrapper, so the exit code
+        // may differ from a direct kill (e.g., sudo's propagated code vs 143
+        // for SIGTERM).
         expect(result.exitCode).not.toBe(0);
       });
     });
