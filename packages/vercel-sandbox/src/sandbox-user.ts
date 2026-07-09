@@ -1,5 +1,7 @@
 import { Readable } from "stream";
-import { mkdir, writeFile } from "fs/promises";
+import { pipeline } from "stream/promises";
+import { createWriteStream } from "fs";
+import { mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
 import type { Sandbox } from "./sandbox.js";
 import type { RunCommandParams } from "./session.js";
@@ -282,14 +284,16 @@ export class SandboxUser implements ExecutionContext {
     // `"use step"`: touches Node built-ins (`fs`, `path`), which the @workflow
     // compiler only permits inside step functions (matches Session.downloadFile).
     "use step";
-    const buffer = await this.catAsUser(src, opts);
-    if (buffer === null) return null;
+    const stream = await this.readFile(src, opts);
+    if (stream === null) return null;
 
     const dstPath = resolve(dst.cwd ?? "", dst.path);
     if (opts?.mkdirRecursive) {
       await mkdir(dirname(dstPath), { recursive: true });
     }
-    await writeFile(dstPath, buffer, { signal: opts?.signal });
+    await pipeline(stream, createWriteStream(dstPath), {
+      signal: opts?.signal,
+    });
     return dstPath;
   }
 
