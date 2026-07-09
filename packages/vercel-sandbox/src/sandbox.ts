@@ -330,6 +330,12 @@ export class Sandbox implements ExecutionContext {
   private readonly onResume?: (sandbox: Sandbox) => Promise<void>;
 
   /**
+   * Memoized lookup of the sandbox's default user and its primary group.
+   * See {@link Sandbox.getDefaultUser}.
+   */
+  private defaultUserPromise?: Promise<{ username: string; group: string }>;
+
+  /**
    * A `node:fs/promises`-compatible API for interacting with the sandbox filesystem.
    *
    * @example
@@ -1351,11 +1357,58 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * The user that non-`sudo` commands and the HTTP file API run as, together
+   * with that user's primary group. This depends on the sandbox image: stock
+   * runtimes default to `vercel-sandbox`, while Ubuntu-based images default to
+   * `root`. The multi-user helpers group-own home and shared directories by
+   * this user's group so the file API can traverse them, so we resolve it from
+   * the running sandbox rather than assuming a fixed name.
+   *
+   * The result is memoized for the lifetime of this instance.
+   *
+   * @internal
+   */
+  getDefaultUser(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ username: string; group: string }> {
+    if (!this.defaultUserPromise) {
+      this.defaultUserPromise = this.resolveDefaultUser(opts).catch((err) => {
+        // Don't cache failures — allow a later call to retry.
+        this.defaultUserPromise = undefined;
+        throw err;
+      });
+    }
+    return this.defaultUserPromise;
+  }
+
+  private async resolveDefaultUser(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ username: string; group: string }> {
+    const result = await this.runCommand({
+      cmd: "sh",
+      args: ["-c", "id -un; id -gn"],
+      signal: opts?.signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(`Failed to resolve the default sandbox user: ${stderr}`);
+    }
+    const [username, group] = (await result.stdout()).trim().split("\n");
+    if (!username || !group) {
+      throw new Error(
+        `Failed to resolve the default sandbox user (got "${username}:${group}")`,
+      );
+    }
+    return { username, group };
+  }
+
+  /**
    * Create a new Linux user in this sandbox with an isolated home directory.
    *
-   * The home directory is group-owned by `vercel-sandbox` with `770` permissions,
-   * so the SDK's HTTP file API can read/write directly. Other users cannot access
-   * this user's home directory since they are not in the `vercel-sandbox` group.
+   * The home directory is group-owned by the sandbox's default user group with
+   * `770` permissions, so the SDK's HTTP file API can read/write directly.
+   * Other users cannot access this user's home directory since they are not in
+   * that group.
    *
    * @param username - Linux username (lowercase letters, digits, hyphens, underscores)
    * @param opts - Optional parameters.
@@ -1373,6 +1426,8 @@ export class Sandbox implements ExecutionContext {
   ): Promise<SandboxUser> {
     validateName(username, "username");
 
+    const { group: defaultGroup } = await this.getDefaultUser(opts);
+
     // Create user with home directory and default shell
     const useradd = await this.runCommand({
       cmd: "useradd",
@@ -1385,13 +1440,14 @@ export class Sandbox implements ExecutionContext {
       throw new Error(`Failed to create user "${username}": ${stderr}`);
     }
 
-    // Set home directory group to vercel-sandbox so the HTTP file API
-    // (which runs as the vercel-sandbox process) can read/write directly.
-    // This avoids the stale-group problem that occurs with usermod -aG,
-    // since vercel-sandbox already has gid=1000 in its process credentials.
+    // Group-own the home directory by the default user's group so the HTTP
+    // file API (which runs as that user) can read/write directly. On stock
+    // runtimes this is `vercel-sandbox` (gid 1000, already in the file API
+    // process credentials, avoiding the stale-group problem of `usermod -aG`);
+    // on Ubuntu images it is `root`, which can traverse regardless.
     const chown = await this.runCommand({
       cmd: "chown",
-      args: [`${username}:vercel-sandbox`, `/home/${username}`],
+      args: [`${username}:${defaultGroup}`, `/home/${username}`],
       sudo: true,
       signal: opts?.signal,
     });
@@ -1402,9 +1458,9 @@ export class Sandbox implements ExecutionContext {
       );
     }
 
-    // Set home directory permissions: owner full, group (vercel-sandbox)
-    // read+write+execute, others none. Other users can't access because
-    // they are not in the vercel-sandbox group.
+    // Set home directory permissions: owner full, group (the default user's
+    // group) read+write+execute, others none. Other users can't access
+    // because they are not in that group.
     const chmod = await this.runCommand({
       cmd: "chmod",
       args: ["770", `/home/${username}`],
@@ -1460,6 +1516,8 @@ export class Sandbox implements ExecutionContext {
   ): Promise<{ groupname: string; sharedDir: string }> {
     validateName(groupname, "group name");
 
+    const { username: defaultUser } = await this.getDefaultUser(opts);
+
     const sharedDir = `/shared/${groupname}`;
 
     // Create the group
@@ -1486,10 +1544,11 @@ export class Sandbox implements ExecutionContext {
       throw new Error(`Failed to create shared directory ${sharedDir}: ${stderr}`);
     }
 
-    // Set ownership: vercel-sandbox user, group-owned by the new group
+    // Set ownership: the default user (so the HTTP file API can write into the
+    // shared dir), group-owned by the new group.
     const chown = await this.runCommand({
       cmd: "chown",
-      args: [`vercel-sandbox:${groupname}`, sharedDir],
+      args: [`${defaultUser}:${groupname}`, sharedDir],
       sudo: true,
       signal: opts?.signal,
     });

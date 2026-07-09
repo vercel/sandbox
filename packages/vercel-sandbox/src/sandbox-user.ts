@@ -8,15 +8,6 @@ import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
 
 /**
- * Group that owns every user's home directory (and any directory the SDK
- * creates inside it). The sandbox's HTTP file API runs as `vercel-sandbox`,
- * so directories must stay group-owned by it — and mode `770` — for
- * {@link SandboxUser.writeFiles} to be able to traverse and write into them
- * while other users remain locked out.
- */
-const SANDBOX_GROUP = "vercel-sandbox";
-
-/**
  * A user context within a sandbox.
  *
  * All file and command operations default to running as this user.
@@ -152,7 +143,7 @@ export class SandboxUser implements ExecutionContext {
         args,
       });
       // Don't pass cwd to the sandbox API — the bash -c wrapper cd's for us.
-      // Don't pass sudo: true — vercel-sandbox already has sudo privileges.
+      // Don't pass sudo: true — the default user already has sudo privileges.
       return this.sandbox.runCommand({
         ...wrapped,
         signal: opts?.signal,
@@ -182,7 +173,7 @@ export class SandboxUser implements ExecutionContext {
       cmd: wrapped.cmd,
       args: wrapped.args,
       // Don't pass cwd — the bash -c wrapper cd's for us (see buildUserCommand)
-      // Don't pass sudo: true — vercel-sandbox already has sudo privileges
+      // Don't pass sudo: true — the default user already has sudo privileges
       // env is already baked into the wrapped command via `env KEY=VAL`
       detached: params.detached,
       stdout: params.stdout,
@@ -197,7 +188,7 @@ export class SandboxUser implements ExecutionContext {
    * Files are written via the sandbox HTTP API then chowned to this user.
    *
    * The HTTP API can write to user home dirs because they are group-owned
-   * by `vercel-sandbox` with `770` permissions.
+   * by the sandbox's default user group with `770` permissions.
    *
    * @param files - Array of files with path, content, and optional mode
    * @param opts - Optional parameters.
@@ -213,7 +204,7 @@ export class SandboxUser implements ExecutionContext {
     }));
 
     // Write via the HTTP API (works because home dirs are group-owned
-    // by vercel-sandbox)
+    // by the default user's group)
     await this.sandbox.writeFiles(absoluteFiles, opts);
 
     const paths = absoluteFiles.map((f) => f.path);
@@ -227,14 +218,16 @@ export class SandboxUser implements ExecutionContext {
     );
 
     // Any directories the write implicitly created (e.g. `data/` in
-    // `data/config.json`) are owned by vercel-sandbox. Hand them to the user
-    // but keep them group-owned by vercel-sandbox with mode 770 — matching the
-    // home dir — so the HTTP API can still traverse and write into them later.
+    // `data/config.json`) are owned by the default user. Hand them to the user
+    // but keep them group-owned by the default user's group with mode 770 —
+    // matching the home dir — so the HTTP API can still traverse and write into
+    // them later.
     const dirs = this.ancestorDirsUnderHome(paths);
     if (dirs.length > 0) {
+      const { group } = await this.sandbox.getDefaultUser(opts);
       await this.chownOrThrow(
         dirs,
-        `${this.username}:${SANDBOX_GROUP}`,
+        `${this.username}:${group}`,
         opts?.signal,
       );
       await this.chmodOrThrow(dirs, "770", opts?.signal);
@@ -304,11 +297,12 @@ export class SandboxUser implements ExecutionContext {
    * Read a file as this user and return its bytes, or null if it does not
    * exist.
    *
-   * Reads via `sudo -u <user> base64` rather than the HTTP file API: the API
-   * runs as `vercel-sandbox` and cannot read files this user has kept private
-   * (e.g. mode `600`), whereas reading as the user honours the user's own
-   * permissions. The payload is base64-encoded because the command output
-   * channel is UTF-8 only and would otherwise corrupt binary files.
+   * Reads via `sudo -u <user> base64` rather than the HTTP file API: on stock
+   * runtimes the API runs as `vercel-sandbox` and cannot read files this user
+   * has kept private (e.g. mode `600`), whereas reading as the user always
+   * honours the user's own permissions. The payload is base64-encoded because
+   * the command output channel is UTF-8 only and would otherwise corrupt
+   * binary files.
    */
   private async catAsUser(
     file: { path: string; cwd?: string },
@@ -340,12 +334,13 @@ export class SandboxUser implements ExecutionContext {
     const absPath = this.resolvePath(path);
     await this.sandbox.mkDir(absPath, opts);
     // Own the created directory plus any parents the mkdir created under the
-    // home dir. Group-owned by vercel-sandbox with mode 770 so the HTTP file
-    // API can write into it (see SANDBOX_GROUP).
+    // home dir. Group-owned by the default user's group with mode 770 so the
+    // HTTP file API can write into it (matching the home dir).
     const dirs = [absPath, ...this.ancestorDirsUnderHome([absPath])];
+    const { group } = await this.sandbox.getDefaultUser(opts);
     await this.chownOrThrow(
       dirs,
-      `${this.username}:${SANDBOX_GROUP}`,
+      `${this.username}:${group}`,
       opts?.signal,
     );
     await this.chmodOrThrow(dirs, "770", opts?.signal);

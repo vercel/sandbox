@@ -54,6 +54,18 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
       await sandbox.stop();
     });
 
+    // The default user (and its primary group) depends on the image: stock
+    // runtimes default to `vercel-sandbox`, Ubuntu images to `root`. Resolve
+    // it at runtime so ownership assertions hold on either image.
+    async function defaultUser(): Promise<{ username: string; group: string }> {
+      const r = await sandbox.runCommand({
+        cmd: "sh",
+        args: ["-c", "id -un; id -gn"],
+      });
+      const [username, group] = (await r.stdout()).trim().split("\n");
+      return { username, group };
+    }
+
     // ─── User Creation ───────────────────────────────────────────────
 
     describe("createUser", () => {
@@ -83,15 +95,16 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         expect((await stat.stdout()).trim()).toBe("770");
       });
 
-      it("sets home directory group to vercel-sandbox", async () => {
+      it("sets home directory group to the default user's group", async () => {
         await sandbox.createUser("alice");
 
+        const { group } = await defaultUser();
         const stat = await sandbox.runCommand({
           cmd: "stat",
           args: ["-c", "%U:%G", "/home/alice"],
           sudo: true,
         });
-        expect((await stat.stdout()).trim()).toBe("alice:vercel-sandbox");
+        expect((await stat.stdout()).trim()).toBe(`alice:${group}`);
       });
 
       it("creates multiple users", async () => {
@@ -287,19 +300,20 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
     });
 
     describe("mkDir as user", () => {
-      it("creates a directory owned by the user, group vercel-sandbox, 770", async () => {
+      it("creates a directory owned by the user, group the default user's group, 770", async () => {
         const alice = await sandbox.createUser("alice");
 
         await alice.mkDir("projects");
 
-        // Group-owned by vercel-sandbox (like the home dir) so the HTTP file
-        // API can still write into it; mode 770 keeps other users out.
+        // Group-owned by the default user's group (like the home dir) so the
+        // HTTP file API can still write into it; mode 770 keeps other users out.
+        const { group } = await defaultUser();
         const stat = await sandbox.runCommand({
           cmd: "stat",
           args: ["-c", "%U:%G %a", "/home/alice/projects"],
           sudo: true,
         });
-        expect((await stat.stdout()).trim()).toBe("alice:vercel-sandbox 770");
+        expect((await stat.stdout()).trim()).toBe(`alice:${group} 770`);
       });
 
       it("writeFiles can write into a user-created directory", async () => {
@@ -443,15 +457,16 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         expect((await stat.stdout()).trim()).toBe("2770");
       });
 
-      it("shared dir is owned by vercel-sandbox:<groupname>", async () => {
+      it("shared dir is owned by <default user>:<groupname>", async () => {
         await sandbox.createGroup("devs");
 
+        const { username } = await defaultUser();
         const stat = await sandbox.runCommand({
           cmd: "stat",
           args: ["-c", "%U:%G", "/shared/devs"],
           sudo: true,
         });
-        expect((await stat.stdout()).trim()).toBe("vercel-sandbox:devs");
+        expect((await stat.stdout()).trim()).toBe(`${username}:devs`);
       });
     });
 

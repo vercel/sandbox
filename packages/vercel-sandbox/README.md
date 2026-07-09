@@ -303,7 +303,7 @@ alice.homeDir;  // "/home/alice"
 `createUser` sets up:
 
 - A Linux user with `/bin/bash` as the default shell
-- A home directory at `/home/<username>` group-owned by `vercel-sandbox` with `770` permissions
+- A home directory at `/home/<username>` group-owned by the sandbox's default user group with `770` permissions
 
 ### Running commands as a user
 
@@ -402,8 +402,8 @@ cat.exitCode; // non-zero — Permission denied
 ```
 
 **The SDK can read all users' files** because home directories are group-owned
-by `vercel-sandbox`. Both `SandboxUser` methods and direct `sandbox` methods
-work:
+by the sandbox's default user group. Both `SandboxUser` methods and direct
+`sandbox` methods work:
 
 ```typescript
 // Via SandboxUser (relative paths resolve to home dir)
