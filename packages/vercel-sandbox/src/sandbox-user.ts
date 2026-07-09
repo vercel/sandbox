@@ -69,23 +69,31 @@ export class SandboxUser implements ExecutionContext {
         ? ["env", ...envEntries.map(([k, v]) => `${k}=${v}`)]
         : [];
 
-    // We cannot use the API's `cwd` parameter for user home dirs because
-    // the backend cd's to `cwd` before exec, and SUID binaries (like sudo)
-    // cannot be executed from directories with restricted permissions (770).
-    //
-    // Instead, we use: sudo --chdir <dir> -u <user> -- [env K=V...] <cmd> <args>
-    // Passing `cwd` via `sudo --chdir` keeps it a separate argv element, so it
-    // is never shell-interpreted — this avoids injection by design rather than
-    // relying on quoting, and removes the need for a `bash -c` wrapper.
     const cwd = params.cwd ?? this.homeDir;
+
+    // Run as the target user via `sudo -u`, changing into `cwd` first.
+    //
+    // We can't set the directory via the sandbox API's `cwd` (the backend cd's
+    // there before exec, and SUID binaries like sudo cannot start from a `770`
+    // home dir), nor via `sudo --chdir` (the sandbox's sudoers policy forbids
+    // the `-D` option). Instead we cd inside a `bash -c` wrapper.
+    //
+    // `cwd`, the command, its args, and any `env KEY=VAL` are passed as
+    // separate positional parameters to `bash -c` (`$1` is `cwd`; `$@` after
+    // the shift is the command). Because they are argv elements rather than
+    // text spliced into the script, they are never re-parsed by the shell —
+    // injection-safe by construction.
     return {
       cmd: "sudo",
       args: [
-        "--chdir",
-        cwd,
         "-u",
         this.username,
         "--",
+        "bash",
+        "-c",
+        'cd "$1" || exit 1; shift; exec "$@"',
+        "bash", // $0 placeholder for `bash -c`
+        cwd,
         ...envArgs,
         params.cmd,
         ...(params.args ?? []),
@@ -143,7 +151,7 @@ export class SandboxUser implements ExecutionContext {
         cmd: commandOrParams,
         args,
       });
-      // Don't pass cwd to the sandbox API — sudo --chdir handles it.
+      // Don't pass cwd to the sandbox API — the bash -c wrapper cd's for us.
       // Don't pass sudo: true — vercel-sandbox already has sudo privileges.
       return this.sandbox.runCommand({
         ...wrapped,
@@ -173,7 +181,7 @@ export class SandboxUser implements ExecutionContext {
     return this.sandbox.runCommand({
       cmd: wrapped.cmd,
       args: wrapped.args,
-      // Don't pass cwd — sudo --chdir handles it (see buildUserCommand)
+      // Don't pass cwd — the bash -c wrapper cd's for us (see buildUserCommand)
       // Don't pass sudo: true — vercel-sandbox already has sudo privileges
       // env is already baked into the wrapped command via `env KEY=VAL`
       detached: params.detached,
