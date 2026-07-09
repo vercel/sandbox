@@ -30,6 +30,12 @@ export class SandboxUser implements ExecutionContext {
 
   private readonly sandbox: Sandbox;
 
+  /**
+   * Memoized lookup of this user's primary group.
+   * See {@link SandboxUser.primaryGroup}.
+   */
+  private primaryGroupPromise?: Promise<string>;
+
   constructor({
     sandbox,
     username,
@@ -215,7 +221,7 @@ export class SandboxUser implements ExecutionContext {
     // The files themselves belong to the user outright.
     await this.chownOrThrow(
       paths,
-      `${this.username}:${this.username}`,
+      `${this.username}:${await this.primaryGroup(opts?.signal)}`,
       opts?.signal,
     );
 
@@ -348,6 +354,48 @@ export class SandboxUser implements ExecutionContext {
       opts?.signal,
     );
     await this.chmodOrThrow(dirs, "770", opts?.signal);
+  }
+
+  /**
+   * This user's primary group. Users created via {@link Sandbox.createUser}
+   * get a group named after them, but {@link Sandbox.asUser} accepts
+   * pre-existing users whose primary group can differ (e.g. system users), so
+   * we resolve it from the sandbox rather than assuming `<username>`.
+   *
+   * The result is memoized for the lifetime of this instance.
+   */
+  private primaryGroup(signal?: AbortSignal): Promise<string> {
+    if (!this.primaryGroupPromise) {
+      this.primaryGroupPromise = this.resolvePrimaryGroup(signal).catch(
+        (err) => {
+          // Don't cache failures — allow a later call to retry.
+          this.primaryGroupPromise = undefined;
+          throw err;
+        },
+      );
+    }
+    return this.primaryGroupPromise;
+  }
+
+  private async resolvePrimaryGroup(signal?: AbortSignal): Promise<string> {
+    const result = await this.sandbox.runCommand({
+      cmd: "id",
+      args: ["-gn", this.username],
+      signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(
+        `Failed to resolve the primary group of "${this.username}": ${stderr}`,
+      );
+    }
+    const group = (await result.stdout()).trim();
+    if (!group) {
+      throw new Error(
+        `Failed to resolve the primary group of "${this.username}"`,
+      );
+    }
+    return group;
   }
 
   /**
