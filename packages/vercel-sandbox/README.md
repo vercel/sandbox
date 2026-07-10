@@ -286,6 +286,10 @@ file permissions, and process ownership. This is useful for multi-agent workflow
 where each agent needs its own workspace, or for simulating multi-user
 environments.
 
+> **Note:** The sandbox image must have `/bin/bash` installed. It is the login
+> shell for created users and is used to wrap commands that run as a user. The
+> stock Vercel Sandbox images include it.
+
 ### Creating users
 
 ```typescript
