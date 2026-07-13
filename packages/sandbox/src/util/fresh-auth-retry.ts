@@ -27,7 +27,7 @@ export async function withFreshAuthRetry<T>(
         return undefined as never;
       }
     },
-    { retries: 5, minTimeout: 500, factor: 2, maxRetryTime: 10_000 },
+    { retries: 3, minTimeout: 250, factor: 2, maxRetryTime: 3_000 },
   );
 }
 

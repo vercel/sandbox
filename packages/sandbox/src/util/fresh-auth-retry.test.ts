@@ -93,7 +93,7 @@ describe("withFreshAuthRetry", () => {
     await expect(awaitWithTimers(withFreshAuthRetry(factory))).rejects.toBe(
       final,
     );
-    expect(factory).toHaveBeenCalledTimes(5);
+    expect(factory).toHaveBeenCalledTimes(4);
   });
 
   it("does not retry auth errors when the token is not fresh", async () => {
