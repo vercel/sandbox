@@ -5,7 +5,7 @@
     { "repo": "vercel/sandbox" }
   ],
   "commit": false,
-  "fixed": [],
+  "fixed": [["@vercel/sandbox", "@vercel/sandbox-mock"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
