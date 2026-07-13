@@ -10,8 +10,8 @@ let provider:
   | import("@opentelemetry/sdk-trace-node").NodeTracerProvider
   | undefined;
 let shutdownRegistered = false;
-let fetchInstrumentation:
-  | import("@opentelemetry/instrumentation-fetch").FetchInstrumentation
+let undiciInstrumentation:
+  | import("@opentelemetry/instrumentation-undici").UndiciInstrumentation
   | undefined;
 
 export function traced<Args extends unknown[], T>(
@@ -71,10 +71,10 @@ export function getTracesPath() {
 
 export async function setupOtel(): Promise<typeof provider> {
   try {
-    const [fileExporter, fetch, resources, traceBase, traceNode, conventions] =
+    const [fileExporter, undici, resources, traceBase, traceNode, conventions] =
       await Promise.all([
         import("./file-span-exporter"),
-        import("@opentelemetry/instrumentation-fetch"),
+        import("@opentelemetry/instrumentation-undici"),
         import("@opentelemetry/resources"),
         import("@opentelemetry/sdk-trace-base"),
         import("@opentelemetry/sdk-trace-node"),
@@ -104,26 +104,20 @@ export async function setupOtel(): Promise<typeof provider> {
       spanProcessors,
     });
     provider.register();
-    fetchInstrumentation = new fetch.FetchInstrumentation({
-      propagateTraceHeaderCorsUrls: [/.*/],
-      applyCustomAttributesOnSpan(span, req, res) {
-        let urlString = "url" in res ? res.url : "url" in req ? req.url : "";
-        if (urlString) {
-          try {
-            const url = new URL(urlString);
-            url.search = "";
-            urlString = url.toString();
-          } catch {}
-        }
-
-        span.updateName(`${req.method || "GET"} ${urlString}`);
+    undiciInstrumentation = new undici.UndiciInstrumentation({
+      requireParentforSpans: true,
+      requestHook(span, request) {
+        // Keep query strings out of locally retained traces. Undici exposes
+        // origin and path separately, so no credentials are needed here.
+        const pathname = request.path.split("?", 1)[0];
+        span.updateName(`${request.method} ${request.origin}${pathname}`);
       },
     });
-    fetchInstrumentation.enable();
+    undiciInstrumentation.enable();
     registerShutdown();
   } catch {
     provider = undefined;
-    fetchInstrumentation = undefined;
+    undiciInstrumentation = undefined;
   }
 
   return provider;
@@ -143,7 +137,7 @@ function registerShutdown() {
   shutdownRegistered = true;
 
   process.once("beforeExit", () => {
-    fetchInstrumentation?.disable();
+    undiciInstrumentation?.disable();
     void provider?.shutdown().catch(() => undefined);
   });
 }
