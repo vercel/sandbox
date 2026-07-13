@@ -46,12 +46,16 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "jose": "6.2.3",
-    "just-bash": "^3.1.0"
+    "just-bash": "^3.1.0",
+    "tar-stream": "3.1.7"
+  },
+  "peerDependencies": {
+    "@vercel/sandbox": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "22.15.12",
-    "@vercel/sandbox": "workspace:*",
+    "@types/tar-stream": "3.1.4",
+    "@vercel/sandbox": "workspace:^",
     "tsdown": "catalog:",
     "typescript": "5.8.3",
     "vitest": "catalog:"

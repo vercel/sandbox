@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
 import { Sandbox as MockSandbox } from "./sandbox";
-import { Snapshot as MockSnapshot } from "./stubs";
+import { Snapshot as MockSnapshot } from "./snapshot";
 
 export async function expectForkToPreserveSnapshotFileSystem(
   Sandbox: typeof MockSandbox,

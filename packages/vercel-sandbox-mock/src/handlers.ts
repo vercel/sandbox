@@ -126,35 +126,6 @@ function extractCommandName(regex: RegExp): string {
   return match[1];
 }
 
-/** Shared handler registry used by Sandbox.create() and setupSandbox(). */
-export let defaultHandlers: CommandHandler[] = [];
-export let runtimeHandlers: CommandHandler[] = [];
-const resetCallbacks: Array<() => void> = [];
-
-export function onResetHandlers(cb: () => void): void {
-  resetCallbacks.push(cb);
-}
-
-export type SandboxServer = {
-  use: (...handlers: CommandHandler[]) => void;
-  resetHandlers: () => void;
-};
-
-export function setupSandbox(...handlers: CommandHandler[]): SandboxServer {
-  defaultHandlers = handlers;
-  runtimeHandlers = [];
-
-  return {
-    use(...handlers: CommandHandler[]) {
-      runtimeHandlers.unshift(...handlers);
-    },
-    resetHandlers() {
-      runtimeHandlers = [];
-      for (const cb of resetCallbacks) cb();
-    },
-  };
-}
-
 /**
  * Convert an array of CommandHandlers to just-bash Command objects.
  * Groups handlers by command name and creates a defineCommand for each.

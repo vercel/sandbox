@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { Sandbox as RealSandbox, Snapshot as RealSnapshot } from "@vercel/sandbox";
 import { Sandbox as MockSandbox } from "./sandbox";
-import { Snapshot as MockSnapshot } from "./stubs";
+import { Snapshot as MockSnapshot } from "./snapshot";
 import { expectForkToPreserveSnapshotFileSystem } from "./test-scenarios";
 
 const HAS_TOKEN = (() => {

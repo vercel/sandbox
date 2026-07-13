@@ -237,13 +237,15 @@ export class Snapshot {
    * @returns A promise resolving to the {@link Sandbox}.
    */
   static async get(
-    params: GetSnapshotParams | (GetSnapshotParams & Credentials),
+    params: (GetSnapshotParams | (GetSnapshotParams & Credentials)) &
+      WithFetchOptions,
   ): Promise<Snapshot> {
     "use step";
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
       token: credentials.token,
+      fetch: params.fetch,
     });
 
     const sandbox = await client.getSnapshot({

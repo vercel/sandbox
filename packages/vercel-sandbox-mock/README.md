@@ -1,26 +1,38 @@
 # @vercel/sandbox-mock
 
-Drop-in mock for the current `@vercel/sandbox` API backed by [just-bash](https://github.com/vercel-labs/just-bash). Runs commands locally instead of spinning up real sandboxes, so tests stay fast and offline.
+Drop-in mock for `@vercel/sandbox`. Runs your sandbox code against an in-memory
+implementation of the Vercel sandbox API instead of provisioning real
+sandboxes, so tests stay fast and offline.
+
+## How it works
+
+The mock does **not** reimplement the SDK. It re-exports the real
+`@vercel/sandbox` classes and injects a mocked `fetch` (plus dummy credentials)
+into every entry point, so `Sandbox`, `Session`, `Command`, `FileSystem`,
+`SandboxUser`, and `Snapshot` are the genuine SDK code — only the HTTP layer is
+replaced. Requests to `/v2/sandboxes/**` are served from memory, and commands
+run locally through [just-bash](https://github.com/vercel-labs/just-bash)
+against an in-memory filesystem.
+
+Because the real SDK runs unchanged, argument parsing, pagination, retries,
+resume-after-stop, snapshots, forking, and multi-user orchestration all behave
+exactly as they do in production.
 
 ## Install
 
 ```bash
-pnpm add @vercel/sandbox-mock
+pnpm add -D @vercel/sandbox-mock
 ```
+
+`@vercel/sandbox` is a peer dependency.
 
 ## Usage
 
-Use `vi.mock` to replace `@vercel/sandbox` with `@vercel/sandbox-mock` so your existing imports work without changes:
+Import `Sandbox` from `@vercel/sandbox-mock` instead of `@vercel/sandbox` — the
+API is identical:
 
 ```ts
-// vitest.setup.ts (or top of your test file)
-vi.mock("@vercel/sandbox", async () => import("@vercel/sandbox-mock"));
-```
-
-Then use `@vercel/sandbox` as normal in your code and tests — the mock is substituted automatically:
-
-```ts
-import { Sandbox } from "@vercel/sandbox";
+import { Sandbox } from "@vercel/sandbox-mock";
 
 const sandbox = await Sandbox.create();
 const result = await sandbox.runCommand("echo", ["hello"]);
@@ -28,119 +40,73 @@ console.log(await result.stdout()); // "hello\n"
 await sandbox.stop();
 ```
 
+To keep existing `@vercel/sandbox` imports unchanged, alias the module in your
+test setup:
+
+```ts
+// vitest.setup.ts
+vi.mock("@vercel/sandbox", () => import("@vercel/sandbox-mock"));
+```
+
 ### Command handlers
 
-Stub specific commands to control their output in tests. The handler API follows the same pattern as [msw](https://mswjs.io/) — set defaults once, override per-test with `use()`, and reset in `afterEach`.
+Some commands can't run under just-bash (e.g. `npm install`). Stub their output
+with `command()`. The API follows [msw](https://mswjs.io/) — set defaults once,
+override per-test with `use()`, and reset in `afterEach`:
 
 ```ts
-import { setupSandbox, command } from "@vercel/sandbox-mock";
-import { Sandbox } from "@vercel/sandbox";
-import { afterEach } from "vitest";
+import { Sandbox, setupSandbox, command } from "@vercel/sandbox-mock";
+import { afterEach, test } from "vitest";
 
-const sandboxMock = setupSandbox(
+const server = setupSandbox(
   command("npm install", { stdout: "added 1 package\n", exitCode: 0 }),
-  command(/^greet/, (args) => ({
-    stdout: `Hello ${args[0] ?? "world"}\n`,
-    exitCode: 0,
-  })),
+  command(/^greet/, (args) => ({ stdout: `Hello ${args[0] ?? "world"}\n` })),
 );
 
-afterEach(() => sandboxMock.resetHandlers());
-```
+afterEach(() => server.resetHandlers());
 
-Tests use defaults automatically:
-
-```ts
-test("runs npm install", async () => {
-  const sb = await Sandbox.create();
-  const result = await sb.runCommand("npm", ["install", "react"]);
-  console.log(await result.stdout()); // "added 1 package\n"
-});
-```
-
-Override specific handlers per-test with `sandboxMock.use()`:
-
-```ts
 test("handles install failure", async () => {
-  sandboxMock.use(command("npm install", { stderr: "ERR!\n", exitCode: 1 }));
-
-  const sb = await Sandbox.create();
-  const result = await sb.runCommand("npm", ["install"]);
+  server.use(command("npm install", { stderr: "ERR!\n", exitCode: 1 }));
+  const sandbox = await Sandbox.create();
+  const result = await sandbox.runCommand("npm", ["install"]);
   console.log(result.exitCode); // 1
 });
-// afterEach calls resetHandlers() — next test gets defaults again
 ```
 
-Handlers can also be passed directly to `Sandbox.create()` for per-instance behavior:
+Handler priority (first match wins): `use()` > `setupSandbox()`. Handlers that
+don't match fall through to just-bash.
+
+### File operations & cleanup
 
 ```ts
-const sb = await Sandbox.create({
-  handlers: [command("custom-tool", { stdout: "ok\n" })],
-});
+await using sandbox = await Sandbox.create(); // AsyncDisposable — auto-stops
+await sandbox.writeFiles([{ path: "/app/index.ts", content: 'console.log("hi")' }]);
+console.log(await sandbox.fs.readFile("/app/index.ts", "utf8"));
 ```
-
-Handler priority (first match wins): `use()` > `create({ handlers })` > `setupSandbox()`
-
-### File operations
-
-```ts
-const sandbox = await Sandbox.create();
-
-await sandbox.writeFiles([{ path: "/app/index.ts", content: Buffer.from('console.log("hi")') }]);
-
-const stream = await sandbox.readFile({ path: "/app/index.ts" });
-```
-
-### Cleanup
-
-`Sandbox.create()` returns an `AsyncDisposable`, so you can use `await using` for automatic cleanup:
-
-```ts
-await using sandbox = await Sandbox.create();
-// sandbox.stop() called automatically
-```
-
-## Supported API
-
-| Method                                               | Behavior                                               |
-| ---------------------------------------------------- | ------------------------------------------------------ |
-| `Sandbox.create()` / `Sandbox.getOrCreate()`         | Creates or reuses a local just-bash sandbox            |
-| `Sandbox.fork()`                                     | Copies a sandbox filesystem and runtime configuration  |
-| `runCommand()`                                       | Executes via just-bash (supports pipes, detached mode) |
-| `writeFiles()` / `readFile()` / `readFileToBuffer()` | In-memory filesystem                                   |
-| `mkDir()`                                            | Creates directories                                    |
-| `domain(port)`                                       | Returns a mock URL for configured ports                |
-| `currentSession()`                                   | Returns the active local session                       |
-| `stop()` / `delete()`                                | Stops or deletes the sandbox                           |
-| `snapshot()`                                         | Returns a stub `Snapshot`                              |
-| `Snapshot.tree()`                                    | Returns a mock paginated ancestry tree                 |
-| `update()` / `extendTimeout()`                       | Updates local state                                    |
-| `updateNetworkPolicy()`                              | Updates the local network policy                       |
-| `createUser()` / `asUser()` / `SandboxUser`          | Simulated users; scope file/command ops to a home dir  |
-| `createGroup()` / `addUserToGroup()` / `removeUserFromGroup()` | Simulated groups with a `/shared/<group>` dir |
-| `setupSandbox(...handlers)`                          | Set default handlers, returns `{ use, resetHandlers }` |
-| `sandboxMock.use(...handlers)`                       | Prepend runtime handler overrides                      |
-| `sandboxMock.resetHandlers()`                        | Clear `use()` overrides, keep defaults                 |
-| `Sandbox.list()` / `Sandbox.get()`                   | Lists and retrieves tracked local sandboxes            |
-| `sandbox.fs` / `FileSystem`                          | Node-style filesystem facade and exported class        |
-| `defineSandboxProxy()`                               | Verifies and reconstructs forwarded sandbox requests   |
 
 ## Limitations
 
-`just-bash` has no real Linux user system, so multi-user support is a best-effort
-simulation: relative paths, home directories (`SandboxUser.homeDir`, `pwd`, `$HOME`)
-and group membership are tracked in-memory, but `whoami` reports the underlying
-shell user and OS-level permission isolation between users is not enforced. Behavior
-that depends on true user identity only holds against a real sandbox.
+Command execution is just-bash, not a real Linux VM, so some behaviour differs
+from a live sandbox:
 
-## Type safety
+- **Users/groups** are simulated in memory. Home-directory scoping, `$HOME`,
+  relative paths, and group membership work, but there is no real permission
+  isolation between users. `id -un` reports `vercel-sandbox`.
+- **Command output is buffered**, not streamed live — `logs()` emits after the
+  command finishes.
+- **Coreutils and shell semantics** follow just-bash: 32-bit arithmetic, no job
+  control (`&`), and a different command set than the production image.
+- **Network access** is disabled; stub network-dependent commands with
+  `command()`.
 
-The mock includes compile-time checks against `@vercel/sandbox` types so API drift is caught at build time.
+The `compat` test suite runs the same assertions against both the mock and a
+live sandbox (when `VERCEL_OIDC_TOKEN` is set) to keep the two aligned.
 
 ## Development
 
 ```bash
-pnpm install     # Install dependencies
-pnpm run test    # Run tests
-pnpm run build   # Build the library
+pnpm install
+pnpm run test       # unit + integration + compat (mock)
+pnpm run typecheck
+pnpm run build
 ```

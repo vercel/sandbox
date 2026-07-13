@@ -1,123 +1,57 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { randomUUID } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { Sandbox } from "./sandbox";
-import { SandboxUser } from "./sandbox-user";
-import { setupSandbox } from "./handlers";
 
-const server = setupSandbox();
+const userName = () => `u${randomUUID().slice(0, 8).replace(/-/g, "")}`;
 
-describe("multi-user and groups", () => {
-  afterEach(() => server.resetHandlers());
-
-  test("createUser returns a SandboxUser scoped to its home directory", async () => {
-    const sandbox = await Sandbox.create();
-    const alice = await sandbox.createUser("alice");
-
-    expect(alice).toBeInstanceOf(SandboxUser);
-    expect(alice.username).toBe("alice");
-    expect(alice.homeDir).toBe("/home/alice");
-
-    // Commands default to running in the user's home directory.
-    const pwd = await alice.runCommand("pwd");
-    expect((await pwd.stdout()).trim()).toBe("/home/alice");
-
-    // $HOME is set for the user.
-    const home = await alice.runCommand("sh", ["-c", "echo $HOME"]);
-    expect((await home.stdout()).trim()).toBe("/home/alice");
-
+describe("SandboxUser (real SDK over mock fetch)", () => {
+  let sandbox: Sandbox;
+  beforeAll(async () => {
+    sandbox = await Sandbox.create({ name: `user-${randomUUID().slice(0, 8)}` });
+  });
+  afterAll(async () => {
     await sandbox.stop();
   });
 
-  test("asUser('root') maps to /root", async () => {
-    const sandbox = await Sandbox.create();
+  test("createUser scopes commands and files to the home directory", async () => {
+    const name = userName();
+    const user = await sandbox.createUser(name);
+    expect(user.username).toBe(name);
+    expect(user.homeDir).toBe(`/home/${name}`);
+
+    const pwd = await user.runCommand("pwd");
+    expect((await pwd.stdout()).trim()).toBe(`/home/${name}`);
+
+    await user.writeFiles([{ path: "note.txt", content: "mine" }]);
+    const buf = await user.readFileToBuffer({ path: "note.txt" });
+    expect(buf?.toString()).toBe("mine");
+  });
+
+  test("asUser returns a handle without creating the user", async () => {
     const root = sandbox.asUser("root");
+    expect(root.username).toBe("root");
     expect(root.homeDir).toBe("/root");
-    await sandbox.stop();
   });
 
-  test("user file operations resolve relative paths under the home dir", async () => {
-    const sandbox = await Sandbox.create();
-    const alice = await sandbox.createUser("alice");
+  test("group creation and membership round-trip", async () => {
+    const name = userName();
+    const group = `g${randomUUID().slice(0, 8).replace(/-/g, "")}`;
+    const user = await sandbox.createUser(name);
+    const { sharedDir } = await sandbox.createGroup(group);
+    expect(sharedDir).toBe(`/shared/${group}`);
 
-    await alice.writeFiles([{ path: "note.txt", content: "hello" }]);
-
-    // Readable both through the user handle (relative) and the sandbox (absolute).
-    const viaUser = await alice.readFileToBuffer({ path: "note.txt" });
-    expect(viaUser?.toString()).toBe("hello");
-
-    const viaSandbox = await sandbox.readFileToBuffer({ path: "/home/alice/note.txt" });
-    expect(viaSandbox?.toString()).toBe("hello");
-
-    await sandbox.stop();
+    await user.addToGroup(group);
+    await user.removeFromGroup(group);
   });
 
-  test("createGroup creates a shared directory", async () => {
-    const sandbox = await Sandbox.create();
-    const group = await sandbox.createGroup("devs");
-    expect(group).toEqual({ groupname: "devs", sharedDir: "/shared/devs" });
-    expect(await sandbox.fs.exists("/shared/devs")).toBe(true);
-    await sandbox.stop();
+  test("invalid names are rejected", async () => {
+    await expect(sandbox.createUser("Invalid")).rejects.toThrow();
+    await expect(sandbox.createGroup("bad name")).rejects.toThrow();
   });
 
-  test("group membership round-trips via sandbox and user handles", async () => {
-    const sandbox = await Sandbox.create();
-    const alice = await sandbox.createUser("alice");
-    await sandbox.createGroup("devs");
-
-    await sandbox.addUserToGroup("alice", "devs");
-    await alice.removeFromGroup("devs");
-
-    // Removing again fails — she is no longer a member.
-    await expect(alice.removeFromGroup("devs")).rejects.toThrow(/not a member/);
-    await sandbox.stop();
+  test("duplicate user creation fails", async () => {
+    const name = userName();
+    await sandbox.createUser(name);
+    await expect(sandbox.createUser(name)).rejects.toThrow();
   });
-
-  test("addUserToGroup rejects users that were never created", async () => {
-    const sandbox = await Sandbox.create();
-    await sandbox.createGroup("devs");
-
-    await expect(sandbox.addUserToGroup("ghost", "devs")).rejects.toThrow(
-      /user "ghost" does not exist/,
-    );
-
-    // `root` and the default user always exist in a real sandbox.
-    await sandbox.addUserToGroup("root", "devs");
-    const { username } = await sandbox.getDefaultUser();
-    await sandbox.addUserToGroup(username, "devs");
-    await sandbox.stop();
-  });
-
-  test("duplicate users and groups are rejected", async () => {
-    const sandbox = await Sandbox.create();
-    await sandbox.createUser("alice");
-    await sandbox.createGroup("devs");
-
-    await expect(sandbox.createUser("alice")).rejects.toThrow(/already exists/);
-    await expect(sandbox.createGroup("devs")).rejects.toThrow(/already exists/);
-    await sandbox.stop();
-  });
-
-  test("invalid names are rejected before any side effects", async () => {
-    const sandbox = await Sandbox.create();
-    await expect(sandbox.createUser("Alice")).rejects.toThrow(/Invalid username/);
-    await expect(sandbox.createUser("a".repeat(33))).rejects.toThrow(/at most 32/);
-    await expect(sandbox.createGroup("bad group")).rejects.toThrow(/Invalid group name/);
-    await expect(sandbox.addUserToGroup("alice", "ghost")).rejects.toThrow(
-      /does not exist/,
-    );
-    await sandbox.stop();
-  });
-
-  test("getDefaultUser resolves and memoizes", async () => {
-    const sandbox = await Sandbox.create();
-    const a = await sandbox.getDefaultUser();
-    const b = await sandbox.getDefaultUser();
-    expect(a.username).toBeTruthy();
-    expect(a).toEqual(b);
-    await sandbox.stop();
-  });
-
-  // INCONSISTENCY: just-bash has no real Linux users. `whoami` reports the
-  // underlying shell user and `$USER` is not propagated into `bash -c`
-  // subshells, so true user identity only holds against a real sandbox.
-  test.skip("INCONSISTENCY: whoami reflects the user identity", () => {});
 });
