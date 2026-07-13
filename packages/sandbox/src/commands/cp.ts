@@ -7,6 +7,7 @@ import { scope } from "../args/scope";
 import consume from "node:stream/consumers";
 import ora from "ora";
 import chalk from "chalk";
+import { trace } from "../otel";
 
 export const args = {} as const;
 
@@ -54,25 +55,31 @@ export const cp = cmd.command({
     const spinner = ora({ text: `Reading source file (${source.path})...` }).start();
     let sourceFile: Buffer<ArrayBufferLike> | null = null;
 
-    if (source.type === "local") {
-      sourceFile = await fs.readFile(source.path).catch((err) => {
-        if (err.code === "ENOENT") {
-          return null;
+    sourceFile = await trace("copy.read", async (span) => {
+      span.setAttribute("copy.source", source.type);
+      let content: Buffer<ArrayBufferLike> | null = null;
+      if (source.type === "local") {
+        content = await fs.readFile(source.path).catch((err) => {
+          if (err.code === "ENOENT") {
+            return null;
+          }
+          throw err;
+        });
+      } else {
+        const sandbox = await sandboxClient.get({
+          name: source.sandboxName,
+          teamId: scope.team,
+          token: scope.token,
+          projectId: scope.project,
+        });
+        const file = await sandbox.readFile({ path: source.path });
+        if (file) {
+          content = await consume.buffer(file);
         }
-        throw err;
-      })
-    } else {
-      const sandbox = await sandboxClient.get({
-        name: source.sandboxName,
-        teamId: scope.team,
-        token: scope.token,
-        projectId: scope.project,
-      });
-      const file = await sandbox.readFile({ path: source.path });
-      if (file) {
-        sourceFile = await consume.buffer(file);
       }
-    }
+      if (content) span.setAttribute("copy.bytes", content.byteLength);
+      return content;
+    });
 
     if (!sourceFile) {
       if (source.type === "remote") {
@@ -86,22 +93,29 @@ export const cp = cmd.command({
       } else {
         spinner.fail(`Source file (${source.path}) not found.`);
       }
+      process.exitCode = 1;
       return;
     }
 
     spinner.text = `Writing to destination file (${dest.path})...`;
 
-    if (dest.type === "local") {
-      await fs.writeFile(dest.path, sourceFile);
-    } else {
-      const sandbox = await sandboxClient.get({
-        name: dest.sandboxName,
-        teamId: scope.team,
-        projectId: scope.project,
-        token: scope.token,
+    await trace("copy.write", async (span) => {
+      span.setAttributes({
+        "copy.destination": dest.type,
+        "copy.bytes": sourceFile.byteLength,
       });
-      await sandbox.writeFiles([{ path: dest.path, content: sourceFile }]);
-    }
+      if (dest.type === "local") {
+        await fs.writeFile(dest.path, sourceFile);
+      } else {
+        const sandbox = await sandboxClient.get({
+          name: dest.sandboxName,
+          teamId: scope.team,
+          projectId: scope.project,
+          token: scope.token,
+        });
+        await sandbox.writeFiles([{ path: dest.path, content: sourceFile }]);
+      }
+    });
 
     spinner.succeed(`Copied ${source.path} to ${dest.path} successfully!`);
   },

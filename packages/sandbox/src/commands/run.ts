@@ -5,6 +5,7 @@ import * as Exec from "./exec";
 import { sandboxClient } from "../client";
 import { StyledError } from "../error";
 import { omit } from "../util/omit";
+import { trace } from "../otel";
 
 const args = {
   ...Create.args,
@@ -58,10 +59,10 @@ export const run = cmd.command({
       await Exec.exec.handler({ ...rest, sandbox, timeout: undefined });
     } finally {
       if (removeAfterUse) {
-        await sandbox.delete();
+        await trace("run.cleanup.delete", () => sandbox.delete());
       }
       if (stopAfterUse) {
-        await sandbox.stop();
+        await trace("run.cleanup.stop", () => sandbox.stop());
       }
     }
   },

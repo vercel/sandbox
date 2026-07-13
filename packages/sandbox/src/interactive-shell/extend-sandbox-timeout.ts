@@ -2,6 +2,7 @@ import type { Sandbox } from "@vercel/sandbox";
 import ms from "ms";
 import createDebugger from "debug";
 import { setTimeout } from "node:timers/promises";
+import { trace } from "../otel";
 
 const debug = createDebugger("sandbox:timeout");
 
@@ -28,7 +29,9 @@ export async function extendSandboxTimeoutPeriodically(
       debug(`sleeping for ${sleepMs}ms until next timeout extension`);
       await setTimeout(sleepMs, null, { signal });
     }
-    await sandbox.extendTimeout(ms("5 minutes"));
+    await trace("Sandbox.extendTimeout", () =>
+      sandbox.extendTimeout(ms("5 minutes")),
+    );
     const updatedTimeout = session.timeout;
     if (updatedTimeout == null) return;
     const nextTick = session.createdAt.getTime() + updatedTimeout;

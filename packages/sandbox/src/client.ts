@@ -2,6 +2,21 @@ import { Sandbox, APIError, Snapshot } from "@vercel/sandbox";
 import { version } from "./pkg";
 import { withFreshAuthRetry } from "./util/fresh-auth-retry";
 import { formatApiError } from "./util/format-error";
+import { traced } from "./otel";
+
+const wrapped = {
+  Sandbox: {
+    get: traced({ name: "Sandbox.get" }, Sandbox.get),
+    create: traced({ name: "Sandbox.create" }, Sandbox.create),
+    fork: traced({ name: "Sandbox.fork" }, Sandbox.fork),
+    list: traced({ name: "Sandbox.list" }, Sandbox.list),
+  },
+  Snapshot: {
+    list: traced({ name: "Snapshot.list" }, Snapshot.list),
+    get: traced({ name: "Snapshot.get" }, Snapshot.get),
+    tree: traced({ name: "Snapshot.tree" }, Snapshot.tree),
+  },
+};
 
 /**
  * A {@link Sandbox} wrapper that adds user-agent headers and error handling.
@@ -12,33 +27,39 @@ export const sandboxClient: Pick<
 > = {
   get: (params) =>
     withErrorHandling(() =>
-      Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params }),
+      wrapped.Sandbox.get({
+        fetch: fetchWithUserAgent,
+        resume: false,
+        ...params,
+      }),
     ),
   create: (params) =>
     withErrorHandling(() =>
-      Sandbox.create({ fetch: fetchWithUserAgent, ...params }),
+      wrapped.Sandbox.create({ fetch: fetchWithUserAgent, ...params }),
     ),
   fork: (params) =>
     withErrorHandling(() =>
-      Sandbox.fork({ fetch: fetchWithUserAgent, ...params }),
+      wrapped.Sandbox.fork({ fetch: fetchWithUserAgent, ...params }),
     ),
   list: (params) =>
     withErrorHandling(() =>
-      Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
+      wrapped.Sandbox.list({
+        fetch: fetchWithUserAgent,
+        ...params,
+      } as typeof params),
     ),
 };
 
-export const snapshotClient: Pick<
-  typeof Snapshot,
-  "get" | "list" | "tree"
-> = {
+export const snapshotClient: Pick<typeof Snapshot, "get" | "list" | "tree"> = {
   list: (params) =>
     withErrorHandling(() =>
-      Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
+      wrapped.Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
     ),
-  get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
+  get: (params) => withErrorHandling(() => wrapped.Snapshot.get({ ...params })),
   tree: (params) =>
-    withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() =>
+      wrapped.Snapshot.tree({ fetch: fetchWithUserAgent, ...params }),
+    ),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {

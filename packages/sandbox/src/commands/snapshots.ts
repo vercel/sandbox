@@ -8,6 +8,7 @@ import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
 import { sandboxClient, snapshotClient } from "../client";
 import { acquireRelease } from "../util/disposables";
+import { trace } from "../otel";
 import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
 import { renderSnapshotTree } from "../util/snapshot-tree";
 
@@ -159,7 +160,7 @@ const remove = cmd.command({
                 `Snapshot ${snapshotId} is in status "${snapshot.status}" and cannot be deleted.`,
               );
             }
-            await snapshot.delete();
+            await trace("Snapshot.delete", () => snapshot.delete());
           },
         };
       },

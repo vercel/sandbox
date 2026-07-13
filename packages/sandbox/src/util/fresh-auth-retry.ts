@@ -3,6 +3,7 @@ import { APIError } from "@vercel/sandbox";
 import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
 import createDebugger from "debug";
 import { isTokenFresh } from "../args/auth";
+import { getCurrentSpan } from "../otel";
 
 const debug = createDebugger("sandbox:fresh-auth-retry");
 
@@ -21,6 +22,7 @@ export async function withFreshAuthRetry<T>(
         const status = getAuthFailureStatus(error);
         if (status !== undefined && isTokenFresh()) {
           debug(`fresh-auth retry attempt ${attempt} (status ${status})`);
+          getCurrentSpan()?.addEvent("auth.retry", { attempt, status });
           throw error;
         }
         bail(error as Error);

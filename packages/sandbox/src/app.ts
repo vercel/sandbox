@@ -16,6 +16,7 @@ import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
 import { sessions } from "./commands/sessions";
 import { config } from "./commands/config";
+import { traces } from "./commands/traces";
 
 export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
   subcommands({
@@ -41,6 +42,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
         login,
         logout,
       }),
+      _traces: traces,
     },
     examples: [
       {

@@ -7,6 +7,8 @@ import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
 import chalk from "chalk";
 import createDebugger from "debug";
+import { trace } from "../otel";
+import { traceParser } from "../util/parser-trace";
 
 const debug = createDebugger("sandbox:scope");
 
@@ -67,7 +69,7 @@ export const scope: ArgParser<{
   projectSlug?: string;
   teamSlug?: string;
 }> &
-  ProvidesHelp = {
+  ProvidesHelp = traceParser("scope", {
   register(ctx) {
     token.register?.(ctx);
     project.register?.(ctx);
@@ -107,9 +109,19 @@ export const scope: ArgParser<{
     ) {
       try {
         const scope = await withFreshAuthRetry(() =>
-          inferScope({
-            token: t.value,
-            team: teamId.value,
+          trace("inferScope", async (span) => {
+            span.setAttribute("input.team", teamId.value || "[missing]");
+            const inferred = await inferScope({
+              token: t.value,
+              team: teamId.value,
+            });
+            span.setAttributes({
+              "inferred.project": inferred.project,
+              "inferred.team": inferred.owner,
+              "inferred.projectSlug": inferred.projectSlug ?? "[missing]",
+              "inferred.teamSlug": inferred.ownerSlug ?? "[missing]",
+            });
+            return inferred;
           }),
         );
         projectId.value ??= scope.project;
@@ -159,4 +171,4 @@ export const scope: ArgParser<{
       category: "Auth & Scope",
     }));
   },
-};
+});
