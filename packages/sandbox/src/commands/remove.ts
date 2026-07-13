@@ -3,6 +3,8 @@ import { Listr } from "listr2";
 import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
+import { getCurrentSpan, trace } from "../otel";
+import { SpanStatusCode } from "@opentelemetry/api";
 
 export const remove = cmd.command({
   name: "remove",
@@ -35,14 +37,19 @@ export const remove = cmd.command({
             projectId: project,
             name,
           });
-          await sandbox.delete();
+          await trace("Sandbox.delete", () => sandbox.delete());
         },
       }),
     );
     try {
       await new Listr(tasks, { concurrent: true }).run();
-    } catch {
+    } catch (error) {
       // Listr already rendered the error; just set exit code
+      // Preserve the failure in the active command trace even though Listr
+      // already consumed and displayed it.
+      const span = getCurrentSpan();
+      if (error instanceof Error) span?.recordException(error);
+      span?.setStatus({ code: SpanStatusCode.ERROR });
       process.exitCode = 1;
     }
   },

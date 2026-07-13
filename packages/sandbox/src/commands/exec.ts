@@ -10,6 +10,8 @@ import { scope } from "../args/scope";
 import { Duration } from "../types/duration";
 import { sandboxClient } from "../client";
 import chalk from "chalk";
+import { SpanStatusCode } from "@opentelemetry/api";
+import { trace } from "../otel";
 
 export const args = {
   sandbox: cmd.positional({
@@ -122,15 +124,30 @@ export const exec = cmd.command({
 
     if (!interactive) {
       console.error(printCommand(command, args));
-      const result = await sandbox.runCommand({
-        cmd: command,
-        args,
-        stderr: process.stderr,
-        stdout: process.stdout,
-        sudo: asSudo,
-        cwd,
-        env: envVars,
-        timeoutMs: timeout ? ms(timeout) : undefined,
+      const result = await trace("Sandbox.runCommand", async (span) => {
+        span.setAttributes({
+          "command.interactive": false,
+          "command.sudo": asSudo,
+          "command.timeout_configured": timeout !== undefined,
+        });
+        const result = await sandbox.runCommand({
+          cmd: command,
+          args,
+          stderr: process.stderr,
+          stdout: process.stdout,
+          sudo: asSudo,
+          cwd,
+          env: envVars,
+          timeoutMs: timeout ? ms(timeout) : undefined,
+        });
+        span.setAttribute("command.exit_code", result.exitCode);
+        if (result.exitCode !== 0) {
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: `Command exited with code ${result.exitCode}`,
+          });
+        }
+        return result;
       });
 
       // Exit code 137 (128 + SIGKILL) is how a `--timeout` kill surfaces.

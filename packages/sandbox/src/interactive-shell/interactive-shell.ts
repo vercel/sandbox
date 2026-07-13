@@ -1,4 +1,5 @@
 import { Sandbox } from "@vercel/sandbox";
+import { SpanStatusCode } from "@opentelemetry/api";
 import createDebugger from "debug";
 import { WebSocket } from "ws";
 import { printCommand } from "../util/print-command";
@@ -6,6 +7,7 @@ import ora from "ora";
 import { acquireRelease, createAbortController, defer } from "../util/disposables";
 import chalk from "chalk";
 import { extendSandboxTimeoutPeriodically } from "./extend-sandbox-timeout";
+import { trace } from "../otel";
 
 const debug = createDebugger("sandbox:interactive-shell");
 
@@ -69,7 +71,9 @@ export async function startInteractiveShell(options: {
   );
 
   progress.text = "Opening interactive session...";
-  const { url, token } = await options.sandbox.openInteractive();
+  const { url, token } = await trace("Sandbox.openInteractive", () =>
+    options.sandbox.openInteractive(),
+  );
 
   const [command, ...args] = options.execution;
   const execution: [string, ...string[]] = options.sudo
@@ -86,10 +90,12 @@ export async function startInteractiveShell(options: {
     }
   });
 
-  await new Promise<void>((resolve, reject) => {
-    client.once("open", () => resolve());
-    client.once("error", (err) => reject(err));
-  });
+  await trace("Interactive.connect", () =>
+    new Promise<void>((resolve, reject) => {
+      client.once("open", () => resolve());
+      client.once("error", (err) => reject(err));
+    }),
+  );
   debug("connected to %s", url);
 
   client.send(
@@ -156,9 +162,23 @@ export async function startInteractiveShell(options: {
 
   console.error(printCommand(options.execution[0], options.execution.slice(1)));
 
-  await new Promise<void>((resolve, reject) => {
-    client.once("close", () => resolve());
-    client.once("error", (err) => reject(err));
+  await trace("Interactive.session", async (span) => {
+    await new Promise<void>((resolve, reject) => {
+      client.once("close", (code) => {
+        span.setAttribute("websocket.close_code", code);
+        resolve();
+      });
+      client.once("error", (err) => reject(err));
+    });
+    if (process.exitCode !== undefined) {
+      span.setAttribute("command.exit_code", process.exitCode);
+      if (process.exitCode !== 0) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: `Command exited with code ${process.exitCode}`,
+        });
+      }
+    }
   });
 
   extension.abort("client disconnected");

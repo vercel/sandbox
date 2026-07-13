@@ -7,6 +7,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { Duration } from "../types/duration";
 import ms from "ms";
+import { trace } from "../otel";
 
 export const args = {
   stop: cmd.flag({
@@ -74,9 +75,11 @@ export const snapshot = cmd.command({
     }
 
     const spinner = silent ? undefined : ora("Creating snapshot...").start();
-    const snapshot = await sandbox.snapshot({
-      expiration: expiration === undefined ? undefined : ms(expiration),
-    });
+    const snapshot = await trace("Sandbox.snapshot", () =>
+      sandbox.snapshot({
+        expiration: expiration === undefined ? undefined : ms(expiration),
+      }),
+    );
     spinner?.succeed(`Snapshot ${snapshot.snapshotId} created.`);
   },
 });

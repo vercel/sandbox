@@ -6,6 +6,7 @@ import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { formatBytes, formatRunDuration, timeAgo } from "../util/output";
+import { trace } from "../otel";
 
 type StopResult = Awaited<ReturnType<Sandbox["stop"]>>;
 
@@ -104,16 +105,18 @@ export const stop = cmd.command({
     }).start();
 
     const results = await Promise.allSettled(
-      names.map(async (name) => {
-        const sandbox = await sandboxClient.get({
-          token,
-          teamId: team,
-          projectId: project,
-          name,
-        });
-        const sessionSnapshot = await sandbox.stop();
-        return { name, sandbox, sessionSnapshot };
-      }),
+      names.map((name) =>
+        trace("Sandbox.stop", async () => {
+          const sandbox = await sandboxClient.get({
+            token,
+            teamId: team,
+            projectId: project,
+            name,
+          });
+          const sessionSnapshot = await sandbox.stop();
+          return { name, sandbox, sessionSnapshot };
+        }),
+      ),
     );
 
     spinner.stop();
