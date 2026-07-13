@@ -76,6 +76,12 @@ export class Executor {
       env: config.env,
       customCommands: [...buildUserCommands(config.users), ...config.customCommands],
     });
+    // just-bash only seeds /bin, /usr, /dev, ... — create the standard
+    // directories a real sandbox image ships with.
+    const fs = inner.bashEnvInstance.fs;
+    for (const dir of ["/tmp", "/home", "/root"]) {
+      await fs.mkdir(dir, { recursive: true });
+    }
     return new Executor(inner, config.cwd);
   }
 

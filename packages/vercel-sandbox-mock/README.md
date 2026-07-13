@@ -100,13 +100,16 @@ from a live sandbox:
   `command()`.
 
 The `compat` test suite runs the same assertions against both the mock and a
-live sandbox (when `VERCEL_OIDC_TOKEN` is set) to keep the two aligned.
+live sandbox to keep the two aligned. The live variants run when
+`RUN_INTEGRATION_TESTS=1` is set, with credentials taken from `.env.test` or
+the environment (same convention as the `vercel-sandbox` package).
 
 ## Development
 
 ```bash
 pnpm install
 pnpm run test       # unit + integration + compat (mock)
+RUN_INTEGRATION_TESTS=1 pnpm run test   # also run [real] compat tests
 pnpm run typecheck
 pnpm run build
 ```

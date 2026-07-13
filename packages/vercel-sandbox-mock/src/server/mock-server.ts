@@ -464,7 +464,13 @@ export class MockServer {
 
     if (op === "mkdir") {
       const { path, cwd } = readJson<{ path: string; cwd?: string }>(init);
-      await fs.mkdir(fs.resolvePath(cwd ?? session.cwd, path), { recursive: true });
+      // Not recursive, matching the real API (the SDK's `fs.mkdir` with
+      // `recursive: true` shells out to `mkdir -p` instead of this route).
+      try {
+        await fs.mkdir(fs.resolvePath(cwd ?? session.cwd, path));
+      } catch (error) {
+        return apiError(400, "bad_request", `mkdir failed: ${String(error)}`);
+      }
       return empty();
     }
 

@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import path from "node:path";
 
-// Load VERCEL_OIDC_TOKEN (and friends) from .env.local if present, so the
-// [real] compat tests can run against a live sandbox. Without a token they
-// are skipped automatically.
-const envPath = path.resolve(import.meta.dirname, ".env.local");
+// Load credentials from .env.test if present (same convention as the
+// vercel-sandbox package), for the [real] compat tests that run against a
+// live sandbox when RUN_INTEGRATION_TESTS=1.
+const envPath = path.resolve(import.meta.dirname, ".env.test");
 if (existsSync(envPath)) loadEnvFile(envPath);

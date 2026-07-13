@@ -1,20 +1,16 @@
 import { randomUUID } from "node:crypto";
+import { rm, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { Sandbox as RealSandbox, Snapshot as RealSnapshot } from "@vercel/sandbox";
 import { Sandbox as MockSandbox } from "../src/sandbox";
 import { Snapshot as MockSnapshot } from "../src/snapshot";
 import { expectForkToPreserveSnapshotFileSystem } from "../src/test-scenarios";
 
-const HAS_TOKEN = (() => {
-  const token = process.env.VERCEL_OIDC_TOKEN;
-  if (!token) return false;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
-})();
+// Same opt-in as the vercel-sandbox package: [real] tests run only with
+// RUN_INTEGRATION_TESTS=1 (credentials come from .env.test or the environment).
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION_TESTS === "1";
 
 const REAL_TIMEOUT_MS = 10_000;
 const STATIC_API_REAL_TIMEOUT_MS = 60_000;
@@ -43,7 +39,7 @@ function testBoth(
   fn: (sandbox: CompatSandbox, Sandbox: CompatSandboxClass) => Promise<void>,
 ) {
   test(`[mock] ${name}`, () => withSandbox(MockSandbox, fn));
-  (HAS_TOKEN ? test : test.skip)(`[real] ${name}`, { timeout: REAL_TIMEOUT_MS }, () =>
+  (RUN_INTEGRATION ? test : test.skip)(`[real] ${name}`, { timeout: REAL_TIMEOUT_MS }, () =>
     withSandbox(RealSandbox as unknown as typeof MockSandbox, fn),
   );
 }
@@ -53,7 +49,7 @@ function testStaticBoth(
   fn: (Sandbox: CompatSandboxClass, Snapshot: CompatSnapshotClass) => Promise<void>,
 ) {
   test(`[mock] ${name}`, () => fn(MockSandbox, MockSnapshot));
-  (HAS_TOKEN ? test : test.skip)(`[real] ${name}`, { timeout: STATIC_API_REAL_TIMEOUT_MS }, () =>
+  (RUN_INTEGRATION ? test : test.skip)(`[real] ${name}`, { timeout: STATIC_API_REAL_TIMEOUT_MS }, () =>
     fn(
       RealSandbox as unknown as CompatSandboxClass,
       RealSnapshot as unknown as CompatSnapshotClass,
@@ -76,7 +72,7 @@ function describeBoth(
     fn({ sandbox: () => sandbox, Sandbox: MockSandbox });
   });
 
-  const realDescribe = HAS_TOKEN ? describe : describe.skip;
+  const realDescribe = RUN_INTEGRATION ? describe : describe.skip;
   realDescribe(`[real] ${name}`, () => {
     let sandbox: CompatSandbox;
     beforeAll(async () => {
@@ -678,11 +674,157 @@ describe("sandbox compat", () => {
     await expect(sandbox.createGroup("bad name")).rejects.toThrow();
   });
 
+  testBoth("extendTimeout extends the current session's timeout", async (sandbox) => {
+    const before = sandbox.currentSession().timeout;
+    await sandbox.extendTimeout(60_000);
+    // A real sandbox caps the timeout at the plan maximum, so the increase is
+    // not guaranteed to be exactly the requested delta.
+    expect(sandbox.currentSession().timeout).toBeGreaterThan(before);
+  });
+
+  testBoth("updateNetworkPolicy round-trips a mode-based policy", async (sandbox) => {
+    const policy = await sandbox.updateNetworkPolicy("deny-all");
+    expect(policy).toBe("deny-all");
+    expect(sandbox.currentSession().networkPolicy).toBe("deny-all");
+  });
+
+  testBoth("listSessions includes the current session", async (sandbox) => {
+    const { sessions } = await sandbox.listSessions();
+    const current = sessions.find((s) => s.id === sandbox.currentSession().sessionId);
+    expect(current).toBeDefined();
+    expect(current?.status).toBe("running");
+  });
+
+  testBoth("getCommand reattaches to a detached command by id", async (sandbox) => {
+    const detached = await sandbox.runCommand({
+      cmd: "echo",
+      args: ["reattached"],
+      detached: true,
+    });
+    const command = await sandbox.getCommand(detached.cmdId);
+    expect(command.cmdId).toBe(detached.cmdId);
+
+    const finished = await command.wait();
+    expect(finished.exitCode).toBe(0);
+    const logs: string[] = [];
+    for await (const log of command.logs()) logs.push(log.data);
+    expect(logs.join("")).toContain("reattached");
+  });
+
+  testBoth("openInteractive returns a websocket url and token", async (sandbox) => {
+    const { url, token } = await sandbox.openInteractive();
+    expect(url).toMatch(/^wss?:\/\//);
+    expect(token.length).toBeGreaterThan(0);
+  });
+
+  testBoth("mkDir creates a directory under a world-writable parent", async (sandbox) => {
+    // A single level directly under /tmp; nesting under a dir the mkdir
+    // endpoint just created fails on a real sandbox, where that dir is owned
+    // by root while the fs API runs as `vercel-sandbox`.
+    const dir = `/tmp/compat-mkdir-${randomUUID().slice(0, 8)}`;
+    await sandbox.mkDir(dir);
+    expect((await sandbox.runCommand("test", ["-d", dir])).exitCode).toBe(0);
+  });
+
+  testBoth("sandbox-level file helpers round-trip", async (sandbox) => {
+    const root = `/tmp/compat-files-${randomUUID().slice(0, 8)}`;
+    // Build the tree with `mkdir -p` (fs.mkdir recursive) rather than the
+    // mkdir endpoint, so the directories are owned by the fs user.
+    await sandbox.fs.mkdir(`${root}/nested`, { recursive: true });
+    await sandbox.writeFiles([{ path: `${root}/nested/data.txt`, content: "sandbox-level" }]);
+
+    const buffer = await sandbox.readFileToBuffer({ path: `${root}/nested/data.txt` });
+    expect(buffer?.toString()).toBe("sandbox-level");
+
+    const stream = await sandbox.readFile({ path: `${root}/nested/data.txt` });
+    expect(stream).not.toBeNull();
+    let streamed = "";
+    for await (const chunk of stream!) streamed += chunk.toString();
+    expect(streamed).toBe("sandbox-level");
+
+    // Missing files resolve to null rather than throwing.
+    expect(await sandbox.readFile({ path: `${root}/missing.txt` })).toBeNull();
+    expect(await sandbox.readFileToBuffer({ path: `${root}/missing.txt` })).toBeNull();
+
+    const localDir = path.join(tmpdir(), `sandbox-mock-download-${randomUUID().slice(0, 8)}`);
+    const localFile = path.join(localDir, "data.txt");
+    try {
+      const written = await sandbox.downloadFile(
+        { path: `${root}/nested/data.txt` },
+        { path: localFile },
+        { mkdirRecursive: true },
+      );
+      expect(written).toBe(localFile);
+      expect(await readFile(localFile, "utf8")).toBe("sandbox-level");
+      expect(
+        await sandbox.downloadFile({ path: `${root}/missing.txt` }, { path: localFile }),
+      ).toBeNull();
+    } finally {
+      await rm(localDir, { recursive: true, force: true });
+    }
+  });
+
+  testStaticBoth("list filters by tags", async (Sandbox) => {
+    const value = randomUUID().slice(0, 8);
+    const sandbox = await Sandbox.create({ name: `compat-tags-${value}`, tags: { suite: value } });
+    try {
+      const { sandboxes } = await Sandbox.list({ tags: { suite: value } });
+      expect(sandboxes.map((s) => s.name)).toEqual([sandbox.name]);
+      const { sandboxes: none } = await Sandbox.list({ tags: { suite: `${value}-miss` } });
+      expect(none).toEqual([]);
+    } finally {
+      await sandbox.delete();
+    }
+  });
+
+  test("[mock] mkDir is not recursive: a missing parent yields a 400", async () => {
+    const sandbox = await MockSandbox.create();
+    try {
+      await expect(
+        sandbox.mkDir(`/tmp/compat-missing-${randomUUID().slice(0, 8)}/child`),
+      ).rejects.toMatchObject({ response: { status: 400 } });
+    } finally {
+      await sandbox.delete();
+    }
+  });
+
+  test("[mock] Snapshot.get() with an unknown id throws a 404", async () => {
+    await expect(MockSnapshot.get({ snapshotId: "snap_missing" })).rejects.toMatchObject({
+      response: { status: 404 },
+    });
+  });
+
+  test("[mock] creating a sandbox from a deleted snapshot throws snapshot_not_found", async () => {
+    const sandbox = await MockSandbox.create();
+    try {
+      const snapshot = await sandbox.snapshot();
+      await snapshot.delete();
+      await expect(
+        MockSandbox.create({ source: { type: "snapshot", snapshotId: snapshot.snapshotId } }),
+      ).rejects.toMatchObject({
+        response: { status: 410 },
+        json: { error: { code: "snapshot_not_found" } },
+      });
+    } finally {
+      await sandbox.delete();
+    }
+  });
+
+  test("[mock] session-level commands on a stopped session throw a 410", async () => {
+    const sandbox = await MockSandbox.create();
+    const session = sandbox.currentSession();
+    await session.stop();
+    await expect(session.runCommand("echo", ["hi"])).rejects.toMatchObject({
+      response: { status: 410 },
+    });
+    await sandbox.delete();
+  });
+
   test("[mock] Sandbox.get() with unknown name throws", async () => {
     await expect(MockSandbox.get({ name: "nonexistent-name" })).rejects.toThrow();
   });
 
-  (HAS_TOKEN ? test : test.skip)(
+  (RUN_INTEGRATION ? test : test.skip)(
     "[real] Sandbox.get() with unknown name throws",
     { timeout: REAL_TIMEOUT_MS },
     async () => {
@@ -710,6 +852,10 @@ describe("sandbox compat", () => {
 
   // INCONSISTENCY: sudo is a no-op in just-bash while real sandbox executes with privileges
   test.skip("INCONSISTENCY: sudo behavior differs", () => {});
+
+  // INCONSISTENCY: the mock reports custom network policies as a bare { mode: "custom" },
+  // dropping allowedDomains, so updateNetworkPolicy({ allow: [...] }) reads back as {}
+  test.skip("INCONSISTENCY: custom network policies lose their domain list", () => {});
 
   // INCONSISTENCY: hostname command is unavailable in real sandbox runtime for this suite
   test.skip("INCONSISTENCY: hostname availability differs", () => {});
