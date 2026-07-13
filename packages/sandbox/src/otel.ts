@@ -3,6 +3,8 @@ import {
   trace as otelTrace,
   type Span,
 } from "@opentelemetry/api";
+import path from "node:path";
+import XDGAppPaths from "xdg-app-paths";
 
 let provider:
   | import("@opentelemetry/sdk-trace-node").NodeTracerProvider
@@ -63,15 +65,15 @@ export async function trace<T>(
   });
 }
 
-export async function setupOtel(): Promise<typeof provider> {
-  if (!hasOtelExporterConfig()) {
-    return undefined;
-  }
+export function getTracesPath() {
+  return path.join(XDGAppPaths("com.vercel.sandbox").cache(), "traces");
+}
 
+export async function setupOtel(): Promise<typeof provider> {
   try {
-    const [exporter, fetch, resources, traceBase, traceNode, conventions] =
+    const [fileExporter, fetch, resources, traceBase, traceNode, conventions] =
       await Promise.all([
-        import("@opentelemetry/exporter-trace-otlp-http"),
+        import("./file-span-exporter"),
         import("@opentelemetry/instrumentation-fetch"),
         import("@opentelemetry/resources"),
         import("@opentelemetry/sdk-trace-base"),
@@ -79,14 +81,27 @@ export async function setupOtel(): Promise<typeof provider> {
         import("@opentelemetry/semantic-conventions"),
       ]);
 
+    // Always write traces to disk as OTLP/JSON lines so they can be loaded
+    // into Jaeger/Tempo later, even without an OTLP endpoint configured.
+    const spanProcessors = [
+      new traceBase.SimpleSpanProcessor(
+        new fileExporter.FileSpanExporter(getTracesPath()),
+      ),
+    ];
+
+    if (hasOtelExporterConfig()) {
+      const exporter = await import("@opentelemetry/exporter-trace-otlp-http");
+      spanProcessors.push(
+        new traceBase.SimpleSpanProcessor(new exporter.OTLPTraceExporter({})),
+      );
+    }
+
     provider = new traceNode.NodeTracerProvider({
       resource: new resources.Resource({
         [conventions.ATTR_SERVICE_NAME]:
           process.env.OTEL_SERVICE_NAME ?? "sandbox-cli",
       }),
-      spanProcessors: [
-        new traceBase.SimpleSpanProcessor(new exporter.OTLPTraceExporter({})),
-      ],
+      spanProcessors,
     });
     provider.register();
     fetchInstrumentation = new fetch.FetchInstrumentation({

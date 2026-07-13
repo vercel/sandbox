@@ -10,17 +10,24 @@ dotenv.config({
 });
 
 async function main() {
-  await setupOtel();
+  const args = process.argv.slice(2);
+
+  if (!isTracesCommand(args)) {
+    await setupOtel();
+  }
+
   setDefaultHelpFormatter(vercelFormatter);
 
   try {
-    await trace(`$ sandbox ${process.argv.slice(2).join(" ")}`, () =>
-      run(app(), process.argv.slice(2)),
-    );
+    await trace(`$ sandbox ${args.join(" ")}`, () => run(app(), args));
   } catch (e) {
     await printTopLevelError(e);
     process.exit(1);
   }
+}
+
+function isTracesCommand(args: string[]): boolean {
+  return args[0] === "_traces" || args[0] === "traces";
 }
 
 main();
