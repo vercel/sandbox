@@ -76,6 +76,10 @@ test("handles install failure", async () => {
 Handler priority (first match wins): `use()` > `setupSandbox()`. Handlers that
 don't match fall through to just-bash.
 
+Handlers are bound when a sandbox starts, so register them (via `setupSandbox()`
+or `use()`) **before** calling `Sandbox.create()`. Adding a handler afterwards
+has no effect on an already-running sandbox.
+
 ### File operations & cleanup
 
 ```ts

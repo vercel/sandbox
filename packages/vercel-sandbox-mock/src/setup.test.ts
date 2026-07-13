@@ -3,19 +3,27 @@ import { Sandbox } from "./sandbox";
 import { command, setupSandbox } from "./index";
 
 describe("command stubbing", () => {
-  const server = setupSandbox();
+  // Baseline handlers registered once, MSW-style, so `resetHandlers` must
+  // preserve them across tests.
+  const server = setupSandbox(command("npm install", { stdout: "installed\n" }));
   afterEach(() => server.resetHandlers());
 
   test("a default handler overrides just-bash for a matching command", async () => {
-    setupSandbox(command("npm install", { stdout: "installed\n" }));
     const sandbox = await Sandbox.create();
     const result = await sandbox.runCommand("npm", ["install"]);
     expect(await result.stdout()).toContain("installed");
     await sandbox.stop();
   });
 
+  test("use() registers a per-test handler that takes priority", async () => {
+    server.use(command("deploy", { stdout: "deployed\n" }));
+    const sandbox = await Sandbox.create();
+    expect(await (await sandbox.runCommand("deploy", [])).stdout()).toContain("deployed");
+    await sandbox.stop();
+  });
+
   test("a regex handler can compute a response from args", async () => {
-    setupSandbox(
+    server.use(
       command(/^echo-json/, (args) => ({ stdout: JSON.stringify(args), exitCode: 0 })),
     );
     const sandbox = await Sandbox.create();
@@ -24,18 +32,21 @@ describe("command stubbing", () => {
     await sandbox.stop();
   });
 
-  test("use() registers a per-test handler", async () => {
-    server.use(command("deploy", { stdout: "deployed\n" }));
+  test("resetHandlers drops use() overrides but keeps the baseline defaults", async () => {
+    server.use(command("npm install", { stdout: "overridden\n" }));
+    server.resetHandlers();
     const sandbox = await Sandbox.create();
-    expect(await (await sandbox.runCommand("deploy", [])).stdout()).toContain("deployed");
+    // The per-test override is gone, but the module-scope default persists.
+    expect(await (await sandbox.runCommand("npm", ["install"])).stdout()).toContain("installed");
     await sandbox.stop();
   });
 
-  test("resetHandlers restores real execution", async () => {
-    setupSandbox(command("echo", { stdout: "stubbed\n" }));
+  test("use() overrides fall away after reset, restoring real execution", async () => {
+    server.use(command("echo", { stdout: "stubbed\n" }));
     server.resetHandlers();
     const sandbox = await Sandbox.create();
-    // With the stub cleared, the real just-bash `echo` runs again.
+    // With the override cleared and no baseline stub for `echo`, real
+    // just-bash `echo` runs again.
     expect(await (await sandbox.runCommand("echo", ["real"])).stdout()).toBe("real\n");
     await sandbox.stop();
   });

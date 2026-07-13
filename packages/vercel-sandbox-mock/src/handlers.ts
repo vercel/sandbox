@@ -36,7 +36,10 @@ type ResponseFn = (
 /**
  * Create a command handler from a string pattern or regex.
  * String patterns match exact prefixes (e.g., 'npm install' matches 'npm install --save').
- * Regex patterns match the full command line.
+ * Regex patterns match the full command line, but must begin with a single
+ * literal command name (e.g. `/^npm/`); the handler is registered only under
+ * that name, so an alternation across different commands (e.g. `/^npm|^yarn/`)
+ * matches only the first.
  */
 export function command(
   pattern: string | RegExp,

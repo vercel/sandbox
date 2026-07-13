@@ -34,7 +34,12 @@ export function withMockDefaults<T>(params: T): T & MockDefaults {
  * here override just-bash execution for matching commands — the escape hatch
  * for commands just-bash can't run (e.g. `npm install`).
  *
- * @param handlers - Handlers applied to every sandbox created afterwards.
+ * Handlers are bound when a sandbox starts, so register them before
+ * `Sandbox.create()`; adding handlers afterwards has no effect on an
+ * already-running sandbox.
+ *
+ * @param handlers - Baseline handlers applied to every sandbox created
+ *   afterwards.
  * @returns Controls to add per-test handlers (`use`) and reset state
  *   (`resetHandlers`), mirroring an MSW-style server.
  */
@@ -46,7 +51,10 @@ export function setupSandbox(...handlers: CommandHandler[]): {
   return {
     use: (...runtime: CommandHandler[]) => defaultServer.use(runtime),
     resetHandlers: () => {
-      defaultServer.setDefaultHandlers([]);
+      // MSW semantics: drop per-test `use()` overrides and in-memory state,
+      // but restore the baseline handlers passed to this `setupSandbox` call
+      // rather than wiping them.
+      defaultServer.setDefaultHandlers(handlers);
       defaultServer.reset();
     },
   };
