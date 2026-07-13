@@ -71,6 +71,21 @@ describe("multi-user and groups", () => {
     await sandbox.stop();
   });
 
+  test("addUserToGroup rejects users that were never created", async () => {
+    const sandbox = await Sandbox.create();
+    await sandbox.createGroup("devs");
+
+    await expect(sandbox.addUserToGroup("ghost", "devs")).rejects.toThrow(
+      /user "ghost" does not exist/,
+    );
+
+    // `root` and the default user always exist in a real sandbox.
+    await sandbox.addUserToGroup("root", "devs");
+    const { username } = await sandbox.getDefaultUser();
+    await sandbox.addUserToGroup(username, "devs");
+    await sandbox.stop();
+  });
+
   test("duplicate users and groups are rejected", async () => {
     const sandbox = await Sandbox.create();
     await sandbox.createUser("alice");

@@ -61,6 +61,24 @@ describe(Sandbox, () => {
     await sandbox.stop();
   });
 
+  test("filesystem errors carry node-style code/syscall/path", async () => {
+    const sandbox = await Sandbox.create();
+    const error = await sandbox.fs.readFile("/tmp/missing.txt").catch((err) => err);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.code).toBe("ENOENT");
+    expect(error.path).toBe("/tmp/missing.txt");
+    await expect(sandbox.fs.access("/tmp/missing.txt")).rejects.toMatchObject({
+      code: "ENOENT",
+      syscall: "access",
+      path: "/tmp/missing.txt",
+    });
+    await sandbox.fs.mkdir("/vercel/sandbox/dir");
+    await expect(sandbox.fs.mkdir("/vercel/sandbox/dir")).rejects.toMatchObject({
+      code: "EEXIST",
+    });
+    await sandbox.stop();
+  });
+
   test("openInteractive returns mock connection credentials", async () => {
     const sandbox = await Sandbox.create();
     const interactive = await sandbox.openInteractive();
@@ -170,6 +188,25 @@ describe(Sandbox, () => {
     const retrieved = await Sandbox.get({ name: "get-test" });
     expect(retrieved.name).toBe("get-test");
     await sandbox.delete();
+  });
+
+  test("Sandbox.get() resumes a stopped sandbox unless resume: false", async () => {
+    let resumeCount = 0;
+    const sandbox = await Sandbox.create({ name: "get-resume-test" });
+    await sandbox.stop();
+
+    const notResumed = await Sandbox.get({ name: "get-resume-test", resume: false });
+    expect(notResumed.status).toBe("stopped");
+
+    const resumed = await Sandbox.get({
+      name: "get-resume-test",
+      onResume: async () => {
+        resumeCount++;
+      },
+    });
+    expect(resumed.status).toBe("running");
+    expect(resumeCount).toBe(1);
+    await sandbox.stop();
   });
 
   test("Sandbox.get() with unknown name throws APIError 404", async () => {
@@ -476,6 +513,22 @@ describe("session cycling", () => {
     expect(secondSession.sessionId).not.toBe(firstSessionId);
     expect(secondSession.status).toBe("running");
 
+    await sandbox.stop();
+  });
+
+  test("concurrent operations on a stopped sandbox resume it once", async () => {
+    let resumeCount = 0;
+    const sandbox = await Sandbox.create({
+      onResume: async () => {
+        resumeCount++;
+      },
+    });
+    await sandbox.stop();
+
+    await Promise.all([sandbox.runCommand("echo", ["one"]), sandbox.mkDir("/tmp/two")]);
+
+    expect(resumeCount).toBe(1);
+    expect((await sandbox.listSessions()).sessions).toHaveLength(2);
     await sandbox.stop();
   });
 

@@ -259,6 +259,8 @@ export class Sandbox {
   #users = new Map<string, { group: string }>();
   #groups = new Map<string, Set<string>>();
   #defaultUserPromise: Promise<{ username: string; group: string }> | undefined;
+  // Deduplicates concurrent resumes, like the real SDK's `resumePromise`.
+  #resumePromise: Promise<void> | undefined;
 
   static async create(params?: CreateParams): Promise<Sandbox & AsyncDisposable> {
     const cwd = params?.cwd ?? "/vercel/sandbox";
@@ -309,6 +311,9 @@ export class Sandbox {
     const existing = instances.get(params.name);
     if (existing) {
       if (params.onResume) existing.#onResume = params.onResume;
+      // Like the real SDK, `get` eagerly resumes a stopped sandbox (and fires
+      // `onResume`) unless `resume: false` is passed.
+      if (params.resume !== false) await existing.#ensureRunning();
       return existing;
     }
     throw new APIError(new Response(null, { status: 404, statusText: "Not Found" }), {
@@ -596,7 +601,10 @@ export class Sandbox {
   async #ensureRunning(): Promise<Session> {
     const current = this.currentSession();
     if (current.status === "stopped") {
-      await this.#resume();
+      this.#resumePromise ??= this.#resume().finally(() => {
+        this.#resumePromise = undefined;
+      });
+      await this.#resumePromise;
     }
     return this.currentSession();
   }
@@ -853,7 +861,7 @@ export class Sandbox {
   async addUserToGroup(
     username: string,
     groupname: string,
-    _opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal },
   ): Promise<void> {
     validateName(username, "username");
     validateName(groupname, "group name");
@@ -862,6 +870,16 @@ export class Sandbox {
       throw new Error(
         `Failed to add "${username}" to group "${groupname}": group "${groupname}" does not exist`,
       );
+    }
+    // The real SDK's `usermod` fails for a nonexistent user. Besides created
+    // users, `root` and the default user always exist in a real sandbox.
+    if (!this.#users.has(username) && username !== "root") {
+      const { username: defaultUsername } = await this.getDefaultUser(opts);
+      if (username !== defaultUsername) {
+        throw new Error(
+          `Failed to add "${username}" to group "${groupname}": user "${username}" does not exist`,
+        );
+      }
     }
     members.add(username);
   }
