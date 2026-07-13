@@ -4,7 +4,7 @@ import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
 
 const isTokenFreshMock = vi.fn<() => boolean>();
 
-vi.mock("./auth-freshness", () => ({
+vi.mock("../args/auth", () => ({
   isTokenFresh: () => isTokenFreshMock(),
 }));
 

@@ -9,11 +9,23 @@ import {
   RefreshAccessTokenFailedError,
 } from "@vercel/oidc";
 import { getAuth } from "@vercel/sandbox/dist/auth/index.js";
-import { markTokenAsFresh } from "../util/auth-freshness";
-
-export { isTokenFresh } from "../util/auth-freshness";
 
 const debug = createDebugger("sandbox:args:auth");
+
+let freshTokenAcquiredAt: number | undefined;
+
+const FRESH_TOKEN_WINDOW_MS = 15_000;
+
+export function isTokenFresh(): boolean {
+  return (
+    freshTokenAcquiredAt !== undefined &&
+    Date.now() - freshTokenAcquiredAt < FRESH_TOKEN_WINDOW_MS
+  );
+}
+
+function markTokenAsFresh(): void {
+  freshTokenAcquiredAt = Date.now();
+}
 
 export const token = cmd.option({
   long: "token",

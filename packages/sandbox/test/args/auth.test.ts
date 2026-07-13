@@ -97,18 +97,11 @@ describe("token", () => {
       expect(mockGetVercelCliToken).toHaveBeenCalled();
     });
 
-    test("retries a transient 403 after getVercelToken refreshes the stored token", async () => {
-      vi.useFakeTimers();
+    test("marks a replaced stored token as fresh", async () => {
       mockGetAuth.mockReturnValue({ token: "expired-token" });
       mockGetVercelCliToken.mockResolvedValue("refreshed-token");
 
       const { isTokenFresh, token } = await import("../../src/args/auth.ts");
-      const { withFreshAuthRetry } = await import(
-        "../../src/util/fresh-auth-retry.ts"
-      );
-      const { NotOk } = await import(
-        "@vercel/sandbox/dist/auth/index.js"
-      );
       const command = cmd.command({
         name: "test",
         args: { token },
@@ -118,23 +111,8 @@ describe("token", () => {
       const result = await cmd.run(command, []);
       expect(mockGetAuth).toHaveBeenCalled();
       expect(isTokenFresh()).toBe(true);
-      const operation = vi
-        .fn()
-        .mockRejectedValueOnce(
-          new NotOk({ statusCode: 403, responseText: "Forbidden" }),
-        )
-        .mockResolvedValue("ok");
-      const retried = withFreshAuthRetry(operation).then(
-        (value) => ({ ok: true as const, value }),
-        (error) => ({ ok: false as const, error }),
-      );
-      await vi.runAllTimersAsync();
-
-      await expect(retried).resolves.toEqual({ ok: true, value: "ok" });
       expect(result.token).toBe("refreshed-token");
-      expect(operation).toHaveBeenCalledTimes(2);
       expect(mockLogin).not.toHaveBeenCalled();
-      vi.useRealTimers();
     });
   });
 
