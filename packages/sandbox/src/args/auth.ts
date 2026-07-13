@@ -8,28 +8,12 @@ import {
   AccessTokenMissingError,
   RefreshAccessTokenFailedError,
 } from "@vercel/oidc";
+import { getAuth } from "@vercel/sandbox/dist/auth/index.js";
+import { markTokenAsFresh } from "../util/auth-freshness";
+
+export { isTokenFresh } from "../util/auth-freshness";
 
 const debug = createDebugger("sandbox:args:auth");
-
-/**
- * Timestamp (ms epoch) of the most recent auto-login. Used to identify
- * tokens so that the first 401/403 against a freshly-issued token can be
- * retried instead of surfaced to the user.
- */
-let freshTokenAcquiredAt: number | undefined;
-
-const FRESH_TOKEN_WINDOW_MS = 10_000;
-
-export function isTokenFresh(): boolean {
-  return (
-    freshTokenAcquiredAt !== undefined &&
-    Date.now() - freshTokenAcquiredAt < FRESH_TOKEN_WINDOW_MS
-  );
-}
-
-function markTokenAsFresh(): void {
-  freshTokenAcquiredAt = Date.now();
-}
 
 export const token = cmd.option({
   long: "token",
@@ -59,7 +43,12 @@ export const token = cmd.option({
 
       // Try to get CLI token, which handles auth.json reading and refresh
       try {
-        return await getVercelToken();
+        const previousToken = getAuth()?.token;
+        const storedToken = await getVercelToken();
+        if (previousToken && storedToken !== previousToken) {
+          markTokenAsFresh();
+        }
+        return storedToken;
       } catch (error) {
         // Handle specific auth errors by triggering login
         if (

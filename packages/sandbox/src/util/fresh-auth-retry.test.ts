@@ -4,7 +4,7 @@ import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
 
 const isTokenFreshMock = vi.fn<() => boolean>();
 
-vi.mock("../args/auth", () => ({
+vi.mock("./auth-freshness", () => ({
   isTokenFresh: () => isTokenFreshMock(),
 }));
 
@@ -93,7 +93,7 @@ describe("withFreshAuthRetry", () => {
     await expect(awaitWithTimers(withFreshAuthRetry(factory))).rejects.toBe(
       final,
     );
-    expect(factory).toHaveBeenCalledTimes(4);
+    expect(factory).toHaveBeenCalledTimes(5);
   });
 
   it("does not retry auth errors when the token is not fresh", async () => {

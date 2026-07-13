@@ -2,7 +2,7 @@ import retry from "async-retry";
 import { APIError } from "@vercel/sandbox";
 import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
 import createDebugger from "debug";
-import { isTokenFresh } from "../args/auth";
+import { isTokenFresh } from "./auth-freshness";
 
 const debug = createDebugger("sandbox:fresh-auth-retry");
 
@@ -27,7 +27,7 @@ export async function withFreshAuthRetry<T>(
         return undefined as never;
       }
     },
-    { retries: 3, minTimeout: 250, factor: 2, maxRetryTime: 3_000 },
+    { retries: 5, minTimeout: 500, factor: 2, maxRetryTime: 10_000 },
   );
 }
 
@@ -41,6 +41,25 @@ function getAuthFailureStatus(error: unknown): number | undefined {
     status = error.response.status;
   } else if (error instanceof NotOk) {
     status = error.response.statusCode;
+  } else if (
+    error &&
+    typeof error === "object" &&
+    "response" in error &&
+    error.response &&
+    typeof error.response === "object"
+  ) {
+    // Errors can cross package/bundle boundaries where instanceof is not
+    // reliable. Both supported auth error shapes expose status on response.
+    const response = error.response as {
+      status?: unknown;
+      statusCode?: unknown;
+    };
+    status =
+      typeof response.status === "number"
+        ? response.status
+        : typeof response.statusCode === "number"
+          ? response.statusCode
+          : undefined;
   }
   return status === 401 || status === 403 ? status : undefined;
 }
