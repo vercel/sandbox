@@ -1,0 +1,59 @@
+{
+  "name": "@vercel/sandbox-mock",
+  "version": "0.1.1",
+  "description": "Drop-in mock for @vercel/sandbox backed by just-bash.",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    },
+    "./proxy": {
+      "types": "./dist/proxy.d.ts",
+      "import": "./dist/proxy.js",
+      "require": "./dist/proxy.cjs",
+      "default": "./dist/proxy.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "rm -rf node_modules dist",
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "vercel",
+    "sandbox",
+    "mock",
+    "testing"
+  ],
+  "homepage": "https://vercel.com/docs/vercel-sandbox/sdk-reference",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/sandbox.git",
+    "directory": "packages/vercel-sandbox-mock"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "jose": "6.2.3",
+    "just-bash": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.12",
+    "@vercel/sandbox": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "5.8.3",
+    "vitest": "catalog:"
+  }
+}
