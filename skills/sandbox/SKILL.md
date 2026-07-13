@@ -379,6 +379,94 @@ const files = await sandbox.fs.readdir("/tmp");
 const stats = await sandbox.fs.stat("/tmp/hello.txt");
 ```
 
+## Multi-User and Groups
+
+Create isolated Linux users and shared groups inside a sandbox. This is purely
+SDK-side and is useful for isolating multiple agents or workloads within a single
+sandbox. Usernames and group names are validated to prevent command injection.
+
+### Creating Users
+
+`createUser` provisions a Linux user with an isolated home directory at
+`/home/<username>` and returns a `SandboxUser` whose operations run in that
+user's context.
+
+```typescript
+const alice = await sandbox.createUser("alice");
+alice.username; // "alice"
+alice.homeDir; // "/home/alice"
+
+// Commands run as alice; cwd defaults to /home/alice
+const whoami = await alice.runCommand("whoami");
+await whoami.stdout(); // "alice\n"
+
+// Env vars, custom cwd, sudo escalation, and detached mode all work
+await alice.runCommand({
+  cmd: "node",
+  args: ["-e", "console.log(process.env.SECRET)"],
+  env: { SECRET: "hunter2" },
+});
+await alice.runCommand({
+  cmd: "dnf",
+  args: ["install", "-y", "git"],
+  sudo: true,
+});
+const server = await alice.runCommand({
+  cmd: "node",
+  args: ["server.js"],
+  detached: true,
+});
+```
+
+Get a handle to a pre-existing user (e.g. `root`) without creating it:
+
+```typescript
+const existing = sandbox.asUser("bob");
+await existing.runCommand("whoami");
+```
+
+### File Operations Scoped to a User
+
+Relative paths resolve against the user's home directory and files are owned by
+that user. Absolute paths are also supported.
+
+```typescript
+// Written to /home/alice, owned by alice:alice
+await alice.writeFiles([
+  { path: "app.js", content: Buffer.from('console.log("hi")') },
+  { path: "data/config.json", content: Buffer.from("{}") },
+]);
+
+const buf = await alice.readFileToBuffer({ path: "app.js" });
+const stream = await alice.readFile({ path: "app.js" });
+await alice.mkDir("projects/my-app");
+```
+
+Files are isolated between users — one user cannot read, list, or write another
+user's home directory (commands return a non-zero exit code with "Permission
+denied").
+
+### Groups and Shared Directories
+
+`createGroup` creates a Linux group with a shared directory at
+`/shared/<groupname>` (setgid `2770`), so files created inside it automatically
+inherit group ownership. Group members can read and write there; non-members
+are blocked.
+
+```typescript
+const devs = await sandbox.createGroup("devs");
+devs.sharedDir; // "/shared/devs"
+
+await sandbox.addUserToGroup("alice", "devs");
+await sandbox.addUserToGroup("bob", "devs");
+
+// Or via convenience methods on SandboxUser
+await alice.addToGroup("devs");
+await alice.removeFromGroup("devs");
+
+await sandbox.removeUserFromGroup("alice", "devs");
+```
+
 ## Network Policy
 
 ### Full Internet Access (Default)
