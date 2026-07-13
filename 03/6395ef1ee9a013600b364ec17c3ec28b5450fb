@@ -1,0 +1,36 @@
+packages/sandbox/src/otel.ts
+  s_b2e8015da3854f::t_bdee80752b6c00 7
+  s_b2e8015da3854f::t_5ff928676bb1b8 70,72
+  s_b2e8015da3854f::t_5237ffaba9b148 6
+  s_b2e8015da3854f::t_92852d4ad1b920 68-69
+packages/sandbox/package.json
+  s_b2e8015da3854f::t_c8a37c460ed409 42,45
+  s_b2e8015da3854f::t_30dbf0a9c75730 54,74
+.changeset/olive-donuts-tickle.md
+  s_b2e8015da3854f::t_f0872ef7056b71 1-4
+  s_b2e8015da3854f::t_489a0f7f2e71a5 5
+packages/sandbox/src/sandbox.ts
+  s_b2e8015da3854f::t_0115cdbb0a1cd6 13-18,22,29-30
+  s_b2e8015da3854f::t_716857f1ad31b2 31-32
+packages/sandbox/src/file-span-exporter.ts
+  s_b2e8015da3854f::t_39f9c908f3cdc1 1-6,8-10,13,18-34,36-40,43-58,61-72
+  s_b2e8015da3854f::t_c514011f5640be 7,11-12,14-17,35,41-42,59-60,73-86
+pnpm-lock.yaml
+  s_b2e8015da3854f::t_8b9d4996bc1480 287-289,296-298,323-325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "036395ef1ee9a013600b364ec17c3ec28b5450fb",
+  "prompts": {},
+  "sessions": {
+    "s_b2e8015da3854f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0c7b01380ffeInsVh84uNxNDjX",
+        "model": "anthropic/claude-fable-5"
+      },
+      "human_author": "Gal Schlezinger <gal@spitfire.co.il>"
+    }
+  }
+}
