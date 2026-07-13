@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { Sandbox } from "./sandbox";
+import { Sandbox } from "../src/sandbox";
 
 const userName = () => `u${randomUUID().slice(0, 8).replace(/-/g, "")}`;
 

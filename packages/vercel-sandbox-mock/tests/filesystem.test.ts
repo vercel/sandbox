@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { Sandbox } from "./sandbox";
+import { Sandbox } from "../src/sandbox";
 
 describe("FileSystem (real SDK over mock fetch)", () => {
   let sandbox: Sandbox;

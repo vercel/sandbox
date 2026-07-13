@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { Sandbox as RealSandbox, Snapshot as RealSnapshot } from "@vercel/sandbox";
-import { Sandbox as MockSandbox } from "./sandbox";
-import { Snapshot as MockSnapshot } from "./snapshot";
-import { expectForkToPreserveSnapshotFileSystem } from "./test-scenarios";
+import { Sandbox as MockSandbox } from "../src/sandbox";
+import { Snapshot as MockSnapshot } from "../src/snapshot";
+import { expectForkToPreserveSnapshotFileSystem } from "../src/test-scenarios";
 
 const HAS_TOKEN = (() => {
   const token = process.env.VERCEL_OIDC_TOKEN;
