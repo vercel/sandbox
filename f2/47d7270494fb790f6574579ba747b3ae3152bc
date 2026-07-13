@@ -1,0 +1,19 @@
+packages/sandbox/src/otel.ts
+  s_b2e8015da3854f::t_5ff928676bb1b8 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "f247d7270494fb790f6574579ba747b3ae3152bc",
+  "prompts": {},
+  "sessions": {
+    "s_b2e8015da3854f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0c7b01380ffeInsVh84uNxNDjX",
+        "model": "anthropic/claude-fable-5"
+      },
+      "human_author": "Gal Schlezinger <gal@spitfire.co.il>"
+    }
+  }
+}
