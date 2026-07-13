@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.6.0
+
+### Minor Changes
+
+- Add multi-user and group management: `createUser`, `asUser`, `createGroup`, `addUserToGroup`, and `removeUserFromGroup` on the `Sandbox` class, plus a `SandboxUser` class that scopes command and file operations to a specific user's context ([#116](https://github.com/vercel/sandbox/pull/116))
+
 ## 2.5.0
 
 ### Minor Changes
