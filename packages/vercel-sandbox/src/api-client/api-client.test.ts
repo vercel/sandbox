@@ -708,6 +708,43 @@ describe("APIClient", () => {
       expect(url).toContain("cursor=abc");
     });
 
+    it("passes the status filter", async () => {
+      const body = {
+        sandboxes: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSandboxes({
+        projectId: "proj_123",
+        status: "stopped",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("status=stopped");
+    });
+
+    it("omits the status filter when not provided", async () => {
+      const body = {
+        sandboxes: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSandboxes({ projectId: "proj_123" });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).not.toContain("status=");
+    });
+
     it("passes sortOrder and sortBy statusUpdatedAt", async () => {
       const body = {
         sandboxes: [makeSandboxMetadata("sb-1")],

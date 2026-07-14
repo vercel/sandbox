@@ -16,6 +16,7 @@ export type { ExecutionContext } from "./execution-context.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
 export type { SnapshotTreeNodeData } from "./api-client/validators.js";
+export type { SandboxListStatus } from "./api-client/api-client.js";
 export { Command, CommandFinished } from "./command.js";
 export type {
   SerializedCommand,

@@ -40,6 +40,8 @@ import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { RUNTIMES } from "../constants.js";
 
+export type SandboxListStatus = "running" | "stopping" | "stopped";
+
 interface Claims {
   owner_id: string;
   project_id?: string;
@@ -843,6 +845,7 @@ export class APIClient extends BaseClient {
     namePrefix?: string;
     cursor?: string;
     tags?: Record<string, string>;
+    status?: SandboxListStatus;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -856,6 +859,7 @@ export class APIClient extends BaseClient {
           namePrefix: params.namePrefix,
           cursor: params.cursor,
           tags: toTagsFilter(params.tags),
+          status: params.status,
         },
         method: "GET",
         signal: params.signal,
