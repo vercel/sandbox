@@ -18,6 +18,14 @@ export const list = cmd.command({
       short: "a",
       description: "Show all sandboxes (default shows just running)",
     }),
+    status: cmd.option({
+      long: "status",
+      description:
+        "Filter sandboxes by status. Options: running, stopping, stopped. Cannot be combined with --all.",
+      type: cmd.optional(
+        cmd.oneOf(["running", "stopping", "stopped"] as const),
+      ),
+    }),
     namePrefix: cmd.option({
       long: "name-prefix",
       description: "Filter sandboxes by name prefix",
@@ -52,7 +60,7 @@ export const list = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, sortOrder, tags, limit, cursor }) {
+  async handler({ scope: { token, team, project }, all, status, namePrefix, sortBy, sortOrder, tags, limit, cursor }) {
     if (namePrefix) {
       if (sortBy && sortBy !== "name") {
         console.error(chalk.red("Error: --sort-by must be 'name' when using --name-prefix"));
@@ -61,6 +69,27 @@ export const list = cmd.command({
 
       sortBy = 'name';
     }
+
+    if (all && status) {
+      console.error(chalk.red("Error: --status cannot be combined with --all"));
+      return;
+    }
+
+    // The API status filter is only valid with sortBy=createdAt and without
+    // tags. Passing --name-prefix forces sortBy=name (set above).
+    const hasStatusConflict =
+      Object.keys(tags).length > 0 ||
+      namePrefix !== undefined ||
+      (sortBy !== undefined && sortBy !== "createdAt");
+
+    if (status && hasStatusConflict) {
+      console.error(chalk.red("Error: --status cannot be combined with --tag, --name-prefix, or a --sort-by other than 'createdAt'"));
+      return;
+    }
+
+    const requestedStatus = status ?? "running";
+    const statusFilter = all ? undefined : requestedStatus;
+    const apiStatusApplied = statusFilter !== undefined && !hasStatusConflict;
 
     const { sandboxes, pagination } = await (async () => {
       using _spinner = acquireRelease(
@@ -78,12 +107,9 @@ export const list = cmd.command({
         ...(sortBy && { sortBy }),
         ...(sortOrder && { sortOrder }),
         ...(Object.keys(tags).length > 0 && { tags }),
+        ...(apiStatusApplied && { status: statusFilter }),
       });
     })();
-
-    const displayedSandboxes = all
-      ? sandboxes
-      : sandboxes.filter((x) => x.status === "running");
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
       style: "unit",
@@ -126,7 +152,7 @@ export const list = cmd.command({
       };
     }
 
-    console.log(table({ rows: displayedSandboxes, columns }));
+    console.log(table({ rows: sandboxes, columns }));
 
     if (pagination.next !== null) {
       console.log(formatNextCursorHint(pagination.next));
