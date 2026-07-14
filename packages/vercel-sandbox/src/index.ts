@@ -11,7 +11,10 @@ export {
   type NetworkTransformer,
 } from "./session.js";
 export type { SerializedSandbox } from "./sandbox.js";
-export { SandboxUser } from "./sandbox-user.js";
+export {
+  SandboxUser,
+  SandboxUserAlreadyExistsError,
+} from "./sandbox-user.js";
 export type { ExecutionContext } from "./execution-context.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";

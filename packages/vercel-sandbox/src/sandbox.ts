@@ -25,7 +25,10 @@ import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
-import { SandboxUser } from "./sandbox-user.js";
+import {
+  SandboxUser,
+  SandboxUserAlreadyExistsError,
+} from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
 
@@ -1436,6 +1439,11 @@ export class Sandbox implements ExecutionContext {
       signal: opts?.signal,
     });
     if (useradd.exitCode !== 0) {
+      // useradd reserves exit code 9 for an already-taken username. Expose
+      // that expected race separately without masking provisioning failures.
+      if (useradd.exitCode === 9) {
+        throw new SandboxUserAlreadyExistsError(username);
+      }
       const stderr = await useradd.stderr();
       throw new Error(`Failed to create user "${username}": ${stderr}`);
     }

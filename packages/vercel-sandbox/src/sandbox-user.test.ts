@@ -1,6 +1,10 @@
-import { expect, it, beforeEach, afterEach, describe } from "vitest";
+import { expect, it, beforeEach, afterEach, describe, vi } from "vitest";
 import { Sandbox } from "./sandbox.js";
-import { SandboxUser } from "./sandbox-user.js";
+import {
+  SandboxUser,
+  SandboxUserAlreadyExistsError,
+} from "./sandbox-user.js";
+import { CommandFinished } from "./command.js";
 
 describe("validateName (unit)", () => {
   it("asUser rejects invalid usernames synchronously", () => {
@@ -38,6 +42,58 @@ describe("validateName (unit)", () => {
     // root's home is /root, not /home/root
     expect(sandbox.asUser("root").homeDir).toBe("/root");
     expect(sandbox.asUser("alice").homeDir).toBe("/home/alice");
+  });
+
+  it("classifies useradd exit code 9 as an existing user", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    vi.spyOn(sandbox, "getDefaultUser").mockResolvedValue({
+      username: "root",
+      group: "root",
+    });
+    vi.spyOn(sandbox, "runCommand").mockResolvedValue(
+      new CommandFinished({
+        sessionId: "test",
+        cmd: {} as any,
+        exitCode: 9,
+      }),
+    );
+
+    await expect(sandbox.createUser("alice")).rejects.toMatchObject({
+      name: "SandboxUserAlreadyExistsError",
+      username: "alice",
+    });
+  });
+
+  it("preserves other useradd failures as generic provisioning errors", async () => {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    vi.spyOn(sandbox, "getDefaultUser").mockResolvedValue({
+      username: "root",
+      group: "root",
+    });
+    vi.spyOn(sandbox, "runCommand").mockResolvedValue(
+      new CommandFinished({
+        sessionId: "test",
+        cmd: {} as any,
+        exitCode: 1,
+        output: { stdout: "", stderr: "permission denied" },
+      }),
+    );
+
+    const create = sandbox.createUser("alice");
+    await expect(create).rejects.toThrow(
+      'Failed to create user "alice": permission denied',
+    );
+    await expect(create).rejects.not.toBeInstanceOf(
+      SandboxUserAlreadyExistsError,
+    );
   });
 });
 
@@ -119,9 +175,12 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
 
       it("throws on duplicate username", async () => {
         await sandbox.createUser("alice");
-        await expect(sandbox.createUser("alice")).rejects.toThrow(
-          'Failed to create user "alice"',
+        const duplicate = sandbox.createUser("alice");
+
+        await expect(duplicate).rejects.toBeInstanceOf(
+          SandboxUserAlreadyExistsError,
         );
+        await expect(duplicate).rejects.toMatchObject({ username: "alice" });
       });
     });
 

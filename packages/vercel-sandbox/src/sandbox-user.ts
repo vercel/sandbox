@@ -10,6 +10,19 @@ import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
 
 /**
+ * Thrown when {@link Sandbox.createUser} is called for an existing username.
+ */
+export class SandboxUserAlreadyExistsError extends Error {
+  readonly username: string;
+
+  constructor(username: string) {
+    super(`Failed to create user "${username}": user already exists`);
+    this.name = "SandboxUserAlreadyExistsError";
+    this.username = username;
+  }
+}
+
+/**
  * A user context within a sandbox.
  *
  * All file and command operations default to running as this user.
