@@ -87,7 +87,8 @@ export const list = cmd.command({
       return;
     }
 
-    const statusFilter = all ? undefined : status ?? "running";
+    const requestedStatus = status ?? "running";
+    const statusFilter = all ? undefined : requestedStatus;
     const apiStatusApplied = statusFilter !== undefined && !hasStatusConflict;
 
     const { sandboxes, pagination } = await (async () => {
@@ -109,11 +110,6 @@ export const list = cmd.command({
         ...(apiStatusApplied && { status: statusFilter }),
       });
     })();
-
-    const displayedSandboxes =
-      statusFilter !== undefined && !apiStatusApplied
-        ? sandboxes.filter((x) => x.status === statusFilter)
-        : sandboxes;
 
     const memoryFormatter = new Intl.NumberFormat(undefined, {
       style: "unit",
@@ -156,7 +152,7 @@ export const list = cmd.command({
       };
     }
 
-    console.log(table({ rows: displayedSandboxes, columns }));
+    console.log(table({ rows: sandboxes, columns }));
 
     if (pagination.next !== null) {
       console.log(formatNextCursorHint(pagination.next));

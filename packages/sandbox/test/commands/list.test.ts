@@ -62,7 +62,7 @@ describe("list command", () => {
     expect(mockList.mock.calls[0][0].status).toBeUndefined();
   });
 
-  test("does not send a status when --tag is used, filtering client-side instead", async () => {
+  test("does not send a status when --tag is used", async () => {
     await run(["--tag", "env=staging"]);
     expect(mockList.mock.calls[0][0].status).toBeUndefined();
     expect(mockList.mock.calls[0][0].tags).toEqual({ env: "staging" });
