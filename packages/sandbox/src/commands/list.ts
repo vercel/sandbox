@@ -21,7 +21,7 @@ export const list = cmd.command({
     status: cmd.option({
       long: "status",
       description:
-        "Filter sandboxes by status. Options: running, stopping, stopped. Ignored with --all.",
+        "Filter sandboxes by status. Options: running, stopping, stopped. Cannot be combined with --all.",
       type: cmd.optional(
         cmd.oneOf(["running", "stopping", "stopped"] as const),
       ),
