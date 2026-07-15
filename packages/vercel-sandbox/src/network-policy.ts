@@ -57,24 +57,35 @@ export type NetworkPolicyMatch = {
  */
 export type NetworkPolicyRule = {
   /**
-   * Optional request matcher. When provided, transforms only apply to requests
-   * that match every specified dimension.
+   * Optional request matcher. When provided, transforms and forwarding rules
+   * only apply to requests that match every specified dimension.
    */
   match?: NetworkPolicyMatch;
-  /**
-   * Transforms to apply to matching requests.
-   */
-  transform?: NetworkTransformer[];
-  /**
-   * HTTPS proxy URL to forward matching requests to. Must not include query string or fragment.
-   *
-   * You can use the `defineSandboxProxy` helper from `@vercel/sandbox/proxy` to implement the proxy handler
-   * automatically, which handles authorization and extracts metadata about the request and sandbox.
-   *
-   * @see https://vercel.com/docs/vercel-sandbox/concepts/firewall#requests-proxying
-   */
-  forwardURL?: string;
-};
+} & (
+  | {
+      /**
+       * Transforms to apply to matching requests.
+       *
+       * `transform` cannot be used together with `forwardURL`.
+       */
+      transform: NetworkTransformer[];
+      forwardURL?: never;
+    }
+  | {
+      transform?: never;
+      /**
+       * HTTPS proxy URL to forward matching requests to. Must not include query string or fragment.
+       *
+       * You can use the `defineSandboxProxy` helper from `@vercel/sandbox/proxy` to implement the proxy handler
+       * automatically, which handles authorization and extracts metadata about the request and sandbox.
+       *
+       * `forwardURL` cannot be used together with `transform`.
+       *
+       * @see https://vercel.com/docs/vercel-sandbox/concepts/firewall#requests-proxying
+       */
+      forwardURL: string;
+    }
+);
 
 /**
  * Network policy to define network restrictions for the sandbox.
