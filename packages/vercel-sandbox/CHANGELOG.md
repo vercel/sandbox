@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.6.1
+
+### Patch Changes
+
+- Expose a typed error when creating a sandbox user whose username already exists. ([#250](https://github.com/vercel/sandbox/pull/250))
+
 ## 2.6.0
 
 ### Minor Changes
