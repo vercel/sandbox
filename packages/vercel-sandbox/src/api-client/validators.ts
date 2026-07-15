@@ -49,6 +49,11 @@ export const NetworkPolicyRuleValidator = z
     ({ transform, forwardURL }) =>
       transform === undefined || forwardURL === undefined,
     { message: "transform and forwardURL cannot be used together" },
+  )
+  .refine(
+    ({ transform, forwardURL }) =>
+      transform !== undefined || forwardURL !== undefined,
+    { message: "transform or forwardURL must be provided" },
   );
 
 export const V2NetworkPolicyObjectValidator = z.object({

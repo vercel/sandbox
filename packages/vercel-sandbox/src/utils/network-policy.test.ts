@@ -221,6 +221,18 @@ describe("toAPINetworkPolicy", () => {
     );
   });
 
+  it("rejects rules without transform or forwardURL", () => {
+    const networkPolicy = {
+      allow: {
+        "api.example.com": [{ match: { method: ["GET"] } }],
+      },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "transform or forwardURL must be provided",
+    );
+  });
+
   it("converts empty custom object", () => {
     expect(toAPINetworkPolicy({})).toEqual({});
   });
