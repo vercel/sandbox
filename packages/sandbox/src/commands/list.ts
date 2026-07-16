@@ -5,7 +5,13 @@ import { scope } from "../args/scope";
 import chalk, { ChalkInstance } from "chalk";
 import ora from "ora";
 import { acquireRelease } from "../util/disposables";
-import { table, timeAgo, formatBytes, formatRunDuration, formatNextCursorHint } from "../util/output";
+import {
+  table,
+  timeAgo,
+  formatBytes,
+  formatRunDuration,
+  formatNextCursorHint,
+} from "../util/output";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 
 export const list = cmd.command({
@@ -25,7 +31,8 @@ export const list = cmd.command({
     }),
     sortBy: cmd.option({
       long: "sort-by",
-      description: "Sort sandboxes by field. Options: createdAt (default), name, statusUpdatedAt",
+      description:
+        "Sort sandboxes by field. Options: createdAt (default), name, statusUpdatedAt",
       type: cmd.optional(
         cmd.oneOf(["createdAt", "name", "statusUpdatedAt"] as const),
       ),
@@ -52,14 +59,25 @@ export const list = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, namePrefix, sortBy, sortOrder, tags, limit, cursor }) {
+  async handler({
+    scope: { token, team, project },
+    all,
+    namePrefix,
+    sortBy,
+    sortOrder,
+    tags,
+    limit,
+    cursor,
+  }) {
     if (namePrefix) {
       if (sortBy && sortBy !== "name") {
-        console.error(chalk.red("Error: --sort-by must be 'name' when using --name-prefix"));
+        console.error(
+          chalk.red("Error: --sort-by must be 'name' when using --name-prefix"),
+        );
         return;
       }
 
-      sortBy = 'name';
+      sortBy = "name";
     }
 
     const { sandboxes, pagination } = await (async () => {
@@ -91,7 +109,10 @@ export const list = cmd.command({
     });
 
     type SandboxRow = (typeof sandboxes)[number];
-    type Column = { value: (s: SandboxRow) => string | number; color?: (s: SandboxRow) => ChalkInstance };
+    type Column = {
+      value: (s: SandboxRow) => string | number;
+      color?: (s: SandboxRow) => ChalkInstance;
+    };
 
     const columns: Record<string, Column> = {
       NAME: { value: (s) => s.name },
@@ -102,9 +123,12 @@ export const list = cmd.command({
       CREATED: {
         value: (s) => timeAgo(s.createdAt),
       },
-      MEMORY: { value: (s) => s.memory != null ? memoryFormatter.format(s.memory) : "-" },
+      MEMORY: {
+        value: (s) =>
+          s.memory != null ? memoryFormatter.format(s.memory) : "-",
+      },
       VCPUS: { value: (s) => s.vcpus ?? "-" },
-      RUNTIME: { value: (s) => s.runtime ?? "-" },
+      "RUNTIME/IMAGE": { value: (s) => s.runtime ?? s.image ?? "-" },
       TIMEOUT: {
         // Prefer the live deadline (`expiresAt`) of the running session. Fall
         // back to the configured timeout for non-running sandboxes that don't
@@ -116,13 +140,27 @@ export const list = cmd.command({
         },
       },
       SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" },
-      TAGS: { value: (s) => s.tags && Object.keys(s.tags).length > 0 ? Object.entries(s.tags).map(([k, v]) => `${k}:${v}`).join(", ") : "-" }
+      TAGS: {
+        value: (s) =>
+          s.tags && Object.keys(s.tags).length > 0
+            ? Object.entries(s.tags)
+                .map(([k, v]) => `${k}:${v}`)
+                .join(", ")
+            : "-",
+      },
     };
     if (all) {
-      columns.CPU = { value: (s) => s.totalActiveCpuDurationMs ? formatRunDuration(s.totalActiveCpuDurationMs) : "-" };
+      columns.CPU = {
+        value: (s) =>
+          s.totalActiveCpuDurationMs
+            ? formatRunDuration(s.totalActiveCpuDurationMs)
+            : "-",
+      };
       columns["NETWORK (OUT/IN)"] = {
-        value: (s) => (s.totalEgressBytes || s.totalIngressBytes) ?
-          `${formatBytes(s.totalEgressBytes ?? 0)} / ${formatBytes(s.totalIngressBytes ?? 0)}` : "- / -",
+        value: (s) =>
+          s.totalEgressBytes || s.totalIngressBytes
+            ? `${formatBytes(s.totalEgressBytes ?? 0)} / ${formatBytes(s.totalIngressBytes ?? 0)}`
+            : "- / -",
       };
     }
 

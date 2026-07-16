@@ -25,10 +25,7 @@ import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
-import {
-  SandboxUser,
-  SandboxUserAlreadyExistsError,
-} from "./sandbox-user.js";
+import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
 
@@ -407,9 +404,21 @@ export class Sandbox implements ExecutionContext {
     return this.sandbox.memory;
   }
 
-  /** Runtime identifier (e.g. "node24", "python3.13"). */
+  /**
+   * Runtime identifier (e.g. "node24", "python3.13").
+   * Mutually exclusive with {@link Sandbox.image}.
+   */
   public get runtime(): string | undefined {
     return this.sandbox.runtime;
+  }
+
+  /**
+   * Digest-pinned reference of the container image the sandbox was created
+   * from, when it was created from an image (`"{repository}@{manifestDigest}"`).
+   * Mutually exclusive with {@link Sandbox.runtime}.
+   */
+  public get image(): string | undefined {
+    return this.sandbox.image;
   }
 
   /**
@@ -642,7 +651,10 @@ export class Sandbox implements ExecutionContext {
       projectId: data.projectId,
     });
     if (data.metadata) {
-      sandbox.session = new Session({ routes: data.routes, snapshot: data.metadata });
+      sandbox.session = new Session({
+        routes: data.routes,
+        snapshot: data.metadata,
+      });
     }
     return sandbox;
   }
@@ -1140,10 +1152,7 @@ export class Sandbox implements ExecutionContext {
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
     "use step";
-    return this.withResume(
-      () => this.session!.mkDir(path, opts),
-      opts?.signal,
-    );
+    return this.withResume(() => this.session!.mkDir(path, opts), opts?.signal);
   }
 
   /**
@@ -1549,7 +1558,9 @@ export class Sandbox implements ExecutionContext {
     });
     if (mkdirResult.exitCode !== 0) {
       const stderr = await mkdirResult.stderr();
-      throw new Error(`Failed to create shared directory ${sharedDir}: ${stderr}`);
+      throw new Error(
+        `Failed to create shared directory ${sharedDir}: ${stderr}`,
+      );
     }
 
     // Set ownership: the default user (so the HTTP file API can write into the
@@ -1665,10 +1676,7 @@ export class Sandbox implements ExecutionContext {
     signal?: AbortSignal;
   }): Promise<Snapshot> {
     "use step";
-    return this.withResume(
-      () => this.session!.snapshot(opts),
-      opts?.signal,
-    );
+    return this.withResume(() => this.session!.snapshot(opts), opts?.signal);
   }
 
   /**
