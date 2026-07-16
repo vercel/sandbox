@@ -14,6 +14,14 @@ import {
 } from "../util/output";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 
+function formatImage(image: string): string {
+  const [repository, digest] = image.split("@");
+  if (!digest) return image;
+  const [algorithm, hex] = digest.split(":");
+  if (!hex) return image;
+  return `${repository}@${algorithm}:${hex.slice(0, 12)}…`;
+}
+
 export const list = cmd.command({
   name: "list",
   aliases: ["ls"],
@@ -128,7 +136,9 @@ export const list = cmd.command({
           s.memory != null ? memoryFormatter.format(s.memory) : "-",
       },
       VCPUS: { value: (s) => s.vcpus ?? "-" },
-      "RUNTIME/IMAGE": { value: (s) => s.runtime ?? s.image ?? "-" },
+      "RUNTIME/IMAGE": {
+        value: (s) => s.runtime ?? (s.image ? formatImage(s.image) : "-"),
+      },
       TIMEOUT: {
         // Prefer the live deadline (`expiresAt`) of the running session. Fall
         // back to the configured timeout for non-running sandboxes that don't
