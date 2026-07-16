@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.5.0
+
+### Minor Changes
+
+- Show the source image in `sandbox ls` by renaming the `RUNTIME` column to `RUNTIME/IMAGE`, which falls back to the image reference for image-based sandboxes ([#253](https://github.com/vercel/sandbox/pull/253))
+
+### Patch Changes
+
+- Updated dependencies [[`a2237010b52cf908c15405b5359174d7ab56b12a`](https://github.com/vercel/sandbox/commit/a2237010b52cf908c15405b5359174d7ab56b12a), [`9cb06e6a1f4aeb9a9ef72da67d7c757ab49e5d37`](https://github.com/vercel/sandbox/commit/9cb06e6a1f4aeb9a9ef72da67d7c757ab49e5d37)]:
+  - @vercel/sandbox@2.7.0
+
 ## 3.4.3
 
 ### Patch Changes

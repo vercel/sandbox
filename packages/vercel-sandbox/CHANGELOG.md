@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 2.7.0
+
+### Minor Changes
+
+- Expose the source `image` of a sandbox as a property on `Sandbox`, populated when the sandbox was created from a container image ([#253](https://github.com/vercel/sandbox/pull/253))
+
+### Patch Changes
+
+- Clarify that network policies can only contain one of `transform` or `forwardURL` ([#251](https://github.com/vercel/sandbox/pull/251))
+
 ## 2.6.1
 
 ### Patch Changes
