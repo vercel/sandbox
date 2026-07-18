@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.7.1
+
+### Patch Changes
+
+- Reduce default API call retries ([#254](https://github.com/vercel/sandbox/pull/254))
+
 ## 2.7.0
 
 ### Minor Changes
