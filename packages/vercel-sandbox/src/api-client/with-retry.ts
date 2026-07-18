@@ -1,6 +1,5 @@
 import type { Options as RetryOptions } from "async-retry";
 import { APIError } from "./api-error.js";
-import { setTimeout } from "node:timers/promises";
 import retry from "async-retry";
 
 export interface RequestOptions {
@@ -24,15 +23,14 @@ export function withRetry<T extends RequestInit>(
     opts: T & RequestOptions = <T & RequestOptions>{},
   ) => {
     /**
-     * Timeouts by default will be [10, 60, 360, 2160, 12960]
+     * Timeouts by default will be [400, 800]
      * before randomization is added.
      */
     const retryOpts = Object.assign(
       {
-        minTimeout: 10,
-        retries: 5,
-        factor: 6,
-        maxRetryAfter: 20,
+        minTimeout: 400,
+        retries: 2,
+        factor: 2,
       },
       opts.retry,
     );
@@ -54,27 +52,7 @@ export function withRetry<T extends RequestInit>(
           }
           const response = await rawFetch(url, opts);
 
-          /**
-           * When the response is 429 we will try to parse the Retry-After
-           * header. If the header exists we will try to parse it and, if
-           * the wait time is higher than the maximum defined, we respond.
-           * Otherwise we wait for the time given in the header and throw
-           * to retry.
-           */
           if (response.status === 429) {
-            const retryAfter = parseInt(
-              response.headers.get("retry-after") || "",
-              10,
-            );
-
-            if (retryAfter && !isNaN(retryAfter)) {
-              if (retryAfter > retryOpts.maxRetryAfter) {
-                return response;
-              }
-
-              await setTimeout(retryAfter * 1e3);
-            }
-
             throw new APIError(response);
           }
 
