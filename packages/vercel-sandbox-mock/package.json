@@ -1,6 +1,6 @@
 {
   "name": "@vercel/sandbox-mock",
-  "version": "2.5.0",
+  "version": "2.8.0",
   "description": "Drop-in mock for @vercel/sandbox backed by just-bash.",
   "type": "module",
   "main": "dist/index.cjs",
