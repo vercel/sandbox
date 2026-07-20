@@ -18,6 +18,7 @@ export type {
 export {
   Session,
   SandboxUser,
+  SandboxUserAlreadyExistsError,
   Command,
   CommandFinished,
   FileSystem,
