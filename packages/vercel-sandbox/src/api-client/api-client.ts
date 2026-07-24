@@ -212,6 +212,58 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async forkSandbox(
+    params: WithPrivate<{
+      sourceSandbox: string;
+      projectId: string;
+      name?: string;
+      ports?: number[];
+      timeout?: number;
+      resources?: { vcpus: number };
+      persistent?: boolean;
+      image?: string;
+      networkPolicy?: NetworkPolicy;
+      env?: Record<string, string>;
+      tags?: Record<string, string>;
+      snapshotExpiration?: number;
+      keepLastSnapshots?: {
+        count: number;
+        expiration?: number;
+        deleteEvicted?: boolean;
+      };
+      signal?: AbortSignal;
+    }>,
+  ) {
+    const privateParams = getPrivateParams(params);
+    return parseOrThrow(
+      SandboxAndSessionResponse,
+      await this.request(
+        `/v2/sandboxes/${encodeURIComponent(params.sourceSandbox)}/fork`,
+        {
+          method: "POST",
+          query: { projectId: params.projectId },
+          body: JSON.stringify({
+            name: params.name,
+            ports: params.ports,
+            timeout: params.timeout,
+            resources: params.resources,
+            image: params.image,
+            persistent: params.persistent,
+            networkPolicy: params.networkPolicy
+              ? toAPINetworkPolicy(params.networkPolicy)
+              : undefined,
+            env: params.env,
+            tags: params.tags,
+            snapshotExpiration: params.snapshotExpiration,
+            keepLastSnapshots: params.keepLastSnapshots,
+            ...privateParams,
+          }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async runCommand(params: {
     sessionId: string;
     cwd?: string;

@@ -109,6 +109,7 @@ export class MockServer {
     }
     // /v2/sandboxes/:name
     const name = decodeURIComponent(rest[0]);
+    if (rest[1] === "fork" && method === "POST") return this.#forkSandbox(name, init);
     if (method === "GET") return this.#getSandbox(name, url);
     if (method === "PATCH") return this.#updateSandbox(name, init);
     if (method === "DELETE") return this.#deleteSandbox(name);
@@ -164,6 +165,59 @@ export class MockServer {
       sandbox: sandboxPayload(record, session),
       session: sessionPayload(session),
       routes: routesPayload(name, ports),
+      resumed: false,
+    });
+  }
+
+  async #forkSandbox(sourceName: string, init?: RequestInit): Promise<Response> {
+    const source = this.#sandboxes.get(sourceName);
+    if (!source) return apiError(404, "not_found", `Sandbox not found: ${sourceName}`);
+
+    const body = readJson<CreateBody>(init);
+    const name = body.name ?? `sandbox-${randomUUID()}`;
+
+    // Copy the source's config; any body field overrides the copied value.
+    const record: SandboxRecord = {
+      name,
+      persistent: body.persistent ?? source.persistent,
+      region: source.region,
+      vcpus: body.resources?.vcpus ?? source.vcpus,
+      memory: source.memory,
+      runtime: body.runtime ?? source.runtime,
+      timeout: body.timeout ?? source.timeout,
+      tags: body.tags ?? source.tags,
+      networkPolicy: body.networkPolicy ?? source.networkPolicy,
+      cwd: source.cwd,
+      env: body.env ?? source.env,
+      ports: body.ports ?? source.ports,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      snapshotExpiration: body.snapshotExpiration ?? source.snapshotExpiration,
+      keepLastSnapshots: body.keepLastSnapshots ?? source.keepLastSnapshots,
+      sessionId: "",
+      users: createUserState(),
+    };
+
+    // Restore from the source's current snapshot when it has one.
+    let restore: SnapshotFileEntry[] | undefined;
+    if (source.currentSnapshotId) {
+      const snapshot = this.#snapshots.get(source.currentSnapshotId);
+      if (snapshot && snapshot.status !== "deleted") {
+        restore = snapshot.files;
+        record.sourceSnapshotId = snapshot.id;
+      }
+    }
+
+    const session = await this.#startSession(record, {
+      sourceSnapshotId: record.sourceSnapshotId,
+      restore,
+    });
+    this.#sandboxes.set(name, record);
+
+    return json({
+      sandbox: sandboxPayload(record, session),
+      session: sessionPayload(session),
+      routes: routesPayload(name, record.ports),
       resumed: false,
     });
   }

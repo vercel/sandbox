@@ -192,14 +192,12 @@ export type CreateSandboxParams =
 /**
  * Parameters for {@link Sandbox.fork}.
  *
- * The fork inherits the source sandbox's current filesystem snapshot and copies
- * as many config fields from the source as the server exposes. Any field set
- * here acts as an override of the copied value.
- *
- * `env` is not copied (encrypted server-side); pass it explicitly to set
- * environment variables on the fork. `runtime` is not exposed: when the
- * source has a snapshot, it is inherited; otherwise it is copied from the
- * source sandbox.
+ * The fork inherits the source sandbox's current filesystem snapshot and the
+ * server copies its config — resources, timeout, ports, tags, network policy,
+ * image, persistence, snapshot settings, and environment variables. Any field
+ * set here acts as an override of the copied value. `runtime` is not exposed:
+ * when the source has a snapshot it is inherited, otherwise the source's
+ * runtime/image is copied.
  * @inline
  */
 export type ForkSandboxParams = Omit<
@@ -210,6 +208,11 @@ export type ForkSandboxParams = Omit<
    * Name of the source sandbox to fork from.
    */
   sourceSandbox: string;
+  /**
+   * A Vercel Container Registry (VCR) image to start the fork from, overriding
+   * the image copied from the source.
+   */
+  image?: string;
 };
 
 /** @inline */
@@ -720,14 +723,13 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * Fork an existing sandbox into a new one. Any field passed in `params`
-   * overrides the source value.
+   * Fork an existing sandbox into a new one.
    *
-   * If the source sandbox has no current snapshot, falls back to creating a
-   * fresh sandbox with the same copied config plus the source's `runtime`.
-   *
-   * `env` is not copied (encrypted server-side); pass it explicitly to set
-   * environment variables on the fork.
+   * The server restores the fork from the source's current snapshot (or the
+   * source's runtime/image when it has none) and copies its config — resources,
+   * timeout, ports, tags, network policy, image, persistence, snapshot
+   * settings, and environment variables. Any field passed in `params` overrides
+   * the copied value.
    *
    * @param params - Fork parameters and optional credentials.
    *   `sourceSandbox` is the name of the source sandbox; everything else
@@ -751,63 +753,40 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-    const { sourceSandbox: sourceName, ...overrides } = params;
-
-    // Forward only what `Sandbox.get` consumes; don't leak fork-only inputs.
-    const credentialFields = params as Partial<Credentials>;
-    const sourceSandbox = await Sandbox.get({
-      token: credentialFields.token,
-      projectId: credentialFields.projectId,
-      teamId: credentialFields.teamId,
+    const credentials = await getCredentials(params);
+    const client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
       fetch: params.fetch,
+    });
+
+    const privateParams = getPrivateParams(params);
+    const response = await client.forkSandbox({
+      sourceSandbox: params.sourceSandbox,
+      projectId: credentials.projectId,
+      name: params.name,
+      ports: params.ports,
+      timeout: params.timeout,
+      resources: params.resources,
+      image: params.image,
+      networkPolicy: params.networkPolicy,
+      env: params.env,
+      tags: params.tags,
+      snapshotExpiration: params.snapshotExpiration,
+      keepLastSnapshots: params.keepLastSnapshots,
+      persistent: params.persistent,
       signal: params.signal,
-      ...getPrivateParams(params),
-      name: sourceName,
-      resume: false,
-    } as Parameters<typeof Sandbox.get>[0]);
+      ...privateParams,
+    });
 
-    const sourcePorts = sourceSandbox.routes
-      .filter((r) => r.port !== sourceSandbox.interactivePort)
-      .map((r) => r.port);
-
-    const copied: Omit<BaseCreateSandboxParams, "source" | "runtime"> = {
-      ...(sourceSandbox.vcpus !== undefined && {
-        resources: { vcpus: sourceSandbox.vcpus },
-      }),
-      ...(sourceSandbox.timeout !== undefined && {
-        timeout: sourceSandbox.timeout,
-      }),
-      ...(sourceSandbox.networkPolicy !== undefined && {
-        networkPolicy: sourceSandbox.networkPolicy,
-      }),
-      ...(sourceSandbox.tags !== undefined && { tags: sourceSandbox.tags }),
-      ...(sourcePorts.length > 0 && { ports: sourcePorts }),
-      persistent: sourceSandbox.persistent,
-      ...(sourceSandbox.snapshotExpiration !== undefined && {
-        snapshotExpiration: sourceSandbox.snapshotExpiration,
-      }),
-      ...(sourceSandbox.keepLastSnapshots !== undefined && {
-        keepLastSnapshots: sourceSandbox.keepLastSnapshots,
-      }),
-    };
-
-    const snapshotId = sourceSandbox.currentSnapshotId;
-    if (snapshotId) {
-      return Sandbox.create({
-        ...copied,
-        ...overrides,
-        source: { type: "snapshot", snapshotId },
-      } as Parameters<typeof Sandbox.create>[0]);
-    }
-
-    // No snapshot: seed a fresh sandbox using the source's runtime.
-    return Sandbox.create({
-      ...copied,
-      ...(sourceSandbox.runtime !== undefined && {
-        runtime: sourceSandbox.runtime,
-      }),
-      ...overrides,
-    } as Parameters<typeof Sandbox.create>[0]);
+    return new DisposableSandbox({
+      client,
+      session: response.json.session,
+      sandbox: response.json.sandbox,
+      routes: response.json.routes,
+      projectId: credentials.projectId,
+      onResume: params.onResume,
+    });
   }
 
   /**
