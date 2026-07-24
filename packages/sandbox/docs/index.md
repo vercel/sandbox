@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.5.2
+sandbox 3.5.3
 
 ▲ sandbox [options] <command>
 
@@ -12,7 +12,7 @@ Commands:
     ls | list                                  List all sandboxes for the specified account and project.
     create                                     Create a sandbox in the specified account and project.
     sh                                         Create a sandbox and start an interactive shell
-    fork           <source>                    Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.
+    fork           <source>                    Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
@@ -233,7 +233,7 @@ fork
 
 ▲ sandbox fork [options]
 
-Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.
+Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.
 
 Arguments:
 
@@ -245,7 +245,7 @@ Options:
     --timeout <num UNIT>                       Override the maximum sandbox runtime (inherited from source if omitted). Example: 5m, 30m [optional]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
-    --env <key=value>, -e=<key=value>          Environment variables to set on the fork. Env vars from the source sandbox are not copied (encrypted server-side).
+    --env <key=value>, -e=<key=value>          Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
