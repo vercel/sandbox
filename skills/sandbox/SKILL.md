@@ -239,17 +239,18 @@ instructions.
 
 `Sandbox.fork` seeds a new sandbox from another sandbox's current snapshot
 and copies its config (`resources`, `timeout`, `networkPolicy`, `tags`,
-`ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`). Any field
-you pass overrides the inherited value. `env` is not copied (encrypted
-server-side) and must be re-supplied. If the source has no current snapshot,
-the fork falls back to a fresh create using the source's `runtime` plus the
-copied config.
+`ports`, `image`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`,
+and `env`). Any field you pass overrides the inherited value. If the source
+has no current snapshot, the fork falls back to the source's `runtime`/`image`
+plus the copied config. You can only fork a sandbox in a project you have
+access to; forking an unknown source returns a 404.
 
 ```typescript
-// Inherit everything from the source
+// Inherit everything from the source (env included)
 const fork = await Sandbox.fork({ sourceSandbox: "prod-agent" });
 
-// Override specific fields; the rest are copied from the source
+// Override specific fields; the rest are copied from the source.
+// A provided `env` fully replaces the source's env (no per-key merge).
 const fork = await Sandbox.fork({
   sourceSandbox: "prod-agent",
   name: "forked-prod-agent",
@@ -949,7 +950,7 @@ sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
 
-# Fork an existing sandbox (inherits config; env is NOT copied)
+# Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
 sandbox fork <source> --name my-fork --vcpus 4 --env FOO=1
 
