@@ -16,7 +16,7 @@ infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 
-To get started using Node.js 22+, create a new project:
+To get started using Node.js 24, create a new project:
 
 ```sh
 mkdir my-sandbox-app && cd my-sandbox-app
@@ -162,9 +162,35 @@ recreate an API client using OIDC or environment credentials when needed.
 - Sandboxes have a maximum runtime duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 
+
+## Custom images
+
+A sandbox can boot from any OCI image by pushing it to
+[Vercel Container Registry (VCR)][vcr-docs] and passing `image` to `Sandbox.create()`.
+
+Build and push a `linux/amd64` image to VCR (zstd compression recommended):
+
+```sh
+vercel vcr login docker
+docker buildx build \
+  --platform linux/amd64 \
+  --output "type=image,name=vcr.vercel.com/team-slug/project-slug/my-repository:latest,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true" \
+  .
+```
+
+Then start a sandbox from it:
+
+```ts
+const sandbox = await Sandbox.create({
+  image: "my-repository:latest",
+});
+```
+
+See the [images documentation][images-docs] for more details.
+
 ## System
 
-The base system is an Amazon Linux 2023 system with the following additional
+The base system when an `image` is omitted is an Amazon Linux 2023 system with the following additional
 packages installed.
 
 ```
@@ -222,8 +248,9 @@ available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-pack
 
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
+[vcr-docs]: https://vercel.com/docs/container-registry
+[images-docs]: https://vercel.com/docs/sandbox/concepts/images
 [al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
-
 
 The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, including code patterns, best practices, and API reference.
 
