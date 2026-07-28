@@ -172,8 +172,12 @@ Build and push a `linux/amd64` image to VCR:
 
 ```sh
 vercel vcr login docker
-docker build --platform linux/amd64 -t vcr.vercel.com/team-slug/project-slug/my-repository:latest .
-docker push vcr.vercel.com/team-slug/project-slug/my-repository:latest
+
+IMAGE=vcr.vercel.com/team-slug/project-slug/my-repository:latest
+
+docker build --platform linux/amd64 -t $IMAGE .
+
+docker push $IMAGE
 ```
 
 Then start a sandbox from it:
