@@ -168,14 +168,12 @@ recreate an API client using OIDC or environment credentials when needed.
 A sandbox can boot from any OCI image by pushing it to
 [Vercel Container Registry (VCR)][vcr-docs] and passing `image` to `Sandbox.create()`.
 
-Build and push a `linux/amd64` image to VCR (zstd compression recommended):
+Build and push a `linux/amd64` image to VCR:
 
 ```sh
 vercel vcr login docker
-docker buildx build \
-  --platform linux/amd64 \
-  --output "type=image,name=vcr.vercel.com/team-slug/project-slug/my-repository:latest,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true" \
-  .
+docker build --platform linux/amd64 -t vcr.vercel.com/team-slug/project-slug/my-repository:latest .
+docker push vcr.vercel.com/team-slug/project-slug/my-repository:latest
 ```
 
 Then start a sandbox from it:
