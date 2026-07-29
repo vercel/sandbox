@@ -8,7 +8,6 @@ RUN pacman -Syu --noconfirm && \
   pacman -S --noconfirm --needed sudo base-devel git && \
   rm -rf /var/cache/pacman/pkg/*
 
-# create `arch` (uid 1000) with passwordless sudo.
 RUN useradd -m -u 1000 -s /bin/bash arch && \
   printf '%s\n' \
   'Defaults always_set_home' \

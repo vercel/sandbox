@@ -228,8 +228,7 @@ The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, in
 
 ## Images
 
-The Dockerfiles for Vercel Managed Images are published under `vercel/sandbox/*` (Ubuntu,
-Node.js, Python, universal, Arch Linux) live in [`images/`](https://github.com/vercel/sandbox/tree/main/images). See the
+The Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` live in [`images/`](https://github.com/vercel/sandbox/tree/main/images). See the
 [images README](https://github.com/vercel/sandbox/tree/main/images#readme) for the full list and build instructions.
 
 ## Authors
