@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.9.2
+
+### Patch Changes
+
+- Respect `Retry-After` when the value is up to 20 seconds. `Retry-After` values greater than 20 seconds will throw back the response to the client. ([#270](https://github.com/vercel/sandbox/pull/270))
+
 ## 2.9.1
 
 ### Patch Changes
