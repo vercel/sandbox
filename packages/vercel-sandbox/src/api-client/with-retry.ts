@@ -45,7 +45,7 @@ export function withRetry<T extends RequestInit>(
     }
 
     try {
-      return (await retry(async (bail) => {
+      return (await retry(async (bail, attempt) => {
         try {
           if (opts.signal?.aborted) {
             return bail(opts.signal.reason || new Error("Request aborted"));
@@ -53,6 +53,20 @@ export function withRetry<T extends RequestInit>(
           const response = await rawFetch(url, opts);
 
           if (response.status === 429) {
+            const retryAfter = Number(response.headers.get("Retry-After"));
+
+            // Bail if the retry-after is in more than 20 seconds, as we don't
+            // want to wait for that long before returning to the client.
+            if (retryAfter > 20) {
+              return bail(new APIError(response));
+            }
+
+            const hasRetriesRemaining =
+              retryOpts.forever || attempt <= retryOpts.retries;
+            if (retryAfter > 0 && hasRetriesRemaining) {
+              await waitForRetry(retryAfter * 1000, opts.signal);
+            }
+
             throw new APIError(response);
           }
 
@@ -98,6 +112,26 @@ export function withRetry<T extends RequestInit>(
       throw error;
     }
   };
+}
+
+async function waitForRetry(delay: number, signal?: AbortSignal | null) {
+  if (signal?.aborted) {
+    throw signal.reason || new Error("Request aborted");
+  }
+
+  await new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(signal?.reason || new Error("Request aborted"));
+    };
+
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(null);
+    }, delay);
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function isAbortError(error: unknown): error is Error {
