@@ -30,7 +30,6 @@ RUN apt-get update && \
       > /etc/apt/sources.list.d/github-cli.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-      awscli \
       bzip2 \
       dnsutils \
       file \
@@ -103,7 +102,6 @@ RUN node --version && \
     uv --version && \
     git --version && \
     gh --version && \
-    aws --version && \
     sudo whoami && \
     opencode --version && \
     claude --version && \

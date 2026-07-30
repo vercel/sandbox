@@ -26,7 +26,6 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ### Utilities
 
-- `awscli` (v2)
 - `curl`, `wget`
 - `git`, `git-lfs` (hooks pre-configured), `gh`
 - `jq`, `ripgrep`, `fzf`, `tree`, `file`, `less`
