@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 2.9.1
+
+### Patch Changes
+
+- Add support for shared VCR images ([#265](https://github.com/vercel/sandbox/pull/265))
+
 ## 2.9.0
 
 ### Minor Changes
