@@ -12,7 +12,8 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 ### Runtimes
 
 - Node.js 24 with `npm`, `npx`, `corepack` and
-  `pnpm` 10
+  `pnpm` 11
+- Bun (`bun`, `bunx`)
 - Python 3.14 with `pip`, `venv`, `uv` and
   `python-is-python3`
 

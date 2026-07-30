@@ -72,8 +72,12 @@ RUN apt-get update && \
 
 COPY --from=node /opt/node /usr/local
 
-RUN npm install -g pnpm@10 && \
+RUN npm install -g pnpm@11 && \
     npm cache clean --force
+
+# Bun.
+COPY --from=oven/bun:latest /usr/local/bin/bun /usr/local/bin/
+RUN ln -s bun /usr/local/bin/bunx
 
 # Coding agents.
 RUN npm install -g \
@@ -93,6 +97,7 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 ENV PATH="/home/ubuntu/.local/bin:/home/ubuntu/.global/pnpm/bin:/home/ubuntu/.global/npm/bin:${PATH}"
 
 RUN node --version && \
+    bun --version && \
     python --version | grep -F "Python ${PYTHON_VERSION}." && \
     pip --version && \
     uv --version && \

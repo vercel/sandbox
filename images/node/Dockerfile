@@ -24,7 +24,7 @@ RUN apt-get update && \
 
 COPY --from=fetch /opt/node /usr/local
 
-RUN npm install -g pnpm@10 && \
+RUN npm install -g pnpm@11 && \
     npm cache clean --force
 
 USER ubuntu

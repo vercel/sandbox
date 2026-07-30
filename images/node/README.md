@@ -12,5 +12,5 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 - Node.js (latest release of the tag's major line), with `npm`, `npx` and
   `corepack`
-- `pnpm` 10
+- `pnpm` 11
 - `libatomic1`
