@@ -1281,6 +1281,94 @@ describe("APIClient", () => {
       const body = JSON.parse(opts.body);
       expect(body).not.toHaveProperty("keepLastSnapshots");
     });
+
+    it("forwards the Secure Compute network override", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        networkId: "network_123",
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.networkId).toBe("network_123");
+    });
+
+    it("forwards null to opt out of the project Secure Compute default", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        networkId: null,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.networkId).toBeNull();
+    });
+  });
+
+  describe("forkSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockFetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            sandbox: {
+              name: "forked-sandbox",
+              persistent: true,
+              region: "iad1",
+              vcpus: 1,
+              memory: 2048,
+              runtime: "node24",
+              timeout: 300000,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              status: "running",
+              currentSessionId: "sbx_123",
+            },
+            session: {
+              id: "sbx_123",
+              memory: 2048,
+              vcpus: 1,
+              region: "iad1",
+              runtime: "node24",
+              timeout: 300000,
+              status: "running",
+              requestedAt: Date.now(),
+              createdAt: Date.now(),
+              cwd: "/",
+              updatedAt: Date.now(),
+            },
+            routes: [],
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it.each([
+      ["an explicit override", "network_123"],
+      ["an explicit opt-out", null],
+    ])("forwards %s", async (_description, networkId) => {
+      await client.forkSandbox({
+        sourceSandbox: "source-sandbox",
+        projectId: "proj_123",
+        networkId,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body).toHaveProperty("networkId", networkId);
+    });
   });
 
   describe("readFile", () => {
