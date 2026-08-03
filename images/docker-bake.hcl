@@ -1,3 +1,7 @@
+variable "REGISTRY" {
+  default = "vcr.vercel.com/vercel/sandbox"
+}
+
 group "default" {
   targets = ["ubuntu", "node", "python", "universal", "arch"]
 }
@@ -9,7 +13,7 @@ target "_common" {
 target "ubuntu" {
   inherits = ["_common"]
   context  = "ubuntu"
-  tags     = ["vercel/sandbox/ubuntu:latest"]
+  tags     = ["${REGISTRY}/ubuntu:latest"]
 }
 
 target "node" {
@@ -20,7 +24,7 @@ target "node" {
   name     = "node-${major}"
   inherits = ["_common"]
   context  = "node"
-  tags     = ["vercel/sandbox/node:${major}"]
+  tags     = ["${REGISTRY}/node:${major}"]
 
   contexts = {
     base = "target:ubuntu"
@@ -34,7 +38,7 @@ target "node" {
 target "python" {
   inherits = ["_common"]
   context  = "python"
-  tags     = ["vercel/sandbox/python:3.14"]
+  tags     = ["${REGISTRY}/python:3.14"]
 
   contexts = {
     base = "target:ubuntu"
@@ -48,7 +52,7 @@ target "python" {
 target "universal" {
   inherits = ["_common"]
   context  = "universal"
-  tags     = ["vercel/sandbox/universal:latest"]
+  tags     = ["${REGISTRY}/universal:latest"]
 
   contexts = {
     base = "target:ubuntu"
@@ -63,5 +67,5 @@ target "universal" {
 target "arch" {
   inherits = ["_common"]
   context  = "arch"
-  tags     = ["vercel/sandbox/arch:latest"]
+  tags     = ["${REGISTRY}/arch:latest"]
 }

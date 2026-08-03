@@ -25,3 +25,10 @@ docker buildx bake
 docker buildx bake node-24
 docker buildx bake universal
 ```
+
+## Publishing
+
+The [`Images` workflow](../.github/workflows/images.yml) builds all images with
+`docker buildx bake` and pushes them to VCR whenever a commit that edits
+`images/` lands on `main`. Pull requests that touch `images/` build the images
+without pushing.
