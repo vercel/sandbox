@@ -256,6 +256,11 @@ available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-pack
 
 The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, including code patterns, best practices, and API reference.
 
+## Images
+
+The Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` live in [`images/`](https://github.com/vercel/sandbox/tree/main/images). See the
+[images README](https://github.com/vercel/sandbox/tree/main/images#readme) for the full list and build instructions.
+
 ## Authors
 
 This library is created by [Vercel](https://vercel.com) team members, with contributions from the [Open Source Community](https://github.com/vercel/sandbox/graphs/contributors) welcome and highly appreciated.
