@@ -1281,6 +1281,27 @@ describe("APIClient", () => {
       const body = JSON.parse(opts.body);
       expect(body).not.toHaveProperty("keepLastSnapshots");
     });
+
+    it.each([
+      ["an explicit network", "network-123"],
+      ["an explicit opt-out", null],
+    ])("forwards %s", async (_description, networkId) => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123", networkId });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body)).toMatchObject({ networkId });
+    });
+
+    it("omits networkId so the API can apply the project default", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body)).not.toHaveProperty("networkId");
+    });
   });
 
   describe("readFile", () => {

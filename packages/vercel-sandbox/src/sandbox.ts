@@ -89,6 +89,11 @@ export interface BaseCreateSandboxParams {
    */
   networkPolicy?: NetworkPolicy;
   /**
+   * Secure Compute network for this sandbox. Omit to inherit the project's
+   * default. Set to `null` to create this sandbox without Secure Compute.
+   */
+  networkId?: string | null;
+  /**
    * Default environment variables for the sandbox.
    * These are inherited by all commands unless overridden with
    * the `env` option in `runCommand`.
@@ -703,6 +708,7 @@ export class Sandbox implements ExecutionContext {
       runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
+      networkId: params?.networkId,
       env: params?.env,
       tags: params?.tags,
       snapshotExpiration: params?.snapshotExpiration,
