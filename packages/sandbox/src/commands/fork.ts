@@ -53,7 +53,7 @@ export const args = {
     short: "e",
     type: ObjectFromKeyValue,
     description:
-      "Environment variables to set on the fork. Env vars from the source sandbox are not copied (encrypted server-side).",
+      "Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).",
   }),
   tags: cmd.multioption({
     long: "tag",
@@ -70,7 +70,7 @@ export const args = {
 export const fork = cmd.command({
   name: "fork",
   description:
-    "Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, etc.) from the source sandbox; env vars are NOT copied and must be re-supplied via --env.",
+    "Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.",
   args,
   examples: [
     {

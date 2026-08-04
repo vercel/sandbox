@@ -25,6 +25,9 @@ import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
 import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
+import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
+import type { ExecutionContext } from "./execution-context.js";
+import { validateName } from "./utils/validate-name.js";
 
 export type {
   NetworkPolicy,
@@ -195,14 +198,15 @@ export type RuntimeOrImage =
   | {
       /**
        * A Vercel Container Registry (VCR) image to start the sandbox from,
-       * scoped to the sandbox's project. Accepts a repository name, an
+       * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
        * optional tag or digest, or a fully-qualified VCR URL. A bare
        * repository name resolves to the `latest` tag.
        *
        * @example "my-repo" // latest tag
        * @example "my-repo:v1" // specific tag
        * @example "my-repo@sha256:..." // specific digest
-       * @example "vcr.vercel.com/my-team/my-project/my-repo:v1" // fully-qualified
+       * @example "other-team/other-project/repo:v1" // Shared image from another team
+       * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
        */
       image?: string;
       runtime?: never;
@@ -220,14 +224,12 @@ export type CreateSandboxParams =
 /**
  * Parameters for {@link Sandbox.fork}.
  *
- * The fork inherits the source sandbox's current filesystem snapshot and copies
- * as many config fields from the source as the server exposes. Any field set
- * here acts as an override of the copied value.
- *
- * `env` is not copied (encrypted server-side); pass it explicitly to set
- * environment variables on the fork. `runtime` is not exposed: when the
- * source has a snapshot, it is inherited; otherwise it is copied from the
- * source sandbox.
+ * The fork inherits the source sandbox's current filesystem snapshot and the
+ * server copies its config — resources, timeout, ports, tags, network policy,
+ * image, persistence, snapshot settings, and environment variables. Any field
+ * set here acts as an override of the copied value. `runtime` is not exposed:
+ * when the source has a snapshot it is inherited, otherwise the source's
+ * runtime/image is copied.
  * @inline
  */
 export type ForkSandboxParams = Omit<
@@ -238,6 +240,11 @@ export type ForkSandboxParams = Omit<
    * Name of the source sandbox to fork from.
    */
   sourceSandbox: string;
+  /**
+   * A Vercel Container Registry (VCR) image to start the fork from, overriding
+   * the image copied from the source.
+   */
+  image?: string;
 };
 
 /** @inline */
@@ -333,7 +340,7 @@ export interface SerializedSandbox {
  * Use {@link Sandbox.create} or {@link Sandbox.get} to construct.
  * @hideconstructor
  */
-export class Sandbox {
+export class Sandbox implements ExecutionContext {
   private _client: APIClient | null = null;
   private readonly projectId: string;
 
@@ -356,6 +363,12 @@ export class Sandbox {
    * Hook that will be executed when a new session is created during resume.
    */
   private readonly onResume?: (sandbox: Sandbox) => Promise<void>;
+
+  /**
+   * Memoized lookup of the sandbox's default user and its primary group.
+   * See {@link Sandbox.getDefaultUser}.
+   */
+  private defaultUserPromise?: Promise<{ username: string; group: string }>;
 
   /**
    * A `node:fs/promises`-compatible API for interacting with the sandbox filesystem.
@@ -426,9 +439,21 @@ export class Sandbox {
     return this.sandbox.memory;
   }
 
-  /** Runtime identifier (e.g. "node24", "python3.13"). */
+  /**
+   * Runtime identifier (e.g. "node24", "python3.13").
+   * Mutually exclusive with {@link Sandbox.image}.
+   */
   public get runtime(): string | undefined {
     return this.sandbox.runtime;
+  }
+
+  /**
+   * Digest-pinned reference of the container image the sandbox was created
+   * from, when it was created from an image (`"{repository}@{manifestDigest}"`).
+   * Mutually exclusive with {@link Sandbox.runtime}.
+   */
+  public get image(): string | undefined {
+    return this.sandbox.image;
   }
 
   /**
@@ -668,7 +693,10 @@ export class Sandbox {
       projectId: data.projectId,
     });
     if (data.metadata) {
-      sandbox.session = new Session({ routes: data.routes, snapshot: data.metadata });
+      sandbox.session = new Session({
+        routes: data.routes,
+        snapshot: data.metadata,
+      });
     }
     return sandbox;
   }
@@ -735,14 +763,13 @@ export class Sandbox {
   }
 
   /**
-   * Fork an existing sandbox into a new one. Any field passed in `params`
-   * overrides the source value.
+   * Fork an existing sandbox into a new one.
    *
-   * If the source sandbox has no current snapshot, falls back to creating a
-   * fresh sandbox with the same copied config plus the source's `runtime`.
-   *
-   * `env` is not copied (encrypted server-side); pass it explicitly to set
-   * environment variables on the fork.
+   * The server restores the fork from the source's current snapshot (or the
+   * source's runtime/image when it has none) and copies its config — resources,
+   * timeout, ports, tags, network policy, image, persistence, snapshot
+   * settings, and environment variables. Any field passed in `params` overrides
+   * the copied value.
    *
    * @param params - Fork parameters and optional credentials.
    *   `sourceSandbox` is the name of the source sandbox; everything else
@@ -766,63 +793,40 @@ export class Sandbox {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-    const { sourceSandbox: sourceName, ...overrides } = params;
-
-    // Forward only what `Sandbox.get` consumes; don't leak fork-only inputs.
-    const credentialFields = params as Partial<Credentials>;
-    const sourceSandbox = await Sandbox.get({
-      token: credentialFields.token,
-      projectId: credentialFields.projectId,
-      teamId: credentialFields.teamId,
+    const credentials = await getCredentials(params);
+    const client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
       fetch: params.fetch,
+    });
+
+    const privateParams = getPrivateParams(params);
+    const response = await client.forkSandbox({
+      sourceSandbox: params.sourceSandbox,
+      projectId: credentials.projectId,
+      name: params.name,
+      ports: params.ports,
+      timeout: params.timeout,
+      resources: params.resources,
+      image: params.image,
+      networkPolicy: params.networkPolicy,
+      env: params.env,
+      tags: params.tags,
+      snapshotExpiration: params.snapshotExpiration,
+      keepLastSnapshots: params.keepLastSnapshots,
+      persistent: params.persistent,
       signal: params.signal,
-      ...getPrivateParams(params),
-      name: sourceName,
-      resume: false,
-    } as Parameters<typeof Sandbox.get>[0]);
+      ...privateParams,
+    });
 
-    const sourcePorts = sourceSandbox.routes
-      .filter((r) => r.port !== sourceSandbox.interactivePort)
-      .map((r) => r.port);
-
-    const copied: Omit<BaseCreateSandboxParams, "source" | "runtime"> = {
-      ...(sourceSandbox.vcpus !== undefined && {
-        resources: { vcpus: sourceSandbox.vcpus },
-      }),
-      ...(sourceSandbox.timeout !== undefined && {
-        timeout: sourceSandbox.timeout,
-      }),
-      ...(sourceSandbox.networkPolicy !== undefined && {
-        networkPolicy: sourceSandbox.networkPolicy,
-      }),
-      ...(sourceSandbox.tags !== undefined && { tags: sourceSandbox.tags }),
-      ...(sourcePorts.length > 0 && { ports: sourcePorts }),
-      persistent: sourceSandbox.persistent,
-      ...(sourceSandbox.snapshotExpiration !== undefined && {
-        snapshotExpiration: sourceSandbox.snapshotExpiration,
-      }),
-      ...(sourceSandbox.keepLastSnapshots !== undefined && {
-        keepLastSnapshots: sourceSandbox.keepLastSnapshots,
-      }),
-    };
-
-    const snapshotId = sourceSandbox.currentSnapshotId;
-    if (snapshotId) {
-      return Sandbox.create({
-        ...copied,
-        ...overrides,
-        source: { type: "snapshot", snapshotId },
-      } as Parameters<typeof Sandbox.create>[0]);
-    }
-
-    // No snapshot: seed a fresh sandbox using the source's runtime.
-    return Sandbox.create({
-      ...copied,
-      ...(sourceSandbox.runtime !== undefined && {
-        runtime: sourceSandbox.runtime,
-      }),
-      ...overrides,
-    } as Parameters<typeof Sandbox.create>[0]);
+    return new DisposableSandbox({
+      client,
+      session: response.json.session,
+      sandbox: response.json.sandbox,
+      routes: response.json.routes,
+      projectId: credentials.projectId,
+      onResume: params.onResume,
+    });
   }
 
   /**
@@ -1167,10 +1171,7 @@ export class Sandbox {
    */
   async mkDir(path: string, opts?: { signal?: AbortSignal }): Promise<void> {
     "use step";
-    return this.withResume(
-      () => this.session!.mkDir(path, opts),
-      opts?.signal,
-    );
+    return this.withResume(() => this.session!.mkDir(path, opts), opts?.signal);
   }
 
   /**
@@ -1387,6 +1388,298 @@ export class Sandbox {
   }
 
   /**
+   * The user that non-`sudo` commands and the HTTP file API run as, together
+   * with that user's primary group. This depends on the sandbox image: stock
+   * runtimes default to `vercel-sandbox`, while Ubuntu-based images default to
+   * `root`. The multi-user helpers group-own home and shared directories by
+   * this user's group so the file API can traverse them, so we resolve it from
+   * the running sandbox rather than assuming a fixed name.
+   *
+   * The result is memoized for the lifetime of this instance.
+   *
+   * @internal
+   */
+  getDefaultUser(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ username: string; group: string }> {
+    if (!this.defaultUserPromise) {
+      this.defaultUserPromise = this.resolveDefaultUser(opts).catch((err) => {
+        // Don't cache failures — allow a later call to retry.
+        this.defaultUserPromise = undefined;
+        throw err;
+      });
+    }
+    return this.defaultUserPromise;
+  }
+
+  private async resolveDefaultUser(opts?: {
+    signal?: AbortSignal;
+  }): Promise<{ username: string; group: string }> {
+    const result = await this.runCommand({
+      cmd: "sh",
+      args: ["-c", "id -un; id -gn"],
+      signal: opts?.signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(`Failed to resolve the default sandbox user: ${stderr}`);
+    }
+    const [username, group] = (await result.stdout()).trim().split("\n");
+    if (!username || !group) {
+      throw new Error(
+        `Failed to resolve the default sandbox user (got "${username}:${group}")`,
+      );
+    }
+    return { username, group };
+  }
+
+  /**
+   * Create a new Linux user in this sandbox with an isolated home directory.
+   *
+   * The home directory is group-owned by the sandbox's default user group with
+   * `770` permissions, so the SDK's HTTP file API can read/write directly.
+   * Other users cannot access this user's home directory since they are not in
+   * that group.
+   *
+   * @param username - Linux username (lowercase letters, digits, hyphens, underscores)
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns A {@link SandboxUser} instance for the created user.
+   *
+   * @example
+   * const alice = await sandbox.createUser("alice");
+   * await alice.runCommand("whoami"); // "alice"
+   * await alice.writeFiles([{ path: "hello.txt", content: Buffer.from("hi") }]);
+   */
+  async createUser(
+    username: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<SandboxUser> {
+    validateName(username, "username");
+
+    const { group: defaultGroup } = await this.getDefaultUser(opts);
+
+    // Create user with home directory and default shell
+    const useradd = await this.runCommand({
+      cmd: "useradd",
+      args: ["-m", "-s", "/bin/bash", username],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (useradd.exitCode !== 0) {
+      // useradd reserves exit code 9 for an already-taken username. Expose
+      // that expected race separately without masking provisioning failures.
+      if (useradd.exitCode === 9) {
+        throw new SandboxUserAlreadyExistsError(username);
+      }
+      const stderr = await useradd.stderr();
+      throw new Error(`Failed to create user "${username}": ${stderr}`);
+    }
+
+    // Group-own the home directory by the default user's group so the HTTP
+    // file API (which runs as that user) can read/write directly. On stock
+    // runtimes this is `vercel-sandbox` (gid 1000, already in the file API
+    // process credentials, avoiding the stale-group problem of `usermod -aG`);
+    // on Ubuntu images it is `root`, which can traverse regardless.
+    const chown = await this.runCommand({
+      cmd: "chown",
+      args: [`${username}:${defaultGroup}`, `/home/${username}`],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chown.exitCode !== 0) {
+      const stderr = await chown.stderr();
+      throw new Error(
+        `Failed to set ownership on /home/${username}: ${stderr}`,
+      );
+    }
+
+    // Set home directory permissions: owner full, group (the default user's
+    // group) read+write+execute, others none. Other users can't access
+    // because they are not in that group.
+    const chmod = await this.runCommand({
+      cmd: "chmod",
+      args: ["770", `/home/${username}`],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chmod.exitCode !== 0) {
+      const stderr = await chmod.stderr();
+      throw new Error(
+        `Failed to set permissions on /home/${username}: ${stderr}`,
+      );
+    }
+
+    return new SandboxUser({ sandbox: this, username });
+  }
+
+  /**
+   * Get a user handle without creating the user.
+   * Assumes the user already exists in the sandbox.
+   *
+   * @param username - Linux username
+   * @returns A {@link SandboxUser} instance.
+   *
+   * @example
+   * const root = sandbox.asUser("root");
+   * await root.runCommand("whoami"); // "root"
+   */
+  asUser(username: "root" | (string & {})): SandboxUser {
+    validateName(username, "username");
+    return new SandboxUser({ sandbox: this, username });
+  }
+
+  /**
+   * Create a new Linux group with a shared directory.
+   *
+   * Creates a shared directory at `/shared/<groupname>` with setgid permissions
+   * (`2770`), so files created inside it automatically inherit the group.
+   * All group members can read and write files in the shared directory.
+   *
+   * @param groupname - Group name (lowercase letters, digits, hyphens, underscores)
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   * @returns An object with the group name and shared directory path.
+   *
+   * @example
+   * const devs = await sandbox.createGroup("devs");
+   * console.log(devs.sharedDir); // "/shared/devs"
+   * await sandbox.addUserToGroup("alice", "devs");
+   */
+  async createGroup(
+    groupname: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<{ groupname: string; sharedDir: string }> {
+    validateName(groupname, "group name");
+
+    const { username: defaultUser } = await this.getDefaultUser(opts);
+
+    const sharedDir = `/shared/${groupname}`;
+
+    // Create the group
+    const groupadd = await this.runCommand({
+      cmd: "groupadd",
+      args: [groupname],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (groupadd.exitCode !== 0) {
+      const stderr = await groupadd.stderr();
+      throw new Error(`Failed to create group "${groupname}": ${stderr}`);
+    }
+
+    // Create shared directory
+    const mkdirResult = await this.runCommand({
+      cmd: "mkdir",
+      args: ["-p", sharedDir],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (mkdirResult.exitCode !== 0) {
+      const stderr = await mkdirResult.stderr();
+      throw new Error(
+        `Failed to create shared directory ${sharedDir}: ${stderr}`,
+      );
+    }
+
+    // Set ownership: the default user (so the HTTP file API can write into the
+    // shared dir), group-owned by the new group.
+    const chown = await this.runCommand({
+      cmd: "chown",
+      args: [`${defaultUser}:${groupname}`, sharedDir],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chown.exitCode !== 0) {
+      const stderr = await chown.stderr();
+      throw new Error(`Failed to set ownership on ${sharedDir}: ${stderr}`);
+    }
+
+    // Set permissions: setgid (2) + rwx for owner and group, none for others
+    const chmod = await this.runCommand({
+      cmd: "chmod",
+      args: ["2770", sharedDir],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (chmod.exitCode !== 0) {
+      const stderr = await chmod.stderr();
+      throw new Error(`Failed to set permissions on ${sharedDir}: ${stderr}`);
+    }
+
+    return { groupname, sharedDir };
+  }
+
+  /**
+   * Add a user to a group.
+   *
+   * After joining, the user can read and write files in the group's
+   * shared directory at `/shared/<groupname>`.
+   *
+   * @param username - The user to add
+   * @param groupname - The group to add the user to
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   *
+   * @example
+   * await sandbox.addUserToGroup("alice", "devs");
+   */
+  async addUserToGroup(
+    username: string,
+    groupname: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<void> {
+    validateName(username, "username");
+    validateName(groupname, "group name");
+
+    const result = await this.runCommand({
+      cmd: "usermod",
+      args: ["-aG", groupname, username],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(
+        `Failed to add "${username}" to group "${groupname}": ${stderr}`,
+      );
+    }
+  }
+
+  /**
+   * Remove a user from a group.
+   *
+   * @param username - The user to remove
+   * @param groupname - The group to remove the user from
+   * @param opts - Optional parameters.
+   * @param opts.signal - An AbortSignal to cancel the operation.
+   *
+   * @example
+   * await sandbox.removeUserFromGroup("alice", "devs");
+   */
+  async removeUserFromGroup(
+    username: string,
+    groupname: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<void> {
+    validateName(username, "username");
+    validateName(groupname, "group name");
+
+    const result = await this.runCommand({
+      cmd: "gpasswd",
+      args: ["-d", username, groupname],
+      sudo: true,
+      signal: opts?.signal,
+    });
+    if (result.exitCode !== 0) {
+      const stderr = await result.stderr();
+      throw new Error(
+        `Failed to remove "${username}" from group "${groupname}": ${stderr}`,
+      );
+    }
+  }
+
+  /**
    * Create a snapshot from this currently running sandbox. New sandboxes can
    * then be created from this snapshot using {@link Sandbox.createFromSnapshot}.
    *
@@ -1402,10 +1695,7 @@ export class Sandbox {
     signal?: AbortSignal;
   }): Promise<Snapshot> {
     "use step";
-    return this.withResume(
-      () => this.session!.snapshot(opts),
-      opts?.signal,
-    );
+    return this.withResume(() => this.session!.snapshot(opts), opts?.signal);
   }
 
   /**

@@ -632,6 +632,30 @@ describe("APIClient", () => {
       const [url] = mockFetch.mock.calls[0];
       expect(url).toContain("resume=true");
     });
+
+    it("exposes the source image when present", async () => {
+      const body = {
+        sandbox: {
+          ...makeSandboxMetadata(),
+          runtime: undefined,
+          image: "my-repo@sha256:2c4e8f9a1b3d5e7f",
+        },
+        session: makeSession(),
+        routes: [],
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const result = await client.getSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+      });
+
+      expect(result.json.sandbox.image).toBe("my-repo@sha256:2c4e8f9a1b3d5e7f");
+    });
   });
 
   describe("listSandboxes", () => {
@@ -871,7 +895,9 @@ describe("APIClient", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
 
-    const makeSnapshot = (overrides: Partial<Record<string, unknown>> = {}) => ({
+    const makeSnapshot = (
+      overrides: Partial<Record<string, unknown>> = {},
+    ) => ({
       id: "snap_123",
       sourceSessionId: "sbx_123",
       region: "iad1",
@@ -895,7 +921,10 @@ describe("APIClient", () => {
       const body = {
         snapshots: [
           {
-            snapshot: makeSnapshot({ id: "snap_parent", parentId: "snap_root" }),
+            snapshot: makeSnapshot({
+              id: "snap_parent",
+              parentId: "snap_root",
+            }),
             siblings: [],
             count: "1",
           },
@@ -1059,9 +1088,9 @@ describe("APIClient", () => {
       const [, opts] = mockFetch.mock.calls[0];
       const body = JSON.parse(opts.body);
       // Presence of the key with null — not undefined/missing — is the signal.
-      expect(Object.prototype.hasOwnProperty.call(body, "keepLastSnapshots")).toBe(
-        true,
-      );
+      expect(
+        Object.prototype.hasOwnProperty.call(body, "keepLastSnapshots"),
+      ).toBe(true);
       expect(body.keepLastSnapshots).toBeNull();
     });
   });
@@ -1343,5 +1372,4 @@ describe("APIClient", () => {
       expect(stream).toBeNull();
     });
   });
-
 });

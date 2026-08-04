@@ -10,12 +10,12 @@
     "private-repo-example": "0.1.4",
     "sandbox-basics-example": "0.1.4",
     "workflow-code-runner-example": "0.1.6",
-    "@vercel/pty-tunnel": "2.0.3",
-    "@vercel/pty-tunnel-server": "0.0.2",
-    "sandbox": "3.1.2",
-    "@vercel/sandbox": "2.1.1"
+    "sandbox": "3.5.5",
+    "@vercel/sandbox": "2.9.2",
+    "@vercel/sandbox-mock": "2.9.2"
   },
   "changesets": [
+    "curly-drives-mock",
     "famous-pugs-scream"
   ]
 }

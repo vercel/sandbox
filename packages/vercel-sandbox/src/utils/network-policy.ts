@@ -11,11 +11,13 @@ type APIResponseNetworkPolicy = z.infer<typeof NetworkPolicyResponseValidator>;
 export function toAPINetworkPolicy(
   policy: NetworkPolicy,
 ): APIRequestNetworkPolicy {
-  if (policy === "allow-all" || policy === "deny-all") {
-    return { mode: policy };
-  }
+  const apiPolicy =
+    policy === "allow-all" || policy === "deny-all"
+      ? { mode: policy }
+      : policy;
 
-  return policy;
+  NetworkPolicyRequestValidator.parse(apiPolicy);
+  return apiPolicy;
 }
 
 export function fromAPINetworkPolicy(

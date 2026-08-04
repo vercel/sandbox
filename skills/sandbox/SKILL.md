@@ -211,6 +211,11 @@ Registry](https://vercel.com/docs/container-registry) (VCR) image stored in the
 sandbox's project. `image` and `runtime` are **mutually exclusive** — pass one
 or the other, never both.
 
+The stock runtimes are Amazon Linux 2023 systems. If a sandbox needs a
+different distro or system tooling beyond what AL2023 provides, prefer baking
+it into a custom image over installing packages with `dnf install` + `sudo`
+at runtime.
+
 ```typescript
 const sandbox = await Sandbox.create({
   image: "my-repo:v1",
@@ -239,17 +244,18 @@ instructions.
 
 `Sandbox.fork` seeds a new sandbox from another sandbox's current snapshot
 and copies its config (`resources`, `timeout`, `networkPolicy`, `tags`,
-`ports`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`). Any field
-you pass overrides the inherited value. `env` is not copied (encrypted
-server-side) and must be re-supplied. If the source has no current snapshot,
-the fork falls back to a fresh create using the source's `runtime` plus the
-copied config.
+`ports`, `image`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`,
+and `env`). Any field you pass overrides the inherited value. If the source
+has no current snapshot, the fork falls back to the source's `runtime`/`image`
+plus the copied config. You can only fork a sandbox in a project you have
+access to; forking an unknown source returns a 404.
 
 ```typescript
-// Inherit everything from the source
+// Inherit everything from the source (env included)
 const fork = await Sandbox.fork({ sourceSandbox: "prod-agent" });
 
-// Override specific fields; the rest are copied from the source
+// Override specific fields; the rest are copied from the source.
+// A provided `env` fully replaces the source's env (no per-key merge).
 const fork = await Sandbox.fork({
   sourceSandbox: "prod-agent",
   name: "forked-prod-agent",
@@ -377,6 +383,94 @@ const content = await sandbox.fs.readFile("/etc/hostname", "utf8");
 await sandbox.fs.writeFile("/tmp/hello.txt", "Hello, world!");
 const files = await sandbox.fs.readdir("/tmp");
 const stats = await sandbox.fs.stat("/tmp/hello.txt");
+```
+
+## Multi-User and Groups
+
+Create isolated Linux users and shared groups inside a sandbox. This is purely
+SDK-side and is useful for isolating multiple agents or workloads within a single
+sandbox. Usernames and group names are validated to prevent command injection.
+
+### Creating Users
+
+`createUser` provisions a Linux user with an isolated home directory at
+`/home/<username>` and returns a `SandboxUser` whose operations run in that
+user's context.
+
+```typescript
+const alice = await sandbox.createUser("alice");
+alice.username; // "alice"
+alice.homeDir; // "/home/alice"
+
+// Commands run as alice; cwd defaults to /home/alice
+const whoami = await alice.runCommand("whoami");
+await whoami.stdout(); // "alice\n"
+
+// Env vars, custom cwd, sudo escalation, and detached mode all work
+await alice.runCommand({
+  cmd: "node",
+  args: ["-e", "console.log(process.env.SECRET)"],
+  env: { SECRET: "hunter2" },
+});
+await alice.runCommand({
+  cmd: "dnf",
+  args: ["install", "-y", "git"],
+  sudo: true,
+});
+const server = await alice.runCommand({
+  cmd: "node",
+  args: ["server.js"],
+  detached: true,
+});
+```
+
+Get a handle to a pre-existing user (e.g. `root`) without creating it:
+
+```typescript
+const existing = sandbox.asUser("bob");
+await existing.runCommand("whoami");
+```
+
+### File Operations Scoped to a User
+
+Relative paths resolve against the user's home directory and files are owned by
+that user. Absolute paths are also supported.
+
+```typescript
+// Written to /home/alice, owned by alice:alice
+await alice.writeFiles([
+  { path: "app.js", content: Buffer.from('console.log("hi")') },
+  { path: "data/config.json", content: Buffer.from("{}") },
+]);
+
+const buf = await alice.readFileToBuffer({ path: "app.js" });
+const stream = await alice.readFile({ path: "app.js" });
+await alice.mkDir("projects/my-app");
+```
+
+Files are isolated between users — one user cannot read, list, or write another
+user's home directory (commands return a non-zero exit code with "Permission
+denied").
+
+### Groups and Shared Directories
+
+`createGroup` creates a Linux group with a shared directory at
+`/shared/<groupname>` (setgid `2770`), so files created inside it automatically
+inherit group ownership. Group members can read and write there; non-members
+are blocked.
+
+```typescript
+const devs = await sandbox.createGroup("devs");
+devs.sharedDir; // "/shared/devs"
+
+await sandbox.addUserToGroup("alice", "devs");
+await sandbox.addUserToGroup("bob", "devs");
+
+// Or via convenience methods on SandboxUser
+await alice.addToGroup("devs");
+await alice.removeFromGroup("devs");
+
+await sandbox.removeUserFromGroup("alice", "devs");
 ```
 
 ## Network Policy
@@ -842,6 +936,10 @@ await sandbox.runCommand({
 });
 ```
 
+This is fine for one-offs, but `dnf` limits you to what is packaged for the
+Amazon Linux 2023 base system. If you need a different distro or base
+environment, use a [custom image](#from-a-custom-image-vcr) instead.
+
 ## CLI Quick Reference
 
 ```bash
@@ -861,7 +959,7 @@ sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
 
-# Fork an existing sandbox (inherits config; env is NOT copied)
+# Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
 sandbox fork <source> --name my-fork --vcpus 4 --env FOO=1
 

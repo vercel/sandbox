@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { NetworkPolicy } from "../network-policy.js";
 import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy.js";
 
 describe("toAPINetworkPolicy", () => {
@@ -201,6 +202,35 @@ describe("toAPINetworkPolicy", () => {
         "registry.npmjs.org": [],
       },
     });
+  });
+
+  it("rejects rules with transform and forwardURL", () => {
+    const networkPolicy = {
+      allow: {
+        "api.example.com": [
+          {
+            transform: [{ headers: { authorization: "Bearer secret" } }],
+            forwardURL: "https://proxy.example.com",
+          },
+        ],
+      },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "transform and forwardURL cannot be used together",
+    );
+  });
+
+  it("rejects rules without transform or forwardURL", () => {
+    const networkPolicy = {
+      allow: {
+        "api.example.com": [{ match: { method: ["GET"] } }],
+      },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "transform or forwardURL must be provided",
+    );
   });
 
   it("converts empty custom object", () => {

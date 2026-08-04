@@ -1,5 +1,16 @@
 # sandbox
 
+## 3.6.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+### Patch Changes
+
+- Updated dependencies [[`6405a3836fb1934da8620e5597042509229c7f35`](https://github.com/vercel/sandbox/commit/6405a3836fb1934da8620e5597042509229c7f35)]:
+  - @vercel/sandbox@2.10.0-beta.0
+
 ## 3.5.0-beta.0
 
 ### Minor Changes
@@ -10,6 +21,68 @@
 
 - Updated dependencies [[`d51a1b7cd19de15018dab2140cbc08ba646c9e2f`](https://github.com/vercel/sandbox/commit/d51a1b7cd19de15018dab2140cbc08ba646c9e2f)]:
   - @vercel/sandbox@2.6.0-beta.0
+
+## 3.5.5
+
+### Patch Changes
+
+- Updated dependencies [[`2bd5c12d0681ef93c530c97d35564d3d625fd0f3`](https://github.com/vercel/sandbox/commit/2bd5c12d0681ef93c530c97d35564d3d625fd0f3)]:
+  - @vercel/sandbox@2.9.2
+
+## 3.5.4
+
+### Patch Changes
+
+- Updated dependencies [[`fa487a36f7fa9e33b49ad57e996252b02270afc6`](https://github.com/vercel/sandbox/commit/fa487a36f7fa9e33b49ad57e996252b02270afc6)]:
+  - @vercel/sandbox@2.9.1
+
+## 3.5.3
+
+### Patch Changes
+
+- Updated dependencies [[`80974e511e4ba755c70851bc5c8a5c0e9b8e7177`](https://github.com/vercel/sandbox/commit/80974e511e4ba755c70851bc5c8a5c0e9b8e7177)]:
+  - @vercel/sandbox@2.9.0
+
+## 3.5.2
+
+### Patch Changes
+
+- Updated dependencies [[`96aa20fa031fff84c732c045ab68976034ae3d35`](https://github.com/vercel/sandbox/commit/96aa20fa031fff84c732c045ab68976034ae3d35)]:
+  - @vercel/sandbox@2.8.0
+
+## 3.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`79a9c8ae183131e6f80719c719957b3d6f4a15d9`](https://github.com/vercel/sandbox/commit/79a9c8ae183131e6f80719c719957b3d6f4a15d9)]:
+  - @vercel/sandbox@2.7.1
+
+## 3.5.0
+
+### Minor Changes
+
+- Show the source image in `sandbox ls` by renaming the `RUNTIME` column to `RUNTIME/IMAGE`, which falls back to the image reference for image-based sandboxes ([#253](https://github.com/vercel/sandbox/pull/253))
+
+### Patch Changes
+
+- Updated dependencies [[`a2237010b52cf908c15405b5359174d7ab56b12a`](https://github.com/vercel/sandbox/commit/a2237010b52cf908c15405b5359174d7ab56b12a), [`9cb06e6a1f4aeb9a9ef72da67d7c757ab49e5d37`](https://github.com/vercel/sandbox/commit/9cb06e6a1f4aeb9a9ef72da67d7c757ab49e5d37)]:
+  - @vercel/sandbox@2.7.0
+
+## 3.4.3
+
+### Patch Changes
+
+- Retry transient authorization failures after refreshing a stored access token. ([#247](https://github.com/vercel/sandbox/pull/247))
+
+- Updated dependencies [[`871e8b71f9a33beb804524f46f176cfc861716c3`](https://github.com/vercel/sandbox/commit/871e8b71f9a33beb804524f46f176cfc861716c3)]:
+  - @vercel/sandbox@2.6.1
+
+## 3.4.2
+
+### Patch Changes
+
+- Updated dependencies [[`c8678da4135df0b9e72f77e1ee9885cc2c30ab65`](https://github.com/vercel/sandbox/commit/c8678da4135df0b9e72f77e1ee9885cc2c30ab65)]:
+  - @vercel/sandbox@2.6.0
 
 ## 3.4.1
 

@@ -39,11 +39,22 @@ export const NetworkPolicyTransformValidator = z.object({
   headers: z.record(z.string(), z.string()).optional(),
 });
 
-export const NetworkPolicyRuleValidator = z.object({
-  match: RuleMatchValidator.optional(),
-  transform: z.array(NetworkPolicyTransformValidator).optional(),
-  forwardURL: z.string().optional(),
-});
+export const NetworkPolicyRuleValidator = z
+  .object({
+    match: RuleMatchValidator.optional(),
+    transform: z.array(NetworkPolicyTransformValidator).optional(),
+    forwardURL: z.string().optional(),
+  })
+  .refine(
+    ({ transform, forwardURL }) =>
+      transform === undefined || forwardURL === undefined,
+    { message: "transform and forwardURL cannot be used together" },
+  )
+  .refine(
+    ({ transform, forwardURL }) =>
+      transform !== undefined || forwardURL !== undefined,
+    { message: "transform or forwardURL must be provided" },
+  );
 
 export const V2NetworkPolicyObjectValidator = z.object({
   allow: z
@@ -116,10 +127,12 @@ export const Session = z.object({
   interactivePort: z.number().optional(),
   networkPolicy: NetworkPolicyResponseValidator.optional(),
   activeCpuDurationMs: z.number().optional(),
-  networkTransfer: z.object({
-    ingress: z.number(),
-    egress: z.number(),
-  }).optional(),
+  networkTransfer: z
+    .object({
+      ingress: z.number(),
+      egress: z.number(),
+    })
+    .optional(),
 });
 
 export type SandboxRouteData = z.infer<typeof SandboxRoute>;
@@ -193,7 +206,9 @@ export const CommandResponse = z.object({
   command: Command,
 });
 
-export type CommandFinishedData = z.infer<typeof CommandFinishedResponse>["command"];
+export type CommandFinishedData = z.infer<
+  typeof CommandFinishedResponse
+>["command"];
 
 export const CommandFinishedResponse = z.object({
   command: CommandFinished,
@@ -281,6 +296,7 @@ export const Sandbox = z.object({
   vcpus: z.number().optional(),
   memory: z.number().optional(),
   runtime: z.string().optional(),
+  image: z.string().optional(),
   timeout: z.number().optional(),
   networkPolicy: NetworkPolicyResponseValidator.optional(),
   totalEgressBytes: z.number().optional(),

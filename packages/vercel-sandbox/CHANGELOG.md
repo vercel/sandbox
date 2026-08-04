@@ -1,10 +1,70 @@
 # @vercel/sandbox
 
+## 2.10.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
 ## 2.6.0-beta.0
 
 ### Minor Changes
 
 - Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+## 2.9.2
+
+### Patch Changes
+
+- Respect `Retry-After` when the value is up to 20 seconds. `Retry-After` values greater than 20 seconds will throw back the response to the client. ([#270](https://github.com/vercel/sandbox/pull/270))
+
+## 2.9.1
+
+### Patch Changes
+
+- Add support for shared VCR images ([#265](https://github.com/vercel/sandbox/pull/265))
+
+## 2.9.0
+
+### Minor Changes
+
+- Support the sandbox fork API. Instead of implementing fork on the client-side, `Sandbox.fork()` now calls the `POST /v2/sandboxes/:name/fork` endpoint, which copies the source sandbox's env (and image) server-side. ([#259](https://github.com/vercel/sandbox/pull/259))
+
+## 2.8.0
+
+### Patch Changes
+
+- Add `@vercel/sandbox-mock`, a drop-in mock for `@vercel/sandbox` backed by `just-bash`. Rather than reimplementing the SDK surface, it runs the real `@vercel/sandbox` classes against an in-memory implementation of the `/v2/sandboxes` HTTP API injected through the SDK's `fetch` seam — so command execution, filesystem, multi-user/group management, snapshots, and forking all exercise the real SDK code. Commands run locally via `just-bash` against an in-memory filesystem, and `command()`/`setupSandbox()` let tests stub the output of commands `just-bash` can't run. ([#245](https://github.com/vercel/sandbox/pull/245))
+
+  As part of this, `Snapshot.get` now forwards a custom `fetch` (via `WithFetchOptions`), matching `Snapshot.list` and `Snapshot.tree`. Previously it always used the global `fetch`, so an injected client — such as the mock — could not intercept the request.
+
+## 2.7.1
+
+### Patch Changes
+
+- Reduce default API call retries ([#254](https://github.com/vercel/sandbox/pull/254))
+
+## 2.7.0
+
+### Minor Changes
+
+- Expose the source `image` of a sandbox as a property on `Sandbox`, populated when the sandbox was created from a container image ([#253](https://github.com/vercel/sandbox/pull/253))
+
+### Patch Changes
+
+- Clarify that network policies can only contain one of `transform` or `forwardURL` ([#251](https://github.com/vercel/sandbox/pull/251))
+
+## 2.6.1
+
+### Patch Changes
+
+- Expose a typed error when creating a sandbox user whose username already exists. ([#250](https://github.com/vercel/sandbox/pull/250))
+
+## 2.6.0
+
+### Minor Changes
+
+- Add multi-user and group management: `createUser`, `asUser`, `createGroup`, `addUserToGroup`, and `removeUserFromGroup` on the `Sandbox` class, plus a `SandboxUser` class that scopes command and file operations to a specific user's context ([#116](https://github.com/vercel/sandbox/pull/116))
 
 ## 2.5.0
 

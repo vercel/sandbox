@@ -5,10 +5,13 @@
     { "repo": "vercel/sandbox" }
   ],
   "commit": false,
-  "fixed": [],
+  "fixed": [["@vercel/sandbox", "@vercel/sandbox-mock"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["*-example"]
+  "ignore": ["*-example"],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  }
 }

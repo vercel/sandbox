@@ -94,9 +94,35 @@ const makeCommand = (): CommandData => ({
   startedAt: 1,
 });
 
+describe("source getters", () => {
+  const makeSandbox = (overrides?: Partial<SandboxMetaData>) =>
+    new Sandbox({
+      client: {} as any,
+      routes: [],
+      session: {} as any,
+      sandbox: { ...makeSandboxMetadata(), ...overrides },
+      projectId: "test-project",
+    });
+
+  it("exposes the runtime and leaves image undefined for runtime sandboxes", () => {
+    const sandbox = makeSandbox();
+    expect(sandbox.runtime).toBe("node24");
+    expect(sandbox.image).toBeUndefined();
+  });
+
+  it("exposes the image for image-based sandboxes", () => {
+    const sandbox = makeSandbox({
+      runtime: undefined,
+      image: "my-repo@sha256:2c4e8f9a1b3d5e7f",
+    });
+    expect(sandbox.image).toBe("my-repo@sha256:2c4e8f9a1b3d5e7f");
+    expect(sandbox.runtime).toBeUndefined();
+  });
+});
+
 describe("updatePorts", () => {
   it.each([
-    ["updatePorts", (sandbox: Sandbox) => sandbox.update({ports: [4000]})],
+    ["updatePorts", (sandbox: Sandbox) => sandbox.update({ ports: [4000] })],
     ["update", (sandbox: Sandbox) => sandbox.update({ ports: [4000] })],
   ])("%s sends a full port list to updateSandbox", async (_, updatePorts) => {
     const updatedSandbox = makeSandboxMetadata();

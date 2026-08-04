@@ -1,6 +1,5 @@
 import type { Options as RetryOptions } from "async-retry";
 import { APIError } from "./api-error.js";
-import { setTimeout } from "node:timers/promises";
 import retry from "async-retry";
 
 export interface RequestOptions {
@@ -24,15 +23,14 @@ export function withRetry<T extends RequestInit>(
     opts: T & RequestOptions = <T & RequestOptions>{},
   ) => {
     /**
-     * Timeouts by default will be [10, 60, 360, 2160, 12960]
+     * Timeouts by default will be [400, 800]
      * before randomization is added.
      */
     const retryOpts = Object.assign(
       {
-        minTimeout: 10,
-        retries: 5,
-        factor: 6,
-        maxRetryAfter: 20,
+        minTimeout: 400,
+        retries: 2,
+        factor: 2,
       },
       opts.retry,
     );
@@ -47,32 +45,26 @@ export function withRetry<T extends RequestInit>(
     }
 
     try {
-      return (await retry(async (bail) => {
+      return (await retry(async (bail, attempt) => {
         try {
           if (opts.signal?.aborted) {
             return bail(opts.signal.reason || new Error("Request aborted"));
           }
           const response = await rawFetch(url, opts);
 
-          /**
-           * When the response is 429 we will try to parse the Retry-After
-           * header. If the header exists we will try to parse it and, if
-           * the wait time is higher than the maximum defined, we respond.
-           * Otherwise we wait for the time given in the header and throw
-           * to retry.
-           */
           if (response.status === 429) {
-            const retryAfter = parseInt(
-              response.headers.get("retry-after") || "",
-              10,
-            );
+            const retryAfter = Number(response.headers.get("Retry-After"));
 
-            if (retryAfter && !isNaN(retryAfter)) {
-              if (retryAfter > retryOpts.maxRetryAfter) {
-                return response;
-              }
+            // Bail if the retry-after is in more than 20 seconds, as we don't
+            // want to wait for that long before returning to the client.
+            if (retryAfter > 20) {
+              return bail(new APIError(response));
+            }
 
-              await setTimeout(retryAfter * 1e3);
+            const hasRetriesRemaining =
+              retryOpts.forever || attempt <= retryOpts.retries;
+            if (retryAfter > 0 && hasRetriesRemaining) {
+              await waitForRetry(retryAfter * 1000, opts.signal);
             }
 
             throw new APIError(response);
@@ -120,6 +112,26 @@ export function withRetry<T extends RequestInit>(
       throw error;
     }
   };
+}
+
+async function waitForRetry(delay: number, signal?: AbortSignal | null) {
+  if (signal?.aborted) {
+    throw signal.reason || new Error("Request aborted");
+  }
+
+  await new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(signal?.reason || new Error("Request aborted"));
+    };
+
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(null);
+    }, delay);
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function isAbortError(error: unknown): error is Error {
