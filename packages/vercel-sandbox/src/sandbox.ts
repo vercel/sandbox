@@ -10,7 +10,7 @@ import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import type { WithFetchOptions } from "./api-client/api-client.js";
-import type { RUNTIMES } from "./constants.js";
+import type { RUNTIMES, ManagedImage } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
@@ -148,6 +148,13 @@ export interface BaseCreateSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
+
+
+/**
+ * A VCR image reference.
+ */
+export type SandboxImage = `vercel/sandbox/${ManagedImage}` | (string & {});
+
 /**
  * `runtime` and `image` are mutually exclusive: a sandbox starts from either a
  * stock runtime or a custom VCR image, never both. The `never` counterpart in
@@ -171,13 +178,14 @@ export type RuntimeOrImage =
        * optional tag or digest, or a fully-qualified VCR URL. A bare
        * repository name resolves to the `latest` tag.
        *
+       * @example "vercel/sandbox/universal" // Vercel managed image
        * @example "my-repo" // latest tag
        * @example "my-repo:v1" // specific tag
        * @example "my-repo@sha256:..." // specific digest
        * @example "other-team/other-project/repo:v1" // Shared image from another team 
        * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
        */
-      image?: string;
+      image?: SandboxImage;
       runtime?: never;
     };
 
@@ -213,7 +221,7 @@ export type ForkSandboxParams = Omit<
    * A Vercel Container Registry (VCR) image to start the fork from, overriding
    * the image copied from the source.
    */
-  image?: string;
+  image?: SandboxImage;
 };
 
 /** @inline */
