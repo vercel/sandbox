@@ -8,6 +8,9 @@ group "default" {
 
 target "_common" {
   platforms = ["linux/amd64"]
+  output = [
+    "type=image,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
+  ]
 }
 
 target "ubuntu" {
