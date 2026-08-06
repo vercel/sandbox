@@ -24,18 +24,20 @@ export const args = {
   }),
   name: cmd.option({
     long: "name",
-    description: "A user-chosen name for the forked sandbox. Must be unique per project.",
+    description:
+      "A user-chosen name for the forked sandbox. Must be unique per project.",
     type: cmd.optional(cmd.string),
   }),
   nonPersistent: cmd.flag({
     long: "non-persistent",
-    description: "Disable automatic restore of the filesystem between sessions.",
+    description:
+      "Disable automatic restore of the filesystem between sessions.",
   }),
   timeout: cmd.option({
     long: "timeout",
     type: cmd.optional(Duration),
     description:
-      "Override the maximum sandbox runtime (inherited from source if omitted). Example: 5m, 30m",
+      "Override the maximum sandbox duration (inherited from source if omitted). Example: 5m, 30m",
   }),
   vcpus,
   ports: publishPorts,

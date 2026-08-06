@@ -23,7 +23,6 @@ const session = (overrides: Partial<SessionRecord> = {}): SessionRecord =>
     memory: 2048,
     vcpus: 2,
     region: "iad1",
-    runtime: "node22",
     cwd: "/vercel/sandbox",
     createdAt: 1,
     requestedAt: 1,
@@ -38,7 +37,6 @@ const sandbox = (overrides: Partial<SandboxRecord> = {}): SandboxRecord =>
     region: "iad1",
     vcpus: 2,
     memory: 2048,
-    runtime: "node22",
     timeout: 300_000,
     cwd: "/vercel/sandbox",
     ports: [],
@@ -58,7 +56,9 @@ describe("routePayload / routesPayload", () => {
   });
 
   test("routesPayload maps every port", () => {
-    expect(routesPayload("box", [3000, 8080]).map((r) => r.port)).toEqual([3000, 8080]);
+    expect(routesPayload("box", [3000, 8080]).map((r) => r.port)).toEqual([
+      3000, 8080,
+    ]);
   });
 });
 
@@ -69,7 +69,10 @@ describe("network policy coercion", () => {
   });
 
   test("V2 `{ allow }` policies are reported as custom", () => {
-    const payload = sandboxPayload(sandbox({ networkPolicy: { allow: [] } }), session());
+    const payload = sandboxPayload(
+      sandbox({ networkPolicy: { allow: [] } }),
+      session(),
+    );
     expect(payload.networkPolicy).toEqual({ mode: "custom" });
   });
 
@@ -136,6 +139,8 @@ describe("commandPayload", () => {
   });
 
   test("finished preserves a real exitCode", () => {
-    expect(commandPayload({ ...record, exitCode: 3 }, { finished: true }).exitCode).toBe(3);
+    expect(
+      commandPayload({ ...record, exitCode: 3 }, { finished: true }).exitCode,
+    ).toBe(3);
   });
 });

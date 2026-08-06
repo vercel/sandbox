@@ -49,13 +49,7 @@ export class SandboxUser implements ExecutionContext {
    */
   private primaryGroupPromise?: Promise<string>;
 
-  constructor({
-    sandbox,
-    username,
-  }: {
-    sandbox: Sandbox;
-    username: string;
-  }) {
+  constructor({ sandbox, username }: { sandbox: Sandbox; username: string }) {
     this.sandbox = sandbox;
     this.username = username;
     // `root`'s home is `/root`, not `/home/root`; every other user's home
@@ -246,11 +240,7 @@ export class SandboxUser implements ExecutionContext {
     const dirs = this.ancestorDirsUnderHome(paths);
     if (dirs.length > 0) {
       const { group } = await this.sandbox.getDefaultUser(opts);
-      await this.chownOrThrow(
-        dirs,
-        `${this.username}:${group}`,
-        opts?.signal,
-      );
+      await this.chownOrThrow(dirs, `${this.username}:${group}`, opts?.signal);
       await this.chmodOrThrow(dirs, "770", opts?.signal);
     }
   }
@@ -320,12 +310,11 @@ export class SandboxUser implements ExecutionContext {
    * Read a file as this user and return its bytes, or null if it does not
    * exist.
    *
-   * Reads via `sudo -u <user> base64` rather than the HTTP file API: on stock
-   * runtimes the API runs as `vercel-sandbox` and cannot read files this user
-   * has kept private (e.g. mode `600`), whereas reading as the user always
-   * honours the user's own permissions. The payload is base64-encoded because
-   * the command output channel is UTF-8 only and would otherwise corrupt
-   * binary files.
+   * Reads via `sudo -u <user> base64` rather than the HTTP file API, which may
+   * not be able to read files this user has kept private (e.g. mode `600`).
+   * Reading as the user always honours the user's own permissions. The payload
+   * is base64-encoded because the command output channel is UTF-8 only and
+   * would otherwise corrupt binary files.
    */
   private async catAsUser(
     file: { path: string; cwd?: string },
@@ -361,11 +350,7 @@ export class SandboxUser implements ExecutionContext {
     // HTTP file API can write into it (matching the home dir).
     const dirs = [absPath, ...this.ancestorDirsUnderHome([absPath])];
     const { group } = await this.sandbox.getDefaultUser(opts);
-    await this.chownOrThrow(
-      dirs,
-      `${this.username}:${group}`,
-      opts?.signal,
-    );
+    await this.chownOrThrow(dirs, `${this.username}:${group}`, opts?.signal);
     await this.chmodOrThrow(dirs, "770", opts?.signal);
   }
 

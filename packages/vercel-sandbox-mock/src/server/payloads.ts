@@ -36,7 +36,6 @@ export function sessionPayload(session: SessionRecord) {
     memory: session.memory,
     vcpus: session.vcpus,
     region: session.region,
-    runtime: session.runtime,
     timeout: session.timeout,
     status: session.status,
     requestedAt: session.requestedAt,
@@ -63,7 +62,6 @@ export function sandboxPayload(sandbox: SandboxRecord, session: SessionRecord) {
     region: sandbox.region,
     vcpus: sandbox.vcpus,
     memory: sandbox.memory,
-    runtime: sandbox.runtime,
     timeout: sandbox.timeout,
     networkPolicy: responseNetworkPolicy(sandbox.networkPolicy),
     createdAt: sandbox.createdAt,
@@ -93,7 +91,10 @@ export function snapshotPayload(snapshot: SnapshotRecord) {
   };
 }
 
-export function commandPayload(command: CommandRecord, opts?: { finished?: boolean }) {
+export function commandPayload(
+  command: CommandRecord,
+  opts?: { finished?: boolean },
+) {
   return {
     id: command.id,
     name: command.name,

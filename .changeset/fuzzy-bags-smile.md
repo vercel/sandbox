@@ -1,6 +1,7 @@
 ---
-"@vercel/sandbox": patch
-"@vercel/sandbox-mock": patch
+"@vercel/sandbox": major
+"@vercel/sandbox-mock": major
+"sandbox": major
 ---
 
-Add Vercel managed images when creating or forking sandboxes.
+Move sandbox creation to the v3 API, remove the legacy environment selector, document the universal default image, and add Vercel managed image suggestions.

@@ -44,7 +44,6 @@ export interface SessionRecord {
   memory: number;
   vcpus: number;
   region: string;
-  runtime: string;
   cwd: string;
   sourceSnapshotId?: string;
   interactivePort?: number;
@@ -67,7 +66,6 @@ export interface SandboxRecord {
   region: string;
   vcpus: number;
   memory: number;
-  runtime: string;
   timeout: number;
   tags?: Record<string, string>;
   networkPolicy?: unknown;

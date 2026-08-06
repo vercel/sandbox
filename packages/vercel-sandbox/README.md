@@ -51,7 +51,6 @@ async function main() {
     },
     resources: { vcpus: 4 },
     ports: [3000],
-    runtime: "node24",
     name: "vercel-sandbox-example",
   });
   console.log(`Sandbox ${sandbox.name} created`);
@@ -177,7 +176,6 @@ const sandbox = await Sandbox.create({
   // Defaults to 5 minutes. The maximum is 24 hours for Pro/Enterprise, and 45 minutes for Hobby.
   timeout: ms("5m"),
   ports: [3000],
-  runtime: "node24",
 });
 ```
 
@@ -192,44 +190,21 @@ recreate an API client using OIDC or environment credentials when needed.
 ## Limitations
 
 - Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.
-- Sandboxes have a maximum runtime duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
+- Sandboxes have a maximum duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 
-## System
+## Default image
 
-The base system is an Amazon Linux 2023 system with the following additional
-packages installed.
-
-```
-bind-utils
-bzip2
-findutils
-git
-gzip
-iputils
-libicu
-libjpeg
-libpng
-ncurses-libs
-openssl
-openssl-libs
-procps
-tar
-unzip
-which
-whois
-zstd
-```
-
-- The `node24` and `node22` images ship Node runtimes under `/vercel/runtimes/node{22,24}`.
-- The `python3.13` image ships a Python 3.13 runtime under `/vercel/runtimes/python`.
-- User code is executed as the `vercel-sandbox` user.
-- `/vercel/sandbox` is writable.
+Sandboxes use
+[`vercel/sandbox/universal:latest`](https://github.com/vercel/sandbox/tree/main/images/universal)
+by default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14,
+coding agents, and common development and debugging utilities. It runs as the
+`ubuntu` user with passwordless sudo.
 
 ## Custom images
 
-Instead of a stock runtime, you can start a sandbox from a Vercel Container
-Registry (VCR) image with the `image` option:
+Override the default with a Vercel Container Registry (VCR) image using the
+`image` option:
 
 ```typescript
 import { Sandbox } from "@vercel/sandbox";
@@ -254,16 +229,21 @@ await Sandbox.create({
 
 ## Sudo access
 
-The `nodeX` and `python3.13` images allow users to run commands as root. This
-can be used to install packages and system tools:
+The default image allows users to run commands as root. This can be used to
+install packages and system tools:
 
 ```typescript
 import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create();
 await sandbox.runCommand({
-  cmd: "dnf",
-  args: ["install", "-y", "golang"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "golang-go"],
   sudo: true,
 });
 ```
@@ -276,9 +256,6 @@ Sandbox runs sudo in the following configuration:
 - `PATH` is left unchanged – sudo won't change the value of PATH, so local or
   project-specific binaries will still be found.
 
-Both these images are based on Amazon Linux 2023. The full package list is
-available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html).
-
 ## Multi-user
 
 Sandboxes support creating isolated Linux users with their own home directories,
@@ -288,7 +265,7 @@ environments.
 
 > **Note:** The sandbox image must have `/bin/bash` installed. It is the login
 > shell for created users and is used to wrap commands that run as a user. The
-> stock Vercel Sandbox images include it.
+> Vercel managed images include it.
 
 ### Creating users
 
@@ -301,7 +278,7 @@ const sandbox = await Sandbox.create();
 const alice = await sandbox.createUser("alice");
 
 alice.username; // "alice"
-alice.homeDir;  // "/home/alice"
+alice.homeDir; // "/home/alice"
 ```
 
 `createUser` sets up:
@@ -350,8 +327,8 @@ To escalate to root, pass `sudo: true`:
 
 ```typescript
 await alice.runCommand({
-  cmd: "dnf",
-  args: ["install", "-y", "git"],
+  cmd: "bash",
+  args: ["-lc", "apt-get update && apt-get install -y git"],
   sudo: true,
 });
 ```
@@ -475,9 +452,9 @@ Usernames and group names must match `/^[a-z_][a-z0-9_-]*$/` and be at most 32
 characters. Invalid names throw an error immediately:
 
 ```typescript
-sandbox.asUser("Alice");        // throws — uppercase
-sandbox.asUser("user name");    // throws — space
-sandbox.asUser("$(whoami)");    // throws — special characters
+sandbox.asUser("Alice"); // throws — uppercase
+sandbox.asUser("user name"); // throws — space
+sandbox.asUser("$(whoami)"); // throws — special characters
 sandbox.asUser("a".repeat(33)); // throws — too long
 ```
 
@@ -522,7 +499,6 @@ blocked.exitCode; // non-zero — isolation enforced
 
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
-[al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
 
 ## Authors
 

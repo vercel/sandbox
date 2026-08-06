@@ -6,7 +6,13 @@ import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { table, timeAgo, formatBytes, formatRunDuration, formatNextCursorHint } from "../util/output";
+import {
+  table,
+  timeAgo,
+  formatBytes,
+  formatRunDuration,
+  formatNextCursorHint,
+} from "../util/output";
 import type { Sandbox } from "@vercel/sandbox";
 
 const list = cmd.command({
@@ -40,7 +46,14 @@ const list = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, all, sandbox: name, sortOrder, limit, cursor }) {
+  async handler({
+    scope: { token, team, project },
+    all,
+    sandbox: name,
+    sortOrder,
+    limit,
+    cursor,
+  }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -70,7 +83,10 @@ const list = cmd.command({
     });
 
     type SessionRow = (typeof sessions)[number];
-    type Column = { value: (s: SessionRow) => string | number; color?: (s: SessionRow) => ChalkInstance };
+    type Column = {
+      value: (s: SessionRow) => string | number;
+      color?: (s: SessionRow) => ChalkInstance;
+    };
 
     const columns: Record<string, Column> = {
       ID: { value: (s) => s.id },
@@ -81,20 +97,26 @@ const list = cmd.command({
       CREATED: { value: (s) => timeAgo(s.createdAt) },
       MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
       VCPUS: { value: (s) => s.vcpus },
-      RUNTIME: { value: (s) => s.runtime },
       TIMEOUT: {
         value: (s) => timeAgo(s.createdAt + s.timeout),
       },
       DURATION: {
-        value: (s) => s.duration ? formatRunDuration(s.duration) : "-",
+        value: (s) => (s.duration ? formatRunDuration(s.duration) : "-"),
       },
       SNAPSHOT: { value: (s) => s.sourceSnapshotId ?? "-" },
     };
     if (all) {
-      columns.CPU = { value: (s) => s.activeCpuDurationMs ? formatRunDuration(s.activeCpuDurationMs) : "-" };
+      columns.CPU = {
+        value: (s) =>
+          s.activeCpuDurationMs
+            ? formatRunDuration(s.activeCpuDurationMs)
+            : "-",
+      };
       columns["NETWORK (OUT/IN)"] = {
-        value: (s) => (s.networkTransfer?.egress || s.networkTransfer?.ingress) ?
-          `${formatBytes(s.networkTransfer?.egress ?? 0)} / ${formatBytes(s.networkTransfer?.ingress ?? 0)}` : "- / -",
+        value: (s) =>
+          s.networkTransfer?.egress || s.networkTransfer?.ingress
+            ? `${formatBytes(s.networkTransfer?.egress ?? 0)} / ${formatBytes(s.networkTransfer?.ingress ?? 0)}`
+            : "- / -",
       };
     }
 

@@ -76,7 +76,7 @@ const makeSandboxMetadata = (): SandboxMetaData => ({
   memory: 2048,
   vcpus: 1,
   region: "iad1",
-  runtime: "node24",
+  image: "vercel/sandbox/universal@sha256:2c4e8f9a1b3d5e7f",
   timeout: 300_000,
   cwd: "/",
   updatedAt: 1,
@@ -104,19 +104,11 @@ describe("source getters", () => {
       projectId: "test-project",
     });
 
-  it("exposes the runtime and leaves image undefined for runtime sandboxes", () => {
+  it("exposes the source image", () => {
     const sandbox = makeSandbox();
-    expect(sandbox.runtime).toBe("node24");
-    expect(sandbox.image).toBeUndefined();
-  });
-
-  it("exposes the image for image-based sandboxes", () => {
-    const sandbox = makeSandbox({
-      runtime: undefined,
-      image: "my-repo@sha256:2c4e8f9a1b3d5e7f",
-    });
-    expect(sandbox.image).toBe("my-repo@sha256:2c4e8f9a1b3d5e7f");
-    expect(sandbox.runtime).toBeUndefined();
+    expect(sandbox.image).toBe(
+      "vercel/sandbox/universal@sha256:2c4e8f9a1b3d5e7f",
+    );
   });
 });
 
@@ -691,12 +683,10 @@ describe("Sandbox.create image", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toContain("/v2/sandboxes");
+    expect(String(url)).toContain("/v3/sandboxes");
     expect(init?.method).toBe("POST");
     const body = JSON.parse(String(init?.body));
     expect(body.image).toBe("my-repo:latest");
-    // Runtime must not be sent when only image is provided.
-    expect(body.runtime).toBeUndefined();
   });
 });
 

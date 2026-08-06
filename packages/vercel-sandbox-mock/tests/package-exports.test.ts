@@ -3,10 +3,13 @@ import * as real from "@vercel/sandbox";
 import * as mock from "../src/index";
 import * as realProxy from "@vercel/sandbox/proxy";
 import * as mockProxy from "../src/proxy";
-import { Sandbox as RealSandbox, Snapshot as RealSnapshot } from "@vercel/sandbox";
+import {
+  Sandbox as RealSandbox,
+  Snapshot as RealSnapshot,
+} from "@vercel/sandbox";
 
 describe("public exports", () => {
-  test("re-exports every runtime value the real SDK exposes", () => {
+  test("re-exports every value the real SDK exposes", () => {
     const realValues = Object.keys(real).filter(
       (key) => typeof (real as Record<string, unknown>)[key] !== "undefined",
     );
