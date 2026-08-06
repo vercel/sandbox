@@ -16,7 +16,7 @@ infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 
-To get started using Node.js 24, create a new project:
+To get started using Ubuntu with Node.js 24, create a new project:
 
 ```sh
 mkdir my-sandbox-app && cd my-sandbox-app
@@ -55,7 +55,6 @@ async function main() {
       url: "https://github.com/vercel/sandbox-example-next.git",
       type: "git",
     },
-    image: "vercel/sandbox/node:24",
     resources: { vcpus: 4 },
     ports: [3000],
   });
@@ -103,13 +102,6 @@ This will:
 - Open it in your browser
 
 All while streaming logs to your local terminal.
-
-## Default image
-
-Sandboxes use [`vercel/sandbox/universal:latest`](./images/universal) by
-default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14, coding
-agents, and common development and debugging utilities. It runs as the
-`ubuntu` user with passwordless sudo.
 
 ## Authentication
 
@@ -201,6 +193,13 @@ Sandbox runs sudo in the following configuration:
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
 
 The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, including code patterns, best practices, and API reference.
+
+## Default image
+
+Sandboxes use [`vercel/sandbox/universal:latest`](./images/universal) by
+default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14, coding
+agents, and common development and debugging utilities. It runs as the
+`ubuntu` user with passwordless sudo.
 
 ## Images
 
