@@ -203,10 +203,8 @@ Override the default with a [Vercel Container
 Registry](https://vercel.com/docs/container-registry) (VCR) image stored in the
 sandbox's project.
 
-The stock runtimes are Amazon Linux 2023 systems. If a sandbox needs a
-different distro or system tooling beyond what AL2023 provides, prefer baking
-it into a custom image over installing packages with `dnf install` + `sudo`
-at runtime.
+For a different distro or reproducible system tooling, prefer baking it into a
+custom image over installing packages when the sandbox starts.
 
 ```typescript
 const sandbox = await Sandbox.create({
@@ -929,8 +927,7 @@ await sandbox.runCommand({
 });
 ```
 
-This is fine for one-offs, but `dnf` limits you to what is packaged for the
-Amazon Linux 2023 base system. If you need a different distro or base
+This is fine for one-offs. For reproducible dependencies or a different base
 environment, use a [custom image](#from-a-custom-image-vcr) instead.
 
 ## CLI Quick Reference
