@@ -19,7 +19,7 @@ USER root
 
 # Node.js requires libatomic.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libatomic1 && \
+    apt-get install -y --no-install-recommends git libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=fetch /opt/node /usr/local
@@ -36,6 +36,7 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/home/ubuntu/.global/pnpm/bin:/home/ubuntu/.global/npm/bin:${PATH}"
 
-RUN node --version && \
+RUN git --version && \
+    node --version && \
     npm --version && \
     pnpm --version

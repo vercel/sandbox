@@ -6,6 +6,7 @@ ARG PYTHON_VERSION=3.14
 
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
+  git \
   "python${PYTHON_VERSION}" \
   "python${PYTHON_VERSION}-venv" \
   python3-pip \
@@ -20,7 +21,8 @@ USER ubuntu
 # User-installed console scripts (pip, uv tool) land in ~/.local/bin.
 ENV PATH="/home/ubuntu/.local/bin:${PATH}"
 
-RUN python --version | grep -F "Python ${PYTHON_VERSION}." && \
+RUN git --version && \
+  python --version | grep -F "Python ${PYTHON_VERSION}." && \
   python3 --version && \
   pip --version && \
   uv --version
