@@ -160,6 +160,9 @@ const sandbox = await Sandbox.create({
 });
 ```
 
+Git sources are cloned into a subdirectory named after the repository. For the
+example above, run commands with `cwd: "sandbox-example-next"`.
+
 ### With Private Git Repository
 
 ```typescript
@@ -1016,10 +1019,15 @@ const sandbox = await Sandbox.getOrCreate({
   ports: [3000],
   timeout: ms("30m"),
   onCreate: async (sbx) => {
-    await sbx.runCommand("npm", ["install"]);
+    await sbx.runCommand({ cmd: "npm", args: ["install"], cwd: "repo" });
   },
   onResume: async (sbx) => {
-    await sbx.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
+    await sbx.runCommand({
+      cmd: "npm",
+      args: ["run", "dev"],
+      cwd: "repo",
+      detached: true,
+    });
   },
 });
 
@@ -1029,19 +1037,34 @@ console.log("App running at:", sandbox.domain(3000));
 ### Build and Test Pattern (Ephemeral)
 
 ```typescript
+const repoUrl = "https://github.com/org/repo.git";
+const repoDir = "repo";
+
 await using sandbox = await Sandbox.create({
   source: { type: "git", url: repoUrl },
   persistent: false, // Skip snapshotting on shutdown
   snapshotExpiration: ms("1d"), // Short TTL for any incidental snapshot
 });
 
-const install = await sandbox.runCommand("npm", ["ci"]);
+const install = await sandbox.runCommand({
+  cmd: "npm",
+  args: ["ci"],
+  cwd: repoDir,
+});
 if (install.exitCode !== 0) throw new Error("Install failed");
 
-const build = await sandbox.runCommand("npm", ["run", "build"]);
+const build = await sandbox.runCommand({
+  cmd: "npm",
+  args: ["run", "build"],
+  cwd: repoDir,
+});
 if (build.exitCode !== 0) throw new Error("Build failed");
 
-const test = await sandbox.runCommand("npm", ["test"]);
+const test = await sandbox.runCommand({
+  cmd: "npm",
+  args: ["test"],
+  cwd: repoDir,
+});
 process.exit(test.exitCode);
 ```
 

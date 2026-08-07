@@ -15,7 +15,11 @@ async function main() {
     ports: [3000],
   });
 
-  const ls = await sandbox.runCommand("ls", ["-la"]);
+  const ls = await sandbox.runCommand({
+    cmd: "ls",
+    args: ["-la"],
+    cwd: "some-private-repo",
+  });
   console.log("Repository contents:");
   console.log(await ls.stdout());
 

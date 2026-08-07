@@ -16,7 +16,7 @@ infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 
-To get started using Node.js 22+, create a new project:
+To get started using Ubuntu with Node.js 24, create a new project:
 
 ```sh
 mkdir my-sandbox-app && cd my-sandbox-app
@@ -34,6 +34,12 @@ Install the Sandbox SDK:
 
 ```sh
 pnpm i @vercel/sandbox
+```
+
+Install the Sandbox Skill:
+
+```sh
+npx skills add vercel/sandbox
 ```
 
 Create a `index.mts` file:
@@ -59,6 +65,7 @@ async function main() {
   const install = await sandbox.runCommand({
     cmd: "npm",
     args: ["install", "--loglevel", "info"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
   });
@@ -72,6 +79,7 @@ async function main() {
   await sandbox.runCommand({
     cmd: "npm",
     args: ["run", "dev"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -118,6 +126,7 @@ async function main() {
   await sandbox.runCommand({
     cmd: "npm",
     args: ["run", "dev"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -189,7 +198,7 @@ recreate an API client using OIDC or environment credentials when needed.
 
 ## Limitations
 
-- Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.
+- Max resources: 8 vCPUs on Hobby/Pro, 32 vCPUs on Enterprise. You will get 2048 MB of memory per vCPU.
 - Sandboxes have a maximum duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 
@@ -201,16 +210,48 @@ by default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14,
 coding agents, and common development and debugging utilities. It runs as the
 `ubuntu` user with passwordless sudo.
 
-## Custom images
+## Vercel Managed Images
 
-Override the default with a Vercel Container Registry (VCR) image using the
-`image` option:
+Vercel provides several public images optimized to use in Sandbox. The
+Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` live
+in the [`images/`](https://github.com/vercel/sandbox/tree/main/images)
+directory:
+
+- [`vercel/sandbox/universal:latest`](https://github.com/vercel/sandbox/tree/main/images/universal): Default image with Node.js, Python, coding agents, and utilities.
+- [`vercel/sandbox/node:22|24|26`](https://github.com/vercel/sandbox/tree/main/images/node): Node.js with pnpm.
+- [`vercel/sandbox/python:3.14`](https://github.com/vercel/sandbox/tree/main/images/python): Python with pip, venv, and uv.
+- [`vercel/sandbox/ubuntu:latest`](https://github.com/vercel/sandbox/tree/main/images/ubuntu): Minimal Ubuntu base.
+- [`vercel/sandbox/arch:latest`](https://github.com/vercel/sandbox/tree/main/images/arch): Arch Linux with yay/AUR support.
+
+See the [images README](https://github.com/vercel/sandbox/tree/main/images#readme)
+for build instructions.
+
+### Custom images
+
+A sandbox can boot from any OCI image by pushing it to
+[Vercel Container Registry (VCR)][vcr-docs] and passing `image` to
+`Sandbox.create()`.
+
+Build and push a `linux/amd64` image to VCR:
+
+```sh
+vercel vcr login docker
+vercel vcr build docker . my-repository:latest --push
+```
+
+The CLI uses the linked project, defaults to `linux/amd64`, and constructs the
+full VCR reference automatically.
+
+VCR implements the Docker Registry API, so any OCI compatible tooling can also
+be used, such as `buildah` or `podman`.
+
+Then start a sandbox from it:
 
 ```typescript
 import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create({
-  image: "my-repo:v1",
+  image: "my-repository:latest",
 });
 ```
 
@@ -226,6 +267,8 @@ await Sandbox.create({
   image: "vcr.vercel.com/my-team/my-project/my-repo:v1", // fully-qualified
 });
 ```
+
+See the [images documentation][images-docs] for more details.
 
 ## Sudo access
 
@@ -499,6 +542,8 @@ blocked.exitCode; // non-zero — isolation enforced
 
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
+[vcr-docs]: https://vercel.com/docs/container-registry
+[images-docs]: https://vercel.com/docs/sandbox/concepts/images
 
 ## Authors
 

@@ -63,6 +63,7 @@ async function main() {
   const install = await sandbox.runCommand({
     cmd: "npm",
     args: ["install", "--loglevel", "info"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
   });
@@ -76,6 +77,7 @@ async function main() {
   await sandbox.runCommand({
     cmd: "npm",
     args: ["run", "dev"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -191,6 +193,8 @@ Sandbox runs sudo in the following configuration:
 
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
+[vcr-docs]: https://vercel.com/docs/container-registry
+[images-docs]: https://vercel.com/docs/sandbox/concepts/images
 
 The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, including code patterns, best practices, and API reference.
 
@@ -201,10 +205,10 @@ default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14, coding
 agents, and common development and debugging utilities. It runs as the
 `ubuntu` user with passwordless sudo.
 
-## Images
+## Vercel Managed Images
 
-The Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*`
-live in [`images/`](https://github.com/vercel/sandbox/tree/main/images):
+Vercel provides several public images optimized to use in Sandbox.
+The Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` live in [`images/`](https://github.com/vercel/sandbox/tree/main/images):
 
 - [`vercel/sandbox/universal:latest`](./images/universal): Default image with Node.js, Python, coding agents, and utilities.
 - [`vercel/sandbox/node:22|24|26`](./images/node): Node.js with pnpm.
@@ -212,12 +216,36 @@ live in [`images/`](https://github.com/vercel/sandbox/tree/main/images):
 - [`vercel/sandbox/ubuntu:latest`](./images/ubuntu): Minimal Ubuntu base.
 - [`vercel/sandbox/arch:latest`](./images/arch): Arch Linux with yay/AUR support.
 
-You can also use any OCI image pushed to
-[Vercel Container Registry](https://vercel.com/docs/container-registry) by
-passing its VCR reference to the `image` option.
-
 See the [images README](https://github.com/vercel/sandbox/tree/main/images#readme)
 for build instructions.
+
+### Custom images
+
+A sandbox can boot from any OCI image by pushing it to
+[Vercel Container Registry (VCR)][vcr-docs] and passing `image` to
+`Sandbox.create()`.
+
+Build and push a `linux/amd64` image to VCR:
+
+```sh
+vercel vcr login docker
+vercel vcr build docker . my-repository:latest --push
+```
+
+The CLI uses the linked project, defaults to `linux/amd64`, and constructs the
+full VCR reference automatically.
+
+VCR implements the Docker Registry API, so any OCI compatible tooling can also be used, such as `buildah` or `podman`.
+
+Then start a sandbox from it:
+
+```ts
+const sandbox = await Sandbox.create({
+  image: "my-repository:latest",
+});
+```
+
+See the [images documentation][images-docs] for more details.
 
 ## Authors
 
