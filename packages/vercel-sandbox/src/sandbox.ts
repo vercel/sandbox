@@ -162,8 +162,7 @@ export type RuntimeOrImage =
       /**
        * A legacy Vercel-managed runtime.
        *
-       * @deprecated Use `image` instead. Runtime-based creation continues to
-       * use the legacy v2 API.
+       * @deprecated Use `image` instead.
        */
       runtime?: RUNTIMES | (string & {});
       image?: never;
