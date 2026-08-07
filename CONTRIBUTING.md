@@ -9,3 +9,9 @@ NOTE: Running the tests creates actual sandboxes.
 3. `vc link` to a project that you want to use for experimentation.
 4. `vc env pull` so you get an `.env.local` with a `VERCEL_OIDC_TOKEN`
 5. `cd packages/sandbox && pnpm test`
+
+## Sandbox images
+
+The Dockerfiles for the `vercel/sandbox/*` images live in
+[`images/`](./images). See the [images README](./images/README.md) for the
+full list of images and how to build them.

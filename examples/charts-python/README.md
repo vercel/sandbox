@@ -8,7 +8,7 @@ This example demonstrates how to use Vercel's AI Gateway with OpenAI GPT-4 to ge
 - **Secure Execution**: Runs AI-generated code in isolated sandbox environment
 - **Chart Creation**: Generates weather data visualizations using matplotlib
 - **File Retrieval**: Downloads generated charts from sandbox to local system
-- **Python Runtime**: Uses built-in Python 3.13 runtime with package installation via uv
+- **Python Environment**: Uses Python 3.14 and uv from the default universal image
 
 ## How to Run
 
@@ -46,7 +46,7 @@ This example demonstrates the powerful combination of AI and secure code executi
 
 - **AI-Powered Code Generation**: GPT-4 generates Python code for data visualization
 - **Sandbox Security**: AI-generated code runs in an isolated environment
-- **Python Runtime**: Uses the built-in Python 3.13 runtime with uv for package installation
+- **Python Environment**: Uses Python 3.14 and uv from the default universal image
 - **Data Visualization**: Creates professional charts using matplotlib
 - **File Management**: Retrieves generated files from sandbox to local system
 

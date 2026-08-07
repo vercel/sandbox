@@ -279,6 +279,16 @@ importers:
         specifier: ^5
         version: 5.8.3
 
+  images/arch: {}
+
+  images/node: {}
+
+  images/python: {}
+
+  images/ubuntu: {}
+
+  images/universal: {}
+
   packages/sandbox:
     dependencies:
       '@vercel/sandbox':

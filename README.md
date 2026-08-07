@@ -16,7 +16,7 @@ infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 
-To get started using Node.js 24, create a new project:
+To get started using Ubuntu with Node.js 24, create a new project:
 
 ```sh
 mkdir my-sandbox-app && cd my-sandbox-app
@@ -57,13 +57,13 @@ async function main() {
     },
     resources: { vcpus: 4 },
     ports: [3000],
-    runtime: "node24",
   });
 
   console.log(`Installing dependencies...`);
   const install = await sandbox.runCommand({
     cmd: "npm",
     args: ["install", "--loglevel", "info"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
   });
@@ -77,6 +77,7 @@ async function main() {
   await sandbox.runCommand({
     cmd: "npm",
     args: ["run", "dev"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -144,7 +145,6 @@ const sandbox = await Sandbox.create({
   // Defaults to 5 minutes. The maximum is 24 hours for Pro/Enterprise, and 45 minutes for Hobby.
   timeout: ms("5m"),
   ports: [3000],
-  runtime: "node24",
 });
 ```
 
@@ -159,80 +159,26 @@ recreate an API client using OIDC or environment credentials when needed.
 ## Limitations
 
 - Max resources: 8 vCPUs on Hobby/Pro, 32 vCPUs on Enterprise. You will get 2048 MB of memory per vCPU.
-- Sandboxes have a maximum runtime duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
+- Sandboxes have a maximum duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
-
-
-## Custom images
-
-A sandbox can boot from any OCI image by pushing it to
-[Vercel Container Registry (VCR)][vcr-docs] and passing `image` to `Sandbox.create()`.
-
-Build and push a `linux/amd64` image to VCR:
-
-```sh
-vercel vcr login docker
-
-IMAGE=vcr.vercel.com/team-slug/project-slug/my-repository:latest
-
-docker build --platform linux/amd64 -t $IMAGE .
-
-docker push $IMAGE
-```
-
-Then start a sandbox from it:
-
-```ts
-const sandbox = await Sandbox.create({
-  image: "my-repository:latest",
-});
-```
-
-See the [images documentation][images-docs] for more details.
-
-## System
-
-The base system when an `image` is omitted is an Amazon Linux 2023 system with the following additional
-packages installed.
-
-```
-bind-utils
-bzip2
-findutils
-git
-gzip
-iputils
-libicu
-libjpeg
-libpng
-ncurses-libs
-openssl
-openssl-libs
-procps
-tar
-unzip
-which
-whois
-zstd
-```
-
-- The `node` images ship their respective runtimes under `/vercel/runtimes/node{22,24,26}`.
-- The `python3.13` image ships a Python 3.13 runtime under `/vercel/runtimes/python`.
-- User code is executed as the `vercel-sandbox` user.
-- `/vercel/sandbox` is writable.
 
 ## Sudo access
 
-The `nodeX` and `python3.13` images allow users to run commands as root. This
-can be used to install packages and system tools:
+The default image allows users to run commands as root. This can be used to
+install packages and system tools:
 
 ```typescript
 import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create();
 await sandbox.runCommand({
-  cmd: "dnf",
-  args: ["install", "-y", "golang"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "golang-go"],
   sudo: true,
 });
 ```
@@ -245,16 +191,61 @@ Sandbox runs sudo in the following configuration:
 - `PATH` is left unchanged – sudo won't change the value of PATH, so local or
   project-specific binaries will still be found.
 
-Both these images are based on Amazon Linux 2023. The full package list is
-available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html).
-
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
 [vcr-docs]: https://vercel.com/docs/container-registry
 [images-docs]: https://vercel.com/docs/sandbox/concepts/images
-[al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
 
 The skill provides comprehensive guidance on using the `@vercel/sandbox` SDK, including code patterns, best practices, and API reference.
+
+## Default image
+
+Sandboxes use [`vercel/sandbox/universal:latest`](./images/universal) by
+default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14, coding
+agents, and common development and debugging utilities. It runs as the
+`ubuntu` user with passwordless sudo.
+
+## Vercel Managed Images
+
+Vercel provides several public images optimized to use in Sandbox.
+The Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` live in [`images/`](https://github.com/vercel/sandbox/tree/main/images):
+
+- [`vercel/sandbox/universal:latest`](./images/universal): Default image with Node.js, Python, coding agents, and utilities.
+- [`vercel/sandbox/node:22|24|26`](./images/node): Node.js with pnpm.
+- [`vercel/sandbox/python:3.14`](./images/python): Python with pip, venv, and uv.
+- [`vercel/sandbox/ubuntu:latest`](./images/ubuntu): Minimal Ubuntu base.
+- [`vercel/sandbox/arch:latest`](./images/arch): Arch Linux with yay/AUR support.
+
+See the [images README](https://github.com/vercel/sandbox/tree/main/images#readme)
+for build instructions.
+
+### Custom images
+
+A sandbox can boot from any OCI image by pushing it to
+[Vercel Container Registry (VCR)][vcr-docs] and passing `image` to
+`Sandbox.create()`.
+
+Build and push a `linux/amd64` image to VCR:
+
+```sh
+vercel vcr login docker
+vercel vcr build docker . my-repository:latest --push
+```
+
+The CLI uses the linked project, defaults to `linux/amd64`, and constructs the
+full VCR reference automatically.
+
+VCR implements the Docker Registry API, so any OCI compatible tooling can also be used, such as `buildah` or `podman`.
+
+Then start a sandbox from it:
+
+```ts
+const sandbox = await Sandbox.create({
+  image: "my-repository:latest",
+});
+```
+
+See the [images documentation][images-docs] for more details.
 
 ## Authors
 

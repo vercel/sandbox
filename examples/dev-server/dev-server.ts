@@ -3,7 +3,6 @@ import { setTimeout } from 'timers/promises';
 import { spawn } from 'child_process';
 
 async function main() {
-
   console.log('Creating sandbox from Git repository...');
   const sandbox = await Sandbox.create({
     source: {
@@ -18,6 +17,7 @@ async function main() {
   const install = await sandbox.runCommand({
     cmd: 'npm',
     args: ['install', '--loglevel', 'info'],
+    cwd: 'sandbox-example-next',
     stderr: process.stderr,
     stdout: process.stdout,
   });
@@ -28,6 +28,7 @@ async function main() {
   const devServer = await sandbox.runCommand({
     cmd: 'npm',
     args: ['run', 'dev'],
+    cwd: 'sandbox-example-next',
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -38,7 +39,7 @@ async function main() {
     console.log('Shutting down...');
     await sandbox.stop();
     process.exit(0);
-    });
+  });
 
   console.log(`   URL: ${sandbox.domain(3000)}`);
   console.log('Waiting for server to start...');
@@ -46,4 +47,4 @@ async function main() {
   spawn('open', [sandbox.domain(3000)]);
 }
 
-main().catch(console.error); 
+main().catch(console.error);

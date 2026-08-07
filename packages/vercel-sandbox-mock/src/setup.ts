@@ -49,7 +49,7 @@ export function setupSandbox(...handlers: CommandHandler[]): {
 } {
   defaultServer.setDefaultHandlers(handlers);
   return {
-    use: (...runtime: CommandHandler[]) => defaultServer.use(runtime),
+    use: (...handlers: CommandHandler[]) => defaultServer.use(handlers),
     resetHandlers: () => {
       // MSW semantics: drop per-test `use()` overrides and in-memory state,
       // but restore the baseline handlers passed to this `setupSandbox` call

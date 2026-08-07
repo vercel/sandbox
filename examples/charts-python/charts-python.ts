@@ -17,15 +17,15 @@ IMPORTANT: Return ONLY the raw Python code. Do NOT use markdown code blocks, bac
 
   console.log('Generating chart code with AI Gateway...');
   const response = await generateText({
-    model: gateway('openai/gpt-4o'),
+    model: gateway('openai/gpt-5.6-sol'),
     prompt: prompt,
     temperature: 0.7,
   });
 
   console.log('Creating sandbox...');
   const sandbox = await Sandbox.create({
-    runtime: 'python3.13',
     timeout: 300000,
+    image: "vercel/sandbox/python:3.14"
   });
 
   console.log('Installing Python packages with uv...');
@@ -34,7 +34,6 @@ IMPORTANT: Return ONLY the raw Python code. Do NOT use markdown code blocks, bac
     args: ['pip', 'install', '--system', 'matplotlib', 'pandas', 'numpy'],
     sudo: true,
   });
-
 
   // Write the Python code to the sandbox
   console.log('Writing and executing Python code...');
@@ -47,17 +46,17 @@ IMPORTANT: Return ONLY the raw Python code. Do NOT use markdown code blocks, bac
 
   // Run the Python code
   const result = await sandbox.runCommand('python', ['generate_chart.py']);
-  
+
   if (result.exitCode === 0) {
     console.log('Chart generated successfully!');
 
     // Read the generated image from the sandbox
     const imageStream = await sandbox.readFile({ path: 'berlin_weather.png' });
-    
+
     if (imageStream) {
       const writeStream = fs.createWriteStream('berlin_weather.png');
       imageStream.pipe(writeStream);
-      
+
       await new Promise((resolve, reject) => {
         writeStream.on('finish', () => {
           console.log('Image saved as berlin_weather.png');
@@ -74,4 +73,4 @@ IMPORTANT: Return ONLY the raw Python code. Do NOT use markdown code blocks, bac
   await sandbox.stop();
 }
 
-main().catch(console.error); 
+main().catch(console.error);
