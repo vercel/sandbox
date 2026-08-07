@@ -4,4 +4,4 @@
 "sandbox": major
 ---
 
-Move sandbox creation to the v3 API, remove the legacy environment selector, document the universal default image, and add Vercel managed image suggestions.
+Add support for Vercel Managed Images, remove `runtime` and use `vercel/sandbox/universal` image by default.
