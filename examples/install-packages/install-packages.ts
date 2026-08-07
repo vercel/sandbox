@@ -1,23 +1,23 @@
-import { Sandbox } from "@vercel/sandbox";
+import { Sandbox } from '@vercel/sandbox';
 
 async function main() {
   const sandbox = await Sandbox.create({
-    image: "vercel/sandbox/arch",
+    image: 'vercel/sandbox/arch',
   });
 
   // Install Go
-  console.log("Installing Go...");
+  console.log('Installing Go...');
   await sandbox.runCommand({
-    cmd: "pacman",
-    args: ["-Sy", "--noconfirm", "--needed", "go"],
+    cmd: 'pacman',
+    args: ['-Sy', '--noconfirm', '--needed', 'go'],
     sudo: true,
   });
 
   // Create a simple Hello World Go program
-  console.log("Creating Hello World Go program...");
+  console.log('Creating Hello World Go program...');
   await sandbox.writeFiles([
     {
-      path: "hello.go",
+      path: 'hello.go',
       content: Buffer.from(`package main
 
 import "fmt"
@@ -30,11 +30,11 @@ func main() {
   ]);
 
   // Run the Go program
-  console.log("Running Go program...");
-  const runResult = await sandbox.runCommand("go", ["run", "hello.go"]);
+  console.log('Running Go program...');
+  const runResult = await sandbox.runCommand('go', ['run', 'hello.go']);
   const programOutput = await runResult.stdout();
 
-  console.log("Output:", programOutput);
+  console.log('Output:', programOutput);
 
   await sandbox.stop();
 }
