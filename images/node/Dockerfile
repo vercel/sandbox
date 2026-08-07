@@ -1,5 +1,6 @@
 FROM base AS fetch
 USER root
+ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -16,6 +17,7 @@ RUN tarball="$(curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/SHASU
 
 FROM base
 USER root
+ENV HOME=/root
 
 # Node.js requires libatomic.
 RUN apt-get update && \
@@ -27,14 +29,18 @@ COPY --from=fetch /opt/node /usr/local
 RUN npm install -g pnpm@11 && \
     npm cache clean --force
 
+RUN chown -R ubuntu:ubuntu /vercel
+
+ENV HOME=/vercel
 USER ubuntu
+WORKDIR /vercel
 
 RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
     npm config set prefix ~/.global/npm && \
     pnpm config set global-dir ~/.global/pnpm && \
     pnpm config set global-bin-dir ~/.global/pnpm/bin
 
-ENV PATH="/home/ubuntu/.global/pnpm/bin:/home/ubuntu/.global/npm/bin:${PATH}"
+ENV PATH="/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
 RUN git --version && \
     node --version && \

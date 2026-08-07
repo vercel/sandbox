@@ -8,17 +8,19 @@ RUN pacman -Syu --noconfirm && \
   pacman -S --noconfirm --needed sudo base-devel git && \
   rm -rf /var/cache/pacman/pkg/*
 
-RUN useradd -m -u 1000 -s /bin/bash arch && \
+RUN useradd -m -d /vercel -u 1000 -s /bin/bash arch && \
   printf '%s\n' \
   'Defaults always_set_home' \
   'Defaults !env_reset' \
   'Defaults !fqdn' \
   'arch ALL=(ALL) NOPASSWD:ALL' \
   > /etc/sudoers.d/sandbox && \
-  chmod 0440 /etc/sudoers.d/sandbox
+  chmod 0440 /etc/sudoers.d/sandbox && \
+  chown -R arch:arch /vercel
 
+ENV HOME=/vercel
 USER arch
-WORKDIR /home/arch
+WORKDIR /vercel
 
 # yay (AUR helper)
 RUN git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && \

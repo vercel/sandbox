@@ -1,5 +1,6 @@
 FROM base
 USER root
+ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PYTHON_VERSION=3.14
@@ -16,10 +17,14 @@ RUN apt-get update && \
   pip install uv && \
   rm -rf /root/.cache/pip
 
+RUN chown -R ubuntu:ubuntu /vercel
+
+ENV HOME=/vercel
 USER ubuntu
+WORKDIR /vercel
 
 # User-installed console scripts (pip, uv tool) land in ~/.local/bin.
-ENV PATH="/home/ubuntu/.local/bin:${PATH}"
+ENV PATH="/vercel/.local/bin:${PATH}"
 
 RUN git --version && \
   python --version | grep -F "Python ${PYTHON_VERSION}." && \

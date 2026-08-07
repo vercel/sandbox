@@ -14,7 +14,11 @@ RUN printf '%s\n' \
       'Defaults !fqdn' \
       'ubuntu ALL=(ALL) NOPASSWD:ALL' \
       > /etc/sudoers.d/sandbox && \
-    chmod 0440 /etc/sudoers.d/sandbox
+    chmod 0440 /etc/sudoers.d/sandbox && \
+    install -d -o ubuntu -g ubuntu /vercel && \
+    usermod --home /vercel ubuntu && \
+    chown -R ubuntu:ubuntu /vercel
 
+ENV HOME=/vercel
 USER ubuntu
-WORKDIR /home/ubuntu
+WORKDIR /vercel
