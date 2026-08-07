@@ -162,7 +162,7 @@ export type CreateSandboxParams =
        * repository name resolves to the `latest` tag. If omitted, the sandbox
        * uses `vercel/sandbox/universal:latest`.
        *
-       * @example "vercel/sandbox/universal" // Vercel managed image
+       * @example "vercel/sandbox/universal" // Vercel managed image, latest tag
        * @example "my-repo" // latest tag
        * @example "my-repo:v1" // specific tag
        * @example "my-repo@sha256:..." // specific digest
