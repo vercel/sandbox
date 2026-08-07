@@ -2,16 +2,17 @@
 
 ## Formatting
 
-JavaScript and TypeScript are formatted with [oxfmt](https://oxc.rs/docs/guide/usage/formatter),
-configured in [`.oxfmtrc.json`](./.oxfmtrc.json). JSON and Markdown are still
-formatted with Prettier.
+Everything is formatted with [oxfmt](https://oxc.rs/docs/guide/usage/formatter),
+configured in [`.oxfmtrc.json`](./.oxfmtrc.json). That covers JavaScript,
+TypeScript, JSON, Markdown, YAML and CSS — oxfmt skips any file type it does
+not understand.
 
-- `pnpm run format` formats every JS/TS file in the repo.
+- `pnpm run format` formats the whole repo.
 - `pnpm run format:check` reports files that are not formatted. CI runs this on
   every pull request, so unformatted code fails the build.
 
-A `pre-commit` hook runs oxfmt over staged JS/TS files, so in practice you
-rarely need to run either command by hand.
+A `pre-commit` hook runs oxfmt over staged files, so in practice you rarely
+need to run either command by hand.
 
 ## Running the tests
 
