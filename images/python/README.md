@@ -10,7 +10,7 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ## Packages
 
-- Git
+- `git`
 - `python3.14` and `python3.14-venv` (pinned versioned packages)
 - `python3-pip`
 - `python-is-python3` (provides the `python` command)
