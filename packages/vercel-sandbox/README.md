@@ -370,8 +370,13 @@ To escalate to root, pass `sudo: true`:
 
 ```typescript
 await alice.runCommand({
-  cmd: "bash",
-  args: ["-lc", "apt-get update && apt-get install -y git"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await alice.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "git"],
   sudo: true,
 });
 ```

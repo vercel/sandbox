@@ -315,8 +315,13 @@ await devServer.kill("SIGTERM");
 
 ```typescript
 await sandbox.runCommand({
-  cmd: "bash",
-  args: ["-lc", "apt-get update && apt-get install -y golang-go"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "golang-go"],
   sudo: true, // Execute as root
 });
 ```
@@ -406,8 +411,13 @@ await alice.runCommand({
   env: { SECRET: "hunter2" },
 });
 await alice.runCommand({
-  cmd: "bash",
-  args: ["-lc", "apt-get update && apt-get install -y git"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await alice.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "git"],
   sudo: true,
 });
 const server = await alice.runCommand({
@@ -924,8 +934,13 @@ Install additional packages with sudo:
 
 ```typescript
 await sandbox.runCommand({
-  cmd: "bash",
-  args: ["-lc", "apt-get update && apt-get install -y package-name"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "package-name"],
   sudo: true,
 });
 ```

@@ -25,6 +25,7 @@ IMPORTANT: Return ONLY the raw Python code. Do NOT use markdown code blocks, bac
   console.log('Creating sandbox...');
   const sandbox = await Sandbox.create({
     timeout: 300000,
+    image: "vercel/sandbox/python:3.14"
   });
 
   console.log('Installing Python packages with uv...');
