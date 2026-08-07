@@ -1,5 +1,5 @@
 {
-  "name": "sandbox-image-python",
-  "version": "0.1.0",
+  "name": "@vercel-managed-images/python",
+  "version": "1.0.0",
   "private": true
 }

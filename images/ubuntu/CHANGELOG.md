@@ -1,4 +1,4 @@
-# sandbox-image-ubuntu
+# @vercel-managed-images/ubuntu
 
 ## 0.1.0
 

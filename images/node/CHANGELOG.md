@@ -1,4 +1,4 @@
-# sandbox-image-node
+# @vercel-managed-images/node
 
 ## 0.1.0
 

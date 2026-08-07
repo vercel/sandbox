@@ -1,4 +1,4 @@
-# sandbox-image-arch
+# @vercel-managed-images/arch
 
 ## 0.1.0
 

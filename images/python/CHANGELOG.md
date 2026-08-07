@@ -1,4 +1,4 @@
-# sandbox-image-python
+# @vercel-managed-images/python
 
 ## 0.1.0
 

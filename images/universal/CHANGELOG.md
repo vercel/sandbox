@@ -1,4 +1,4 @@
-# sandbox-image-universal
+# @vercel-managed-images/universal
 
 ## 0.1.0
 
