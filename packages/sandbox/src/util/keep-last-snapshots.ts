@@ -31,8 +31,7 @@ export function buildKeepLastSnapshotsPayload(
 
   if (
     keepLastSnapshots === undefined &&
-    (keepLastSnapshotsFor !== undefined ||
-      deleteEvictedSnapshots !== undefined)
+    (keepLastSnapshotsFor !== undefined || deleteEvictedSnapshots !== undefined)
   ) {
     throw new Error(
       [

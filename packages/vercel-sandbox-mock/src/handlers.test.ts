@@ -41,7 +41,9 @@ describe("command()", () => {
     });
 
     test("throws when the command name cannot be extracted", () => {
-      expect(() => command(/(npm|pnpm) install/)).toThrow(/Cannot extract command name/);
+      expect(() => command(/(npm|pnpm) install/)).toThrow(
+        /Cannot extract command name/,
+      );
     });
   });
 
@@ -52,7 +54,10 @@ describe("command()", () => {
 
     test("static responses are returned as-is", async () => {
       const handler = command("fail", { stderr: "boom", exitCode: 2 });
-      expect(await handler.resolve("fail", [], ctx)).toEqual({ stderr: "boom", exitCode: 2 });
+      expect(await handler.resolve("fail", [], ctx)).toEqual({
+        stderr: "boom",
+        exitCode: 2,
+      });
     });
 
     test("function responses receive args and context", async () => {
@@ -87,7 +92,10 @@ describe("handlersToCustomCommands", () => {
       stderr: "",
       exitCode: 0,
     });
-    expect(await bash.exec("npm audit")).toMatchObject({ stdout: "generic\n", exitCode: 1 });
+    expect(await bash.exec("npm audit")).toMatchObject({
+      stdout: "generic\n",
+      exitCode: 1,
+    });
   });
 
   test("no matching pattern yields exit code 127", async () => {

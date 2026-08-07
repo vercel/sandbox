@@ -1,9 +1,8 @@
-import { Sandbox } from '@vercel/sandbox';
+import { Sandbox } from "@vercel/sandbox";
 
 async function main() {
-
   // Create a new sandbox
-  console.log('Creating sandbox...');
+  console.log("Creating sandbox...");
   const sandbox = await Sandbox.create({
     timeout: 300000, // 5 minutes
   });
@@ -11,33 +10,33 @@ async function main() {
   console.log(`Sandbox ${sandbox.name} created successfully!\n`);
 
   // 1. Check current working directory
-  const pwdResult = await sandbox.runCommand('pwd');
+  const pwdResult = await sandbox.runCommand("pwd");
   console.log(`Current working directory: ${await pwdResult.stdout()}`);
 
   // 2. List contents of current directory
-  console.log('Directory Contents:');
-  const lsResult = await sandbox.runCommand('ls', ['-la']);
+  console.log("Directory Contents:");
+  const lsResult = await sandbox.runCommand("ls", ["-la"]);
   console.log(await lsResult.stdout());
 
   // 3. Check what's on PATH
-  console.log('PATH Environment Variable:');
-  const pathResult = await sandbox.runCommand('bash', ['-c', 'echo $PATH']);
+  console.log("PATH Environment Variable:");
+  const pathResult = await sandbox.runCommand("bash", ["-c", "echo $PATH"]);
   const pathValue = await pathResult.stdout();
   console.log(`PATH: ${pathValue}`);
-  
+
   // Display PATH in a more readable format
-  console.log('PATH directories:');
-  const pathDirs = pathValue.trim().split(':');
+  console.log("PATH directories:");
+  const pathDirs = pathValue.trim().split(":");
   pathDirs.forEach((dir, index) => {
     console.log(`  ${index + 1}. ${dir}`);
   });
 
   // 4. Check available commands/tools
-  console.log('Available Tools:');
-  const tools = ['node', 'npm', 'python3', 'git', 'curl', 'wget', 'bash', 'sh'];
-  
+  console.log("Available Tools:");
+  const tools = ["node", "npm", "python3", "git", "curl", "wget", "bash", "sh"];
+
   for (const tool of tools) {
-    const whichResult = await sandbox.runCommand('which', [tool]);
+    const whichResult = await sandbox.runCommand("which", [tool]);
     if (whichResult.exitCode === 0) {
       const toolPath = await whichResult.stdout();
       console.log(`  ✅ ${tool}: ${toolPath.trim()}`);
@@ -47,28 +46,31 @@ async function main() {
   }
 
   // 5. Check system information
-  console.log('System Information:');
-  const unameResult = await sandbox.runCommand('uname', ['-a']);
+  console.log("System Information:");
+  const unameResult = await sandbox.runCommand("uname", ["-a"]);
   console.log(`System: ${await unameResult.stdout()}`);
 
-  const whoamiResult = await sandbox.runCommand('whoami');
+  const whoamiResult = await sandbox.runCommand("whoami");
   console.log(`User: ${await whoamiResult.stdout()}`);
 
   // 6. Set and use environment variables
-  console.log('Environment Variables:');
-  
+  console.log("Environment Variables:");
+
   // Demonstrate environment variables using bash -c
   // Note: Environment variables don't persist between separate commands
-  const envTestResult = await sandbox.runCommand('bash', ['-c', 'export MY_GREETINGS="Hello from sandbox!" && export EXAMPLE_NUMBER=42 && echo "Greetings string: $MY_GREETINGS" && echo "Number variable: $EXAMPLE_NUMBER"']);
+  const envTestResult = await sandbox.runCommand("bash", [
+    "-c",
+    'export MY_GREETINGS="Hello from sandbox!" && export EXAMPLE_NUMBER=42 && echo "Greetings string: $MY_GREETINGS" && echo "Number variable: $EXAMPLE_NUMBER"',
+  ]);
   console.log(await envTestResult.stdout());
 
   // 7. Create a simple script and run it
-  console.log('Creating and Running a Script:');
-  
+  console.log("Creating and Running a Script:");
+
   // Write a simple bash script that sets and uses environment variables
   await sandbox.writeFiles([
     {
-      path: 'hello.sh',
+      path: "hello.sh",
       content: Buffer.from(`#!/bin/bash
 # Set environment variables within the script
 export MY_GREETINGS="Hello from a script in sandbox!"
@@ -84,19 +86,19 @@ echo "Number variable: $EXAMPLE_NUMBER"
   ]);
 
   // Make script executable
-  await sandbox.runCommand('chmod', ['+x', 'hello.sh']);
-  
+  await sandbox.runCommand("chmod", ["+x", "hello.sh"]);
+
   // Run the script
-  const scriptResult = await sandbox.runCommand('./hello.sh', ['arg1', 'arg2']);
+  const scriptResult = await sandbox.runCommand("./hello.sh", ["arg1", "arg2"]);
   console.log(await scriptResult.stdout());
 
   // 8. Demonstrate process management and signals
-  console.log('Process Management and Signals:');
-  
+  console.log("Process Management and Signals:");
+
   // Create a long-running process script
   await sandbox.writeFiles([
     {
-      path: 'long_process.sh',
+      path: "long_process.sh",
       content: Buffer.from(`#!/bin/bash
 echo "Starting long process (PID: $$)..."
 trap 'echo "Received SIGTERM, cleaning up..."; exit 0' TERM
@@ -111,82 +113,86 @@ echo "Process completed normally"
     },
   ]);
 
-  await sandbox.runCommand('chmod', ['+x', 'long_process.sh']);
-  
+  await sandbox.runCommand("chmod", ["+x", "long_process.sh"]);
+
   // Start the long process in detached mode
-  console.log('Starting long-running process in background...');
+  console.log("Starting long-running process in background...");
   const longProcess = await sandbox.runCommand({
-    cmd: './long_process.sh',
+    cmd: "./long_process.sh",
     detached: true,
   });
-  
+
   // Wait a bit to let it start
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
   // Send a signal to terminate the process
-  console.log('Sending SIGTERM signal to process in background...');
-  await longProcess.kill('SIGTERM');
-  
+  console.log("Sending SIGTERM signal to process in background...");
+  await longProcess.kill("SIGTERM");
+
   // Wait for the process to complete
   const processResult = await longProcess.wait();
-  console.log('Process running in background output:');
+  console.log("Process running in background output:");
   console.log(await processResult.stdout());
 
   // 9. Working with files and directories
-  console.log('File and Directory Operations:');
-  
+  console.log("File and Directory Operations:");
+
   // Create a directory structure
-  await sandbox.runCommand('mkdir', ['-p', 'test/nested/deep']);
-  
+  await sandbox.runCommand("mkdir", ["-p", "test/nested/deep"]);
+
   // Create some files
   await sandbox.writeFiles([
     {
-      path: 'test/file1.txt',
-      content: Buffer.from('This is file 1'),
+      path: "test/file1.txt",
+      content: Buffer.from("This is file 1"),
     },
     {
-      path: 'test/nested/file2.txt',
-      content: Buffer.from('This is file 2 in nested directory'),
+      path: "test/nested/file2.txt",
+      content: Buffer.from("This is file 2 in nested directory"),
     },
   ]);
 
   // List the directory tree
-  const treeResult = await sandbox.runCommand('find', ['test', '-type', 'f']);
-  console.log('Created files:');
+  const treeResult = await sandbox.runCommand("find", ["test", "-type", "f"]);
+  console.log("Created files:");
   console.log(await treeResult.stdout());
 
   // 10. Stop the sandbox
-  console.log('Stopping the sandbox ...');
+  console.log("Stopping the sandbox ...");
   await sandbox.stop();
 
   // 11. Modify the sandbox configuration
-  await sandbox.update({ resources: { vcpus: 2 }});
+  await sandbox.update({ resources: { vcpus: 2 } });
 
   // 12. Resume the sandbox from where you left off
-  console.log('Resuming the sandbox with 2 vCPU');
+  console.log("Resuming the sandbox with 2 vCPU");
   const resumedSandbox = await Sandbox.get({ name: sandbox.name });
-  const treeResultAfterResume = await resumedSandbox.runCommand('find', ['test', '-type', 'f']);
-  console.log('Created files (after resuming the sandbox):');
+  const treeResultAfterResume = await resumedSandbox.runCommand("find", [
+    "test",
+    "-type",
+    "f",
+  ]);
+  console.log("Created files (after resuming the sandbox):");
   console.log(await treeResultAfterResume.stdout());
 
   // 13. Check resource usage
-  console.log('Resource Usage:');
-  
+  console.log("Resource Usage:");
+
   // Check disk usage
-  const dfResult = await resumedSandbox.runCommand('df', ['-h']);
-  console.log('Disk usage:');
+  const dfResult = await resumedSandbox.runCommand("df", ["-h"]);
+  console.log("Disk usage:");
   console.log(await dfResult.stdout());
-  
+
   // Check memory usage
-  const freeResult = await resumedSandbox.runCommand('free', ['-h']);
-  console.log('Memory usage:');
+  const freeResult = await resumedSandbox.runCommand("free", ["-h"]);
+  console.log("Memory usage:");
   console.log(await freeResult.stdout());
 
   // 14. Delete the sandbox
-  console.log('Deleting the sandbox ...');
+  console.log("Deleting the sandbox ...");
   await resumedSandbox.delete();
 
-  console.log('Sandbox basics completed!');
+  console.log("Sandbox basics completed!");
 }
 
-main().catch(console.error); 
+main().catch(console.error);

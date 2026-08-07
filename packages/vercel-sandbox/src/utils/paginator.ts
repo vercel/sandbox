@@ -5,18 +5,22 @@ type CursorPaginationMeta = {
 
 type HasPagination = { pagination: CursorPaginationMeta };
 
-type ItemOf<Page, Key extends keyof Page> = Page[Key] extends Array<infer Item>
-  ? Item
-  : never;
+type ItemOf<Page, Key extends keyof Page> =
+  Page[Key] extends Array<infer Item> ? Item : never;
 
-export type Paginator<Page extends HasPagination, Key extends keyof Page> =
-  Page &
-    AsyncIterable<ItemOf<Page, Key>> & {
-      pages(): AsyncIterable<Page>;
-      toArray(): Promise<ItemOf<Page, Key>[]>;
-    };
+export type Paginator<
+  Page extends HasPagination,
+  Key extends keyof Page,
+> = Page &
+  AsyncIterable<ItemOf<Page, Key>> & {
+    pages(): AsyncIterable<Page>;
+    toArray(): Promise<ItemOf<Page, Key>[]>;
+  };
 
-type AttachPaginatorOptions<Page extends HasPagination, Key extends keyof Page> = {
+type AttachPaginatorOptions<
+  Page extends HasPagination,
+  Key extends keyof Page,
+> = {
   itemsKey: Key;
   fetchNext: (cursor: string) => Promise<Page>;
   signal?: AbortSignal;

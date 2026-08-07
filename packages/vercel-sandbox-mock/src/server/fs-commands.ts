@@ -18,10 +18,20 @@ const enoent = (tool: string, path: string): CommandOutput => ({
 });
 
 function formatStat(
-  stats: { isDirectory: boolean; isSymbolicLink: boolean; mode: number; size: number; mtime: Date },
+  stats: {
+    isDirectory: boolean;
+    isSymbolicLink: boolean;
+    mode: number;
+    size: number;
+    mtime: Date;
+  },
   format: string,
 ): string {
-  const typeBits = stats.isDirectory ? S_IFDIR : stats.isSymbolicLink ? S_IFLNK : S_IFREG;
+  const typeBits = stats.isDirectory
+    ? S_IFDIR
+    : stats.isSymbolicLink
+      ? S_IFLNK
+      : S_IFREG;
   const rawMode = typeBits | (stats.mode & 0o7777);
   const seconds = Math.floor(stats.mtime.getTime() / 1000);
   const tokens: Record<string, string> = {
@@ -62,8 +72,14 @@ export async function tryFsCommand(
     const format = args[args.indexOf("-c") + 1];
     const follow = args.includes("-L");
     try {
-      const stats = follow ? await fs.stat(abs(last)) : await fs.lstat(abs(last));
-      return { stdout: `${formatStat(stats, format)}\n`, stderr: "", exitCode: 0 };
+      const stats = follow
+        ? await fs.stat(abs(last))
+        : await fs.lstat(abs(last));
+      return {
+        stdout: `${formatStat(stats, format)}\n`,
+        stderr: "",
+        exitCode: 0,
+      };
     } catch {
       return enoent("stat", last);
     }
@@ -80,9 +96,14 @@ export async function tryFsCommand(
             isSymbolicLink: false,
           }));
       const lines = entries.map(
-        (e) => `${e.name}|${e.isDirectory ? "d" : e.isSymbolicLink ? "l" : "f"}`,
+        (e) =>
+          `${e.name}|${e.isDirectory ? "d" : e.isSymbolicLink ? "l" : "f"}`,
       );
-      return { stdout: lines.length ? `${lines.join("\n")}\n` : "", stderr: "", exitCode: 0 };
+      return {
+        stdout: lines.length ? `${lines.join("\n")}\n` : "",
+        stderr: "",
+        exitCode: 0,
+      };
     } catch {
       return enoent("find", path);
     }
@@ -103,14 +124,21 @@ export async function tryFsCommand(
   }
 
   if (command === "mktemp") {
-    const dir = last.replace(/X{3,}$/, randomUUID().replace(/-/g, "").slice(0, 6));
+    const dir = last.replace(
+      /X{3,}$/,
+      randomUUID().replace(/-/g, "").slice(0, 6),
+    );
     await fs.mkdir(abs(dir), { recursive: true });
     return { stdout: `${dir}\n`, stderr: "", exitCode: 0 };
   }
 
   if (command === "realpath") {
     try {
-      return { stdout: `${await fs.realpath(abs(last))}\n`, stderr: "", exitCode: 0 };
+      return {
+        stdout: `${await fs.realpath(abs(last))}\n`,
+        stderr: "",
+        exitCode: 0,
+      };
     } catch {
       return enoent("realpath", last);
     }
@@ -118,7 +146,11 @@ export async function tryFsCommand(
 
   if (command === "test") {
     // Only `-e` (exists) is used by the SDK's FileSystem.
-    return { stdout: "", stderr: "", exitCode: (await fs.exists(abs(last))) ? 0 : 1 };
+    return {
+      stdout: "",
+      stderr: "",
+      exitCode: (await fs.exists(abs(last))) ? 0 : 1,
+    };
   }
 
   return null;

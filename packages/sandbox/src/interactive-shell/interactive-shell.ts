@@ -3,7 +3,11 @@ import createDebugger from "debug";
 import { WebSocket } from "ws";
 import { printCommand } from "../util/print-command";
 import ora from "ora";
-import { acquireRelease, createAbortController, defer } from "../util/disposables";
+import {
+  acquireRelease,
+  createAbortController,
+  defer,
+} from "../util/disposables";
 import chalk from "chalk";
 import { extendSandboxTimeoutPeriodically } from "./extend-sandbox-timeout";
 
@@ -165,7 +169,9 @@ export async function startInteractiveShell(options: {
   process.removeListener("SIGWINCH", onResize);
   process.stdin.removeListener("data", onStdin);
 
-  console.error(chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`));
+  console.error(
+    chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`),
+  );
 }
 
 function toEnvArray(env: Record<string, string>): string[] {

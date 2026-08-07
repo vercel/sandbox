@@ -50,9 +50,7 @@ const vcpusCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "vcpus: " + chalk.cyan(count) + "\n",
@@ -66,7 +64,8 @@ const vcpusCommand = cmd.command({
 
 const timeoutCommand = cmd.command({
   name: "timeout",
-  description: "Update the timeout of a sandbox (will be applied to all new sessions)",
+  description:
+    "Update the timeout of a sandbox (will be applied to all new sessions)",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -74,15 +73,12 @@ const timeoutCommand = cmd.command({
     }),
     duration: cmd.positional({
       type: Duration,
-      description: "The maximum duration a sandbox can run for. Example: 5m, 1h",
+      description:
+        "The maximum duration a sandbox can run for. Example: 5m, 1h",
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    duration,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, duration }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -96,9 +92,7 @@ const timeoutCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "timeout: " + chalk.cyan(duration) + "\n",
@@ -112,7 +106,8 @@ const timeoutCommand = cmd.command({
 
 const persistentCommand = cmd.command({
   name: "persistent",
-  description: "Enable or disable automatic restore of the filesystem between sessions",
+  description:
+    "Enable or disable automatic restore of the filesystem between sessions",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -120,15 +115,12 @@ const persistentCommand = cmd.command({
     }),
     value: cmd.positional({
       type: { ...cmd.oneOf(["true", "false"]), displayName: "true|false" },
-      description: "Enable or disable automatic restore of the filesystem between sessions",
+      description:
+        "Enable or disable automatic restore of the filesystem between sessions",
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    value,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, value }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -142,9 +134,7 @@ const persistentCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "persistent: " + chalk.cyan(value) + "\n",
@@ -166,15 +156,12 @@ const snapshotExpirationCommand = cmd.command({
     }),
     duration: cmd.positional({
       type: SnapshotExpiration,
-      description: 'Snapshot expiration duration (e.g. 7d, 30d) or "none" for no expiration',
+      description:
+        'Snapshot expiration duration (e.g. 7d, 30d) or "none" for no expiration',
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    duration,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, duration }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -189,12 +176,13 @@ const snapshotExpirationCommand = cmd.command({
 
       const display = ms(duration) === 0 ? "none" : duration;
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
-        chalk.dim("   ╰ ") + "snapshot-expiration: " + chalk.cyan(display) + "\n",
+        chalk.dim("   ╰ ") +
+          "snapshot-expiration: " +
+          chalk.cyan(display) +
+          "\n",
       );
     } catch (error) {
       spinner.stop();
@@ -231,11 +219,7 @@ const keepLastSnapshotsCommand = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    count,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, count }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -291,11 +275,7 @@ const keepLastSnapshotsForCommand = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    duration,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, duration }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -357,11 +337,7 @@ const deleteEvictedSnapshotsCommand = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    value,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, value }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -438,19 +414,17 @@ const currentSnapshotCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
-        chalk.dim("   ╰ ") + "current-snapshot: " + chalk.cyan(snapshotId) + "\n",
+        chalk.dim("   ╰ ") +
+          "current-snapshot: " +
+          chalk.cyan(snapshotId) +
+          "\n",
       );
     } catch (error) {
       spinner.stop();
-      if (
-        error instanceof APIError &&
-        error.response.status === 404
-      ) {
+      if (error instanceof APIError && error.response.status === 404) {
         throw new StyledError(
           `Snapshot '${snapshotId}' was not found or does not belong to this project.`,
           error,
@@ -534,18 +508,39 @@ const listCommand = cmd.command({
       });
     })();
 
-    const networkPolicy = typeof sandbox.networkPolicy === "string" ? sandbox.networkPolicy : "restricted";
-    const tagsDisplay = sandbox.tags && Object.keys(sandbox.tags).length > 0
-      ? Object.entries(sandbox.tags).map(([k, v]) => `${k}=${v}`).join(", ")
-      : "-";
+    const networkPolicy =
+      typeof sandbox.networkPolicy === "string"
+        ? sandbox.networkPolicy
+        : "restricted";
+    const tagsDisplay =
+      sandbox.tags && Object.keys(sandbox.tags).length > 0
+        ? Object.entries(sandbox.tags)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(", ")
+        : "-";
     const rows = [
       { field: "vCPUs", value: String(sandbox.vcpus ?? "-") },
-      { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
+      {
+        field: "Timeout",
+        value:
+          sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-",
+      },
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
       { field: "Ports", value: formatPorts(sandbox) },
-      { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
-      { field: "Keep last snapshots", value: formatKeepLastSnapshots(sandbox.keepLastSnapshots) },
+      {
+        field: "Snapshot expiration",
+        value:
+          sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0
+            ? ms(sandbox.snapshotExpiration, { long: true })
+            : sandbox.snapshotExpiration === 0
+              ? "none"
+              : "-",
+      },
+      {
+        field: "Keep last snapshots",
+        value: formatKeepLastSnapshots(sandbox.keepLastSnapshots),
+      },
       { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
       { field: "Tags", value: tagsDisplay },
     ];
@@ -624,7 +619,8 @@ const networkPolicyCommand = cmd.command({
           chalk.cyan(sandbox.name) +
           "\n",
       );
-      const mode = typeof networkPolicy === "string" ? networkPolicy : "restricted";
+      const mode =
+        typeof networkPolicy === "string" ? networkPolicy : "restricted";
       process.stderr.write(
         chalk.dim("   ╰ ") + "mode: " + chalk.cyan(mode) + "\n",
       );
@@ -637,7 +633,8 @@ const networkPolicyCommand = cmd.command({
 
 const tagsCommand = cmd.command({
   name: "tags",
-  description: "Update the tags of a sandbox. Replaces all existing tags with the provided tags.",
+  description:
+    "Update the tags of a sandbox. Replaces all existing tags with the provided tags.",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -647,7 +644,8 @@ const tagsCommand = cmd.command({
       long: "tag",
       short: "t",
       type: ObjectFromKeyValue,
-      description: "Key-value tags to set (e.g. --tag env=staging). Omit to clear all tags.",
+      description:
+        "Key-value tags to set (e.g. --tag env=staging). Omit to clear all tags.",
     }),
     scope,
   },
@@ -677,7 +675,9 @@ const tagsCommand = cmd.command({
           const [k, v] = entries[i];
           const isLast = i === entries.length - 1;
           const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
-          process.stderr.write(prefix + chalk.cyan(k) + "=" + chalk.cyan(v) + "\n");
+          process.stderr.write(
+            prefix + chalk.cyan(k) + "=" + chalk.cyan(v) + "\n",
+          );
         }
       }
     } catch (error) {

@@ -12,9 +12,7 @@ export function toAPINetworkPolicy(
   policy: NetworkPolicy,
 ): APIRequestNetworkPolicy {
   const apiPolicy =
-    policy === "allow-all" || policy === "deny-all"
-      ? { mode: policy }
-      : policy;
+    policy === "allow-all" || policy === "deny-all" ? { mode: policy } : policy;
 
   NetworkPolicyRequestValidator.parse(apiPolicy);
   return apiPolicy;
@@ -70,7 +68,10 @@ export function fromAPINetworkPolicy(
       allow[domain] = rulesByDomain.get(domain) ?? [];
     }
     // Include L7 rules for domains not in allowedDomains
-    for (const rule of [...(api.injectionRules ?? []), ...(api.forwardRules ?? [])]) {
+    for (const rule of [
+      ...(api.injectionRules ?? []),
+      ...(api.forwardRules ?? []),
+    ]) {
       if (!(rule.domain in allow)) {
         allow[rule.domain] = rulesByDomain.get(rule.domain) ?? [];
       }

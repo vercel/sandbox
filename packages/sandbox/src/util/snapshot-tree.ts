@@ -88,19 +88,14 @@ function renderSiblings(siblings: SnapshotData[], count: string): string[] {
   return lines;
 }
 
-export function renderSnapshotTree(
-  params: RenderSnapshotTreeParams,
-): string {
+export function renderSnapshotTree(params: RenderSnapshotTreeParams): string {
   const { ancestors, descendants } = params;
   const hideCurrent = params.hideCurrent === true;
   const currentSnapshotId = hideCurrent ? undefined : params.currentSnapshotId;
   const lines: string[] = [];
 
   // Helper: push a snapshot node with optional siblings and a trailing connector
-  const pushNode = (
-    node: TreeNode,
-    isCurrent: boolean,
-  ) => {
+  const pushNode = (node: TreeNode, isCurrent: boolean) => {
     lines.push("│");
     lines.push(
       renderNode(node.snapshot.id, node.snapshot.expiresAt, isCurrent),

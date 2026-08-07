@@ -41,7 +41,9 @@ describe("Sandbox.fork", () => {
       expect(fork.snapshotExpiration).toBe(7 * DAY);
       expect(fork.keepLastSnapshots?.count).toBe(3);
 
-      const forkPorts = fork.routes.map((route) => route.port).sort((a, b) => a - b);
+      const forkPorts = fork.routes
+        .map((route) => route.port)
+        .sort((a, b) => a - b);
       expect(forkPorts).toEqual([3000, 8080]);
 
       expect(await readEnv(fork, "FORKED")).toBe("yes");

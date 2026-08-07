@@ -11,7 +11,9 @@ type TreeParams = Parameters<typeof RealSnapshot.tree>[0];
  * in-memory {@link MockServer}.
  */
 export class Snapshot extends RealSnapshot {
-  static override list(params?: ListParams): ReturnType<typeof RealSnapshot.list> {
+  static override list(
+    params?: ListParams,
+  ): ReturnType<typeof RealSnapshot.list> {
     return RealSnapshot.list(withMockDefaults(params) as ListParams);
   }
 
@@ -19,7 +21,9 @@ export class Snapshot extends RealSnapshot {
     return RealSnapshot.get(withMockDefaults(params) as GetParams);
   }
 
-  static override tree(params: TreeParams): ReturnType<typeof RealSnapshot.tree> {
+  static override tree(
+    params: TreeParams,
+  ): ReturnType<typeof RealSnapshot.tree> {
     return RealSnapshot.tree(withMockDefaults(params) as TreeParams);
   }
 }

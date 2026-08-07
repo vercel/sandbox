@@ -7,7 +7,10 @@ describe("ndjson", () => {
   });
 
   test("emits one JSON object per line", async () => {
-    const response = ndjson([{ command: { id: "c1" } }, { stream: "stdout", data: "hi" }]);
+    const response = ndjson([
+      { command: { id: "c1" } },
+      { stream: "stdout", data: "hi" },
+    ]);
     const text = await response.text();
     const lines = text.trim().split("\n");
     expect(lines).toHaveLength(2);

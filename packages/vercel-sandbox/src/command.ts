@@ -1,8 +1,5 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import {
-  APIClient,
-  type CommandData,
-} from "./api-client/index.js";
+import { APIClient, type CommandData } from "./api-client/index.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
 

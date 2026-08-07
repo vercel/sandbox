@@ -25,6 +25,10 @@ export function empty(): Response {
  * ...). Statuses 404/410/422 are surfaced immediately (not retried); 429/5xx
  * would trigger the SDK's retry loop, so they are never returned here.
  */
-export function apiError(status: number, code: string, message: string): Response {
+export function apiError(
+  status: number,
+  code: string,
+  message: string,
+): Response {
   return json({ error: { code, message } }, status);
 }

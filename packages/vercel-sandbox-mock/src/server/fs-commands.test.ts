@@ -20,14 +20,23 @@ describe("tryFsCommand", () => {
 
   test("resolves relative paths against cwd", async () => {
     const fs = await makeFs();
-    const result = await tryFsCommand(fs, "/dir", "stat", ["-c", "%s", "file.txt"]);
+    const result = await tryFsCommand(fs, "/dir", "stat", [
+      "-c",
+      "%s",
+      "file.txt",
+    ]);
     expect(result?.stdout).toBe("3\n");
   });
 
   describe("stat -c", () => {
     test("formats size and type bits for a regular file", async () => {
       const fs = await makeFs();
-      const result = await tryFsCommand(fs, "/", "stat", ["-L", "-c", "%s|%f", "/dir/file.txt"]);
+      const result = await tryFsCommand(fs, "/", "stat", [
+        "-L",
+        "-c",
+        "%s|%f",
+        "/dir/file.txt",
+      ]);
       expect(result?.exitCode).toBe(0);
       const [size, rawMode] = result!.stdout.trim().split("|");
       expect(Number(size)).toBe(3);
@@ -36,9 +45,18 @@ describe("tryFsCommand", () => {
 
     test("-L follows symlinks; without it the link itself is reported", async () => {
       const fs = await makeFs();
-      const followed = await tryFsCommand(fs, "/", "stat", ["-L", "-c", "%f", "/dir/link"]);
+      const followed = await tryFsCommand(fs, "/", "stat", [
+        "-L",
+        "-c",
+        "%f",
+        "/dir/link",
+      ]);
       expect(parseInt(followed!.stdout.trim(), 16) & 0o170000).toBe(0o100000);
-      const link = await tryFsCommand(fs, "/", "stat", ["-c", "%f", "/dir/link"]);
+      const link = await tryFsCommand(fs, "/", "stat", [
+        "-c",
+        "%f",
+        "/dir/link",
+      ]);
       expect(parseInt(link!.stdout.trim(), 16) & 0o170000).toBe(0o120000);
     });
 
@@ -66,13 +84,20 @@ describe("tryFsCommand", () => {
 
     test("empty directories produce empty stdout", async () => {
       const fs = await makeFs();
-      const result = await tryFsCommand(fs, "/", "find", ["/dir/sub", "-printf", "%f|%y\\n"]);
+      const result = await tryFsCommand(fs, "/", "find", [
+        "/dir/sub",
+        "-printf",
+        "%f|%y\\n",
+      ]);
       expect(result).toEqual({ stdout: "", stderr: "", exitCode: 0 });
     });
 
     test("missing paths fail", async () => {
       const fs = await makeFs();
-      expect((await tryFsCommand(fs, "/", "find", ["/nope", "-printf", "%f\\n"]))?.exitCode).toBe(1);
+      expect(
+        (await tryFsCommand(fs, "/", "find", ["/nope", "-printf", "%f\\n"]))
+          ?.exitCode,
+      ).toBe(1);
     });
   });
 
@@ -90,8 +115,14 @@ describe("tryFsCommand", () => {
 
   test("mktemp replaces the XXXXXX suffix and creates the directory", async () => {
     const fs = await makeFs();
-    const a = (await tryFsCommand(fs, "/", "mktemp", ["-d", "/tmp/x-XXXXXX"]))!.stdout.trim();
-    const b = (await tryFsCommand(fs, "/", "mktemp", ["-d", "/tmp/x-XXXXXX"]))!.stdout.trim();
+    const a = (await tryFsCommand(fs, "/", "mktemp", [
+      "-d",
+      "/tmp/x-XXXXXX",
+    ]))!.stdout.trim();
+    const b = (await tryFsCommand(fs, "/", "mktemp", [
+      "-d",
+      "/tmp/x-XXXXXX",
+    ]))!.stdout.trim();
     expect(a).toMatch(/^\/tmp\/x-[0-9a-f]{6}$/);
     expect(a).not.toBe(b);
     expect(await fs.exists(a)).toBe(true);
@@ -99,15 +130,21 @@ describe("tryFsCommand", () => {
 
   test("realpath resolves symlinks and fails on missing paths", async () => {
     const fs = await makeFs();
-    expect((await tryFsCommand(fs, "/", "realpath", ["/dir/link"]))?.stdout).toBe(
-      "/dir/file.txt\n",
+    expect(
+      (await tryFsCommand(fs, "/", "realpath", ["/dir/link"]))?.stdout,
+    ).toBe("/dir/file.txt\n");
+    expect((await tryFsCommand(fs, "/", "realpath", ["/nope"]))?.exitCode).toBe(
+      1,
     );
-    expect((await tryFsCommand(fs, "/", "realpath", ["/nope"]))?.exitCode).toBe(1);
   });
 
   test("test -e reports existence via exit code", async () => {
     const fs = await makeFs();
-    expect((await tryFsCommand(fs, "/", "test", ["-e", "/dir/file.txt"]))?.exitCode).toBe(0);
-    expect((await tryFsCommand(fs, "/", "test", ["-e", "/nope"]))?.exitCode).toBe(1);
+    expect(
+      (await tryFsCommand(fs, "/", "test", ["-e", "/dir/file.txt"]))?.exitCode,
+    ).toBe(0);
+    expect(
+      (await tryFsCommand(fs, "/", "test", ["-e", "/nope"]))?.exitCode,
+    ).toBe(1);
   });
 });

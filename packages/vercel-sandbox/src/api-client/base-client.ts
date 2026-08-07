@@ -102,7 +102,9 @@ function extractSessionId(url: string): string | undefined {
  * Excludes known sub-paths like /sessions/ and /snapshots/.
  */
 function extractSandboxName(url: string): string | undefined {
-  const match = url.match(/\/v2\/sandboxes\/(?!sessions(?:\/|$|\?))(?!snapshots(?:\/|$|\?))([^/?]+)/);
+  const match = url.match(
+    /\/v2\/sandboxes\/(?!sessions(?:\/|$|\?))(?!snapshots(?:\/|$|\?))([^/?]+)/,
+  );
   return match?.[1];
 }
 
@@ -127,7 +129,7 @@ export async function parse<Data, ErrorData>(
     return new APIError<ErrorData>(response, {
       message: `Can't read response text: ${String(err)}`,
       sessionId,
-      sandboxName
+      sandboxName,
     });
   });
 
@@ -144,7 +146,7 @@ export async function parse<Data, ErrorData>(
       message: `Can't parse JSON: ${String(error)}`,
       text,
       sessionId,
-      sandboxName
+      sandboxName,
     });
   }
 
@@ -154,7 +156,7 @@ export async function parse<Data, ErrorData>(
       json: json as ErrorData,
       text,
       sessionId,
-      sandboxName
+      sandboxName,
     });
   }
 
@@ -165,7 +167,7 @@ export async function parse<Data, ErrorData>(
       json: json as ErrorData,
       text,
       sessionId,
-      sandboxName
+      sandboxName,
     });
   }
 

@@ -413,7 +413,9 @@ describe("fromAPINetworkPolicy", () => {
             match: {
               method: ["POST"],
               path: { startsWith: "/v1/" },
-              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+              headers: [
+                { key: { exact: "x-route" }, value: { exact: "proxy" } },
+              ],
             },
             forwardURL: "https://proxy.example.com",
           },
@@ -430,7 +432,9 @@ describe("fromAPINetworkPolicy", () => {
             match: {
               method: ["POST"],
               path: { startsWith: "/v1/" },
-              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+              headers: [
+                { key: { exact: "x-route" }, value: { exact: "proxy" } },
+              ],
             },
             forwardURL: "https://proxy.example.com",
           },

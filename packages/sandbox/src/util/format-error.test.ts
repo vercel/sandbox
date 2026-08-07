@@ -19,7 +19,10 @@ import { StyledError } from "../error";
 
 function makeApiError(status: number, json?: unknown): APIError<unknown> {
   return new APIError(
-    new Response("", { status, statusText: status === 400 ? "Bad Request" : "Error" }),
+    new Response("", {
+      status,
+      statusText: status === 400 ? "Bad Request" : "Error",
+    }),
     { json },
   );
 }
@@ -35,12 +38,12 @@ describe("isApiTimeoutError", () => {
   });
 
   it("detects undici connect/headers timeouts via cause.code", () => {
-    expect(isApiTimeoutError({ cause: { code: "UND_ERR_CONNECT_TIMEOUT" } })).toBe(
-      true,
-    );
-    expect(isApiTimeoutError({ cause: { code: "UND_ERR_HEADERS_TIMEOUT" } })).toBe(
-      true,
-    );
+    expect(
+      isApiTimeoutError({ cause: { code: "UND_ERR_CONNECT_TIMEOUT" } }),
+    ).toBe(true);
+    expect(
+      isApiTimeoutError({ cause: { code: "UND_ERR_HEADERS_TIMEOUT" } }),
+    ).toBe(true);
   });
 
   it("detects the `fetch failed` TypeError wrapper", () => {
@@ -51,9 +54,9 @@ describe("isApiTimeoutError", () => {
 
   it("returns false for unrelated errors and non-objects", () => {
     expect(isApiTimeoutError(new Error("boom"))).toBe(false);
-    expect(isApiTimeoutError({ name: "TypeError", message: "fetch failed" })).toBe(
-      false,
-    );
+    expect(
+      isApiTimeoutError({ name: "TypeError", message: "fetch failed" }),
+    ).toBe(false);
     expect(isApiTimeoutError(undefined)).toBe(false);
     expect(isApiTimeoutError("nope")).toBe(false);
   });

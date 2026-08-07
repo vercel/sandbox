@@ -23,7 +23,11 @@ export const parseLocalOrRemotePath = async (input: string) => {
         ].join("\n"),
       );
     }
-    return { type: "remote", sandboxName: await sandboxName.from(id), path } as const;
+    return {
+      type: "remote",
+      sandboxName: await sandboxName.from(id),
+      path,
+    } as const;
   }
 
   return { type: "local", path: input } as const;
@@ -51,7 +55,9 @@ export const cp = cmd.command({
     scope,
   },
   async handler({ scope, source, dest }) {
-    const spinner = ora({ text: `Reading source file (${source.path})...` }).start();
+    const spinner = ora({
+      text: `Reading source file (${source.path})...`,
+    }).start();
     let sourceFile: Buffer<ArrayBufferLike> | null = null;
 
     if (source.type === "local") {
@@ -60,7 +66,7 @@ export const cp = cmd.command({
           return null;
         }
         throw err;
-      })
+      });
     } else {
       const sandbox = await sandboxClient.get({
         name: source.sandboxName,

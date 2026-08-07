@@ -202,8 +202,9 @@ export class Snapshot {
    * ```
    */
   static async tree(
-    params: { snapshotId: string } &
-      Partial<Parameters<APIClient["getSnapshotTree"]>[0]> &
+    params: { snapshotId: string } & Partial<
+      Parameters<APIClient["getSnapshotTree"]>[0]
+    > &
       Partial<Credentials> &
       WithFetchOptions,
   ) {
