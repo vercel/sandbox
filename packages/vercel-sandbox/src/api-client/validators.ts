@@ -102,6 +102,7 @@ export const Session = z.object({
   memory: z.number(),
   vcpus: z.number(),
   region: z.string(),
+  runtime: z.string().optional(),
   timeout: z.number(),
   status: z.enum([
     "pending",
@@ -273,6 +274,7 @@ export const Sandbox = z.object({
   region: z.string().optional(),
   vcpus: z.number().optional(),
   memory: z.number().optional(),
+  runtime: z.string().optional(),
   image: z.string().optional(),
   timeout: z.number().optional(),
   networkPolicy: NetworkPolicyResponseValidator.optional(),

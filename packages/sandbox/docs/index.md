@@ -83,6 +83,7 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
     --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -140,6 +141,7 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
     --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -191,6 +193,7 @@ Create a sandbox and start an interactive shell
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
     --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]

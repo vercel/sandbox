@@ -38,6 +38,7 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import type { RUNTIMES } from "../constants.js";
 
 interface Claims {
   owner_id: string;
@@ -171,6 +172,7 @@ export class APIClient extends BaseClient {
       timeout?: number;
       resources?: { vcpus: number };
       persistent?: boolean;
+      runtime?: RUNTIMES | (string & {});
       image?: string;
       networkPolicy?: NetworkPolicy;
       env?: Record<string, string>;
@@ -185,9 +187,11 @@ export class APIClient extends BaseClient {
     }>,
   ) {
     const privateParams = getPrivateParams(params);
+    const endpoint =
+      params.runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes";
     return parseOrThrow(
       SandboxAndSessionResponse,
-      await this.request("/v3/sandboxes", {
+      await this.request(endpoint, {
         method: "POST",
         body: JSON.stringify({
           projectId: params.projectId,
@@ -195,6 +199,7 @@ export class APIClient extends BaseClient {
           source: params.source,
           timeout: params.timeout,
           resources: params.resources,
+          runtime: params.runtime,
           image: params.image,
           name: params.name,
           persistent: params.persistent,

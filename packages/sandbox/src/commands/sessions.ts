@@ -97,6 +97,7 @@ const list = cmd.command({
       CREATED: { value: (s) => timeAgo(s.createdAt) },
       MEMORY: { value: (s) => memoryFormatter.format(s.memory) },
       VCPUS: { value: (s) => s.vcpus },
+      RUNTIME: { value: (s) => s.runtime ?? "-" },
       TIMEOUT: {
         value: (s) => timeAgo(s.createdAt + s.timeout),
       },

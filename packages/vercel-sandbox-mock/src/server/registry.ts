@@ -44,6 +44,7 @@ export interface SessionRecord {
   memory: number;
   vcpus: number;
   region: string;
+  runtime?: string;
   cwd: string;
   sourceSnapshotId?: string;
   interactivePort?: number;
@@ -66,6 +67,7 @@ export interface SandboxRecord {
   region: string;
   vcpus: number;
   memory: number;
+  runtime?: string;
   timeout: number;
   tags?: Record<string, string>;
   networkPolicy?: unknown;
@@ -92,6 +94,7 @@ export interface SnapshotRecord {
   sandboxName: string;
   sourceSessionId: string;
   region: string;
+  runtime?: string;
   status: "created" | "deleted" | "failed";
   sizeBytes: number;
   createdAt: number;

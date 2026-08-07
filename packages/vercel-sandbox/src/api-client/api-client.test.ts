@@ -1269,6 +1269,28 @@ describe("APIClient", () => {
       const body = JSON.parse(opts.body);
       expect(body).not.toHaveProperty("keepLastSnapshots");
     });
+
+    it("uses v2 when runtime is provided", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        runtime: "node24",
+      });
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v2/sandboxes");
+      expect(JSON.parse(opts.body).runtime).toBe("node24");
+    });
+
+    it("uses v3 when runtime is omitted", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v3/sandboxes");
+    });
   });
 
   describe("readFile", () => {

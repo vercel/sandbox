@@ -34,6 +34,8 @@ interface CreateBody {
   ports?: number[];
   timeout?: number;
   resources?: { vcpus?: number };
+  runtime?: string;
+  image?: string;
   persistent?: boolean;
   networkPolicy?: unknown;
   env?: Record<string, string>;
@@ -140,6 +142,7 @@ export class MockServer {
       region: REGION,
       vcpus: body.resources?.vcpus ?? 2,
       memory: 2048,
+      runtime: body.runtime,
       timeout: body.timeout ?? 300_000,
       tags: body.tags,
       networkPolicy: body.networkPolicy,
@@ -166,6 +169,7 @@ export class MockServer {
       }
       restore = snapshot.files;
       record.sourceSnapshotId = snapshot.id;
+      record.runtime = snapshot.runtime;
     }
 
     const session = await this.#startSession(record, {
@@ -200,6 +204,7 @@ export class MockServer {
       region: source.region,
       vcpus: body.resources?.vcpus ?? source.vcpus,
       memory: source.memory,
+      runtime: body.image === undefined ? source.runtime : undefined,
       timeout: body.timeout ?? source.timeout,
       tags: body.tags ?? source.tags,
       networkPolicy: body.networkPolicy ?? source.networkPolicy,
@@ -458,6 +463,7 @@ export class MockServer {
       sandboxName: session.sandboxName,
       sourceSessionId: session.id,
       region: session.region,
+      runtime: record.runtime,
       status: "created",
       sizeBytes: files.reduce(
         (n, f) => n + (f.type === "file" ? f.content.length : 0),
@@ -692,6 +698,7 @@ export class MockServer {
       memory: record.memory,
       vcpus: record.vcpus,
       region: record.region,
+      runtime: record.runtime,
       cwd: record.cwd,
       sourceSnapshotId: opts?.sourceSnapshotId,
       createdAt: now,

@@ -10,7 +10,7 @@ import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import type { WithFetchOptions } from "./api-client/api-client.js";
-import type { ManagedImage } from "./constants.js";
+import type { ManagedImage, RUNTIMES } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
@@ -153,8 +153,23 @@ export interface BaseCreateSandboxParams {
  */
 export type SandboxImage = `vercel/sandbox/${ManagedImage}` | (string & {});
 
-export type CreateSandboxParams =
-  | (BaseCreateSandboxParams & {
+/**
+ * Sandbox environment selection options.
+ * @inline
+ */
+export type RuntimeOrImage =
+  | {
+      /**
+       * A legacy Vercel-managed runtime.
+       *
+       * @deprecated Use `image` instead. Runtime-based creation continues to
+       * use the legacy v2 API.
+       */
+      runtime?: RUNTIMES | (string & {});
+      image?: never;
+    }
+  | {
+      runtime?: never;
       /**
        * A Vercel Container Registry (VCR) image to start the sandbox from,
        * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
@@ -166,14 +181,18 @@ export type CreateSandboxParams =
        * @example "my-repo" // latest tag
        * @example "my-repo:v1" // specific tag
        * @example "my-repo@sha256:..." // specific digest
-       * @example "other-team/other-project/repo:v1" // Shared image from another team 
+       * @example "other-team/other-project/repo:v1" // Shared image from another team
        * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
        */
       image?: SandboxImage;
-    })
+    };
+
+export type CreateSandboxParams =
+  | (BaseCreateSandboxParams & RuntimeOrImage)
   | (Omit<BaseCreateSandboxParams, "source"> & {
       source: { type: "snapshot"; snapshotId: string };
       // A snapshot already defines its base environment.
+      runtime?: never;
       image?: never;
     });
 
@@ -389,6 +408,15 @@ export class Sandbox implements ExecutionContext {
    */
   public get memory(): number | undefined {
     return this.sandbox.memory;
+  }
+
+  /**
+   * Legacy runtime identifier, when the sandbox was created with `runtime`.
+   *
+   * @deprecated Use {@link Sandbox.image} for image-backed sandboxes.
+   */
+  public get runtime(): string | undefined {
+    return this.sandbox.runtime;
   }
 
   /**
@@ -664,6 +692,10 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
+    if (params?.runtime !== undefined && params.image !== undefined) {
+      throw new TypeError("`runtime` and `image` cannot be used together.");
+    }
+
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -678,6 +710,7 @@ export class Sandbox implements ExecutionContext {
       ports: params?.ports ?? [],
       timeout: params?.timeout,
       resources: params?.resources,
+      runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
       env: params?.env,
@@ -848,6 +881,10 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox> {
     "use step";
+    if (params?.runtime !== undefined && params.image !== undefined) {
+      throw new TypeError("`runtime` and `image` cannot be used together.");
+    }
+
     // No name → always create, fire onCreate.
     if (!params?.name) {
       const sandbox = await Sandbox.create(params);

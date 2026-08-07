@@ -1,5 +1,6 @@
 import * as cmd from "cmd-ts";
 import ms from "ms";
+import { runtime } from "../args/runtime";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
@@ -28,6 +29,7 @@ export const args = {
     description:
       "Disable automatic restore of the filesystem between sessions.",
   }),
+  runtime,
   image: cmd.option({
     long: "image",
     description:
@@ -85,6 +87,7 @@ export const create = cmd.command({
     nonPersistent,
     ports,
     scope,
+    runtime,
     image,
     timeout,
     vcpus,
@@ -102,6 +105,10 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
+    if (runtime !== undefined && image !== undefined) {
+      throw new Error("--runtime and --image cannot be used together.");
+    }
+
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
@@ -145,7 +152,11 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          image,
+          ...(image !== undefined
+            ? { image }
+            : runtime !== undefined
+              ? { runtime }
+              : {}),
           timeout: ms(timeout),
           resources,
           networkPolicy,

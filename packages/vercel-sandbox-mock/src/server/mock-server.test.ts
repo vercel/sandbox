@@ -48,6 +48,24 @@ describe("MockServer routing", () => {
     expect(data.resumed).toBe(false);
   });
 
+  test("an image override clears a copied legacy runtime when forking", async () => {
+    const { call } = makeServer();
+    await j(
+      await call("POST", "/v2/sandboxes", {
+        body: { name: "legacy", runtime: "node24" },
+      }),
+    );
+
+    const fork = await j(
+      await call("POST", "/v2/sandboxes/legacy/fork", {
+        body: { name: "image-fork", image: "test-image" },
+      }),
+    );
+
+    expect(fork.sandbox.runtime).toBeUndefined();
+    expect(fork.session.runtime).toBeUndefined();
+  });
+
   test("GET unknown sandbox → 404 with not_found code", async () => {
     const { call } = makeServer();
     const res = await call("GET", "/v2/sandboxes/ghost");
@@ -213,6 +231,32 @@ describe("MockServer routing", () => {
   });
 
   describe("snapshots", () => {
+    test("restoring a legacy snapshot preserves its runtime metadata", async () => {
+      const { call } = makeServer();
+      const { session } = await j(
+        await call("POST", "/v2/sandboxes", {
+          body: { name: "legacy-snapshot", runtime: "node24" },
+        }),
+      );
+      const created = await j(
+        await call("POST", `/v2/sandboxes/sessions/${session.id}/snapshot`, {
+          body: {},
+        }),
+      );
+
+      const restored = await j(
+        await call("POST", "/v3/sandboxes", {
+          body: {
+            name: "restored-legacy",
+            source: { type: "snapshot", snapshotId: created.snapshot.id },
+          },
+        }),
+      );
+
+      expect(restored.sandbox.runtime).toBe("node24");
+      expect(restored.session.runtime).toBe("node24");
+    });
+
     test("create → list (by name) → get → delete, with snapshot_not_found on stale restore", async () => {
       const { call } = makeServer();
       const { session } = await createSandbox(call, { name: "snap-sb" });
