@@ -1,0 +1,261 @@
+name: Update Node.js Versions
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Check for updates without opening pull requests
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - ".github/scripts/update-node-version.mjs"
+      - ".github/scripts/update-node-version.test.mjs"
+      - ".github/workflows/update-node-versions.yml"
+      - "images/docker-bake.hcl"
+      - "images/node/docker-bake.hcl"
+
+concurrency:
+  group: update-node-versions-${{ github.event_name == 'pull_request' && github.ref || 'scheduled' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  discover:
+    name: Discover Node.js majors
+    runs-on: ubuntu-latest
+    outputs:
+      majors: ${{ steps.majors.outputs.majors }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+
+      - name: Test updater
+        run: node --test .github/scripts/update-node-version.test.mjs
+
+      - name: Validate Bake configuration
+        run: |
+          docker buildx bake \
+            -f images/docker-bake.hcl \
+            -f images/node/docker-bake.hcl \
+            --print >/dev/null
+
+      - name: Discover configured majors
+        id: majors
+        run: |
+          echo "majors=$(node .github/scripts/update-node-version.mjs --list-majors)" \
+            >> "$GITHUB_OUTPUT"
+
+  update:
+    name: Update Node.js ${{ matrix.major }}
+    if: github.event_name != 'pull_request'
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        major: ${{ fromJSON(needs.discover.outputs.majors) }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+
+      - name: Check Node.js ${{ matrix.major }}
+        env:
+          DRY_RUN: ${{ inputs.dry_run || false }}
+          MAJOR: ${{ matrix.major }}
+        run: |
+          args=("--major=$MAJOR")
+          if [[ "$DRY_RUN" == "true" ]]; then
+            args+=("--dry-run")
+          fi
+          node .github/scripts/update-node-version.mjs "${args[@]}" > update-result.json
+          cat update-result.json
+
+      - name: Create or update pull request
+        uses: actions/github-script@v7
+        env:
+          DRY_RUN: ${{ inputs.dry_run || false }}
+          MAJOR: ${{ matrix.major }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const result = JSON.parse(fs.readFileSync('update-result.json', 'utf8'));
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = `automation/update-node-${result.major}`;
+            const head = `${owner}:${branch}`;
+            const { data: repository } = await github.rest.repos.get({ owner, repo });
+
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              base: repository.default_branch,
+              head,
+            });
+
+            if (process.env.DRY_RUN === 'true') {
+              core.info(
+                result.updated
+                  ? `Would update Node.js ${result.major} from ${result.current} to ${result.latest}`
+                  : `Node.js ${result.major} is current at ${result.current}`,
+              );
+              return;
+            }
+
+            if (!result.updated) {
+              for (const pullRequest of pullRequests) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pullRequest.number,
+                  body: `Closing this automated update because \`${repository.default_branch}\` already contains Node.js ${result.current}, which is current for the ${result.major}.x release line.`,
+                });
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: pullRequest.number,
+                  state: 'closed',
+                });
+              }
+
+              if (pullRequests.length > 0) {
+                await github.rest.git.deleteRef({
+                  owner,
+                  repo,
+                  ref: `heads/${branch}`,
+                }).catch(error => {
+                  if (error.status !== 422) throw error;
+                });
+              }
+              core.info(`Node.js ${result.major} is current at ${result.current}`);
+              return;
+            }
+
+            const { data: baseRef } = await github.rest.git.getRef({
+              owner,
+              repo,
+              ref: `heads/${repository.default_branch}`,
+            });
+
+            try {
+              await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${branch}`,
+              });
+              await github.rest.git.updateRef({
+                owner,
+                repo,
+                ref: `heads/${branch}`,
+                sha: baseRef.object.sha,
+                force: true,
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${branch}`,
+                sha: baseRef.object.sha,
+              });
+            }
+
+            const branchHead = baseRef.object.sha;
+
+            const additions = [result.configPath, result.changesetPath].map(path => ({
+              path,
+              contents: fs.readFileSync(path).toString('base64'),
+            }));
+            const headline = `chore(images): bump Node.js ${result.major} to ${result.latest}`;
+            const mutation = `
+              mutation($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit { oid url }
+                }
+              }
+            `;
+
+            const commitInput = {
+              branch: {
+                repositoryNameWithOwner: `${owner}/${repo}`,
+                branchName: branch,
+              },
+              message: {
+                headline,
+                body: 'Automated by the nightly Node.js version updater.',
+              },
+              fileChanges: { additions },
+              expectedHeadOid: branchHead,
+            };
+
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              try {
+                await github.graphql(mutation, { input: commitInput });
+                break;
+              } catch (error) {
+                if (attempt === 3 || !/expectedHeadOid|does not match|expected.*head/i.test(error.message)) {
+                  throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+              }
+            }
+
+            const body = [
+              `Updates the Node.js ${result.major}.x image from ${result.current} to ${result.latest}.`,
+              '',
+              `- Release: https://github.com/nodejs/node/releases/tag/v${result.latest}`,
+              `- Keeps both \`node:${result.major}\` and \`node:${result.latest}\` image tags`,
+              '- Includes a patch changeset for `sandbox-image-node`',
+              '',
+              '_This pull request is maintained by the nightly Node.js version updater._',
+            ].join('\n');
+
+            if (pullRequests.length > 0) {
+              const [pullRequest, ...duplicates] = pullRequests;
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pullRequest.number,
+                title: headline,
+                body,
+              });
+              for (const duplicate of duplicates) {
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: duplicate.number,
+                  state: 'closed',
+                });
+              }
+              core.info(`Updated pull request #${pullRequest.number}`);
+              return;
+            }
+
+            try {
+              const { data: pullRequest } = await github.rest.pulls.create({
+                owner,
+                repo,
+                title: headline,
+                body,
+                head: branch,
+                base: repository.default_branch,
+              });
+              core.info(`Created pull request #${pullRequest.number}`);
+            } catch (error) {
+              if (error.status !== 422) throw error;
+              core.info(`A pull request already exists for ${branch}`);
+            }
