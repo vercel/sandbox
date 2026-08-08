@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-const DEFAULT_CONFIG = "images/node/docker-bake.hcl";
+const DEFAULT_CONFIG = "images/docker-bake.hcl";
 const NODE_RELEASES_URL = "https://nodejs.org/dist/index.json";
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;
 

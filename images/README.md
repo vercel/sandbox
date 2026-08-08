@@ -19,9 +19,9 @@ All images are built for `linux/amd64`.
 cd images
 
 # Build all images
-docker buildx bake -f docker-bake.hcl -f node/docker-bake.hcl
+docker buildx bake
 
 # Build a single image
-docker buildx bake -f docker-bake.hcl -f node/docker-bake.hcl node-24
-docker buildx bake -f docker-bake.hcl -f node/docker-bake.hcl universal
+docker buildx bake node-24
+docker buildx bake universal
 ```

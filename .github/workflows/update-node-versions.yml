@@ -15,7 +15,6 @@ on:
       - ".github/scripts/update-node-version.test.mjs"
       - ".github/workflows/update-node-versions.yml"
       - "images/docker-bake.hcl"
-      - "images/node/docker-bake.hcl"
 
 concurrency:
   group: update-node-versions-${{ github.event_name == 'pull_request' && github.ref || 'scheduled' }}
@@ -43,11 +42,7 @@ jobs:
         run: node --test .github/scripts/update-node-version.test.mjs
 
       - name: Validate Bake configuration
-        run: |
-          docker buildx bake \
-            -f images/docker-bake.hcl \
-            -f images/node/docker-bake.hcl \
-            --print >/dev/null
+        run: docker buildx bake -f images/docker-bake.hcl --print >/dev/null
 
       - name: Discover configured majors
         id: majors
