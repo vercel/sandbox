@@ -40,7 +40,10 @@ target "node" {
   name     = "node-${node.major}"
   inherits = ["_common"]
   context  = "node"
-  tags     = ["${REGISTRY}/node:${node.major}"]
+  tags = [
+    "${REGISTRY}/node:${node.major}",
+    "${REGISTRY}/node:${node.version}",
+  ]
 
   contexts = {
     base = "target:ubuntu"
