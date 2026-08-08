@@ -7,11 +7,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
-ARG NODE_MAJOR
-RUN tarball="$(curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/SHASUMS256.txt" \
-      | grep -oE 'node-v[0-9]+\.[0-9]+\.[0-9]+-linux-x64\.tar\.xz' | head -n1)" && \
-    mkdir -p /opt/node && \
-    curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/${tarball}" \
+ARG NODE_VERSION
+RUN mkdir -p /opt/node && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
       | bsdtar -xJ --strip-components=1 -C /opt/node && \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md
 
