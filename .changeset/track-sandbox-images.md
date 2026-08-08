@@ -1,4 +1,9 @@
 ---
+"@vercel-managed-images/arch": major
+"@vercel-managed-images/node": major
+"@vercel-managed-images/python": major
+"@vercel-managed-images/ubuntu": major
+"@vercel-managed-images/universal": major
 ---
 
-Track private Sandbox image packages with Changesets at version 1.0.0.
+Release the Vercel Managed Images packages at version 1.0.0.
