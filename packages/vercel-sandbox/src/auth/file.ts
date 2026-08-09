@@ -1,9 +1,11 @@
 import path from "node:path";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import XDGAppPaths from "xdg-app-paths";
 import { z } from "zod";
 import { json } from "./zod.js";
+
+type XDGAppPathsFactory = typeof import("xdg-app-paths");
 
 const ZodDate = z.number().transform((seconds) => new Date(seconds * 1000));
 
@@ -38,6 +40,8 @@ const getGlobalPathConfig = (): string => {
     return process.env.VERCEL_AUTH_CONFIG_DIR;
   }
 
+  const require = createRequire(import.meta.url);
+  const XDGAppPaths = require("xdg-app-paths") as XDGAppPathsFactory;
   const vercelDirectories = XDGAppPaths("com.vercel.cli").dataDirs();
 
   const possibleConfigPaths = [
