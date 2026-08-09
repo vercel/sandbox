@@ -1,7 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
-import { homedir } from "node:os";
-import XDGAppPaths from "xdg-app-paths";
+import { homedir, tmpdir } from "node:os";
 import { z } from "zod";
 import { json } from "./zod.js";
 
@@ -27,6 +26,34 @@ const isDirectory = (path: string): boolean => {
   }
 };
 
+const getDataDirectories = (name: string): string[] => {
+  const homeDirectory = homedir() || tmpdir();
+  let dataDirectory: string;
+
+  if (/^win/i.test(process.platform) && !process.env.XDG_DATA_HOME) {
+    const appData =
+      process.env.APPDATA || path.join(homeDirectory, "AppData", "Roaming");
+    dataDirectory = path.join(appData, name, "Data");
+  } else {
+    const defaultDataDirectory =
+      process.platform === "darwin"
+        ? path.join(homeDirectory, "Library", "Application Support")
+        : path.join(homeDirectory, ".local", "share");
+    dataDirectory = path.join(
+      process.env.XDG_DATA_HOME || defaultDataDirectory,
+      name,
+    );
+  }
+
+  const additionalDataDirectories = process.env.XDG_DATA_DIRS
+    ? process.env.XDG_DATA_DIRS.split(path.delimiter).map((directory) =>
+        path.join(directory, name),
+      )
+    : [];
+
+  return [dataDirectory, ...additionalDataDirectories];
+};
+
 /**
  * Returns in which directory the config should be present.
  *
@@ -38,12 +65,12 @@ const getGlobalPathConfig = (): string => {
     return process.env.VERCEL_AUTH_CONFIG_DIR;
   }
 
-  const vercelDirectories = XDGAppPaths("com.vercel.cli").dataDirs();
+  const vercelDirectories = getDataDirectories("com.vercel.cli");
 
   const possibleConfigPaths = [
     ...vercelDirectories, // latest vercel directory
     path.join(homedir(), ".now"), // legacy config in user's home directory
-    ...XDGAppPaths("now").dataDirs(), // legacy XDG directory
+    ...getDataDirectories("now"), // legacy XDG directory
   ];
 
   // The customPath flag is the preferred location,
