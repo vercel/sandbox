@@ -1,12 +1,15 @@
 # Install System Packages Example
 
-This example demonstrates how to install system packages using the `dnf` system package manager in a sandboxed environment. It shows how to use elevated privileges to install packages like Go, Python, or other system tools.
+This example demonstrates how to install system packages using `pacman` in the
+`vercel/sandbox/arch` image. It shows how to use elevated privileges to install
+packages like Go, Python, or other system tools.
 
 ## Features
 
-- Install system packages using the `dnf` package manager
+- Select the `vercel/sandbox/arch` managed image
+- Install system packages using the `pacman` package manager
 - Execute commands with elevated privileges using `sudo: true`
-- Work with Amazon Linux package repositories
+- Work with Arch Linux package repositories
 - Configure package installation in sandboxed environments
 
 ## How to Run
@@ -41,25 +44,25 @@ This example demonstrates how to install system packages using the `dnf` system 
 
 This example demonstrates:
 
-- **Package Installation**: Using `dnf` to install system packages
+- **Package Installation**: Using `pacman` to install system packages
 - **Elevated Privileges**: Using `sudo: true` to run commands with root access
-- **Package Manager**: Working with Amazon Linux's package management system
+- **Package Manager**: Working with Arch Linux's package management system
 - **System Configuration**: Setting up development tools in the sandbox
 
 ## Available Packages
 
-You can find the list of available packages on the [Amazon Linux documentation](https://docs.aws.amazon.com/linux/al2023/ug/package-repository.html).
+You can find available packages with `pacman -Ss`.
 
 ## Key Features
 
 - **Elevated Privileges**: The `sudo: true` option allows commands to run with root access
-- **Package Management**: Full access to the `dnf` package manager
+- **Package Management**: Full access to the `pacman` package manager
 - **System Configuration**: Ability to install and configure system-level tools
 - **Development Environment**: Set up complete development environments
 
 ## Important Notes
 
-- Always use the `-y` flag with `dnf install` to automatically confirm installations
+- Use `--noconfirm` to run package installation non-interactively
 - The `sudo: true` option is required for package installation operations
-- Package availability depends on the Amazon Linux repositories
+- Package availability depends on the Arch Linux repositories
 - Some packages may require additional configuration after installation

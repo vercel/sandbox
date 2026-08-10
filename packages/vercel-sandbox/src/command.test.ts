@@ -104,7 +104,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     const output = await cmd.stdout();
     expect(output).toContain("FOO=bar\n");
     expect(output).toContain("USER=root\n");
-    expect(output).toContain("SUDO_USER=vercel-sandbox\n");
+    expect(output).toContain("SUDO_USER=ubuntu\n");
 
     const pathLine = output
       .split("\n")
@@ -113,15 +113,21 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
 
     const pathSegments = pathLine!.slice(5).split(":");
     expect(pathSegments).toContain("/vercel/bin");
-    expect(pathSegments).toContain("/vercel/runtimes/node22/bin");
+    expect(pathSegments).toContain("/usr/local/bin");
 
-    const dnf = await sandbox.runCommand({
-      cmd: "dnf",
-      args: ["install", "-y", "golang"],
+    const update = await sandbox.runCommand({
+      cmd: "apt-get",
+      args: ["update"],
       sudo: true,
     });
+    expect(update.exitCode).toBe(0);
 
-    expect(dnf.exitCode).toBe(0);
+    const install = await sandbox.runCommand({
+      cmd: "apt-get",
+      args: ["install", "-y", "golang-go"],
+      sudo: true,
+    });
+    expect(install.exitCode).toBe(0);
 
     const which = await sandbox.runCommand("which", ["go"]);
     expect(await which.output()).toContain("/usr/bin/go");

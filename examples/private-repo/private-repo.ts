@@ -3,6 +3,7 @@ import ms from 'ms';
 
 async function main() {
   const sandbox = await Sandbox.create({
+    image: 'vercel/sandbox/arch',
     source: {
       url: 'https://github.com/vercel/some-private-repo.git',
       type: 'git',
@@ -14,11 +15,15 @@ async function main() {
     ports: [3000],
   });
 
-  const ls = await sandbox.runCommand('ls', ['-la']);
+  const ls = await sandbox.runCommand({
+    cmd: 'ls',
+    args: ['-la'],
+    cwd: 'some-private-repo',
+  });
   console.log('Repository contents:');
   console.log(await ls.stdout());
-  
+
   await sandbox.stop();
 }
 
-main().catch(console.error); 
+main().catch(console.error);

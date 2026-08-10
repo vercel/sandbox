@@ -1,6 +1,6 @@
 import * as cmd from "cmd-ts";
-import { runtime } from "../args/runtime";
 import ms from "ms";
+import { runtime } from "../args/runtime";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
@@ -20,12 +20,14 @@ import { printSandboxSummary } from "../util/print-sandbox-summary";
 export const args = {
   name: cmd.option({
     long: "name",
-    description: "A user-chosen name for the sandbox. It must be unique per project.",
+    description:
+      "A user-chosen name for the sandbox. It must be unique per project.",
     type: cmd.optional(cmd.string),
   }),
   nonPersistent: cmd.flag({
     long: "non-persistent",
-    description: "Disable automatic restore of the filesystem between sessions.",
+    description:
+      "Disable automatic restore of the filesystem between sessions.",
   }),
   runtime,
   image: cmd.option({
@@ -62,7 +64,8 @@ export const args = {
     long: "tag",
     short: "t",
     type: ObjectFromKeyValue,
-    description: "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
+    description:
+      "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
   }),
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
@@ -102,8 +105,8 @@ export const create = cmd.command({
     allowedCIDRs,
     deniedCIDRs,
   }) {
-    if (image && runtime) {
-      throw new Error("--image and --runtime cannot be used together.");
+    if (runtime !== undefined && image !== undefined) {
+      throw new Error("--runtime and --image cannot be used together.");
     }
 
     const networkPolicy = buildNetworkPolicy({
@@ -137,7 +140,9 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           persistent,
-          snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
+          snapshotExpiration: snapshotExpiration
+            ? ms(snapshotExpiration)
+            : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
           __interactive: true,
         })
@@ -147,16 +152,20 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          // Start from either a custom image or a runtime, never both. When
-          // neither is given, default to the `node24` runtime.
-          ...(image ? { image } : { runtime: runtime ?? "node24" }),
+          ...(image !== undefined
+            ? { image }
+            : runtime !== undefined
+              ? { runtime }
+              : {}),
           timeout: ms(timeout),
           resources,
           networkPolicy,
           env: envVars,
           tags: tagsObj,
           persistent,
-          snapshotExpiration: snapshotExpiration ? ms(snapshotExpiration) : undefined,
+          snapshotExpiration: snapshotExpiration
+            ? ms(snapshotExpiration)
+            : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
           __interactive: true,
         });

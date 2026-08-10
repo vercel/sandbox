@@ -35,17 +35,22 @@ interface CreateBody {
   timeout?: number;
   resources?: { vcpus?: number };
   runtime?: string;
+  image?: string;
   persistent?: boolean;
   networkPolicy?: unknown;
   env?: Record<string, string>;
   tags?: Record<string, string>;
   snapshotExpiration?: number;
-  keepLastSnapshots?: { count: number; expiration?: number; deleteEvicted?: boolean };
+  keepLastSnapshots?: {
+    count: number;
+    expiration?: number;
+    deleteEvicted?: boolean;
+  };
   source?: { type: "git" | "tarball" | "snapshot"; snapshotId?: string };
 }
 
 /**
- * A stateful in-memory implementation of the Vercel `/v2/sandboxes` HTTP API,
+ * A stateful in-memory implementation of the Vercel Sandbox HTTP API,
  * backed by just-bash. Inject {@link MockServer.fetch} into the real
  * `@vercel/sandbox` SDK and every operation runs locally — no network, no
  * credentials, no provisioning.
@@ -68,8 +73,9 @@ export class MockServer {
   #defaultHandlers: CommandHandler[] = [];
   #runtimeHandlers: CommandHandler[] = [];
 
-  /** A `fetch` drop-in that serves the `/v2/sandboxes` API from memory. */
-  readonly fetch: typeof globalThis.fetch = (input, init) => this.#handle(input, init);
+  /** A `fetch` drop-in that serves the Sandbox API from memory. */
+  readonly fetch: typeof globalThis.fetch = (input, init) =>
+    this.#handle(input, init);
 
   /** Handlers applied to every sandbox created afterwards (see `setupSandbox`). */
   setDefaultHandlers(handlers: CommandHandler[]): void {
@@ -81,7 +87,7 @@ export class MockServer {
     this.#runtimeHandlers.unshift(...handlers);
   }
 
-  /** Reset all in-memory state — sandboxes, snapshots, and runtime handlers. */
+  /** Reset all in-memory state — sandboxes, snapshots, and one-off handlers. */
   reset(): void {
     this.#sandboxes.clear();
     this.#sessions.clear();
@@ -97,19 +103,25 @@ export class MockServer {
   ): Promise<Response> {
     const url = new URL(typeof input === "string" ? input : input.toString());
     const method = (init?.method ?? "GET").toUpperCase();
-    const segments = url.pathname.replace(/^\/api/, "").split("/").filter(Boolean);
+    const segments = url.pathname
+      .replace(/^\/api/, "")
+      .split("/")
+      .filter(Boolean);
     // Expect ["v2", "sandboxes", ...rest]
     const rest = segments.slice(2);
 
-    if (rest[0] === "sessions") return this.#sessionRoutes(method, rest.slice(1), url, init);
-    if (rest[0] === "snapshots") return this.#snapshotRoutes(method, rest.slice(1), url);
+    if (rest[0] === "sessions")
+      return this.#sessionRoutes(method, rest.slice(1), url, init);
+    if (rest[0] === "snapshots")
+      return this.#snapshotRoutes(method, rest.slice(1), url);
     if (rest.length === 0) {
       if (method === "POST") return this.#createSandbox(init);
       if (method === "GET") return this.#listSandboxes(url);
     }
     // /v2/sandboxes/:name
     const name = decodeURIComponent(rest[0]);
-    if (rest[1] === "fork" && method === "POST") return this.#forkSandbox(name, init);
+    if (rest[1] === "fork" && method === "POST")
+      return this.#forkSandbox(name, init);
     if (method === "GET") return this.#getSandbox(name, url);
     if (method === "PATCH") return this.#updateSandbox(name, init);
     if (method === "DELETE") return this.#deleteSandbox(name);
@@ -130,7 +142,7 @@ export class MockServer {
       region: REGION,
       vcpus: body.resources?.vcpus ?? 2,
       memory: 2048,
-      runtime: body.runtime ?? "node22",
+      runtime: body.runtime,
       timeout: body.timeout ?? 300_000,
       tags: body.tags,
       networkPolicy: body.networkPolicy,
@@ -149,10 +161,15 @@ export class MockServer {
     if (body.source?.type === "snapshot" && body.source.snapshotId) {
       const snapshot = this.#snapshots.get(body.source.snapshotId);
       if (!snapshot || snapshot.status === "deleted") {
-        return apiError(410, "snapshot_not_found", `Snapshot not found: ${body.source.snapshotId}`);
+        return apiError(
+          410,
+          "snapshot_not_found",
+          `Snapshot not found: ${body.source.snapshotId}`,
+        );
       }
       restore = snapshot.files;
       record.sourceSnapshotId = snapshot.id;
+      record.runtime = snapshot.runtime;
     }
 
     const session = await this.#startSession(record, {
@@ -169,9 +186,13 @@ export class MockServer {
     });
   }
 
-  async #forkSandbox(sourceName: string, init?: RequestInit): Promise<Response> {
+  async #forkSandbox(
+    sourceName: string,
+    init?: RequestInit,
+  ): Promise<Response> {
     const source = this.#sandboxes.get(sourceName);
-    if (!source) return apiError(404, "not_found", `Sandbox not found: ${sourceName}`);
+    if (!source)
+      return apiError(404, "not_found", `Sandbox not found: ${sourceName}`);
 
     const body = readJson<CreateBody>(init);
     const name = body.name ?? `sandbox-${randomUUID()}`;
@@ -183,7 +204,7 @@ export class MockServer {
       region: source.region,
       vcpus: body.resources?.vcpus ?? source.vcpus,
       memory: source.memory,
-      runtime: body.runtime ?? source.runtime,
+      runtime: body.image === undefined ? source.runtime : undefined,
       timeout: body.timeout ?? source.timeout,
       tags: body.tags ?? source.tags,
       networkPolicy: body.networkPolicy ?? source.networkPolicy,
@@ -224,12 +245,18 @@ export class MockServer {
 
   async #getSandbox(name: string, url: URL): Promise<Response> {
     const record = this.#sandboxes.get(name);
-    if (!record) return apiError(404, "not_found", `Sandbox not found: ${name}`);
+    if (!record)
+      return apiError(404, "not_found", `Sandbox not found: ${name}`);
 
     let session = this.#sessions.get(record.sessionId)!;
     let resumed = false;
-    if (url.searchParams.get("resume") === "true" && session.status !== "running") {
-      session = await this.#startSession(record, { restore: this.#disks.get(name) });
+    if (
+      url.searchParams.get("resume") === "true" &&
+      session.status !== "running"
+    ) {
+      session = await this.#startSession(record, {
+        restore: this.#disks.get(name),
+      });
       resumed = true;
     }
 
@@ -247,7 +274,8 @@ export class MockServer {
     const limit = Number(url.searchParams.get("limit") ?? "0") || undefined;
 
     let records = [...this.#sandboxes.values()];
-    if (namePrefix) records = records.filter((r) => r.name.startsWith(namePrefix));
+    if (namePrefix)
+      records = records.filter((r) => r.name.startsWith(namePrefix));
     if (tags.length > 0) {
       records = records.filter((r) =>
         tags.every((tag) => {
@@ -261,14 +289,17 @@ export class MockServer {
     const page = limit ? records.slice(0, limit) : records;
 
     return json({
-      sandboxes: page.map((r) => sandboxPayload(r, this.#sessions.get(r.sessionId)!)),
+      sandboxes: page.map((r) =>
+        sandboxPayload(r, this.#sessions.get(r.sessionId)!),
+      ),
       pagination: { count: page.length, next: null },
     });
   }
 
   async #updateSandbox(name: string, init?: RequestInit): Promise<Response> {
     const record = this.#sandboxes.get(name);
-    if (!record) return apiError(404, "not_found", `Sandbox not found: ${name}`);
+    if (!record)
+      return apiError(404, "not_found", `Sandbox not found: ${name}`);
     const body = readJson<CreateBody & { currentSnapshotId?: string }>(init);
     const session = this.#sessions.get(record.sessionId)!;
 
@@ -277,7 +308,6 @@ export class MockServer {
       record.vcpus = body.resources.vcpus;
       session.vcpus = body.resources.vcpus;
     }
-    if (body.runtime !== undefined) record.runtime = body.runtime;
     if (body.timeout !== undefined) {
       record.timeout = body.timeout;
       if (session.status === "running" && body.timeout > session.timeout) {
@@ -289,11 +319,13 @@ export class MockServer {
       session.networkPolicy = body.networkPolicy;
     }
     if (body.tags !== undefined) record.tags = body.tags;
-    if (body.snapshotExpiration !== undefined) record.snapshotExpiration = body.snapshotExpiration;
+    if (body.snapshotExpiration !== undefined)
+      record.snapshotExpiration = body.snapshotExpiration;
     if (body.keepLastSnapshots !== undefined) {
       record.keepLastSnapshots = body.keepLastSnapshots ?? undefined;
     }
-    if (body.currentSnapshotId !== undefined) record.currentSnapshotId = body.currentSnapshotId;
+    if (body.currentSnapshotId !== undefined)
+      record.currentSnapshotId = body.currentSnapshotId;
 
     let routes: ReturnType<typeof routesPayload> | undefined;
     if (body.ports !== undefined) {
@@ -308,7 +340,8 @@ export class MockServer {
 
   async #deleteSandbox(name: string): Promise<Response> {
     const record = this.#sandboxes.get(name);
-    if (!record) return apiError(404, "not_found", `Sandbox not found: ${name}`);
+    if (!record)
+      return apiError(404, "not_found", `Sandbox not found: ${name}`);
     const session = this.#sessions.get(record.sessionId)!;
     if (session.status === "running") {
       session.status = "stopped";
@@ -334,12 +367,16 @@ export class MockServer {
     const sessionId = parts[0];
     const sub = parts.slice(1);
     const session = this.#sessions.get(sessionId);
-    if (!session) return apiError(404, "not_found", `Session not found: ${sessionId}`);
+    if (!session)
+      return apiError(404, "not_found", `Session not found: ${sessionId}`);
 
     if (sub.length === 0 && method === "GET") {
       return json({
         session: sessionPayload(session),
-        routes: routesPayload(session.sandboxName, this.#sandboxes.get(session.sandboxName)!.ports),
+        routes: routesPayload(
+          session.sandboxName,
+          this.#sandboxes.get(session.sandboxName)!.ports,
+        ),
       });
     }
 
@@ -351,7 +388,10 @@ export class MockServer {
       case "extend-timeout":
         return this.#extendTimeout(session, init);
       case "interactive":
-        return json({ url: `wss://${sessionId}.mock.vercel.run/interactive`, token: newId("tok") });
+        return json({
+          url: `wss://${sessionId}.mock.vercel.run/interactive`,
+          token: newId("tok"),
+        });
       case "snapshot":
         return this.#createSnapshot(session, init);
       case "cmd":
@@ -367,13 +407,19 @@ export class MockServer {
     const sessions = [...this.#sandboxes.values()]
       .filter((r) => !name || r.name === name)
       .map((r) => sessionPayload(this.#sessions.get(r.sessionId)!));
-    return json({ sessions, pagination: { count: sessions.length, next: null } });
+    return json({
+      sessions,
+      pagination: { count: sessions.length, next: null },
+    });
   }
 
   async #stopSession(session: SessionRecord): Promise<Response> {
     if (session.status === "running") {
       // Persist the disk so a later resume restores it.
-      this.#disks.set(session.sandboxName, await captureFileSystem(session.executor.fs));
+      this.#disks.set(
+        session.sandboxName,
+        await captureFileSystem(session.executor.fs),
+      );
       session.status = "stopped";
       session.stoppedAt = Date.now();
       session.requestedStopAt = session.stoppedAt;
@@ -405,7 +451,10 @@ export class MockServer {
     return json({ session: sessionPayload(session) });
   }
 
-  async #createSnapshot(session: SessionRecord, init?: RequestInit): Promise<Response> {
+  async #createSnapshot(
+    session: SessionRecord,
+    init?: RequestInit,
+  ): Promise<Response> {
     const body = readJson<{ expiration?: number }>(init);
     const files = await captureFileSystem(session.executor.fs);
     const record = this.#sandboxes.get(session.sandboxName)!;
@@ -414,8 +463,12 @@ export class MockServer {
       sandboxName: session.sandboxName,
       sourceSessionId: session.id,
       region: session.region,
+      runtime: record.runtime,
       status: "created",
-      sizeBytes: files.reduce((n, f) => n + (f.type === "file" ? f.content.length : 0), 0),
+      sizeBytes: files.reduce(
+        (n, f) => n + (f.type === "file" ? f.content.length : 0),
+        0,
+      ),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       expiresAt: body.expiration ? Date.now() + body.expiration : undefined,
@@ -426,7 +479,10 @@ export class MockServer {
     session.snapshottedAt = Date.now();
     record.currentSnapshotId = snapshot.id;
     record.updatedAt = Date.now();
-    return json({ snapshot: snapshotPayload(snapshot), session: sessionPayload(session) });
+    return json({
+      snapshot: snapshotPayload(snapshot),
+      session: sessionPayload(session),
+    });
   }
 
   // ---- commands ------------------------------------------------------------
@@ -438,29 +494,36 @@ export class MockServer {
     url: URL,
     init?: RequestInit,
   ): Promise<Response> {
-    if (sub.length === 0 && method === "POST") return this.#runCommand(session, init);
+    if (sub.length === 0 && method === "POST")
+      return this.#runCommand(session, init);
 
     const cmdId = sub[0];
     if (sub[1] === "kill" && method === "POST") {
       const command = this.#commands.get(cmdId);
-      if (!command) return apiError(404, "not_found", `Command not found: ${cmdId}`);
+      if (!command)
+        return apiError(404, "not_found", `Command not found: ${cmdId}`);
       return json({ command: commandPayload(command) });
     }
     if (sub[1] === "logs" && method === "GET") {
       const command = this.#commands.get(cmdId);
-      if (!command) return apiError(404, "not_found", `Command not found: ${cmdId}`);
+      if (!command)
+        return apiError(404, "not_found", `Command not found: ${cmdId}`);
       return ndjson(logLines(command));
     }
     if (sub.length === 1 && method === "GET") {
       const command = this.#commands.get(cmdId);
-      if (!command) return apiError(404, "not_found", `Command not found: ${cmdId}`);
+      if (!command)
+        return apiError(404, "not_found", `Command not found: ${cmdId}`);
       const finished = url.searchParams.get("wait") === "true";
       return json({ command: commandPayload(command, { finished }) });
     }
     return apiError(404, "not_found", `No route for ${method} ${url.pathname}`);
   }
 
-  async #runCommand(session: SessionRecord, init?: RequestInit): Promise<Response> {
+  async #runCommand(
+    session: SessionRecord,
+    init?: RequestInit,
+  ): Promise<Response> {
     if (session.status !== "running") {
       return apiError(410, "sandbox_stopped", "Sandbox is stopped");
     }
@@ -502,7 +565,9 @@ export class MockServer {
     }
 
     // wait: stream command chunk → optional logs → finished chunk as NDJSON.
-    const lines: unknown[] = [{ command: { ...commandPayload(command), exitCode: null } }];
+    const lines: unknown[] = [
+      { command: { ...commandPayload(command), exitCode: null } },
+    ];
     if (body.logs) lines.push(...logLines(command));
     lines.push({ command: commandPayload(command, { finished: true }) });
     return ndjson(lines);
@@ -510,7 +575,11 @@ export class MockServer {
 
   // ---- filesystem ----------------------------------------------------------
 
-  async #fsRoutes(session: SessionRecord, op: string, init?: RequestInit): Promise<Response> {
+  async #fsRoutes(
+    session: SessionRecord,
+    op: string,
+    init?: RequestInit,
+  ): Promise<Response> {
     if (session.status !== "running") {
       return apiError(410, "sandbox_stopped", "Sandbox is stopped");
     }
@@ -563,7 +632,8 @@ export class MockServer {
 
     const snapshotId = parts[0];
     const snapshot = this.#snapshots.get(snapshotId);
-    if (!snapshot) return apiError(404, "not_found", `Snapshot not found: ${snapshotId}`);
+    if (!snapshot)
+      return apiError(404, "not_found", `Snapshot not found: ${snapshotId}`);
     if (method === "GET") return json({ snapshot: snapshotPayload(snapshot) });
     if (method === "DELETE") {
       snapshot.status = "deleted";
@@ -578,15 +648,27 @@ export class MockServer {
     const snapshots = [...this.#snapshots.values()]
       .filter((s) => !name || s.sandboxName === name)
       .map(snapshotPayload);
-    return json({ snapshots, pagination: { count: snapshots.length, next: null } });
+    return json({
+      snapshots,
+      pagination: { count: snapshots.length, next: null },
+    });
   }
 
   #snapshotTree(url: URL): Response {
     const snapshotId = url.searchParams.get("snapshotId") ?? "";
     const snapshot = this.#snapshots.get(snapshotId);
-    if (!snapshot) return apiError(404, "not_found", `Snapshot not found: ${snapshotId}`);
-    const node = { snapshot: snapshotPayload(snapshot), siblings: [], count: "1" };
-    return json({ snapshots: [node], anchor: node, pagination: { count: 1, next: null } });
+    if (!snapshot)
+      return apiError(404, "not_found", `Snapshot not found: ${snapshotId}`);
+    const node = {
+      snapshot: snapshotPayload(snapshot),
+      siblings: [],
+      count: "1",
+    };
+    return json({
+      snapshots: [node],
+      anchor: node,
+      pagination: { count: 1, next: null },
+    });
   }
 
   // ---- helpers -------------------------------------------------------------
@@ -653,7 +735,10 @@ function toBuffer(body: unknown): Buffer {
   return Buffer.from([]);
 }
 
-function getHeader(init: RequestInit | undefined, name: string): string | undefined {
+function getHeader(
+  init: RequestInit | undefined,
+  name: string,
+): string | undefined {
   const headers = init?.headers;
   if (!headers) return undefined;
   if (headers instanceof Headers) return headers.get(name) ?? undefined;

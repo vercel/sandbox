@@ -10,9 +10,9 @@ The mock does **not** reimplement the SDK. It re-exports the real
 `@vercel/sandbox` classes and injects a mocked `fetch` (plus dummy credentials)
 into every entry point, so `Sandbox`, `Session`, `Command`, `FileSystem`,
 `SandboxUser`, and `Snapshot` are the genuine SDK code — only the HTTP layer is
-replaced. Requests to `/v2/sandboxes/**` are served from memory, and commands
-run locally through [just-bash](https://github.com/vercel-labs/just-bash)
-against an in-memory filesystem.
+replaced. Sandbox API requests are served from memory, and commands run locally
+through [just-bash](https://github.com/vercel-labs/just-bash) against an
+in-memory filesystem.
 
 Because the real SDK runs unchanged, argument parsing, pagination, retries,
 resume-after-stop, snapshots, forking, and multi-user orchestration all behave
@@ -84,7 +84,9 @@ has no effect on an already-running sandbox.
 
 ```ts
 await using sandbox = await Sandbox.create(); // AsyncDisposable — auto-stops
-await sandbox.writeFiles([{ path: "/app/index.ts", content: 'console.log("hi")' }]);
+await sandbox.writeFiles([
+  { path: "/app/index.ts", content: 'console.log("hi")' },
+]);
 console.log(await sandbox.fs.readFile("/app/index.ts", "utf8"));
 ```
 

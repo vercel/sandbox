@@ -13,7 +13,6 @@ export async function runCode(prompt: string) {
   const sandbox = await Sandbox.create({
     resources: { vcpus: 1 },
     timeout: 5 * 60 * 1000,
-    runtime: "node22",
   });
 
   try {

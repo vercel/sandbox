@@ -29,6 +29,9 @@ export const run = cmd.command({
     if (removeAfterUse && stopAfterUse) {
       throw new Error("--rm and --stop are mutually exclusive.");
     }
+    if (rest.runtime !== undefined && rest.image !== undefined) {
+      throw new Error("--runtime and --image cannot be used together.");
+    }
 
     let sandbox: Sandbox;
 
@@ -44,14 +47,24 @@ export const run = cmd.command({
           __includeSystemRoutes: true,
         });
       } catch (error) {
-        if (error instanceof StyledError && error.cause instanceof APIError && error.cause.response.status === 404) {
-          sandbox = await Create.create.handler({ ...rest, nonPersistent: rest.nonPersistent || removeAfterUse });
+        if (
+          error instanceof StyledError &&
+          error.cause instanceof APIError &&
+          error.cause.response.status === 404
+        ) {
+          sandbox = await Create.create.handler({
+            ...rest,
+            nonPersistent: rest.nonPersistent || removeAfterUse,
+          });
         } else {
           throw error;
         }
       }
     } else {
-      sandbox = await Create.create.handler({ ...rest, nonPersistent: rest.nonPersistent || removeAfterUse });
+      sandbox = await Create.create.handler({
+        ...rest,
+        nonPersistent: rest.nonPersistent || removeAfterUse,
+      });
     }
 
     try {
