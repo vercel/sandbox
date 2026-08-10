@@ -21,20 +21,36 @@ target "ubuntu" {
 
 target "node" {
   matrix = {
-    major = ["22", "24", "26"]
+    node = [
+      {
+        major   = "22"
+        version = "22.23.2"
+      },
+      {
+        major   = "24"
+        version = "24.19.0"
+      },
+      {
+        major   = "26"
+        version = "26.7.0"
+      },
+    ]
   }
 
-  name     = "node-${major}"
+  name     = "node-${node.major}"
   inherits = ["_common"]
   context  = "node"
-  tags     = ["${REGISTRY}/node:${major}"]
+  tags = [
+    "${REGISTRY}/node:${node.major}",
+    "${REGISTRY}/node:${node.version}",
+  ]
 
   contexts = {
     base = "target:ubuntu"
   }
 
   args = {
-    NODE_MAJOR = major
+    NODE_VERSION = node.version
   }
 }
 
