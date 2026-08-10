@@ -12,7 +12,16 @@
     "workflow-code-runner-example": "0.1.6",
     "sandbox": "4.0.0",
     "@vercel/sandbox": "3.0.0",
-    "@vercel/sandbox-mock": "3.0.0"
+    "@vercel/sandbox-mock": "3.0.0",
+    "sandbox-image-arch": "0.1.0",
+    "sandbox-image-node": "0.1.0",
+    "sandbox-image-python": "0.1.0",
+    "sandbox-image-ubuntu": "0.1.0",
+    "sandbox-image-universal": "0.1.0"
   },
-  "changesets": ["curly-drives-mock", "famous-pugs-scream"]
+  "changesets": [
+    "bright-nodes-build",
+    "curly-drives-mock",
+    "famous-pugs-scream"
+  ]
 }
