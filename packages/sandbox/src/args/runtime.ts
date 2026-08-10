@@ -7,5 +7,6 @@ export const runtimeType = {
 
 export const runtime = cmd.option({
   long: "runtime",
+  description: "Deprecated. Use --image instead.",
   type: cmd.optional(runtimeType),
 });

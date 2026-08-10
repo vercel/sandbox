@@ -93,7 +93,10 @@ export function snapshotPayload(snapshot: SnapshotRecord) {
   };
 }
 
-export function commandPayload(command: CommandRecord, opts?: { finished?: boolean }) {
+export function commandPayload(
+  command: CommandRecord,
+  opts?: { finished?: boolean },
+) {
   return {
     id: command.id,
     name: command.name,

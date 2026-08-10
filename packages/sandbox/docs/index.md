@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 3.6.0-beta.0
+sandbox 4.1.0-beta.0
 
 ▲ sandbox [options] <command>
 
@@ -84,7 +84,7 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [optional]
+    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
     --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -143,7 +143,7 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [optional]
+    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
     --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -196,7 +196,7 @@ Create a sandbox and start an interactive shell
 Options:
 
     --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        One of 'node22', 'node24', 'node26', 'python3.13' [optional]
+    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
     --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -246,7 +246,7 @@ Arguments:
 Options:
 
     --name <str>                               A user-chosen name for the forked sandbox. Must be unique per project. [optional]
-    --timeout <num UNIT>                       Override the maximum sandbox runtime (inherited from source if omitted). Example: 5m, 30m [optional]
+    --timeout <num UNIT>                       Override the maximum sandbox duration (inherited from source if omitted). Example: 5m, 30m [optional]
     --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
     --env <key=value>, -e=<key=value>          Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).

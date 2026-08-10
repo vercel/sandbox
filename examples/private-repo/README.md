@@ -6,6 +6,7 @@ This example demonstrates how to create an isolated environment from a private G
 
 - Clone and access private GitHub repositories
 - Authenticate using GitHub personal access tokens or GitHub App tokens
+- Select the `vercel/sandbox/arch` managed image
 - Execute commands in a sandboxed environment
 - Configure timeout and port settings
 
@@ -48,6 +49,7 @@ This example demonstrates how to create an isolated environment from a private G
 The `Sandbox.create()` method initializes the environment with the provided repository and configuration options, including:
 
 - **Authentication credentials**: Using GitHub tokens for private repo access
+- **Image selection**: Starting from the Arch Linux managed image
 - **Timeout configuration**: Setting maximum execution time
 - **Port exposure**: Configuring which ports to expose from the sandbox
 

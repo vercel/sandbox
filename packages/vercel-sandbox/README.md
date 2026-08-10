@@ -16,7 +16,7 @@ infrastructure][hive] that powers 2M+ builds a day at Vercel.
 
 ## Getting started
 
-To get started using Node.js 22+, create a new project:
+To get started using Ubuntu with Node.js 24, create a new project:
 
 ```sh
 mkdir my-sandbox-app && cd my-sandbox-app
@@ -36,6 +36,12 @@ Install the Sandbox SDK:
 pnpm i @vercel/sandbox
 ```
 
+Install the Sandbox Skill:
+
+```sh
+npx skills add vercel/sandbox
+```
+
 Create a `index.mts` file:
 
 ```ts
@@ -51,7 +57,6 @@ async function main() {
     },
     resources: { vcpus: 4 },
     ports: [3000],
-    runtime: "node24",
     name: "vercel-sandbox-example",
   });
   console.log(`Sandbox ${sandbox.name} created`);
@@ -60,6 +65,7 @@ async function main() {
   const install = await sandbox.runCommand({
     cmd: "npm",
     args: ["install", "--loglevel", "info"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
   });
@@ -73,6 +79,7 @@ async function main() {
   await sandbox.runCommand({
     cmd: "npm",
     args: ["run", "dev"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -119,6 +126,7 @@ async function main() {
   await sandbox.runCommand({
     cmd: "npm",
     args: ["run", "dev"],
+    cwd: "sandbox-example-next",
     stderr: process.stderr,
     stdout: process.stdout,
     detached: true,
@@ -177,7 +185,6 @@ const sandbox = await Sandbox.create({
   // Defaults to 5 minutes. The maximum is 24 hours for Pro/Enterprise, and 45 minutes for Hobby.
   timeout: ms("5m"),
   ports: [3000],
-  runtime: "node24",
 });
 ```
 
@@ -191,51 +198,60 @@ recreate an API client using OIDC or environment credentials when needed.
 
 ## Limitations
 
-- Max resources: 8 vCPUs. You will get 2048 MB of memory per vCPU.
-- Sandboxes have a maximum runtime duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
+- Max resources: 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise. You will get 2048 MB of memory per vCPU.
+- Sandboxes have a maximum duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 
-## System
+## Default image
 
-The base system is an Amazon Linux 2023 system with the following additional
-packages installed.
+Sandboxes use
+[`vercel/sandbox/universal:latest`](https://github.com/vercel/sandbox/tree/main/images/universal)
+by default. This Ubuntu-based image includes Node.js 24, Bun, Python 3.14,
+coding agents, and common development and debugging utilities. It runs as the
+`ubuntu` user with passwordless sudo.
 
+## Vercel Managed Images
+
+Vercel provides several public images optimized to use in Sandbox. The
+Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` live
+in the [`images/`](https://github.com/vercel/sandbox/tree/main/images)
+directory:
+
+- [`vercel/sandbox/universal:latest`](https://github.com/vercel/sandbox/tree/main/images/universal): Default image with Node.js, Python, coding agents, and utilities.
+- [`vercel/sandbox/node:22|24|26`](https://github.com/vercel/sandbox/tree/main/images/node): Node.js with pnpm.
+- [`vercel/sandbox/python:3.14`](https://github.com/vercel/sandbox/tree/main/images/python): Python with pip, venv, and uv.
+- [`vercel/sandbox/ubuntu:latest`](https://github.com/vercel/sandbox/tree/main/images/ubuntu): Minimal Ubuntu base.
+- [`vercel/sandbox/arch:latest`](https://github.com/vercel/sandbox/tree/main/images/arch): Arch Linux with yay/AUR support.
+
+See the [images README](https://github.com/vercel/sandbox/tree/main/images#readme)
+for build instructions.
+
+### Custom images
+
+A sandbox can boot from any OCI image by pushing it to
+[Vercel Container Registry (VCR)][vcr-docs] and passing `image` to
+`Sandbox.create()`.
+
+Build and push a `linux/amd64` image to VCR:
+
+```sh
+vercel vcr login docker
+vercel vcr build docker . my-repository:latest --push
 ```
-bind-utils
-bzip2
-findutils
-git
-gzip
-iputils
-libicu
-libjpeg
-libpng
-ncurses-libs
-openssl
-openssl-libs
-procps
-tar
-unzip
-which
-whois
-zstd
-```
 
-- The `node24` and `node22` images ship Node runtimes under `/vercel/runtimes/node{22,24}`.
-- The `python3.13` image ships a Python 3.13 runtime under `/vercel/runtimes/python`.
-- User code is executed as the `vercel-sandbox` user.
-- `/vercel/sandbox` is writable.
+The CLI uses the linked project, defaults to `linux/amd64`, and constructs the
+full VCR reference automatically.
 
-## Custom images
+VCR implements the Docker Registry API, so any OCI compatible tooling can also
+be used, such as `buildah` or `podman`.
 
-Instead of a stock runtime, you can start a sandbox from a Vercel Container
-Registry (VCR) image with the `image` option:
+Then start a sandbox from it:
 
 ```typescript
 import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create({
-  image: "my-repo:v1",
+  image: "my-repository:latest",
 });
 ```
 
@@ -252,18 +268,25 @@ await Sandbox.create({
 });
 ```
 
+See the [images documentation][images-docs] for more details.
+
 ## Sudo access
 
-The `nodeX` and `python3.13` images allow users to run commands as root. This
-can be used to install packages and system tools:
+The default image allows users to run commands as root. This can be used to
+install packages and system tools:
 
 ```typescript
 import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create();
 await sandbox.runCommand({
-  cmd: "dnf",
-  args: ["install", "-y", "golang"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "golang-go"],
   sudo: true,
 });
 ```
@@ -276,9 +299,6 @@ Sandbox runs sudo in the following configuration:
 - `PATH` is left unchanged – sudo won't change the value of PATH, so local or
   project-specific binaries will still be found.
 
-Both these images are based on Amazon Linux 2023. The full package list is
-available [here](https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html).
-
 ## Multi-user
 
 Sandboxes support creating isolated Linux users with their own home directories,
@@ -288,7 +308,7 @@ environments.
 
 > **Note:** The sandbox image must have `/bin/bash` installed. It is the login
 > shell for created users and is used to wrap commands that run as a user. The
-> stock Vercel Sandbox images include it.
+> Vercel managed images include it.
 
 ### Creating users
 
@@ -301,7 +321,7 @@ const sandbox = await Sandbox.create();
 const alice = await sandbox.createUser("alice");
 
 alice.username; // "alice"
-alice.homeDir;  // "/home/alice"
+alice.homeDir; // "/home/alice"
 ```
 
 `createUser` sets up:
@@ -350,7 +370,12 @@ To escalate to root, pass `sudo: true`:
 
 ```typescript
 await alice.runCommand({
-  cmd: "dnf",
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await alice.runCommand({
+  cmd: "apt-get",
   args: ["install", "-y", "git"],
   sudo: true,
 });
@@ -475,9 +500,9 @@ Usernames and group names must match `/^[a-z_][a-z0-9_-]*$/` and be at most 32
 characters. Invalid names throw an error immediately:
 
 ```typescript
-sandbox.asUser("Alice");        // throws — uppercase
-sandbox.asUser("user name");    // throws — space
-sandbox.asUser("$(whoami)");    // throws — special characters
+sandbox.asUser("Alice"); // throws — uppercase
+sandbox.asUser("user name"); // throws — space
+sandbox.asUser("$(whoami)"); // throws — special characters
 sandbox.asUser("a".repeat(33)); // throws — too long
 ```
 
@@ -522,7 +547,8 @@ blocked.exitCode; // non-zero — isolation enforced
 
 [create-token]: https://vercel.com/account/settings/tokens
 [hive]: https://vercel.com/blog/a-deep-dive-into-hive-vercels-builds-infrastructure
-[al-2023-packages]: https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.7.html
+[vcr-docs]: https://vercel.com/docs/container-registry
+[images-docs]: https://vercel.com/docs/sandbox/concepts/images
 
 ## Authors
 

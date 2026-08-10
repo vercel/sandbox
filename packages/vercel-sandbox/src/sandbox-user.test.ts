@@ -1,9 +1,6 @@
 import { expect, it, beforeEach, afterEach, describe, vi } from "vitest";
 import { Sandbox } from "./sandbox.js";
-import {
-  SandboxUser,
-  SandboxUserAlreadyExistsError,
-} from "./sandbox-user.js";
+import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import { CommandFinished } from "./command.js";
 
 describe("validateName (unit)", () => {
@@ -110,9 +107,8 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
       await sandbox.stop();
     });
 
-    // The default user (and its primary group) depends on the image: stock
-    // runtimes default to `vercel-sandbox`, Ubuntu images to `root`. Resolve
-    // it at runtime so ownership assertions hold on either image.
+    // The default user and primary group depend on the image, so resolve them
+    // from the running sandbox rather than assuming fixed names.
     async function defaultUser(): Promise<{ username: string; group: string }> {
       const r = await sandbox.runCommand({
         cmd: "sh",
@@ -342,7 +338,11 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         const alice = await sandbox.createUser("alice");
 
         await alice.writeFiles([
-          { path: "private.txt", content: Buffer.from("top secret"), mode: 0o600 },
+          {
+            path: "private.txt",
+            content: Buffer.from("top secret"),
+            mode: 0o600,
+          },
         ]);
 
         // The HTTP file API (vercel-sandbox) cannot read a 600 alice:alice
@@ -587,10 +587,7 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
         // Alice creates a file
         await alice.runCommand({
           cmd: "bash",
-          args: [
-            "-c",
-            'echo "shared data" > /shared/devs/collab.txt',
-          ],
+          args: ["-c", 'echo "shared data" > /shared/devs/collab.txt'],
         });
 
         // Bob reads it

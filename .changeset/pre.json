@@ -10,12 +10,9 @@
     "private-repo-example": "0.1.4",
     "sandbox-basics-example": "0.1.4",
     "workflow-code-runner-example": "0.1.6",
-    "sandbox": "3.5.5",
-    "@vercel/sandbox": "2.9.2",
-    "@vercel/sandbox-mock": "2.9.2"
+    "sandbox": "4.0.0",
+    "@vercel/sandbox": "3.0.0",
+    "@vercel/sandbox-mock": "3.0.0"
   },
-  "changesets": [
-    "curly-drives-mock",
-    "famous-pugs-scream"
-  ]
+  "changesets": ["curly-drives-mock", "famous-pugs-scream"]
 }
