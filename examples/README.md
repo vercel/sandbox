@@ -24,11 +24,12 @@ Shows how to create sandboxed environments from private Git repositories using G
 
 ### 📦 [Install System Packages Example](./install-packages)
 
-Demonstrates how to install system packages using the `dnf` package manager with elevated privileges. Features include:
+Demonstrates how to install system packages in the `vercel/sandbox/arch` image
+using `pacman` with elevated privileges. Features include:
 
 - System package installation
 - Elevated privilege execution
-- Amazon Linux package management
+- Arch Linux package management
 - Development environment setup
 
 ### 📊 [Python Charts Example](./charts-python)

@@ -18,9 +18,10 @@ import { sessions } from "./commands/sessions";
 import { config } from "./commands/config";
 import { drives } from "./commands/drives";
 
-export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
-  subcommands({
-    name: opts?.appName ?? "sandbox",
+export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
+  const appName = opts?.appName ?? "sandbox";
+  return subcommands({
+    name: appName,
     description: "Interfacing with Vercel Sandbox",
     version,
     cmds: {
@@ -47,15 +48,16 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) =>
     examples: [
       {
         description: "Create a sandbox and start a shell",
-        command: "sandbox sh",
+        command: `${appName} sh`,
       },
       {
         description: "Run a command in a new sandbox",
-        command: `sandbox run -- node -e "console.log('hello')"`,
+        command: `${appName} run -- node -e "console.log('hello')"`,
       },
       {
         description: "Execute command in an existing sandbox",
-        command: `sandbox exec <name> -- npm test`,
+        command: `${appName} exec <name> -- npm test`,
       },
     ],
   });
+};

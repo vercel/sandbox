@@ -1,5 +1,11 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import { type SessionMetaData, type SandboxRouteData, type SandboxMetaData, type SnapshotMetadata, APIClient } from "./api-client/index.js";
+import {
+  type SessionMetaData,
+  type SandboxRouteData,
+  type SandboxMetaData,
+  type SnapshotMetadata,
+  APIClient,
+} from "./api-client/index.js";
 import type { Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
@@ -13,7 +19,10 @@ import type {
   NetworkPolicyRule,
   NetworkTransformer,
 } from "./network-policy.js";
-import { toSandboxSnapshot, type SandboxSnapshot } from "./utils/sandbox-snapshot.js";
+import {
+  toSandboxSnapshot,
+  type SandboxSnapshot,
+} from "./utils/sandbox-snapshot.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import type { ExecutionContext } from "./execution-context.js";
 
@@ -188,9 +197,11 @@ export class Session implements ExecutionContext {
   }
 
   /**
-   * Runtime identifier (e.g. "node24", "python3.13").
+   * Legacy runtime identifier, when available.
+   *
+   * @deprecated Use the parent sandbox's image metadata instead.
    */
-  public get runtime(): string {
+  public get runtime(): string | undefined {
     return this.session.runtime;
   }
 
@@ -304,15 +315,19 @@ export class Session implements ExecutionContext {
     return new Session({ routes: data.routes, snapshot: data.session });
   }
 
-  constructor(params: {
-    client: APIClient;
-    routes: SandboxRouteData[];
-    session: SessionMetaData;
-  } | {
-    /** @internal – used during deserialization with an already-converted snapshot */
-    routes: SandboxRouteData[];
-    snapshot: SandboxSnapshot;
-  }) {
+  constructor(
+    params:
+      | {
+          client: APIClient;
+          routes: SandboxRouteData[];
+          session: SessionMetaData;
+        }
+      | {
+          /** @internal – used during deserialization with an already-converted snapshot */
+          routes: SandboxRouteData[];
+          snapshot: SandboxSnapshot;
+        },
+  ) {
     this.routes = params.routes;
     if ("snapshot" in params) {
       this.session = params.snapshot;
@@ -409,7 +424,8 @@ export class Session implements ExecutionContext {
     const shouldPipeLogs = Boolean(params.stdout || params.stderr);
 
     if (wait) {
-      let stdout = "", stderr = "";
+      let stdout = "",
+        stderr = "";
       const commandStream = await client.runCommand({
         sessionId: this.session.id,
         command: params.cmd,
@@ -622,7 +638,7 @@ export class Session implements ExecutionContext {
   /**
    * Write files to the filesystem of this session.
    * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
-   * Writes files using the `vercel-sandbox` user.
+   * Writes files using the sandbox's default user.
    *
    * @param files - Array of files with path and stream/buffer contents
    * @param opts - Optional parameters.
@@ -667,9 +683,11 @@ export class Session implements ExecutionContext {
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns The final session state and optional sandbox metadata.
    */
-  async stop(opts?: {
-    signal?: AbortSignal;
-  }): Promise<{ session: SandboxSnapshot; sandbox?: SandboxMetaData; snapshot?: SnapshotMetadata }> {
+  async stop(opts?: { signal?: AbortSignal }): Promise<{
+    session: SandboxSnapshot;
+    sandbox?: SandboxMetaData;
+    snapshot?: SnapshotMetadata;
+  }> {
     "use step";
     const client = await this.ensureClient();
     const response = await client.stopSession({
@@ -677,7 +695,11 @@ export class Session implements ExecutionContext {
       signal: opts?.signal,
     });
     this.session = toSandboxSnapshot(response.json.session);
-    return { session: this.session, sandbox: response.json.sandbox, snapshot: response.json.snapshot };
+    return {
+      session: this.session,
+      sandbox: response.json.sandbox,
+      snapshot: response.json.snapshot,
+    };
   }
 
   /**

@@ -68,11 +68,9 @@ import { defineSandboxProxy } from "@vercel/sandbox/proxy";
 import ms from "ms"; // e.g., ms("5m"), ms("1h")
 ```
 
-**Available runtimes:**
-
-```typescript
-type RUNTIMES = "node26" | "node24" | "node22" | "python3.13";
-```
+**Default image:** Sandboxes use `vercel/sandbox/universal:latest`, an
+Ubuntu-based image with Node.js 24, Bun, Python 3.14, coding agents, and common
+development and debugging utilities.
 
 ## Creating Sandboxes
 
@@ -83,7 +81,6 @@ import { Sandbox } from "@vercel/sandbox";
 
 const sandbox = await Sandbox.create({
   name: "my-dev-env", // Optional, random if omitted. Unique per project.
-  runtime: "node24",
   resources: { vcpus: 4 }, // 2048 MB RAM per vCPU
   ports: [3000], // Expose up to 15 ports
   timeout: ms("10m"), // Default: 5 minutes
@@ -111,7 +108,6 @@ const sandbox = await Sandbox.get({ name: "my-dev-env" });
 ```typescript
 const sandbox = await Sandbox.getOrCreate({
   name: "my-workspace",
-  runtime: "node24",
   // Runs only the first time the sandbox is created.
   onCreate: async (sbx) => {
     await sbx.writeFiles([
@@ -160,10 +156,12 @@ const sandbox = await Sandbox.create({
     depth: 1, // Shallow clone (optional)
     revision: "main", // Branch, tag, or commit (optional)
   },
-  runtime: "node24",
   ports: [3000],
 });
 ```
+
+Git sources are cloned into a subdirectory named after the repository. For the
+example above, run commands with `cwd: "sandbox-example-next"`.
 
 ### With Private Git Repository
 
@@ -175,7 +173,6 @@ const sandbox = await Sandbox.create({
     username: process.env.GIT_USERNAME!,
     password: process.env.GIT_TOKEN!, // Use PAT for password
   },
-  runtime: "node24",
 });
 ```
 
@@ -187,7 +184,6 @@ const sandbox = await Sandbox.create({
     type: "tarball",
     url: "https://example.com/project.tar.gz",
   },
-  runtime: "node24",
   ports: [3000],
 });
 ```
@@ -206,15 +202,12 @@ const sandbox = await Sandbox.create({
 
 ### From a Custom Image (VCR)
 
-Instead of a stock `runtime`, start a sandbox from a [Vercel Container
+Override the default with a [Vercel Container
 Registry](https://vercel.com/docs/container-registry) (VCR) image stored in the
-sandbox's project. `image` and `runtime` are **mutually exclusive** — pass one
-or the other, never both.
+sandbox's project.
 
-The stock runtimes are Amazon Linux 2023 systems. If a sandbox needs a
-different distro or system tooling beyond what AL2023 provides, prefer baking
-it into a custom image over installing packages with `dnf install` + `sudo`
-at runtime.
+For a different distro or reproducible system tooling, prefer baking it into a
+custom image over installing packages when the sandbox starts.
 
 ```typescript
 const sandbox = await Sandbox.create({
@@ -246,7 +239,7 @@ instructions.
 and copies its config (`resources`, `timeout`, `networkPolicy`, `tags`,
 `ports`, `image`, `persistent`, `snapshotExpiration`, `keepLastSnapshots`,
 and `env`). Any field you pass overrides the inherited value. If the source
-has no current snapshot, the fork falls back to the source's `runtime`/`image`
+has no current snapshot, the fork falls back to the source's base environment
 plus the copied config. You can only fork a sandbox in a project you have
 access to; forking an unknown source returns a 404.
 
@@ -322,8 +315,13 @@ await devServer.kill("SIGTERM");
 
 ```typescript
 await sandbox.runCommand({
-  cmd: "dnf",
-  args: ["install", "-y", "golang"],
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
+  args: ["install", "-y", "golang-go"],
   sudo: true, // Execute as root
 });
 ```
@@ -413,7 +411,12 @@ await alice.runCommand({
   env: { SECRET: "hunter2" },
 });
 await alice.runCommand({
-  cmd: "dnf",
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await alice.runCommand({
+  cmd: "apt-get",
   args: ["install", "-y", "git"],
   sudo: true,
 });
@@ -744,7 +747,7 @@ number of sandboxes.
 ### Create a Snapshot
 
 ```typescript
-const sandbox = await Sandbox.create({ runtime: "node24" });
+const sandbox = await Sandbox.create();
 await sandbox.runCommand("npm", ["install"]);
 
 // Create snapshot (stops the sandbox)
@@ -918,26 +921,31 @@ const result = await sandbox.runCommand({
 | Max tags        | 5 key-value tags per sandbox                                                    |
 | Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                   |
 | Default timeout | 5 minutes                                                                       |
-| Base system     | Amazon Linux 2023                                                               |
-| User context    | `vercel-sandbox` user                                                           |
+| Base system     | Ubuntu 26.04                                                                    |
+| User context    | `ubuntu` user                                                                   |
 | Writable path   | `/vercel/sandbox`                                                               |
 
 ## System Packages
 
-Pre-installed: `git`, `tar`, `gzip`, `unzip`, `curl`, `openssl`, `procps`, `findutils`, `which`.
+The default image includes Node.js 24, Bun, Python 3.14, pnpm, uv, Git, GitHub
+CLI, coding agents, and common development and debugging utilities.
 
 Install additional packages with sudo:
 
 ```typescript
 await sandbox.runCommand({
-  cmd: "dnf",
+  cmd: "apt-get",
+  args: ["update"],
+  sudo: true,
+});
+await sandbox.runCommand({
+  cmd: "apt-get",
   args: ["install", "-y", "package-name"],
   sudo: true,
 });
 ```
 
-This is fine for one-offs, but `dnf` limits you to what is packaged for the
-Amazon Linux 2023 base system. If you need a different distro or base
+This is fine for one-offs. For reproducible dependencies or a different base
 environment, use a [custom image](#from-a-custom-image-vcr) instead.
 
 ## CLI Quick Reference
@@ -953,7 +961,7 @@ sandbox logout
 # Create and connect
 sandbox create --connect
 sandbox create --name my-app
-sandbox create --image my-repo:v1            # Boot from a VCR image (not with --runtime)
+sandbox create --image my-repo:v1            # Boot from a VCR image
 sandbox create --non-persistent              # Disable filesystem persistence
 sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
@@ -1026,10 +1034,15 @@ const sandbox = await Sandbox.getOrCreate({
   ports: [3000],
   timeout: ms("30m"),
   onCreate: async (sbx) => {
-    await sbx.runCommand("npm", ["install"]);
+    await sbx.runCommand({ cmd: "npm", args: ["install"], cwd: "repo" });
   },
   onResume: async (sbx) => {
-    await sbx.runCommand({ cmd: "npm", args: ["run", "dev"], detached: true });
+    await sbx.runCommand({
+      cmd: "npm",
+      args: ["run", "dev"],
+      cwd: "repo",
+      detached: true,
+    });
   },
 });
 
@@ -1039,19 +1052,34 @@ console.log("App running at:", sandbox.domain(3000));
 ### Build and Test Pattern (Ephemeral)
 
 ```typescript
+const repoUrl = "https://github.com/org/repo.git";
+const repoDir = "repo";
+
 await using sandbox = await Sandbox.create({
   source: { type: "git", url: repoUrl },
   persistent: false, // Skip snapshotting on shutdown
   snapshotExpiration: ms("1d"), // Short TTL for any incidental snapshot
 });
 
-const install = await sandbox.runCommand("npm", ["ci"]);
+const install = await sandbox.runCommand({
+  cmd: "npm",
+  args: ["ci"],
+  cwd: repoDir,
+});
 if (install.exitCode !== 0) throw new Error("Install failed");
 
-const build = await sandbox.runCommand("npm", ["run", "build"]);
+const build = await sandbox.runCommand({
+  cmd: "npm",
+  args: ["run", "build"],
+  cwd: repoDir,
+});
 if (build.exitCode !== 0) throw new Error("Build failed");
 
-const test = await sandbox.runCommand("npm", ["test"]);
+const test = await sandbox.runCommand({
+  cmd: "npm",
+  args: ["test"],
+  cwd: repoDir,
+});
 process.exit(test.exitCode);
 ```
 
@@ -1066,7 +1094,6 @@ your code. New base snapshots are picked up automatically on the next fork.
 // Once: bootstrap the base sandbox
 await Sandbox.getOrCreate({
   name: "my-base",
-  runtime: "node24",
   keepLastSnapshots: { count: 5 }, // Keep storage flat
   onCreate: async (sbx) => {
     await sbx.runCommand("npm", ["install", "-g", "typescript", "tsx"]);
@@ -1092,7 +1119,6 @@ async function runFromBase(code: string) {
 // Idempotent: first call creates, subsequent calls resume
 const sandbox = await Sandbox.getOrCreate({
   name: `workspace-${userId}`,
-  runtime: "node24",
   keepLastSnapshots: { count: 1, expiration: ms("5d") },
   onCreate: async (sbx) => {
     await sbx.runCommand("git", ["clone", repoUrl, "."]);

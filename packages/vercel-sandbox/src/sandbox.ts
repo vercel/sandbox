@@ -10,7 +10,7 @@ import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import type { WithFetchOptions } from "./api-client/api-client.js";
-import type { RUNTIMES } from "./constants.js";
+import type { ManagedImage, RUNTIMES } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
@@ -180,43 +180,48 @@ export type SandboxMounts = NonNullable<BaseCreateSandboxParams["mounts"]>;
 export type SandboxMountMode = NonNullable<SandboxMounts[string]["mode"]>;
 
 /**
- * `runtime` and `image` are mutually exclusive: a sandbox starts from either a
- * stock runtime or a custom VCR image, never both. The `never` counterpart in
- * each branch makes passing both a compile-time error.
+ * A VCR image reference.
+ */
+export type SandboxImage = `vercel/sandbox/${ManagedImage}` | (string & {});
+
+/**
+ * Sandbox environment selection options.
  * @inline
  */
 export type RuntimeOrImage =
   | {
       /**
-       * The runtime of the sandbox, currently only `node24`, `node22`, `node26`
-       * and `python3.13` are supported.
-       * If not specified, the default runtime `node24` will be used.
+       * A legacy Vercel-managed runtime.
+       *
+       * @deprecated Use `image` instead.
        */
       runtime?: RUNTIMES | (string & {});
       image?: never;
     }
   | {
+      runtime?: never;
       /**
        * A Vercel Container Registry (VCR) image to start the sandbox from,
        * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
        * optional tag or digest, or a fully-qualified VCR URL. A bare
-       * repository name resolves to the `latest` tag.
+       * repository name resolves to the `latest` tag. If omitted, the sandbox
+       * uses `vercel/sandbox/universal:latest`.
        *
+       * @example "vercel/sandbox/universal" // Vercel managed image, latest tag
        * @example "my-repo" // latest tag
        * @example "my-repo:v1" // specific tag
        * @example "my-repo@sha256:..." // specific digest
        * @example "other-team/other-project/repo:v1" // Shared image from another team
        * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
        */
-      image?: string;
-      runtime?: never;
+      image?: SandboxImage;
     };
 
 export type CreateSandboxParams =
   | (BaseCreateSandboxParams & RuntimeOrImage)
   | (Omit<BaseCreateSandboxParams, "source"> & {
       source: { type: "snapshot"; snapshotId: string };
-      // A snapshot already defines its runtime/image; neither may be set here.
+      // A snapshot already defines its base environment.
       runtime?: never;
       image?: never;
     });
@@ -227,15 +232,11 @@ export type CreateSandboxParams =
  * The fork inherits the source sandbox's current filesystem snapshot and the
  * server copies its config — resources, timeout, ports, tags, network policy,
  * image, persistence, snapshot settings, and environment variables. Any field
- * set here acts as an override of the copied value. `runtime` is not exposed:
- * when the source has a snapshot it is inherited, otherwise the source's
- * runtime/image is copied.
+ * set here acts as an override of the copied value. When the source has no
+ * snapshot, its base environment is copied.
  * @inline
  */
-export type ForkSandboxParams = Omit<
-  BaseCreateSandboxParams,
-  "source" | "runtime"
-> & {
+export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
   /**
    * Name of the source sandbox to fork from.
    */
@@ -244,7 +245,7 @@ export type ForkSandboxParams = Omit<
    * A Vercel Container Registry (VCR) image to start the fork from, overriding
    * the image copied from the source.
    */
-  image?: string;
+  image?: SandboxImage;
 };
 
 /** @inline */
@@ -440,8 +441,9 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * Runtime identifier (e.g. "node24", "python3.13").
-   * Mutually exclusive with {@link Sandbox.image}.
+   * Legacy runtime identifier, when the sandbox was created with `runtime`.
+   *
+   * @deprecated Use {@link Sandbox.image} for image-backed sandboxes.
    */
   public get runtime(): string | undefined {
     return this.sandbox.runtime;
@@ -450,7 +452,6 @@ export class Sandbox implements ExecutionContext {
   /**
    * Digest-pinned reference of the container image the sandbox was created
    * from, when it was created from an image (`"{repository}@{manifestDigest}"`).
-   * Mutually exclusive with {@link Sandbox.runtime}.
    */
   public get image(): string | undefined {
     return this.sandbox.image;
@@ -704,6 +705,10 @@ export class Sandbox implements ExecutionContext {
   /**
    * Create a new sandbox.
    *
+   * By default, the sandbox uses `vercel/sandbox/universal:latest`, an
+   * Ubuntu-based image with Node.js 24, Bun, Python 3.14, coding agents, and
+   * common development utilities.
+   *
    * @param params - Creation parameters and optional credentials.
    * @returns A promise resolving to the created {@link Sandbox}.
    * @example
@@ -724,6 +729,10 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
+    if (params?.runtime !== undefined && params.image !== undefined) {
+      throw new TypeError("`runtime` and `image` cannot be used together.");
+    }
+
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -765,8 +774,8 @@ export class Sandbox implements ExecutionContext {
   /**
    * Fork an existing sandbox into a new one.
    *
-   * The server restores the fork from the source's current snapshot (or the
-   * source's runtime/image when it has none) and copies its config — resources,
+   * The server restores the fork from the source's current snapshot (or its
+   * base environment when it has none) and copies its config — resources,
    * timeout, ports, tags, network policy, image, persistence, snapshot
    * settings, and environment variables. Any field passed in `params` overrides
    * the copied value.
@@ -910,6 +919,10 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox> {
     "use step";
+    if (params?.runtime !== undefined && params.image !== undefined) {
+      throw new TypeError("`runtime` and `image` cannot be used together.");
+    }
+
     // No name → always create, fire onCreate.
     if (!params?.name) {
       const sandbox = await Sandbox.create(params);
@@ -1254,7 +1267,7 @@ export class Sandbox implements ExecutionContext {
   /**
    * Write files to the filesystem of this sandbox.
    * Defaults to writing to /vercel/sandbox unless an absolute path is specified.
-   * Writes files using the `vercel-sandbox` user.
+   * Writes files using the sandbox's default user.
    *
    * @param files - Array of files with path, content, and optional mode (permissions)
    * @param opts - Optional parameters.
@@ -1389,11 +1402,10 @@ export class Sandbox implements ExecutionContext {
 
   /**
    * The user that non-`sudo` commands and the HTTP file API run as, together
-   * with that user's primary group. This depends on the sandbox image: stock
-   * runtimes default to `vercel-sandbox`, while Ubuntu-based images default to
-   * `root`. The multi-user helpers group-own home and shared directories by
-   * this user's group so the file API can traverse them, so we resolve it from
-   * the running sandbox rather than assuming a fixed name.
+   * with that user's primary group. This depends on the sandbox image. The
+   * multi-user helpers group-own home and shared directories by this user's
+   * group so the file API can traverse them, so we resolve it from the running
+   * sandbox rather than assuming a fixed name.
    *
    * The result is memoized for the lifetime of this instance.
    *
@@ -1477,10 +1489,7 @@ export class Sandbox implements ExecutionContext {
     }
 
     // Group-own the home directory by the default user's group so the HTTP
-    // file API (which runs as that user) can read/write directly. On stock
-    // runtimes this is `vercel-sandbox` (gid 1000, already in the file API
-    // process credentials, avoiding the stale-group problem of `usermod -aG`);
-    // on Ubuntu images it is `root`, which can traverse regardless.
+    // file API (which runs as that user) can read/write directly.
     const chown = await this.runCommand({
       cmd: "chown",
       args: [`${username}:${defaultGroup}`, `/home/${username}`],

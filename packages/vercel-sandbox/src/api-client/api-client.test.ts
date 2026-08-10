@@ -471,7 +471,6 @@ describe("APIClient", () => {
       memory: 2048,
       vcpus: 1,
       region: "iad1",
-      runtime: "node24",
       timeout: 300000,
       status,
       requestedAt: Date.now(),
@@ -486,7 +485,6 @@ describe("APIClient", () => {
       region: "iad1",
       vcpus: 1,
       memory: 2048,
-      runtime: "node24",
       timeout: 300000,
       totalActiveCpuDurationMs: 1200,
       totalIngressBytes: 1200000,
@@ -555,7 +553,6 @@ describe("APIClient", () => {
       region: "iad1",
       vcpus: 1,
       memory: 2048,
-      runtime: "node24",
       timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -568,7 +565,6 @@ describe("APIClient", () => {
       memory: 2048,
       vcpus: 1,
       region: "iad1",
-      runtime: "node24",
       timeout: 300000,
       status: "running",
       requestedAt: Date.now(),
@@ -637,7 +633,6 @@ describe("APIClient", () => {
       const body = {
         sandbox: {
           ...makeSandboxMetadata(),
-          runtime: undefined,
           image: "my-repo@sha256:2c4e8f9a1b3d5e7f",
         },
         session: makeSession(),
@@ -668,7 +663,6 @@ describe("APIClient", () => {
       region: "iad1",
       vcpus: 1,
       memory: 2048,
-      runtime: "node24",
       timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -764,7 +758,6 @@ describe("APIClient", () => {
       memory: 2048,
       vcpus: 1,
       region: "iad1",
-      runtime: "node24",
       timeout: 300000,
       status: "running",
       requestedAt: Date.now(),
@@ -1015,7 +1008,6 @@ describe("APIClient", () => {
       region: "iad1",
       vcpus: 2,
       memory: 4096,
-      runtime: "node24",
       timeout: 600000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -1105,7 +1097,6 @@ describe("APIClient", () => {
       region: "iad1",
       vcpus: 1,
       memory: 2048,
-      runtime: "node24",
       timeout: 300000,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -1166,7 +1157,6 @@ describe("APIClient", () => {
               memory: 2048,
               vcpus: 1,
               region: "iad1",
-              runtime: "node24",
               timeout: 300000,
               status: "running",
               requestedAt: Date.now(),
@@ -1212,7 +1202,6 @@ describe("APIClient", () => {
             region: "iad1",
             vcpus: 1,
             memory: 2048,
-            runtime: "node24",
             timeout: 300000,
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -1229,7 +1218,6 @@ describe("APIClient", () => {
             memory: 2048,
             vcpus: 1,
             region: "iad1",
-            runtime: "node24",
             timeout: 300000,
             status: "running",
             requestedAt: Date.now(),
@@ -1280,6 +1268,28 @@ describe("APIClient", () => {
       const [, opts] = mockFetch.mock.calls[0];
       const body = JSON.parse(opts.body);
       expect(body).not.toHaveProperty("keepLastSnapshots");
+    });
+
+    it("uses v2 when runtime is provided", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        runtime: "node24",
+      });
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v2/sandboxes");
+      expect(JSON.parse(opts.body).runtime).toBe("node24");
+    });
+
+    it("uses v3 when runtime is omitted", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v3/sandboxes");
     });
   });
 

@@ -76,7 +76,7 @@ const makeSandboxMetadata = (): SandboxMetaData => ({
   memory: 2048,
   vcpus: 1,
   region: "iad1",
-  runtime: "node24",
+  image: "vercel/sandbox/universal@sha256:2c4e8f9a1b3d5e7f",
   timeout: 300_000,
   cwd: "/",
   updatedAt: 1,
@@ -104,19 +104,16 @@ describe("source getters", () => {
       projectId: "test-project",
     });
 
-  it("exposes the runtime and leaves image undefined for runtime sandboxes", () => {
+  it("exposes the source image", () => {
     const sandbox = makeSandbox();
-    expect(sandbox.runtime).toBe("node24");
-    expect(sandbox.image).toBeUndefined();
+    expect(sandbox.image).toBe(
+      "vercel/sandbox/universal@sha256:2c4e8f9a1b3d5e7f",
+    );
   });
 
-  it("exposes the image for image-based sandboxes", () => {
-    const sandbox = makeSandbox({
-      runtime: undefined,
-      image: "my-repo@sha256:2c4e8f9a1b3d5e7f",
-    });
-    expect(sandbox.image).toBe("my-repo@sha256:2c4e8f9a1b3d5e7f");
-    expect(sandbox.runtime).toBeUndefined();
+  it("exposes a legacy runtime when present", () => {
+    const sandbox = makeSandbox({ image: undefined, runtime: "node24" });
+    expect(sandbox.runtime).toBe("node24");
   });
 });
 
@@ -598,6 +595,22 @@ describe("Sandbox.getOrCreate", () => {
       headers: { "content-type": "application/json" },
     });
 
+  it("rejects runtime and image before looking up a named sandbox", async () => {
+    const mockFetch = vi.fn<typeof fetch>();
+
+    await expect(
+      Sandbox.getOrCreate({
+        ...CREDENTIALS,
+        name: "my-sandbox",
+        runtime: "node24",
+        image: "vercel/sandbox/node:24",
+        fetch: mockFetch as unknown as typeof fetch,
+      } as any),
+    ).rejects.toThrow("`runtime` and `image` cannot be used together.");
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("propagates non-404 errors from Sandbox.get without attempting create", async () => {
     // 403 is non-retryable (<500 and !=429), so it surfaces immediately.
     const mockFetch = vi.fn<typeof fetch>(async () =>
@@ -716,7 +729,7 @@ describe("Sandbox.create mounts", () => {
   });
 });
 
-describe("Sandbox.create image", () => {
+describe("Sandbox.create environment selection", () => {
   const CREDENTIALS = {
     token: "test-token",
     teamId: "team_123",
@@ -745,12 +758,45 @@ describe("Sandbox.create image", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toContain("/v2/sandboxes");
+    expect(String(url)).toContain("/v3/sandboxes");
     expect(init?.method).toBe("POST");
     const body = JSON.parse(String(init?.body));
     expect(body.image).toBe("my-repo:latest");
-    // Runtime must not be sent when only image is provided.
-    expect(body.runtime).toBeUndefined();
+  });
+
+  it("uses the v2 endpoint when runtime is provided", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        runtime: "node24",
+        fetch: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain("/v2/sandboxes");
+    const body = JSON.parse(String(init?.body));
+    expect(body.runtime).toBe("node24");
+  });
+
+  it("rejects runtime and image together before making a request", async () => {
+    const mockFetch = vi.fn<typeof fetch>();
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        runtime: "node24",
+        image: "vercel/sandbox/node:24",
+        fetch: mockFetch as unknown as typeof fetch,
+      } as any),
+    ).rejects.toThrow("`runtime` and `image` cannot be used together.");
+
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
