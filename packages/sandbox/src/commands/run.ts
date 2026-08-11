@@ -68,7 +68,7 @@ export const run = cmd.command({
     }
 
     try {
-      await Exec.exec.handler({ ...rest, sandbox, timeout: undefined });
+      await Exec.execute({ ...rest, sandbox, timeout: undefined });
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();

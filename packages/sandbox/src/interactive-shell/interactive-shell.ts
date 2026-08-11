@@ -3,7 +3,11 @@ import createDebugger from "debug";
 import { WebSocket } from "ws";
 import { printCommand } from "../util/print-command";
 import ora from "ora";
-import { acquireRelease, createAbortController, defer } from "../util/disposables";
+import {
+  acquireRelease,
+  createAbortController,
+  defer,
+} from "../util/disposables";
 import chalk from "chalk";
 import { extendSandboxTimeoutPeriodically } from "./extend-sandbox-timeout";
 
@@ -33,13 +37,71 @@ const TERM = "xterm-256color";
 const PS1 = `▲ \x01\x1b[2m\x02$PWD/\x01\x1b[0m\x02 `;
 
 /**
+ * The flag that turns a shell into a login shell, so it sources the account's
+ * profile (`~/.profile`, `~/.bash_profile`, ...) the way a real login does.
+ * Spelled out in full because that is the form bash, zsh, fish and `sudo` all
+ * accept. Shells that only take `-l` would have to be special-cased where the
+ * shell is actually known, which is the sandbox, not here.
+ */
+const LOGIN = "--login";
+
+/**
+ * What the interactive server should spawn, as it goes over the wire.
+ */
+export interface InteractiveExecution {
+  /**
+   * The executable to spawn. The empty string asks the sandbox to spawn the
+   * shell the account declares in the passwd database.
+   */
+  command: string;
+  args: string[];
+}
+
+/**
+ * Resolves the process an interactive session starts.
+ *
+ * With no explicit command the session should open a shell, but which shell
+ * that is belongs to the sandbox: an image can give its user zsh, or install
+ * the usual one somewhere else, and the client has no business guessing a path
+ * that happens to exist in every image. Sending an empty command asks the
+ * sandbox to resolve the account's shell from its passwd entry, and `--login`
+ * makes it a login shell so the account's profile is sourced.
+ *
+ * `sudo --login` (`sudo -i`) is the same contract for the target account: sudo
+ * spawns the shell root's passwd entry declares, as a login shell. Because
+ * that starts in root's home directory, `--workdir` does not survive the
+ * combination of `--sudo` and an implicit shell.
+ *
+ * An explicit command is passed through untouched.
+ */
+export function resolveExecution(options: {
+  execution?: [string, ...string[]];
+  sudo: boolean;
+}): InteractiveExecution {
+  const { execution, sudo } = options;
+
+  if (!execution) {
+    return sudo
+      ? { command: "sudo", args: [LOGIN] }
+      : { command: "", args: [LOGIN] };
+  }
+
+  const [command, ...args] = execution;
+  return sudo
+    ? { command: "sudo", args: [command, ...args] }
+    : { command, args };
+}
+
+/**
  * Starts an interactive shell session with a sandbox. The API hands us a
  * WebSocket URL and token, and we tunnel stdin/stdout over it.
+ *
+ * Omitting `execution` opens the account's configured shell as a login shell.
  */
 export async function startInteractiveShell(options: {
   sandbox: Sandbox;
   cwd?: string;
-  execution: [string, ...string[]];
+  execution?: [string, ...string[]];
   envVars: Record<string, string>;
   sudo: boolean;
   skipExtendingTimeout: boolean;
@@ -71,10 +133,7 @@ export async function startInteractiveShell(options: {
   progress.text = "Opening interactive session...";
   const { url, token } = await options.sandbox.openInteractive();
 
-  const [command, ...args] = options.execution;
-  const execution: [string, ...string[]] = options.sudo
-    ? ["sudo", command, ...args]
-    : [command, ...args];
+  const execution = resolveExecution(options);
 
   progress.text = "Connecting...";
   const client = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
@@ -95,8 +154,8 @@ export async function startInteractiveShell(options: {
   client.send(
     JSON.stringify({
       type: "start",
-      command: execution[0],
-      args: execution.slice(1),
+      command: execution.command,
+      args: execution.args,
       env: toEnvArray({ TERM, PS1, ...options.envVars }),
       cwd: options.cwd ?? options.sandbox.cwd,
       cols: process.stdout.columns,
@@ -154,7 +213,11 @@ export async function startInteractiveShell(options: {
   };
   process.on("SIGWINCH", onResize);
 
-  console.error(printCommand(options.execution[0], options.execution.slice(1)));
+  // Nothing to echo for an implicit shell: the sandbox picks the executable,
+  // so printing a guess here would name a process that never ran.
+  if (execution.command) {
+    console.error(printCommand(execution.command, execution.args));
+  }
 
   await new Promise<void>((resolve, reject) => {
     client.once("close", () => resolve());
@@ -165,7 +228,9 @@ export async function startInteractiveShell(options: {
   process.removeListener("SIGWINCH", onResize);
   process.stdin.removeListener("data", onStdin);
 
-  console.error(chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`));
+  console.error(
+    chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`),
+  );
 }
 
 function toEnvArray(env: Record<string, string>): string[] {
