@@ -225,8 +225,8 @@ interface GetSandboxParams {
   name: string;
   /**
    * Whether to resume an existing session immediately. Defaults to false;
-   * the sandbox still auto-resumes on the first SDK call that needs a
-   * running session (such as `runCommand`).
+   * a persistent sandbox still auto-resumes on the first SDK call that
+   * needs a running session (such as `runCommand`).
    */
   resume?: boolean;
   /**
@@ -248,8 +248,8 @@ interface GetSandboxParams {
 type GetOrCreateSandboxParams = CreateSandboxParams & {
   /**
    * Whether to resume an existing session immediately. Defaults to false;
-   * the sandbox still auto-resumes on the first SDK call that needs a
-   * running session (such as `runCommand`).
+   * a persistent sandbox still auto-resumes on the first SDK call that
+   * needs a running session (such as `runCommand`).
    */
   resume?: boolean;
   /**
