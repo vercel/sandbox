@@ -103,6 +103,38 @@ describe("APIClient", () => {
       }
     });
 
+    it("exposes structured API error fields without changing the error message", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "sandbox_already_exists",
+              message: "A sandbox with this name already exists.",
+            },
+          }),
+          {
+            status: 400,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_456" });
+
+      try {
+        for await (const _ of logs) {
+        }
+        expect.fail("Expected APIError to be thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError);
+        expect(error).toMatchObject({
+          message: "Status code 400 is not ok",
+          code: "sandbox_already_exists",
+          serverMessage: "A sandbox with this name already exists.",
+        });
+      }
+    });
+
     it("throws APIError when response body is null", async () => {
       mockFetch.mockResolvedValue(
         new Response(null, {
