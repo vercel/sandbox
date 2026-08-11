@@ -13,8 +13,6 @@ export class APIError<ErrorData> extends Error {
   public text?: string;
   /** Stable API error code when the response uses Vercel's standard error envelope. */
   public code?: string;
-  /** API-provided error message when the response uses Vercel's standard error envelope. */
-  public serverMessage?: string;
   public sandboxName?: string;
   public sessionId?: string;
 
@@ -28,20 +26,13 @@ export class APIError<ErrorData> extends Error {
     this.message = options?.message ?? "";
     this.json = options?.json;
     this.text = options?.text;
-    const apiError = getStandardAPIError(options?.json);
-    this.code = apiError?.code;
-    this.serverMessage = apiError?.message;
+    this.code = getStandardAPIErrorCode(options?.json);
     this.sandboxName = options?.sandboxName;
     this.sessionId = options?.sessionId;
   }
 }
 
-function getStandardAPIError(value: unknown):
-  | {
-      code: string;
-      message: string;
-    }
-  | undefined {
+function getStandardAPIErrorCode(value: unknown): string | undefined {
   if (typeof value !== "object" || value === null || !("error" in value)) {
     return undefined;
   }
@@ -51,10 +42,8 @@ function getStandardAPIError(value: unknown):
     return undefined;
   }
 
-  const { code, message } = error as Record<string, unknown>;
-  return typeof code === "string" && typeof message === "string"
-    ? { code, message }
-    : undefined;
+  const { code } = error as Record<string, unknown>;
+  return typeof code === "string" ? code : undefined;
 }
 
 /**

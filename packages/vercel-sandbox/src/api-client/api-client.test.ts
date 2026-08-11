@@ -130,7 +130,6 @@ describe("APIClient", () => {
         expect(error).toMatchObject({
           message: "Status code 400 is not ok",
           code: "sandbox_already_exists",
-          serverMessage: "A sandbox with this name already exists.",
         });
       }
     });
