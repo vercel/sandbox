@@ -109,7 +109,7 @@ describe("getAiGatewayEnv", () => {
     );
 
     await expect(getAiGatewayEnv(SCOPE)).resolves.toEqual({
-      VERCEL_OIDC_TOKEN: OIDC_TOKEN,
+      AI_GATEWAY_API_KEY: OIDC_TOKEN,
       ANTHROPIC_BASE_URL: AI_GATEWAY_BASE_URL,
       ANTHROPIC_AUTH_TOKEN: OIDC_TOKEN,
     });

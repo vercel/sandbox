@@ -13,18 +13,26 @@ type Scope = { token: string; project: string; team: string };
  * authenticated with a short-lived OIDC token scoped to the sandbox's own
  * team and project:
  *
- * - `VERCEL_OIDC_TOKEN` is picked up natively by the AI SDK, the AI Gateway
- *   provider, and the `@vercel/sandbox` SDK.
+ * - `AI_GATEWAY_API_KEY` is the gateway's own credential variable, checked
+ *   first by the AI SDK and read by tools with a built-in gateway provider
+ *   (opencode's `vercel/*` model catalog activates on it). The gateway
+ *   accepts the OIDC token in its place, and the variable is only ever sent
+ *   to the gateway itself.
  * - `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` point Anthropic clients
  *   (like Claude Code) at the gateway's Anthropic-compatible endpoint, which
  *   accepts the OIDC token as a Bearer credential.
+ *
+ * The token is deliberately injected only twice: the create API caps the
+ * `env` payload at 4096 bytes and OIDC tokens run ~1.3KB, so a third copy
+ * (e.g. `VERCEL_OIDC_TOKEN`, whose AI SDK role `AI_GATEWAY_API_KEY` already
+ * covers with higher precedence) would overflow the limit.
  */
 export async function getAiGatewayEnv(
   scope: Scope,
 ): Promise<Record<string, string>> {
   const token = await getProjectOidcToken(scope);
   return {
-    VERCEL_OIDC_TOKEN: token,
+    AI_GATEWAY_API_KEY: token,
     ANTHROPIC_BASE_URL: AI_GATEWAY_BASE_URL,
     ANTHROPIC_AUTH_TOKEN: token,
   };
