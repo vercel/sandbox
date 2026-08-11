@@ -69,7 +69,7 @@ export interface BaseCreateSandboxParams {
     | { type: "tarball"; url: string };
   /**
    * Array of port numbers to expose from the sandbox. Sandboxes can
-   * expose up to 4 ports.
+   * expose up to 15 ports.
    */
   ports?: number[];
   /**
