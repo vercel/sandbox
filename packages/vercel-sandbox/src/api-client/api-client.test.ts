@@ -340,6 +340,48 @@ describe("APIClient", () => {
       }
     });
 
+    it("surfaces the server's error message in APIError.message", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "bad_request",
+              message:
+                "Invalid request: `ports` should NOT have more than 15 items.",
+            },
+          }),
+          {
+            status: 400,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+
+      try {
+        await client.runCommand({
+          sessionId: "sbx_123",
+          command: "echo",
+          args: ["hello"],
+          env: {},
+          sudo: false,
+          wait: true,
+        });
+        expect.fail("Expected APIError to be thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(APIError);
+        expect(err.message).toBe(
+          "Status code 400 is not ok: Invalid request: `ports` should NOT have more than 15 items.",
+        );
+        expect(err.json).toEqual({
+          error: {
+            code: "bad_request",
+            message:
+              "Invalid request: `ports` should NOT have more than 15 items.",
+          },
+        });
+      }
+    });
+
     it("throws abort error (not Zod error) when signal aborts before stream finishes", async () => {
       const commandData = {
         command: {
