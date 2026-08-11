@@ -16,6 +16,8 @@ import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
+import { ai } from "../args/ai";
+import { getAiGatewayEnv } from "../util/ai-gateway-env";
 
 export const args = {
   name: cmd.option({
@@ -69,6 +71,7 @@ export const args = {
   }),
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
+  ai,
   scope,
 } as const;
 
@@ -95,6 +98,7 @@ export const create = cmd.command({
     snapshot,
     connect,
     envVars,
+    ai,
     tags,
     snapshotExpiration,
     keepLastSnapshots,
@@ -125,6 +129,8 @@ export const create = cmd.command({
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
+    // Explicit `--env` values win over the injected AI Gateway credentials.
+    const env = ai ? { ...(await getAiGatewayEnv(scope)), ...envVars } : envVars;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -137,7 +143,7 @@ export const create = cmd.command({
           timeout: ms(timeout),
           resources,
           networkPolicy,
-          env: envVars,
+          env,
           tags: tagsObj,
           persistent,
           snapshotExpiration: snapshotExpiration
@@ -160,7 +166,7 @@ export const create = cmd.command({
           timeout: ms(timeout),
           resources,
           networkPolicy,
-          env: envVars,
+          env,
           tags: tagsObj,
           persistent,
           snapshotExpiration: snapshotExpiration
@@ -193,6 +199,9 @@ export const create = cmd.command({
         cwd: undefined,
         skipExtendingTimeout: false,
         envVars: {},
+        // Interactive sessions don't receive the sandbox's default env vars,
+        // so `exec` injects the AI Gateway credentials at the session level.
+        ai,
         command: "sh",
         interactive: true,
         tty: true,

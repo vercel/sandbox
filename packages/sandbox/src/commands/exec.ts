@@ -10,6 +10,8 @@ import { scope } from "../args/scope";
 import { Duration } from "../types/duration";
 import { sandboxClient } from "../client";
 import chalk from "chalk";
+import { ai } from "../args/ai";
+import { getAiGatewayEnv } from "../util/ai-gateway-env";
 
 export const args = {
   sandbox: cmd.positional({
@@ -78,6 +80,7 @@ export const args = {
       "On expiry the process is killed with SIGKILL. " +
       "Cannot be combined with --interactive.",
   }),
+  ai,
   scope,
 } as const;
 
@@ -94,6 +97,7 @@ export const exec = cmd.command({
     scope: { token, team, project },
     interactive,
     envVars,
+    ai,
     skipExtendingTimeout,
     timeout,
   }) {
@@ -105,6 +109,11 @@ export const exec = cmd.command({
         ].join("\n"),
       );
     }
+
+    // Explicit `--env` values win over the injected AI Gateway credentials.
+    const env = ai
+      ? { ...(await getAiGatewayEnv({ token, team, project })), ...envVars }
+      : envVars;
 
     const sandbox =
       typeof sandboxName !== "string"
@@ -129,7 +138,7 @@ export const exec = cmd.command({
         stdout: process.stdout,
         sudo: asSudo,
         cwd,
-        env: envVars,
+        env,
         timeoutMs: timeout ? ms(timeout) : undefined,
       });
 
@@ -146,7 +155,7 @@ export const exec = cmd.command({
         sandbox,
         cwd,
         execution: [command, ...args],
-        envVars,
+        envVars: env,
         sudo: asSudo,
         skipExtendingTimeout,
       });

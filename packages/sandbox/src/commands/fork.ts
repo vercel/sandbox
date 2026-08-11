@@ -180,6 +180,7 @@ export const fork = cmd.command({
         cwd: undefined,
         skipExtendingTimeout: false,
         envVars: {},
+        ai: false,
         command: "sh",
         interactive: true,
         tty: true,

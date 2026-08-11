@@ -109,6 +109,7 @@ Flags:
     --non-persistent     Disable automatic restore of the filesystem between sessions. [optional]
     --silent             Don't write sandbox name to stdout [optional]
     --connect            Start an interactive shell session after creating the sandbox [optional]
+    --ai                 Expose AI Gateway credentials inside the sandbox so coding agents like `claude` work without any login or API keys. Injects a short-lived OIDC token scoped to the sandbox's project. [optional]
     --sudo               Give extended privileges to the command. [optional]
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
@@ -166,6 +167,7 @@ Flags:
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
     --connect         Start an interactive shell session after creating the sandbox [optional]
+    --ai              Expose AI Gateway credentials inside the sandbox so coding agents like `claude` work without any login or API keys. Injects a short-lived OIDC token scoped to the sandbox's project. [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:
@@ -217,6 +219,7 @@ Flags:
 
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
+    --ai              Expose AI Gateway credentials inside the sandbox so coding agents like `claude` work without any login or API keys. Injects a short-lived OIDC token scoped to the sandbox's project. [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:
@@ -304,6 +307,7 @@ Flags:
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
     --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
+    --ai                 Expose AI Gateway credentials inside the sandbox so coding agents like `claude` work without any login or API keys. Injects a short-lived OIDC token scoped to the sandbox's project. [optional]
     --help, -h           show help [optional]
 
 Options:
@@ -386,6 +390,7 @@ Flags:
 
     --sudo               Give extended privileges to the command. [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
+    --ai                 Expose AI Gateway credentials inside the sandbox so coding agents like `claude` work without any login or API keys. Injects a short-lived OIDC token scoped to the sandbox's project. [optional]
     --help, -h           show help [optional]
 
 Options:
