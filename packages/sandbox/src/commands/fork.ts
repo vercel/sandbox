@@ -169,6 +169,7 @@ export const fork = cmd.command({
         sandbox,
         scope,
         action: `forked from ${chalk.cyan(source)}`,
+        connectHint: !connect,
       });
     }
 

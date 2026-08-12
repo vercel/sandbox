@@ -30,8 +30,15 @@ export async function formatApiError(
     message,
     `├▶ requested url: ${error.response.url}`,
     `├▶ status code: ${status} ${error.response.statusText}`,
-    `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
   ];
+  if (status === 404 && /\/sandboxes\//.test(error.response.url)) {
+    lines.push(
+      `├▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls")} to see the sandboxes in this project.`,
+    );
+  }
+  lines.push(
+    `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
+  );
   return new StyledError(lines.join("\n"), error);
 }
 

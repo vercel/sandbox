@@ -76,6 +76,24 @@ describe("formatApiError", () => {
     expect(styled.message).toContain("the request was invalid (400)");
     expect(styled.cause).toBe(apiError);
   });
+
+  it("suggests `sandbox ls` when a sandbox lookup 404s", async () => {
+    const apiError = makeApiError(404);
+    Object.defineProperty(apiError.response, "url", {
+      value: "https://vercel.com/api/v2/sandboxes/doesnotexist?teamId=t",
+    });
+    const styled = await formatApiError(apiError);
+    expect(styled.message).toContain("sandbox ls");
+  });
+
+  it("does not suggest `sandbox ls` for non-sandbox 404s", async () => {
+    const apiError = makeApiError(404);
+    Object.defineProperty(apiError.response, "url", {
+      value: "https://vercel.com/api/v2/snapshots/nope",
+    });
+    const styled = await formatApiError(apiError);
+    expect(styled.message).not.toContain("sandbox ls");
+  });
 });
 
 describe("formatApiTimeoutError / formatStreamError", () => {
