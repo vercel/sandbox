@@ -86,6 +86,39 @@ describe("formatApiError", () => {
     expect(styled.message).toContain("sandbox ls");
   });
 
+  it("keeps lookup 404s quiet: no request url or buffer path by default", async () => {
+    const apiError = makeApiError(404);
+    Object.defineProperty(apiError.response, "url", {
+      value: "https://vercel.com/api/v2/sandboxes/doesnotexist?teamId=t",
+    });
+    const styled = await formatApiError(apiError);
+    expect(styled.message).not.toContain("requested url");
+    expect(styled.message).not.toContain("response buffer");
+    expect(styled.message).toContain("status code: 404");
+    // The hint is the closing line of the quiet form.
+    expect(styled.message.trimEnd().split("\n").at(-1)).toContain(
+      "sandbox ls",
+    );
+  });
+
+  it("restores request detail on lookup 404s when DEBUG=sandbox:errors", async () => {
+    const createDebugger = (await import("debug")).default;
+    const previous = createDebugger.disable();
+    createDebugger.enable("sandbox:errors");
+    try {
+      const apiError = makeApiError(404);
+      Object.defineProperty(apiError.response, "url", {
+        value: "https://vercel.com/api/v2/sandboxes/doesnotexist?teamId=t",
+      });
+      const styled = await formatApiError(apiError);
+      expect(styled.message).toContain("requested url");
+      expect(styled.message).toContain("response buffer");
+      expect(styled.message).toContain("sandbox ls");
+    } finally {
+      createDebugger.enable(previous);
+    }
+  });
+
   it("does not suggest `sandbox ls` for non-sandbox 404s", async () => {
     const apiError = makeApiError(404);
     Object.defineProperty(apiError.response, "url", {
