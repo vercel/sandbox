@@ -32,7 +32,8 @@ export function steerShCommand(args: string[]): void {
     [
       "`sh` starts a plain shell and doesn't take a command.",
       `${chalk.bold("hint:")} to run ${chalk.cyan(example)} interactively in a new sandbox:`,
-      `╰▶ sandbox run --rm -i ${example}`,
+      `├▶ sandbox run -i ${example}`,
+      `╰▶ the sandbox persists after the command exits. Add ${chalk.cyan("--rm")} to remove it automatically.`,
     ].join("\n"),
   );
 }

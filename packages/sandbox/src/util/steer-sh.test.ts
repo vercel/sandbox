@@ -11,7 +11,11 @@ describe("steerShCommand", () => {
       expect((err as Error).message).toContain(
         "doesn't take a command",
       );
-      expect((err as Error).message).toContain("sandbox run --rm -i claude");
+      expect((err as Error).message).toContain("sandbox run -i claude");
+      // Removal stays the user's choice: the steer teaches the persistence
+      // default and offers --rm instead of baking it into the command.
+      expect((err as Error).message).toContain("persists after the command exits");
+      expect((err as Error).message).toContain("--rm");
     }
   });
 
@@ -20,7 +24,7 @@ describe("steerShCommand", () => {
       steerShCommand(["sh", "python3", "main.py"]);
     } catch (err) {
       expect((err as Error).message).toContain(
-        "sandbox run --rm -i python3 main.py",
+        "sandbox run -i python3 main.py",
       );
     }
   });
