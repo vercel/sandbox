@@ -16,6 +16,7 @@ import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
+import { startLatestVersionCheck } from "../util/check-latest-version";
 
 export const args = {
   name: cmd.option({
@@ -115,6 +116,10 @@ export const create = cmd.command({
       throw new Error("--runtime and --image cannot be used together.");
     }
 
+    // Look up the latest published CLI version while the creation request is
+    // in flight, so stale installs learn they're behind at no latency cost.
+    const versionCheck = silent ? undefined : startLatestVersionCheck();
+
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
@@ -194,6 +199,7 @@ export const create = cmd.command({
         action: "created",
         connectHint: !connect && __printConnectHint,
       });
+      versionCheck?.report();
     }
 
     if (connect) {
