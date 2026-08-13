@@ -12,10 +12,9 @@ describe("steerShCommand", () => {
         "doesn't take a command",
       );
       expect((err as Error).message).toContain("sandbox run -i claude");
-      // Removal stays the user's choice: the steer teaches the persistence
-      // default and offers --rm instead of baking it into the command.
-      expect((err as Error).message).toContain("persists after the command exits");
-      expect((err as Error).message).toContain("--rm");
+      // Kept deliberately terse: no --rm and no persistence lesson in the
+      // steer; cleanup guidance lives in run's own help.
+      expect((err as Error).message).not.toContain("--rm");
     }
   });
 
