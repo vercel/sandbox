@@ -11,7 +11,7 @@ Commands:
 
     ls | list                                  List all sandboxes for the specified account and project.
     create                                     Create a sandbox in the specified account and project.
-    sh             [...command]                Create a sandbox and start an interactive shell
+    sh                                         Create a sandbox and start an interactive shell
     fork           <source>                    Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
@@ -224,10 +224,6 @@ Auth & Scope:
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
-
-Arguments:
-
-    [...command]  a string
 ```
 
 ## `sandbox fork`
