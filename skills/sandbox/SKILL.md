@@ -965,8 +965,8 @@ sandbox create --connect
 sandbox create --name my-app
 sandbox create --image my-repo:v1            # Boot from a VCR image
 sandbox create --non-persistent              # Disable filesystem persistence
-sandbox create --snapshot-expiration 7d      # Default snapshot TTL (7d when omitted)
-sandbox create --keep-last-snapshots 1       # Retention policy (persistent default: 1)
+sandbox create --snapshot-expiration 30d      # Default snapshot TTL (7d when omitted)
+sandbox create --keep-last-snapshots 3       # Retention policy (persistent default: 1)
 sandbox create --keep-last-snapshots 0       # Keep every snapshot until it expires
 sandbox create --tag env=staging             # Repeatable
 
