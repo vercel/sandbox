@@ -83,7 +83,7 @@ describe("formatApiError", () => {
       value: "https://vercel.com/api/v2/sandboxes/doesnotexist?teamId=t",
     });
     const styled = await formatApiError(apiError);
-    expect(styled.message).toContain("sandbox ls");
+    expect(styled.message).toContain("sandbox ls --all");
   });
 
   it("keeps lookup 404s quiet: no request url or buffer path by default", async () => {
@@ -113,7 +113,7 @@ describe("formatApiError", () => {
       const styled = await formatApiError(apiError);
       expect(styled.message).toContain("requested url");
       expect(styled.message).toContain("response buffer");
-      expect(styled.message).toContain("sandbox ls");
+      expect(styled.message).toContain("sandbox ls --all");
     } finally {
       createDebugger.enable(previous);
     }

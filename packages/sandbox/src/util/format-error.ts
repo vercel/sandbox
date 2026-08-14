@@ -38,7 +38,7 @@ export async function formatApiError(
       [
         message,
         `├▶ status code: ${status} ${error.response.statusText}`,
-        `╰▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls")} to see the sandboxes in this project.`,
+        `╰▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls --all")} to see the sandboxes in this project.`,
       ].join("\n"),
       error,
     );
@@ -52,7 +52,7 @@ export async function formatApiError(
   ];
   if (isLookupMiss) {
     lines.push(
-      `├▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls")} to see the sandboxes in this project.`,
+      `├▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls --all")} to see the sandboxes in this project.`,
     );
   }
   lines.push(
