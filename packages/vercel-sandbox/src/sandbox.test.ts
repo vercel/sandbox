@@ -704,7 +704,7 @@ describe("Sandbox.create environment selection", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toContain("/v3/sandboxes");
+    expect(String(url)).toContain("/v4/sandboxes");
     expect(init?.method).toBe("POST");
     const body = JSON.parse(String(init?.body));
     expect(body.image).toBe("my-repo:latest");

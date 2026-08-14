@@ -95,6 +95,20 @@ describe("Sandbox.fork", () => {
     }
   });
 
+  test("falls back to the 7 day snapshot expiration when neither side sets one", async () => {
+    const name = uniq();
+    const source = await Sandbox.create({ name, persistent: true });
+
+    let fork: Sandbox | undefined;
+    try {
+      fork = await Sandbox.fork({ sourceSandbox: name });
+      expect(fork.snapshotExpiration).toBe(7 * DAY);
+      expect(fork.keepLastSnapshots).toEqual({ count: 1, deleteEvicted: true });
+    } finally {
+      await Promise.allSettled([fork?.delete(), source.delete()]);
+    }
+  });
+
   test("rejects when the source sandbox does not exist", async () => {
     await expect(
       Sandbox.fork({ sourceSandbox: `missing-${randomUUID().slice(0, 8)}` }),

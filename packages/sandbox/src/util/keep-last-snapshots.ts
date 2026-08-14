@@ -17,15 +17,16 @@ export interface KeepLastSnapshotsPayload {
 
 /**
  * Validates the `--keep-last-snapshots*` flag combination and builds the
- * payload object that the SDK expects, or returns `undefined` when no
- * retention policy was configured.
+ * payload object that the SDK expects. Returns `undefined` when no retention
+ * policy was configured, and `null` when `--keep-last-snapshots 0` opts out of
+ * the default policy.
  *
  * Throws when `--keep-last-snapshots-for` or `--delete-evicted-snapshots` are
- * passed without `--keep-last-snapshots`.
+ * passed without `--keep-last-snapshots`, or combined with a count of `0`.
  */
 export function buildKeepLastSnapshotsPayload(
   input: KeepLastSnapshotsInput,
-): KeepLastSnapshotsPayload | undefined {
+): KeepLastSnapshotsPayload | null | undefined {
   const { keepLastSnapshots, keepLastSnapshotsFor, deleteEvictedSnapshots } =
     input;
 
@@ -44,6 +45,21 @@ export function buildKeepLastSnapshotsPayload(
 
   if (keepLastSnapshots === undefined) {
     return undefined;
+  }
+
+  if (keepLastSnapshots === 0) {
+    if (
+      keepLastSnapshotsFor !== undefined ||
+      deleteEvictedSnapshots !== undefined
+    ) {
+      throw new Error(
+        [
+          "--keep-last-snapshots-for and --delete-evicted-snapshots cannot be combined with --keep-last-snapshots 0.",
+          `${chalk.bold("hint:")} A count of 0 disables the retention policy, so there is nothing to configure.`,
+        ].join("\n"),
+      );
+    }
+    return null;
   }
 
   return {

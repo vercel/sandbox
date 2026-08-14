@@ -20,7 +20,8 @@ export const args = {
   expiration: cmd.option({
     long: "expiration",
     type: cmd.optional(Duration),
-    description: "The expiration time of the snapshot. Use 0 for no expiration.",
+    description:
+      "The expiration time of the snapshot. Defaults to the sandbox's snapshot expiration, or 7d. Use 0 for no expiration.",
   }),
   sandbox: cmd.positional({
     type: sandboxName as cmd.Type<string, string | Sandbox>,
