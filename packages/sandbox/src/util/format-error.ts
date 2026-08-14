@@ -22,16 +22,42 @@ const ApiErrorResponse = z.object({
 export async function formatApiError(
   error: APIError<unknown>,
 ): Promise<StyledError> {
-  const tmpPath = await writeResponseToTemp(error);
   const status = error.response.status;
   const parsedError = ApiErrorResponse.safeParse(error.json);
   const message = parsedError.data?.error.message ?? getErrorMessage(status);
+
+  // A 404 on a sandbox lookup is almost always a mistyped or removed name: a
+  // user mistake with a clear next step, not a system failure. Keep that
+  // output quiet and actionable; DEBUG=sandbox:errors restores the request
+  // detail and the response buffer.
+  const isLookupMiss =
+    status === 404 && /\/sandboxes\//.test(error.response.url);
+  if (isLookupMiss && !debug.enabled) {
+    debug(`requested url: ${error.response.url}`);
+    return new StyledError(
+      [
+        message,
+        `├▶ status code: ${status} ${error.response.statusText}`,
+        `╰▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls --all")} to see the sandboxes in this project.`,
+      ].join("\n"),
+      error,
+    );
+  }
+
+  const tmpPath = await writeResponseToTemp(error);
   const lines = [
     message,
     `├▶ requested url: ${error.response.url}`,
     `├▶ status code: ${status} ${error.response.statusText}`,
-    `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
   ];
+  if (isLookupMiss) {
+    lines.push(
+      `├▶ ${chalk.bold("hint:")} run ${chalk.cyan("sandbox ls --all")} to see the sandboxes in this project.`,
+    );
+  }
+  lines.push(
+    `╰▶ ${chalk.bold("hint:")} the full response buffer is stored in ${chalk.italic(tmpPath)}`,
+  );
   return new StyledError(lines.join("\n"), error);
 }
 
