@@ -4,4 +4,7 @@
 "sandbox": major
 ---
 
-**Breaking:** adopt the new snapshot defaults. Snapshots now expire after 7 days by default instead of 30, and persistent sandboxes get a `{ count: 1, deleteEvicted: true }` retention policy unless one is given: only the most recent snapshot is kept, and taking a new one deletes the previous snapshot immediately instead of leaving it around until it expires. Pass `keepLastSnapshots: null` (CLI: `--keep-last-snapshots 0`) to keep every snapshot until it expires.
+**\[Breaking\]** Reduced default snapshots retention:
+
+- Snapshots now expire after 7 days by default instead of 30 days previously. You can keep using expiration to set a custom snapshot expiration window in milliseconds, or set it to 0 to disable expiration.
+- Persistent sandboxes now preserve only the last session's snapshot by default, instead of the snapshot of each session. You can still set a custom retention policy via keepLastSnapshots.
