@@ -28,6 +28,16 @@ describe("steerShCommand", () => {
     }
   });
 
+  it("keeps the command's own flags in the example", () => {
+    try {
+      steerShCommand(["sh", "example-command", "-t", "0"]);
+    } catch (err) {
+      expect((err as Error).message).toContain(
+        "sandbox run -i example-command -t 0",
+      );
+    }
+  });
+
   it("does nothing for a plain `sh`", () => {
     expect(() => steerShCommand(["sh"])).not.toThrow();
   });

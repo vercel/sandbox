@@ -8,26 +8,22 @@ import { StyledError } from "../error";
  * (review feedback on #295), so the steer runs here, before the parser's
  * generic "Unknown arguments" rejection.
  *
- * Only leading non-flag tokens after `sh` are treated as a command attempt:
- * they cannot be option values, so the check can never misread a valid
- * invocation like `sandbox sh --name my-box`. Anything trickier falls through
- * to the parser's normal error.
+ * The check only fires when the FIRST token after `sh` is a non-flag: that
+ * token can never be an option value, so a valid invocation like
+ * `sandbox sh --name my-box` can never be misread. Once it fires, the whole
+ * tail is treated as the intended command (including its own flags), so
+ * `sandbox sh example-command -t 0` suggests `example-command -t 0`, not a
+ * truncated version of it.
  */
 export function steerShCommand(args: string[]): void {
   if (args[0] !== "sh") {
     return;
   }
-  const command: string[] = [];
-  for (const arg of args.slice(1)) {
-    if (arg.startsWith("-")) {
-      break;
-    }
-    command.push(arg);
-  }
-  if (command.length === 0) {
+  const rest = args.slice(1);
+  if (rest.length === 0 || rest[0].startsWith("-")) {
     return;
   }
-  const example = command.join(" ");
+  const example = rest.join(" ");
   throw new StyledError(
     [
       "`sh` starts a plain shell and doesn't take a command.",
