@@ -24,6 +24,24 @@ import {
 
 const DEFAULT_CWD = "/vercel/sandbox";
 const REGION = "iad1";
+const DEFAULT_SNAPSHOT_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_SNAPSHOT_KEEP_LAST = { count: 1, deleteEvicted: true } as const;
+
+/**
+ * Mirrors the server default: persistent sandboxes keep only their latest
+ * snapshot unless the caller opts out with `null`.
+ */
+function resolveKeepLastSnapshots(
+  body: CreateBody,
+  fallback?: SandboxRecord["keepLastSnapshots"],
+): SandboxRecord["keepLastSnapshots"] {
+  if (body.keepLastSnapshots === null) return undefined;
+  if (body.keepLastSnapshots !== undefined) return body.keepLastSnapshots;
+  if (fallback !== undefined) return fallback;
+  return body.persistent !== false
+    ? { ...DEFAULT_SNAPSHOT_KEEP_LAST }
+    : undefined;
+}
 
 function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "")}`;
@@ -45,7 +63,7 @@ interface CreateBody {
     count: number;
     expiration?: number;
     deleteEvicted?: boolean;
-  };
+  } | null;
   source?: { type: "git" | "tarball" | "snapshot"; snapshotId?: string };
 }
 
@@ -151,8 +169,9 @@ export class MockServer {
       ports,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      snapshotExpiration: body.snapshotExpiration,
-      keepLastSnapshots: body.keepLastSnapshots,
+      snapshotExpiration:
+        body.snapshotExpiration ?? DEFAULT_SNAPSHOT_EXPIRATION_MS,
+      keepLastSnapshots: resolveKeepLastSnapshots(body),
       sessionId: "",
       users: createUserState(),
     };
@@ -213,8 +232,14 @@ export class MockServer {
       ports: body.ports ?? source.ports,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      snapshotExpiration: body.snapshotExpiration ?? source.snapshotExpiration,
-      keepLastSnapshots: body.keepLastSnapshots ?? source.keepLastSnapshots,
+      snapshotExpiration:
+        body.snapshotExpiration ??
+        source.snapshotExpiration ??
+        DEFAULT_SNAPSHOT_EXPIRATION_MS,
+      keepLastSnapshots: resolveKeepLastSnapshots(
+        body,
+        source.keepLastSnapshots,
+      ),
       sessionId: "",
       users: createUserState(),
     };
@@ -458,6 +483,10 @@ export class MockServer {
     const body = readJson<{ expiration?: number }>(init);
     const files = await captureFileSystem(session.executor.fs);
     const record = this.#sandboxes.get(session.sandboxName)!;
+    const expiration =
+      body.expiration ??
+      record.snapshotExpiration ??
+      DEFAULT_SNAPSHOT_EXPIRATION_MS;
     const snapshot: SnapshotRecord = {
       id: newId("snap"),
       sandboxName: session.sandboxName,
@@ -471,7 +500,7 @@ export class MockServer {
       ),
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      expiresAt: body.expiration ? Date.now() + body.expiration : undefined,
+      expiresAt: expiration ? Date.now() + expiration : undefined,
       parentId: record.currentSnapshotId,
       files,
     };

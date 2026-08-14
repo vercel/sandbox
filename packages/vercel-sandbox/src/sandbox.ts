@@ -117,13 +117,16 @@ export interface BaseCreateSandboxParams {
   persistent?: boolean;
   /**
    * Default snapshot expiration in milliseconds.
-   * When set, snapshots created for this sandbox will expire after this duration.
-   * Use `0` for no expiration.
+   * Snapshots created for this sandbox expire after this duration.
+   * Defaults to 7 days. Use `0` for no expiration.
    */
   snapshotExpiration?: number;
   /**
    * Retention policy that keeps only the N most recent snapshots of this
    * sandbox. Older snapshots are evicted when a new one is created.
+   *
+   * Persistent sandboxes default to `{ count: 1, deleteEvicted: true }`.
+   * Pass `null` to disable the limit and keep every snapshot until it expires.
    */
   keepLastSnapshots?: {
     /**
@@ -140,7 +143,7 @@ export interface BaseCreateSandboxParams {
      * when `false`, they keep the default expiration.
      */
     deleteEvicted?: boolean;
-  };
+  } | null;
   /**
    * Called when the sandbox session is resumed (e.g., after a snapshot restore).
    * Use this to re-warm caches, restore transient state, or run other setup logic.
@@ -743,7 +746,8 @@ export class Sandbox implements ExecutionContext {
    * base environment when it has none) and copies its config — resources,
    * timeout, ports, tags, network policy, image, persistence, snapshot
    * settings, and environment variables. Any field passed in `params` overrides
-   * the copied value.
+   * the copied value. When neither the fork nor the source sets
+   * `snapshotExpiration`, the fork falls back to the 7 day default.
    *
    * @param params - Fork parameters and optional credentials.
    *   `sourceSandbox` is the name of the source sandbox; everything else
@@ -1660,7 +1664,8 @@ export class Sandbox implements ExecutionContext {
    * Note: this sandbox will be stopped as part of the snapshot creation process.
    *
    * @param opts - Optional parameters.
-   * @param opts.expiration - Optional expiration time in milliseconds. Use 0 for no expiration at all.
+   * @param opts.expiration - Optional expiration time in milliseconds. Defaults to
+   *   the sandbox's `snapshotExpiration`, or 7 days. Use 0 for no expiration at all.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves to the Snapshot instance
    */
