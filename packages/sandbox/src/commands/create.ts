@@ -82,29 +82,35 @@ export const create = cmd.command({
       command: `sandbox run --network-policy=none --connect`,
     },
   ],
-  async handler({
-    name,
-    nonPersistent,
-    ports,
-    scope,
-    runtime,
-    image,
-    timeout,
-    vcpus,
-    silent,
-    snapshot,
-    connect,
-    envVars,
-    tags,
-    snapshotExpiration,
-    keepLastSnapshots,
-    keepLastSnapshotsFor,
-    deleteEvictedSnapshots,
-    networkPolicy: networkPolicyMode,
-    allowedDomains,
-    allowedCIDRs,
-    deniedCIDRs,
-  }) {
+  async handler(input) {
+    const {
+      name,
+      nonPersistent,
+      ports,
+      scope,
+      runtime,
+      image,
+      timeout,
+      vcpus,
+      silent,
+      snapshot,
+      connect,
+      envVars,
+      tags,
+      snapshotExpiration,
+      keepLastSnapshots,
+      keepLastSnapshotsFor,
+      deleteEvictedSnapshots,
+      networkPolicy: networkPolicyMode,
+      allowedDomains,
+      allowedCIDRs,
+      deniedCIDRs,
+    } = input;
+    // Internal flag for composing commands (e.g. `run`) that create a sandbox
+    // as a step rather than as the outcome, where a connect hint would mislead.
+    const { __printConnectHint = true } = input as {
+      __printConnectHint?: boolean;
+    };
     if (runtime !== undefined && image !== undefined) {
       throw new Error("--runtime and --image cannot be used together.");
     }
@@ -182,7 +188,12 @@ export const create = cmd.command({
     }
 
     if (!silent) {
-      printSandboxSummary({ sandbox, scope, action: "created" });
+      printSandboxSummary({
+        sandbox,
+        scope,
+        action: "created",
+        connectHint: !connect && __printConnectHint,
+      });
     }
 
     if (connect) {

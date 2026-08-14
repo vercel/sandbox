@@ -22,8 +22,10 @@ export function printSandboxSummary(opts: {
   sandbox: Sandbox;
   scope: Scope;
   action: string;
+  /** Append a "connect with" hint so the output never ends at a dead end. */
+  connectHint?: boolean;
 }) {
-  const { sandbox, scope, action } = opts;
+  const { sandbox, scope, action, connectHint } = opts;
   const teamDisplay = scope.teamSlug ?? scope.team;
   const projectDisplay = scope.projectSlug ?? scope.project;
   const routes = sandbox.routes.filter(
@@ -38,6 +40,9 @@ export function printSandboxSummary(opts: {
     chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",
   );
 
+  // With a connect hint, the hint becomes the closing "╰" line.
+  const close = (last: boolean) => chalk.dim(last && !connectHint ? "   ╰ " : "   │ ");
+
   if (hasPorts) {
     process.stderr.write(
       chalk.dim("   │ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
@@ -46,14 +51,22 @@ export function printSandboxSummary(opts: {
     for (let i = 0; i < routes.length; i++) {
       const route = routes[i];
       const isLast = i === routes.length - 1;
-      const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
       process.stderr.write(
-        prefix + "• " + route.port + " -> " + chalk.cyan(route.url) + "\n",
+        close(isLast) + "• " + route.port + " -> " + chalk.cyan(route.url) + "\n",
       );
     }
   } else {
     process.stderr.write(
-      chalk.dim("   ╰ ") + "project: " + chalk.cyan(projectDisplay) + "\n",
+      close(true) + "project: " + chalk.cyan(projectDisplay) + "\n",
+    );
+  }
+
+  if (connectHint) {
+    process.stderr.write(
+      chalk.dim("   ╰ ") +
+        "connect with: " +
+        chalk.cyan(`sandbox ssh ${sandbox.name}`) +
+        "\n",
     );
   }
 }
