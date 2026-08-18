@@ -72,7 +72,9 @@ const list = cmd.command({
                 : timeAgo(s.expiresAt),
           },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
-          REGIONS: { value: (s) => s.regions?.join(", ") ?? s.region },
+          REGIONS: {
+            value: (s) => (s.regions?.length ? s.regions.join(", ") : s.region),
+          },
           ["SOURCE SESSION"]: { value: (s) => s.sourceSessionId },
         },
       }),

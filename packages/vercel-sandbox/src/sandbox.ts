@@ -410,6 +410,13 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * The additional regions this sandbox can fail over to.
+   */
+  public get failoverRegions(): string[] | undefined {
+    return this.sandbox.failoverRegions;
+  }
+
+  /**
    * Number of virtual CPUs allocated.
    */
   public get vcpus(): number | undefined {

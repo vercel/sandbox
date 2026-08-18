@@ -23,7 +23,18 @@ describe("Sandbox (real SDK over mock fetch)", () => {
       failoverRegions: ["iad1"],
     });
     expect(withRegion.region).toBe("sfo1");
+    expect(withRegion.failoverRegions).toEqual(["iad1"]);
     await withRegion.delete();
+  });
+
+  test("create rejects failover regions that include the sandbox region", async () => {
+    await expect(
+      Sandbox.create({
+        name: uniq(),
+        region: "sfo1",
+        failoverRegions: ["sfo1"],
+      }),
+    ).rejects.toMatchObject({ response: { status: 400 } });
   });
 
   test("get on an unknown name throws a 404 APIError", async () => {

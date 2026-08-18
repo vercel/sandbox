@@ -29,6 +29,24 @@ function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "")}`;
 }
 
+/**
+ * Mirrors the server validation: failover regions cannot include the region
+ * the sandbox already runs in.
+ */
+function validateFailoverRegions(
+  region: string,
+  failoverRegions?: string[],
+): Response | undefined {
+  if (failoverRegions?.includes(region)) {
+    return apiError(
+      400,
+      "bad_request",
+      `failoverRegions must not include the sandbox region: ${region}`,
+    );
+  }
+  return undefined;
+}
+
 interface CreateBody {
   name?: string;
   ports?: number[];
@@ -138,10 +156,14 @@ export class MockServer {
     const name = body.name ?? `sandbox-${randomUUID()}`;
     const ports = body.ports ?? [];
 
+    const region = body.region ?? REGION;
+    const failoverError = validateFailoverRegions(region, body.failoverRegions);
+    if (failoverError) return failoverError;
+
     const record: SandboxRecord = {
       name,
       persistent: body.persistent ?? false,
-      region: body.region ?? REGION,
+      region,
       failoverRegions: body.failoverRegions,
       vcpus: body.resources?.vcpus ?? 2,
       memory: 2048,
@@ -200,12 +222,21 @@ export class MockServer {
     const body = readJson<CreateBody>(init);
     const name = body.name ?? `sandbox-${randomUUID()}`;
 
+    const region = body.region ?? source.region;
+    // Inherited failover regions only apply when the region is not overridden:
+    // otherwise they could end up including the fork's own region.
+    const failoverRegions =
+      body.failoverRegions ??
+      (body.region === undefined ? source.failoverRegions : undefined);
+    const failoverError = validateFailoverRegions(region, failoverRegions);
+    if (failoverError) return failoverError;
+
     // Copy the source's config; any body field overrides the copied value.
     const record: SandboxRecord = {
       name,
       persistent: body.persistent ?? source.persistent,
-      region: body.region ?? source.region,
-      failoverRegions: body.failoverRegions ?? source.failoverRegions,
+      region,
+      failoverRegions,
       vcpus: body.resources?.vcpus ?? source.vcpus,
       memory: source.memory,
       runtime: body.image === undefined ? source.runtime : undefined,

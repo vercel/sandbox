@@ -3,10 +3,11 @@ import * as cmd from "cmd-ts";
 export const regionType = cmd.extendType(cmd.string, {
   displayName: "REGION",
   async from(value) {
-    if (value.trim() === "") {
+    const region = value.trim();
+    if (region === "") {
       throw new Error("Region cannot be empty.");
     }
-    return value;
+    return region;
   },
 });
 
