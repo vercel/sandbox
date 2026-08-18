@@ -634,8 +634,14 @@ await sandbox.update({
   snapshotExpiration: ms("14d"),
   keepLastSnapshots: { count: 1 },
   currentSnapshotId: "snap_xyz", // Rollback to a previous snapshot
+  region: "sfo1", // Applies to the next session
+  failoverRegions: ["cle1"], // Replaces the list; pass [] to remove them
 });
 ```
+
+`region` and `failoverRegions` can be updated independently, but the resulting
+combination is validated: `failoverRegions` must not include the sandbox
+region, whichever side of the pair you change.
 
 ## Deleting a Sandbox
 
@@ -1027,6 +1033,8 @@ sandbox config list <name>
 sandbox config vcpus <name> <count>
 sandbox config timeout <name> <duration>
 sandbox config persistent <name> <true|false>
+sandbox config region <name> <region>
+sandbox config failover-regions <name> <region,...|none>
 sandbox config snapshot-expiration <name> <duration|none>
 sandbox config keep-last-snapshots <name> <count>
 sandbox config keep-last-snapshots-for <name> <duration|none>

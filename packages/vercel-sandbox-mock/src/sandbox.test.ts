@@ -49,6 +49,49 @@ describe("Sandbox (real SDK over mock fetch)", () => {
     await sandbox.delete();
   });
 
+  test("update changes the region and the failover regions", async () => {
+    const sandbox = await Sandbox.create({
+      name: uniq(),
+      region: "iad1",
+      failoverRegions: ["sfo1"],
+    });
+
+    await sandbox.update({ region: "cle1" });
+    expect(sandbox.region).toBe("cle1");
+    expect(sandbox.failoverRegions).toEqual(["sfo1"]);
+
+    await sandbox.update({ failoverRegions: ["iad1", "sfo1"] });
+    expect(sandbox.failoverRegions).toEqual(["iad1", "sfo1"]);
+
+    // Both sides at once, and the values survive a re-read.
+    await sandbox.update({ region: "sfo1", failoverRegions: ["iad1"] });
+    const reread = await Sandbox.get({ name: sandbox.name });
+    expect(reread.region).toBe("sfo1");
+    expect(reread.failoverRegions).toEqual(["iad1"]);
+
+    await sandbox.update({ failoverRegions: [] });
+    expect(sandbox.failoverRegions).toEqual([]);
+
+    await sandbox.delete();
+  });
+
+  test("update rejects failover regions that include the sandbox region", async () => {
+    const sandbox = await Sandbox.create({ name: uniq(), region: "sfo1" });
+
+    await expect(
+      sandbox.update({ failoverRegions: ["sfo1"] }),
+    ).rejects.toMatchObject({ response: { status: 400 } });
+
+    // The same collision reached by moving the region instead.
+    await sandbox.update({ failoverRegions: ["cle1"] });
+    await expect(sandbox.update({ region: "cle1" })).rejects.toMatchObject({
+      response: { status: 400 },
+    });
+    expect(sandbox.region).toBe("sfo1");
+
+    await sandbox.delete();
+  });
+
   test("get on an unknown name throws a 404 APIError", async () => {
     await expect(Sandbox.get({ name: "does-not-exist" })).rejects.toMatchObject({
       response: { status: 404 },

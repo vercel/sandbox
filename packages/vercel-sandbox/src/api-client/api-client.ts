@@ -952,6 +952,8 @@ export class APIClient extends BaseClient {
       deleteEvicted?: boolean;
     } | null;
     currentSnapshotId?: string;
+    region?: string;
+    failoverRegions?: string[];
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -973,6 +975,8 @@ export class APIClient extends BaseClient {
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
           currentSnapshotId: params.currentSnapshotId,
+          region: params.region,
+          failoverRegions: params.failoverRegions,
         }),
         signal: params.signal,
       }),

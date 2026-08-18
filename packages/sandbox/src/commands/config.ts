@@ -10,6 +10,7 @@ import {
 } from "../args/network-policy";
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
+import { regionListType, regionType } from "../args/region";
 import { Duration } from "../types/duration";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -510,6 +511,94 @@ const portsCommand = cmd.command({
   },
 });
 
+const regionCommand = cmd.command({
+  name: "region",
+  description: "Update the region of a sandbox (will be applied to all new sessions)",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    region: cmd.positional({
+      type: regionType,
+      description: "Region to run the sandbox in",
+    }),
+    scope,
+  },
+  async handler({ scope: { token, team, project }, sandbox: name, region }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ region });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "region: " + chalk.cyan(region) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
+const failoverRegionsListType = cmd.extendType(cmd.string, {
+  displayName: "REGION,...|none",
+  async from(value) {
+    return value.trim() === "none" ? [] : regionListType.from(value);
+  },
+});
+
+const failoverRegionsCommand = cmd.command({
+  name: "failover-regions",
+  description: "Update the failover regions of a sandbox (replaces the existing list)",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    failoverRegions: cmd.positional({
+      type: failoverRegionsListType,
+      description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,cle1). Must not include the sandbox region. Pass "none" to remove them.',
+    }),
+    scope,
+  },
+  async handler({ scope: { token, team, project }, sandbox: name, failoverRegions }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ failoverRegions });
+      spinner.stop();
+
+      const display = failoverRegions.length === 0 ? "cleared" : failoverRegions.join(", ");
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "failover-regions: " + chalk.cyan(display) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
 const listCommand = cmd.command({
   name: "list",
   description: "Display the current configuration of a sandbox",
@@ -539,6 +628,11 @@ const listCommand = cmd.command({
       ? Object.entries(sandbox.tags).map(([k, v]) => `${k}=${v}`).join(", ")
       : "-";
     const rows = [
+      { field: "Region", value: sandbox.region ?? "iad1" },
+      {
+        field: "Failover regions",
+        value: sandbox.failoverRegions?.length ? sandbox.failoverRegions.join(", ") : "-",
+      },
       { field: "vCPUs", value: String(sandbox.vcpus ?? "-") },
       { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
       { field: "Persistent", value: String(sandbox.persistent) },
@@ -733,6 +827,8 @@ export const config = cmd.subcommands({
     vcpus: vcpusCommand,
     timeout: timeoutCommand,
     persistent: persistentCommand,
+    region: regionCommand,
+    "failover-regions": failoverRegionsCommand,
     "network-policy": networkPolicyCommand,
     "snapshot-expiration": snapshotExpirationCommand,
     "keep-last-snapshots": keepLastSnapshotsCommand,

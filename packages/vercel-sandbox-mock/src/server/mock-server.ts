@@ -347,6 +347,20 @@ export class MockServer {
     const body = readJson<CreateBody & { currentSnapshotId?: string }>(init);
     const session = this.#sessions.get(record.sessionId)!;
 
+    // Each side can be updated on its own, so the resulting combination is
+    // validated whenever either changes. Both values are ones the caller either
+    // sent or can read off the sandbox, so the combination is rejected.
+    if (body.region !== undefined || body.failoverRegions !== undefined) {
+      const failoverError = validateFailoverRegions(
+        body.region ?? record.region,
+        body.failoverRegions ?? record.failoverRegions,
+      );
+      if (failoverError) return failoverError;
+    }
+    if (body.region !== undefined) record.region = body.region;
+    if (body.failoverRegions !== undefined)
+      record.failoverRegions = body.failoverRegions;
+
     if (body.persistent !== undefined) record.persistent = body.persistent;
     if (body.resources?.vcpus !== undefined) {
       record.vcpus = body.resources.vcpus;

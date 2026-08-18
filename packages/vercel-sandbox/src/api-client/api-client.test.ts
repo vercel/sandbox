@@ -1127,6 +1127,45 @@ describe("APIClient", () => {
       ).toBe(true);
       expect(body.keepLastSnapshots).toBeNull();
     });
+
+    it("forwards region and failoverRegions in the request body", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        region: "sfo1",
+        failoverRegions: ["iad1"],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.region).toBe("sfo1");
+      expect(body.failoverRegions).toEqual(["iad1"]);
+    });
+
+    it("sends an empty failoverRegions array to clear them", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        failoverRegions: [],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.failoverRegions).toEqual([]);
+      expect(body).not.toHaveProperty("region");
+    });
   });
 
   describe("deleteSandbox", () => {

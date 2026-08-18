@@ -1702,6 +1702,10 @@ export class Sandbox implements ExecutionContext {
    * When `timeout` is increased and a session is currently running, the running
    * session's deadline is also extended.
    *
+   * `region` and `failoverRegions` apply to the next session; the currently
+   * running session keeps the region it started in. Pass an empty
+   * `failoverRegions` array to remove all failover regions.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1720,6 +1724,8 @@ export class Sandbox implements ExecutionContext {
         deleteEvicted?: boolean;
       } | null;
       currentSnapshotId?: string;
+      region?: string;
+      failoverRegions?: string[];
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -1746,6 +1752,8 @@ export class Sandbox implements ExecutionContext {
       snapshotExpiration: params.snapshotExpiration,
       keepLastSnapshots: params.keepLastSnapshots,
       currentSnapshotId: params.currentSnapshotId,
+      region: params.region,
+      failoverRegions: params.failoverRegions,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;
