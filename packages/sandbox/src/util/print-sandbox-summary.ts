@@ -39,6 +39,9 @@ export function printSandboxSummary(opts: {
   process.stderr.write(
     chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",
   );
+  process.stderr.write(
+    chalk.dim("   │ ") + "region: " + chalk.cyan(sandbox.region ?? "iad1") + "\n",
+  );
 
   // With a connect hint, the hint becomes the closing "╰" line.
   const close = (last: boolean) => chalk.dim(last && !connectHint ? "   ╰ " : "   │ ");

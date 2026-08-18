@@ -46,6 +46,8 @@ interface CreateBody {
     expiration?: number;
     deleteEvicted?: boolean;
   };
+  region?: string;
+  failoverRegions?: string[];
   source?: { type: "git" | "tarball" | "snapshot"; snapshotId?: string };
 }
 
@@ -139,7 +141,8 @@ export class MockServer {
     const record: SandboxRecord = {
       name,
       persistent: body.persistent ?? false,
-      region: REGION,
+      region: body.region ?? REGION,
+      failoverRegions: body.failoverRegions,
       vcpus: body.resources?.vcpus ?? 2,
       memory: 2048,
       runtime: body.runtime,
@@ -201,7 +204,8 @@ export class MockServer {
     const record: SandboxRecord = {
       name,
       persistent: body.persistent ?? source.persistent,
-      region: source.region,
+      region: body.region ?? source.region,
+      failoverRegions: body.failoverRegions ?? source.failoverRegions,
       vcpus: body.resources?.vcpus ?? source.vcpus,
       memory: source.memory,
       runtime: body.image === undefined ? source.runtime : undefined,
@@ -463,6 +467,7 @@ export class MockServer {
       sandboxName: session.sandboxName,
       sourceSessionId: session.id,
       region: session.region,
+      regions: [session.region],
       runtime: record.runtime,
       status: "created",
       sizeBytes: files.reduce(

@@ -131,6 +131,7 @@ export const list = cmd.command({
       CREATED: {
         value: (s) => timeAgo(s.createdAt),
       },
+      REGION: { value: (s) => s.region ?? "iad1" },
       MEMORY: {
         value: (s) =>
           s.memory != null ? memoryFormatter.format(s.memory) : "-",

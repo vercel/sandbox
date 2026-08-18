@@ -17,6 +17,7 @@ import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
 import { startLatestVersionCheck } from "../util/check-latest-version";
+import { region, failoverRegions } from "../args/region";
 
 export const args = {
   name: cmd.option({
@@ -68,6 +69,8 @@ export const args = {
     description:
       "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
   }),
+  region,
+  failoverRegions,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -98,6 +101,8 @@ export const create = cmd.command({
       connect,
       envVars,
       tags,
+      region,
+      failoverRegions,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
@@ -150,6 +155,8 @@ export const create = cmd.command({
           networkPolicy,
           env: envVars,
           tags: tagsObj,
+          region,
+          ...(failoverRegions.length > 0 && { failoverRegions }),
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)
@@ -173,6 +180,8 @@ export const create = cmd.command({
           networkPolicy,
           env: envVars,
           tags: tagsObj,
+          region,
+          ...(failoverRegions.length > 0 && { failoverRegions }),
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)

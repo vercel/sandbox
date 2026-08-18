@@ -65,6 +65,7 @@ export interface SandboxRecord {
   name: string;
   persistent: boolean;
   region: string;
+  failoverRegions?: string[];
   vcpus: number;
   memory: number;
   runtime?: string;
@@ -94,6 +95,7 @@ export interface SnapshotRecord {
   sandboxName: string;
   sourceSessionId: string;
   region: string;
+  regions?: string[];
   runtime?: string;
   status: "created" | "deleted" | "failed";
   sizeBytes: number;

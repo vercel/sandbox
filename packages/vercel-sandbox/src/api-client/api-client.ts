@@ -183,6 +183,8 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      region?: string;
+      failoverRegions?: string[];
       signal?: AbortSignal;
     }>,
   ) {
@@ -210,6 +212,8 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
+          region: params.region,
+          failoverRegions: params.failoverRegions,
           ...privateParams,
         }),
         signal: params.signal,
@@ -236,6 +240,8 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      region?: string;
+      failoverRegions?: string[];
       signal?: AbortSignal;
     }>,
   ) {
@@ -261,6 +267,8 @@ export class APIClient extends BaseClient {
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
             keepLastSnapshots: params.keepLastSnapshots,
+            region: params.region,
+            failoverRegions: params.failoverRegions,
             ...privateParams,
           }),
           signal: params.signal,

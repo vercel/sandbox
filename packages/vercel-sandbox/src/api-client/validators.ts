@@ -149,6 +149,7 @@ export const Snapshot = z.object({
   id: z.string(),
   sourceSessionId: z.string(),
   region: z.string(),
+  regions: z.array(z.string()).optional(),
   status: z.enum(["created", "deleted", "failed"]),
   sizeBytes: z.number(),
   expiresAt: z.number().optional(),

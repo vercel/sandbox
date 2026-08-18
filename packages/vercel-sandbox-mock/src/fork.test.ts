@@ -50,6 +50,27 @@ describe("Sandbox.fork", () => {
     }
   });
 
+  test("inherits the source region and honors an explicit override", async () => {
+    const name = uniq();
+    const source = await Sandbox.create({ name, region: "sfo1" });
+
+    let inherited: Sandbox | undefined;
+    let overridden: Sandbox | undefined;
+    try {
+      inherited = await Sandbox.fork({ sourceSandbox: name });
+      expect(inherited.region).toBe("sfo1");
+
+      overridden = await Sandbox.fork({ sourceSandbox: name, region: "iad1" });
+      expect(overridden.region).toBe("iad1");
+    } finally {
+      await Promise.allSettled([
+        inherited?.delete(),
+        overridden?.delete(),
+        source.delete(),
+      ]);
+    }
+  });
+
   test("applies overrides on top of the copied source config", async () => {
     const name = uniq();
     const source = await Sandbox.create({

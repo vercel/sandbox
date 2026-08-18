@@ -88,6 +88,8 @@ const sandbox = await Sandbox.create({
   tags: { env: "staging", team: "infra" }, // Up to 5 key:value tags
   persistent: true, // Default: true. Auto-snapshots on stop, restores on resume.
   snapshotExpiration: ms("7d"), // Default TTL for snapshots. Use 0 for no expiration.
+  region: "<region>", // Optional, defaults to iad1. See the Vercel docs for available regions.
+  failoverRegions: ["<region>"], // Optional. Must not include `region`.
 });
 
 console.log(sandbox.name);
@@ -241,7 +243,9 @@ and copies its config (`resources`, `timeout`, `networkPolicy`, `tags`,
 and `env`). Any field you pass overrides the inherited value. If the source
 has no current snapshot, the fork falls back to the source's base environment
 plus the copied config. You can only fork a sandbox in a project you have
-access to; forking an unknown source returns a 404.
+access to; forking an unknown source returns a 404. The fork runs in the
+source's region unless you pass `region` (and optionally `failoverRegions`)
+to override it.
 
 ```typescript
 // Inherit everything from the source (env included)
@@ -744,6 +748,11 @@ console.log(session.status); // "pending" | "running" | "stopping" | "stopped" |
 Snapshots save the entire sandbox filesystem to be reused later, for any
 number of sandboxes.
 
+Snapshots are stored in the sandbox's region; all regions where a snapshot is
+available are listed in `snapshot.regions`. Creating a sandbox from a snapshot
+in a region where the snapshot is not available fails with a
+`snapshot_region_mismatch` error.
+
 ### Create a Snapshot
 
 ```typescript
@@ -924,6 +933,7 @@ const result = await sandbox.runCommand({
 | Base system     | Ubuntu 26.04                                                                    |
 | User context    | `ubuntu` user                                                                   |
 | Writable path   | `/vercel/sandbox`                                                               |
+| Regions         | One primary region per sandbox, plus optional failover regions. Snapshots restore only in regions where they are available. See the Vercel docs for the region list. |
 
 ## System Packages
 
@@ -966,10 +976,13 @@ sandbox create --non-persistent              # Disable filesystem persistence
 sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
+sandbox create --region <region>             # Defaults to iad1; see the Vercel docs for available regions
+sandbox create --failover-region <region>    # Repeatable
 
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
 sandbox fork <source> --name my-fork --vcpus 4 --env FOO=1
+sandbox fork <source> --region <region>      # Override the region copied from the source
 
 # List sandboxes (paginated, filterable)
 sandbox ls

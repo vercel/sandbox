@@ -106,6 +106,16 @@ export interface BaseCreateSandboxParams {
    * @example { env: "staging", team: "infra" }
    */
   tags?: Record<string, string>;
+  /**
+   * The region to create the sandbox in. Defaults to `iad1`.
+   * See the Vercel documentation for the available regions.
+   */
+  region?: string;
+  /**
+   * Additional regions the sandbox can fail over to. Must not include
+   * `region`. Not supported for sandboxes with mounts.
+   */
+  failoverRegions?: string[];
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -720,6 +730,8 @@ export class Sandbox implements ExecutionContext {
       tags: params?.tags,
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
+      region: params?.region,
+      failoverRegions: params?.failoverRegions,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -788,6 +800,8 @@ export class Sandbox implements ExecutionContext {
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
       keepLastSnapshots: params.keepLastSnapshots,
+      region: params.region,
+      failoverRegions: params.failoverRegions,
       persistent: params.persistent,
       signal: params.signal,
       ...privateParams,

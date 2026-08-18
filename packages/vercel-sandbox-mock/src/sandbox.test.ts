@@ -12,6 +12,20 @@ describe("Sandbox (real SDK over mock fetch)", () => {
     await sandbox.stop();
   });
 
+  test("create defaults the region and honors an explicit region", async () => {
+    const withDefault = await Sandbox.create({ name: uniq() });
+    expect(withDefault.region).toBe("iad1");
+    await withDefault.delete();
+
+    const withRegion = await Sandbox.create({
+      name: uniq(),
+      region: "sfo1",
+      failoverRegions: ["iad1"],
+    });
+    expect(withRegion.region).toBe("sfo1");
+    await withRegion.delete();
+  });
+
   test("get on an unknown name throws a 404 APIError", async () => {
     await expect(Sandbox.get({ name: "does-not-exist" })).rejects.toMatchObject({
       response: { status: 404 },
