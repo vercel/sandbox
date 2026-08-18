@@ -27,7 +27,7 @@ describe("Sandbox (real SDK over mock fetch)", () => {
     await withRegion.delete();
   });
 
-  test("create rejects failover regions that include the sandbox region", async () => {
+  test("create rejects failover regions that include the requested region", async () => {
     await expect(
       Sandbox.create({
         name: uniq(),
@@ -35,6 +35,18 @@ describe("Sandbox (real SDK over mock fetch)", () => {
         failoverRegions: ["sfo1"],
       }),
     ).rejects.toMatchObject({ response: { status: 400 } });
+  });
+
+  test("create accepts failover regions that only collide with the default region", async () => {
+    // Nothing the caller can act on, so the overlap is filtered on read
+    // instead of rejected.
+    const sandbox = await Sandbox.create({
+      name: uniq(),
+      failoverRegions: ["iad1", "sfo1"],
+    });
+    expect(sandbox.region).toBe("iad1");
+    expect(sandbox.failoverRegions).toEqual(["sfo1"]);
+    await sandbox.delete();
   });
 
   test("get on an unknown name throws a 404 APIError", async () => {

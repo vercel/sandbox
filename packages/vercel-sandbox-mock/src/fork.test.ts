@@ -65,17 +65,34 @@ describe("Sandbox.fork", () => {
       expect(inherited.region).toBe("sfo1");
       expect(inherited.failoverRegions).toEqual(["iad1"]);
 
-      // Overriding the region drops the inherited failover regions rather than
-      // keeping a list that includes the fork's own region.
-      overridden = await Sandbox.fork({ sourceSandbox: name, region: "iad1" });
-      expect(overridden.region).toBe("iad1");
-      expect(overridden.failoverRegions).toBeUndefined();
+      // The region and the failover set are copied independently, so an
+      // override only replaces its own side.
+      overridden = await Sandbox.fork({ sourceSandbox: name, region: "cle1" });
+      expect(overridden.region).toBe("cle1");
+      expect(overridden.failoverRegions).toEqual(["iad1"]);
     } finally {
       await Promise.allSettled([
         inherited?.delete(),
         overridden?.delete(),
         source.delete(),
       ]);
+    }
+  });
+
+  test("rejects a region override that collides with the inherited failover regions", async () => {
+    const name = uniq();
+    const source = await Sandbox.create({
+      name,
+      region: "sfo1",
+      failoverRegions: ["iad1"],
+    });
+
+    try {
+      await expect(
+        Sandbox.fork({ sourceSandbox: name, region: "iad1" }),
+      ).rejects.toMatchObject({ response: { status: 400 } });
+    } finally {
+      await source.delete();
     }
   });
 

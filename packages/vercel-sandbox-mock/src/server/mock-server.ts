@@ -31,13 +31,18 @@ function newId(prefix: string): string {
 
 /**
  * Mirrors the server validation: failover regions cannot include the region
- * the sandbox already runs in.
+ * the sandbox runs in.
+ *
+ * `region` is the region the collision is checked against, and is only defined
+ * when it is one the caller can act on: a value it sent, or (on fork) one it
+ * can read off the source. An overlap with a default region is filtered on
+ * read instead, see {@link sanitizeFailoverRegions}.
  */
 function validateFailoverRegions(
-  region: string,
+  region: string | undefined,
   failoverRegions?: string[],
 ): Response | undefined {
-  if (failoverRegions?.includes(region)) {
+  if (region !== undefined && failoverRegions?.includes(region)) {
     return apiError(
       400,
       "bad_request",
@@ -156,8 +161,13 @@ export class MockServer {
     const name = body.name ?? `sandbox-${randomUUID()}`;
     const ports = body.ports ?? [];
 
+    // Only the requested region is checked: an overlap with the default region
+    // is not something the caller can act on, so it is filtered on read.
     const region = body.region ?? REGION;
-    const failoverError = validateFailoverRegions(region, body.failoverRegions);
+    const failoverError = validateFailoverRegions(
+      body.region,
+      body.failoverRegions,
+    );
     if (failoverError) return failoverError;
 
     const record: SandboxRecord = {
@@ -222,12 +232,11 @@ export class MockServer {
     const body = readJson<CreateBody>(init);
     const name = body.name ?? `sandbox-${randomUUID()}`;
 
+    // Each side is copied independently, so the fork can end up with a region
+    // and a failover set that collide. Both values are ones the caller either
+    // sent or can read off the source, so the combination is rejected.
     const region = body.region ?? source.region;
-    // Inherited failover regions only apply when the region is not overridden:
-    // otherwise they could end up including the fork's own region.
-    const failoverRegions =
-      body.failoverRegions ??
-      (body.region === undefined ? source.failoverRegions : undefined);
+    const failoverRegions = body.failoverRegions ?? source.failoverRegions;
     const failoverError = validateFailoverRegions(region, failoverRegions);
     if (failoverError) return failoverError;
 
