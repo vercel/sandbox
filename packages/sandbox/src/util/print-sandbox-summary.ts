@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { Sandbox } from "@vercel/sandbox";
+import { DEFAULT_SANDBOX_REGION } from "../args/region";
 
 interface Scope {
   team: string;
@@ -40,7 +41,10 @@ export function printSandboxSummary(opts: {
     chalk.dim("   │ ") + "team: " + chalk.cyan(teamDisplay) + "\n",
   );
   process.stderr.write(
-    chalk.dim("   │ ") + "region: " + chalk.cyan(sandbox.region ?? "iad1") + "\n",
+    chalk.dim("   │ ") +
+      "region: " +
+      chalk.cyan(sandbox.region ?? DEFAULT_SANDBOX_REGION) +
+      "\n",
   );
 
   // With a connect hint, the hint becomes the closing "╰" line.

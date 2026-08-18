@@ -13,6 +13,7 @@ import {
   formatNextCursorHint,
 } from "../util/output";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
+import { DEFAULT_SANDBOX_REGION } from "../args/region";
 
 function formatImage(image: string): string {
   const [repository, digest] = image.split("@");
@@ -131,7 +132,7 @@ export const list = cmd.command({
       CREATED: {
         value: (s) => timeAgo(s.createdAt),
       },
-      REGION: { value: (s) => s.region ?? "iad1" },
+      REGION: { value: (s) => s.region ?? DEFAULT_SANDBOX_REGION },
       MEMORY: {
         value: (s) =>
           s.memory != null ? memoryFormatter.format(s.memory) : "-",

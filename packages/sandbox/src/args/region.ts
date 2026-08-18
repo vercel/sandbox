@@ -1,5 +1,10 @@
 import * as cmd from "cmd-ts";
 
+/**
+ * Region a sandbox runs in when the API does not report one.
+ */
+export const DEFAULT_SANDBOX_REGION = "iad1";
+
 export const regionType = cmd.extendType(cmd.string, {
   displayName: "REGION",
   async from(value) {
@@ -14,8 +19,7 @@ export const regionType = cmd.extendType(cmd.string, {
 export const region = cmd.option({
   long: "region",
   type: cmd.optional(regionType),
-  description:
-    "Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions)",
+  description: `Region to create the sandbox in (defaults to ${DEFAULT_SANDBOX_REGION}; see the Vercel docs for available regions)`,
 });
 
 export const regionListType = cmd.extendType(cmd.string, {
