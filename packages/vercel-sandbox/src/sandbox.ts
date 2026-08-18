@@ -113,7 +113,7 @@ export interface BaseCreateSandboxParams {
   region?: string;
   /**
    * Additional regions the sandbox can fail over to. Must not include
-   * `region`. Not supported for sandboxes with mounts.
+   * `region`.
    */
   failoverRegions?: string[];
 
