@@ -141,8 +141,6 @@ export const create = cmd.command({
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
-    const failoverRegionsList =
-      failoverRegions.length > 0 ? failoverRegions : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -158,7 +156,7 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           region,
-          failoverRegions: failoverRegionsList,
+          failoverRegions,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)
@@ -183,7 +181,7 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           region,
-          failoverRegions: failoverRegionsList,
+          failoverRegions,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)

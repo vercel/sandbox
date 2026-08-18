@@ -18,9 +18,23 @@ export const region = cmd.option({
     "Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions)",
 });
 
-export const failoverRegions = cmd.multioption({
-  long: "failover-region",
-  type: cmd.array(regionType),
+export const regionListType = cmd.extendType(cmd.string, {
+  displayName: "REGION,...",
+  async from(value) {
+    const regions = value
+      .split(",")
+      .map((region) => region.trim())
+      .filter((region) => region !== "");
+    if (regions.length === 0) {
+      throw new Error("Regions cannot be empty.");
+    }
+    return [...new Set(regions)];
+  },
+});
+
+export const failoverRegions = cmd.option({
+  long: "failover-regions",
+  type: cmd.optional(regionListType),
   description:
-    "Additional region the sandbox can fail over to (repeatable). Must not include the sandbox region.",
+    "Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region.",
 });

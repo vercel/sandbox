@@ -977,7 +977,7 @@ sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
 sandbox create --region <region>             # Defaults to iad1; see the Vercel docs for available regions
-sandbox create --failover-region <region>    # Repeatable
+sandbox create --failover-regions <region>,<region>  # Comma-separated
 
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>

@@ -149,7 +149,7 @@ export const fork = cmd.command({
       ...(envObj !== undefined && { env: envObj }),
       ...(tagsObj !== undefined && { tags: tagsObj }),
       ...(region !== undefined && { region }),
-      ...(failoverRegions.length > 0 && { failoverRegions }),
+      ...(failoverRegions !== undefined && { failoverRegions }),
       ...(nonPersistent && { persistent: false }),
       ...(snapshotExpiration !== undefined && {
         snapshotExpiration: ms(snapshotExpiration),
