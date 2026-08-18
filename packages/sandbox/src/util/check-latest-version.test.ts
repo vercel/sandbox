@@ -24,7 +24,7 @@ describe("isOutdated", () => {
   });
 });
 
-import { vi, beforeEach, afterEach } from "vitest";
+import { vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import Path from "node:path";
@@ -33,7 +33,7 @@ import { startLatestVersionCheck } from "./check-latest-version";
 describe("startLatestVersionCheck", () => {
   let dir: string;
   let cachePath: string;
-  let stderrSpy: ReturnType<typeof vi.spyOn>;
+  let stderrSpy: MockInstance<typeof process.stderr.write>;
 
   beforeEach(() => {
     dir = mkdtempSync(Path.join(tmpdir(), "sandbox-version-"));
