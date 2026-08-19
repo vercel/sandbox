@@ -1,5 +1,20 @@
 # sandbox
 
+## 4.0.1
+
+### Patch Changes
+
+- Sandbox-lookup 404 errors are now quiet and actionable: the error states the name was not found, the status code, and a closing hint to run `sandbox ls --all`. The request URL and response-buffer path move behind `DEBUG=sandbox:errors`. ([#298](https://github.com/vercel/sandbox/pull/298))
+
+- `create` and `fork` output now ends with a connect hint (`connect with: sandbox ssh <name>`), so a fresh sandbox never leaves you without a next step. Composing commands like `run` suppress it. ([#296](https://github.com/vercel/sandbox/pull/296))
+
+- `sandbox sh <command>` now explains that `sh` takes no command and points at `sandbox run -i <command>`. ([#299](https://github.com/vercel/sandbox/pull/299))
+
+- `create`, `sh`, and `run` check for a newer published CLI and print an update notice when the install is behind. The result is cached to a file and refreshed at most once per hour; when a lookup does run it happens concurrently with sandbox creation and is aborted as the command finishes, so it never adds latency or delays exit. Disable with `SANDBOX_SKIP_VERSION_CHECK=1`. ([#297](https://github.com/vercel/sandbox/pull/297))
+
+- Updated dependencies [[`0d3b1aa410454b20562ea010cd66611a9a477b2d`](https://github.com/vercel/sandbox/commit/0d3b1aa410454b20562ea010cd66611a9a477b2d), [`bd4110aa6231a2e845630cc02e9d69cb02fb28ad`](https://github.com/vercel/sandbox/commit/bd4110aa6231a2e845630cc02e9d69cb02fb28ad), [`2c2c942239fd9ef47bed0b9295389b702ce6c0ff`](https://github.com/vercel/sandbox/commit/2c2c942239fd9ef47bed0b9295389b702ce6c0ff)]:
+  - @vercel/sandbox@3.0.1
+
 ## 4.0.0
 
 ### Major Changes
