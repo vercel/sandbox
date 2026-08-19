@@ -1228,9 +1228,6 @@ describe("APIClient", () => {
       expect(mockFetch.mock.calls[0]?.[1]?.body).toBe(
         JSON.stringify({ expiration: 0 }),
       );
-      expect(mockFetch.mock.calls[0]?.[0]).toContain(
-        "/v3/sandboxes/sessions/sbx_123/snapshot",
-      );
     });
   });
 
@@ -1315,20 +1312,6 @@ describe("APIClient", () => {
       expect(body).not.toHaveProperty("keepLastSnapshots");
     });
 
-    it("sends null keepLastSnapshots to opt out of the default policy", async () => {
-      mockFetch.mockResolvedValue(sandboxResponse());
-
-      await client.createSandbox({
-        projectId: "proj_123",
-        keepLastSnapshots: null,
-      });
-
-      const [, opts] = mockFetch.mock.calls[0];
-      const body = JSON.parse(opts.body);
-      expect(body).toHaveProperty("keepLastSnapshots");
-      expect(body.keepLastSnapshots).toBeNull();
-    });
-
     it("uses v2 when runtime is provided", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
@@ -1342,86 +1325,13 @@ describe("APIClient", () => {
       expect(JSON.parse(opts.body).runtime).toBe("node24");
     });
 
-    it("uses v4 when runtime is omitted", async () => {
+    it("uses v3 when runtime is omitted", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
       await client.createSandbox({ projectId: "proj_123" });
 
       const [url] = mockFetch.mock.calls[0];
-      expect(url).toContain("/v4/sandboxes");
-    });
-  });
-
-  describe("forkSandbox", () => {
-    let client: APIClient;
-    let mockFetch: ReturnType<typeof vi.fn>;
-
-    const sandboxResponse = () =>
-      new Response(
-        JSON.stringify({
-          sandbox: {
-            name: "my-fork",
-            persistent: true,
-            region: "iad1",
-            vcpus: 1,
-            memory: 2048,
-            timeout: 300000,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            status: "running",
-            currentSessionId: "sbx_123",
-          },
-          session: {
-            id: "sbx_123",
-            memory: 2048,
-            vcpus: 1,
-            region: "iad1",
-            timeout: 300000,
-            status: "running",
-            requestedAt: Date.now(),
-            createdAt: Date.now(),
-            cwd: "/",
-            updatedAt: Date.now(),
-          },
-          routes: [],
-        }),
-        { headers: { "content-type": "application/json" } },
-      );
-
-    beforeEach(() => {
-      mockFetch = vi.fn();
-      client = new APIClient({
-        teamId: "team_123",
-        token: "1234",
-        fetch: mockFetch,
-      });
-    });
-
-    it("uses the v3 fork endpoint", async () => {
-      mockFetch.mockResolvedValue(sandboxResponse());
-
-      await client.forkSandbox({
-        projectId: "proj_123",
-        sourceSandbox: "my-sandbox",
-      });
-
-      const [url] = mockFetch.mock.calls[0];
-      expect(url).toContain("/v3/sandboxes/my-sandbox/fork");
-    });
-
-    it("sends null keepLastSnapshots to opt out of the default policy", async () => {
-      mockFetch.mockResolvedValue(sandboxResponse());
-
-      await client.forkSandbox({
-        projectId: "proj_123",
-        sourceSandbox: "my-sandbox",
-        keepLastSnapshots: null,
-      });
-
-      const [, opts] = mockFetch.mock.calls[0];
-      const body = JSON.parse(opts.body);
-      expect(body).toHaveProperty("keepLastSnapshots");
-      expect(body.keepLastSnapshots).toBeNull();
+      expect(url).toContain("/v3/sandboxes");
     });
   });
 

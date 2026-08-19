@@ -797,8 +797,7 @@ export class Session implements ExecutionContext {
    * Note: this session will be stopped as part of the snapshot creation process.
    *
    * @param opts - Optional parameters.
-   * @param opts.expiration - Optional expiration time in milliseconds. Defaults to
-   *   the sandbox's `snapshotExpiration`, or 7 days. Use 0 for no expiration at all.
+   * @param opts.expiration - Optional expiration time in milliseconds. Use 0 for no expiration at all.
    * @param opts.signal - An AbortSignal to cancel the operation.
    * @returns A promise that resolves to the Snapshot instance
    */

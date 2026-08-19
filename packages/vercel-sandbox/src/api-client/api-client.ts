@@ -182,13 +182,13 @@ export class APIClient extends BaseClient {
         count: number;
         expiration?: number;
         deleteEvicted?: boolean;
-      } | null;
+      };
       signal?: AbortSignal;
     }>,
   ) {
     const privateParams = getPrivateParams(params);
     const endpoint =
-      params.runtime === undefined ? "/v4/sandboxes" : "/v2/sandboxes";
+      params.runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes";
     return parseOrThrow(
       SandboxAndSessionResponse,
       await this.request(endpoint, {
@@ -235,7 +235,7 @@ export class APIClient extends BaseClient {
         count: number;
         expiration?: number;
         deleteEvicted?: boolean;
-      } | null;
+      };
       signal?: AbortSignal;
     }>,
   ) {
@@ -243,7 +243,7 @@ export class APIClient extends BaseClient {
     return parseOrThrow(
       SandboxAndSessionResponse,
       await this.request(
-        `/v3/sandboxes/${encodeURIComponent(params.sourceSandbox)}/fork`,
+        `/v2/sandboxes/${encodeURIComponent(params.sourceSandbox)}/fork`,
         {
           method: "POST",
           query: { projectId: params.projectId },
@@ -838,7 +838,7 @@ export class APIClient extends BaseClient {
     expiration?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CreateSnapshotResponse>>> {
-    const url = `/v3/sandboxes/sessions/${params.sessionId}/snapshot`;
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/snapshot`;
     const body =
       params.expiration === undefined
         ? undefined
