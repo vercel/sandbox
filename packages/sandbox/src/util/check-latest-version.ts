@@ -136,16 +136,22 @@ export function startLatestVersionCheck(
           ? `${invokedAs} bundles Sandbox CLI ${chalk.dim(current)}, but ${chalk.cyan(latest)} is available`
           : `A newer Sandbox CLI is available: ${chalk.cyan(latest)}` +
             chalk.dim(` (you're on ${current})`);
-        const updateCommand = bundled
-          ? "npm i -g vercel@latest"
-          : "npm i -g sandbox@latest";
+        // Don't promise that updating the Vercel CLI reaches `latest`: the
+        // bundled copy is capped by whatever the newest Vercel CLI pins, which
+        // routinely lags the registry. Name the mechanism and both levers
+        // instead, so the advice stays true in the window where it lags.
+        const advice = bundled
+          ? "This copy tracks the Vercel CLI's pinned version, so update with " +
+            chalk.cyan("npm i -g vercel@latest") +
+            ", or install the standalone CLI for the latest"
+          : "Update with " + chalk.cyan("npm i -g sandbox@latest");
         process.stderr.write(
           chalk.yellow("⚠ ") +
             headline +
             "\n" +
             chalk.dim("   ╰ ") +
-            "newer versions can change creation defaults like the base image. Update with " +
-            chalk.cyan(updateCommand) +
+            "newer versions can change creation defaults like the base image. " +
+            advice +
             "\n",
         );
       }

@@ -148,10 +148,14 @@ describe("startLatestVersionCheck", () => {
     });
     check.report();
     // `npm i -g sandbox@latest` would add a second CLI and leave the bundled
-    // copy pinned, so it must not be the advice here.
-    expect(output()).not.toContain("npm i -g sandbox@latest");
+    // copy pinned, so it must not be offered as the fix here.
+    expect(output()).not.toContain("Update with npm i -g sandbox@latest");
     expect(output()).toContain("npm i -g vercel@latest");
     expect(output()).toContain("vercel sandbox bundles Sandbox CLI");
+    // The bundled copy is capped by the pin, so the notice must describe the
+    // mechanism rather than promise that updating reaches latest.
+    expect(output()).toContain("This copy tracks the Vercel CLI's pinned version");
+    expect(output()).toContain("standalone CLI for the latest");
     // Both versions named, so it is clear which one is behind.
     expect(output()).toContain("3.4.0");
     expect(output()).toContain("4.0.0");
