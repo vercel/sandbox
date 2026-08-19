@@ -10,6 +10,7 @@ import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import type { WithFetchOptions } from "./api-client/api-client.js";
+import { DEFAULT_SANDBOX_REGION } from "./constants.js";
 import type { ManagedImage, RUNTIMES } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
@@ -403,17 +404,19 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * The region this sandbox runs in.
+   * The region this sandbox is configured to run in. Where the running session
+   * actually landed is reported by {@link Session.region}.
    */
-  public get region(): string | undefined {
-    return this.sandbox.region;
+  public get region(): string {
+    return this.sandbox.region ?? DEFAULT_SANDBOX_REGION;
   }
 
   /**
-   * The additional regions this sandbox can fail over to.
+   * The additional regions this sandbox can fail over to, in order. Empty when
+   * it does not fail over.
    */
-  public get failoverRegions(): string[] | undefined {
-    return this.sandbox.failoverRegions;
+  public get failoverRegions(): string[] {
+    return this.sandbox.failoverRegions ?? [];
   }
 
   /**

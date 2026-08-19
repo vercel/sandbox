@@ -8,3 +8,8 @@ export type ManagedImage =
   | "python:3.14"
   | "ubuntu"
   | "arch";
+
+/**
+ * Region a sandbox runs in when none is requested.
+ */
+export const DEFAULT_SANDBOX_REGION = "iad1";

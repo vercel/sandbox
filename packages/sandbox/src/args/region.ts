@@ -1,9 +1,5 @@
 import * as cmd from "cmd-ts";
-
-/**
- * Region a sandbox runs in when the API does not report one.
- */
-export const DEFAULT_SANDBOX_REGION = "iad1";
+import { DEFAULT_SANDBOX_REGION } from "@vercel/sandbox";
 
 export const regionType = cmd.extendType(cmd.string, {
   displayName: "REGION",

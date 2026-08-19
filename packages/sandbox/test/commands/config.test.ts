@@ -104,10 +104,8 @@ describe("config command", () => {
     log.mockRestore();
   });
 
-  test("list defaults the region and dashes empty failover regions", async () => {
-    mockGet.mockResolvedValue(
-      fakeSandbox({ region: undefined, failoverRegions: [] }),
-    );
+  test("list dashes empty failover regions", async () => {
+    mockGet.mockResolvedValue(fakeSandbox({ failoverRegions: [] }));
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const { config } = await import("../../src/commands/config.ts");
     await cmd.run(config, [
@@ -118,7 +116,6 @@ describe("config command", () => {
     ]);
 
     const output = log.mock.calls.map(([line]) => String(line)).join("\n");
-    expect(output).toMatch(/Region\s+iad1/);
     expect(output).toMatch(/Failover regions\s+-/);
     log.mockRestore();
   });

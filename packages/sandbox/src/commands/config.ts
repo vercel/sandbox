@@ -10,11 +10,7 @@ import {
 } from "../args/network-policy";
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
-import {
-  DEFAULT_SANDBOX_REGION,
-  regionListType,
-  regionType,
-} from "../args/region";
+import { regionListType, regionType } from "../args/region";
 import { Duration } from "../types/duration";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -632,10 +628,10 @@ const listCommand = cmd.command({
       ? Object.entries(sandbox.tags).map(([k, v]) => `${k}=${v}`).join(", ")
       : "-";
     const rows = [
-      { field: "Region", value: sandbox.region ?? DEFAULT_SANDBOX_REGION },
+      { field: "Region", value: sandbox.region },
       {
         field: "Failover regions",
-        value: sandbox.failoverRegions?.length ? sandbox.failoverRegions.join(", ") : "-",
+        value: sandbox.failoverRegions.length ? sandbox.failoverRegions.join(", ") : "-",
       },
       { field: "vCPUs", value: String(sandbox.vcpus ?? "-") },
       { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
