@@ -154,8 +154,10 @@ describe("startLatestVersionCheck", () => {
     expect(output()).toContain("vercel sandbox bundles Sandbox CLI");
     // The bundled copy is capped by the pin, so the notice must describe the
     // mechanism rather than promise that updating reaches latest.
-    expect(output()).toContain("This copy tracks the Vercel CLI's pinned version");
-    expect(output()).toContain("standalone CLI for the latest");
+    expect(output()).toContain("This copy is pinned by the Vercel CLI and updates when it does");
+    // Must not route a Vercel CLI user onto a second, standalone CLI.
+    expect(output()).not.toContain("standalone");
+    expect(output()).not.toContain("sandbox@latest");
     // Both versions named, so it is clear which one is behind.
     expect(output()).toContain("3.4.0");
     expect(output()).toContain("4.0.0");

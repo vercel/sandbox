@@ -140,10 +140,14 @@ export function startLatestVersionCheck(
         // bundled copy is capped by whatever the newest Vercel CLI pins, which
         // routinely lags the registry. Name the mechanism and both levers
         // instead, so the advice stays true in the window where it lags.
+        // Deliberately does not offer the standalone CLI as a way out: routing a
+        // Vercel CLI user onto a second CLI is a worse outcome than being a
+        // version behind. Name the pin so the message stays true while the
+        // Vercel CLI's pinned version lags the registry.
         const advice = bundled
-          ? "This copy tracks the Vercel CLI's pinned version, so update with " +
+          ? "This copy is pinned by the Vercel CLI and updates when it does (" +
             chalk.cyan("npm i -g vercel@latest") +
-            ", or install the standalone CLI for the latest"
+            ")"
           : "Update with " + chalk.cyan("npm i -g sandbox@latest");
         process.stderr.write(
           chalk.yellow("⚠ ") +
