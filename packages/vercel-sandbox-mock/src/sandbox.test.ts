@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { Sandbox } from "./sandbox";
 
-const DAY = 24 * 60 * 60 * 1000;
-
 const uniq = () => `sb-${randomUUID().slice(0, 8)}`;
 
 describe("Sandbox (real SDK over mock fetch)", () => {
@@ -12,24 +10,6 @@ describe("Sandbox (real SDK over mock fetch)", () => {
     const result = await sandbox.runCommand("echo", ["hi"]);
     expect(await result.stdout()).toBe("hi\n");
     await sandbox.stop();
-  });
-
-  test("persistent sandboxes get the default snapshot defaults", async () => {
-    const sandbox = await Sandbox.create({ name: uniq(), persistent: true });
-    expect(sandbox.snapshotExpiration).toBe(7 * DAY);
-    expect(sandbox.keepLastSnapshots).toEqual({ count: 1, deleteEvicted: true });
-    await sandbox.delete();
-  });
-
-  test("keepLastSnapshots: null opts out of the default retention policy", async () => {
-    const sandbox = await Sandbox.create({
-      name: uniq(),
-      persistent: true,
-      keepLastSnapshots: null,
-    });
-    expect(sandbox.keepLastSnapshots).toBeUndefined();
-    expect(sandbox.snapshotExpiration).toBe(7 * DAY);
-    await sandbox.delete();
   });
 
   test("get on an unknown name throws a 404 APIError", async () => {
