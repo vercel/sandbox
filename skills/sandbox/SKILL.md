@@ -639,9 +639,7 @@ await sandbox.update({
 });
 ```
 
-`region` and `failoverRegions` can be updated independently, but the resulting
-combination is validated: `failoverRegions` must not include the sandbox
-region, whichever side of the pair you change.
+`region` and `failoverRegions` can be updated independently, but `failoverRegions` must not include the configured `region`.
 
 ## Deleting a Sandbox
 
