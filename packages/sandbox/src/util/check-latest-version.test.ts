@@ -119,6 +119,44 @@ describe("startLatestVersionCheck", () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
+  it("tells a standalone install to update the Sandbox CLI", () => {
+    writeFileSync(
+      cachePath,
+      JSON.stringify({ latest: "4.0.0", checkedAt: Date.now() }),
+    );
+    const check = startLatestVersionCheck({
+      cachePath,
+      fetchImpl: vi.fn(),
+      currentVersion: "3.4.0",
+      invokedAs: "sandbox",
+    });
+    check.report();
+    expect(output()).toContain("npm i -g sandbox@latest");
+    expect(output()).not.toContain("vercel@latest");
+  });
+
+  it("tells a Vercel CLI user to update the Vercel CLI, not to install sandbox", () => {
+    writeFileSync(
+      cachePath,
+      JSON.stringify({ latest: "4.0.0", checkedAt: Date.now() }),
+    );
+    const check = startLatestVersionCheck({
+      cachePath,
+      fetchImpl: vi.fn(),
+      currentVersion: "3.4.0",
+      invokedAs: "vercel sandbox",
+    });
+    check.report();
+    // `npm i -g sandbox@latest` would add a second CLI and leave the bundled
+    // copy pinned, so it must not be the advice here.
+    expect(output()).not.toContain("npm i -g sandbox@latest");
+    expect(output()).toContain("npm i -g vercel@latest");
+    expect(output()).toContain("vercel sandbox bundles Sandbox CLI");
+    // Both versions named, so it is clear which one is behind.
+    expect(output()).toContain("3.4.0");
+    expect(output()).toContain("4.0.0");
+  });
+
   it("does nothing when SANDBOX_SKIP_VERSION_CHECK is set", () => {
     vi.stubEnv("SANDBOX_SKIP_VERSION_CHECK", "1");
     try {
@@ -133,6 +171,40 @@ describe("startLatestVersionCheck", () => {
       expect(output()).toBe("");
     } finally {
       vi.unstubAllEnvs();
+    }
+  });
+});
+
+import {
+  isVercelCliInvocation,
+  setInvokedAs,
+  getInvokedAs,
+} from "./invocation";
+
+describe("isVercelCliInvocation", () => {
+  it("recognises the Vercel CLI invocation", () => {
+    expect(isVercelCliInvocation("vercel sandbox")).toBe(true);
+  });
+
+  it("does not flag the standalone invocation", () => {
+    expect(isVercelCliInvocation("sandbox")).toBe(false);
+    expect(isVercelCliInvocation("sbx")).toBe(false);
+  });
+
+  it("matches on the first token so a lookalike name does not count", () => {
+    expect(isVercelCliInvocation("vercel-sandbox")).toBe(false);
+    expect(isVercelCliInvocation("my-vercel sandbox")).toBe(false);
+  });
+
+  it("defaults to the recorded invocation", () => {
+    const previous = getInvokedAs();
+    try {
+      setInvokedAs("vercel sandbox");
+      expect(isVercelCliInvocation()).toBe(true);
+      setInvokedAs("sandbox");
+      expect(isVercelCliInvocation()).toBe(false);
+    } finally {
+      setInvokedAs(previous);
     }
   });
 });
