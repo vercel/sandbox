@@ -1,5 +1,5 @@
 {
-  "name": "sandbox-image-ubuntu",
-  "version": "0.1.0",
+  "name": "@vercel-managed-images/ubuntu",
+  "version": "0.0.0",
   "private": true
 }
