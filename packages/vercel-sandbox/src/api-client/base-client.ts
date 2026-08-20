@@ -1,6 +1,6 @@
 import type { Options as RetryOptions } from "async-retry";
 import { APIError } from "./api-error.js";
-import { ZodType } from "zod";
+import { z, ZodType } from "zod";
 import { array } from "../utils/array.js";
 import { withRetry, type RequestOptions } from "./with-retry.js";
 import { Agent } from "undici";
@@ -107,6 +107,26 @@ function extractSandboxName(url: string): string | undefined {
 }
 
 /**
+ * The error body shape returned by the Sandbox API. Mirrors the shape the
+ * CLI's formatApiError parses.
+ */
+const ErrorResponseBody = z.object({
+  error: z.object({
+    message: z.string(),
+  }),
+});
+
+/**
+ * Extract the server-provided error message from an error response body so
+ * it can be surfaced in APIError.message. Returns undefined for any other
+ * body shape.
+ */
+function extractServerMessage(json: unknown): string | undefined {
+  const parsed = ErrorResponseBody.safeParse(json);
+  return parsed.success ? parsed.data.error.message : undefined;
+}
+
+/**
  * Allows to read the response text and parse it as JSON casting to the given
  * type. If the response is not ok or cannot be parsed it will return error.
  *
@@ -149,8 +169,11 @@ export async function parse<Data, ErrorData>(
   }
 
   if (!response.ok) {
+    const serverMessage = extractServerMessage(json);
     return new APIError<ErrorData>(response, {
-      message: `Status code ${response.status} is not ok`,
+      message: serverMessage
+        ? `Status code ${response.status} is not ok: ${serverMessage}`
+        : `Status code ${response.status} is not ok`,
       json: json as ErrorData,
       text,
       sessionId,

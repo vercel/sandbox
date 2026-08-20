@@ -6,6 +6,13 @@
 
 - Re-export the Drive API from the mock package.
 
+## 3.0.1
+
+### Patch Changes
+
+- Updated dependencies [[`0d3b1aa410454b20562ea010cd66611a9a477b2d`](https://github.com/vercel/sandbox/commit/0d3b1aa410454b20562ea010cd66611a9a477b2d), [`bd4110aa6231a2e845630cc02e9d69cb02fb28ad`](https://github.com/vercel/sandbox/commit/bd4110aa6231a2e845630cc02e9d69cb02fb28ad), [`2c2c942239fd9ef47bed0b9295389b702ce6c0ff`](https://github.com/vercel/sandbox/commit/2c2c942239fd9ef47bed0b9295389b702ce6c0ff)]:
+  - @vercel/sandbox@3.0.1
+
 ## 3.0.0
 
 ### Major Changes

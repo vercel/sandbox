@@ -115,6 +115,24 @@ describe("source getters", () => {
     const sandbox = makeSandbox({ image: undefined, runtime: "node24" });
     expect(sandbox.runtime).toBe("node24");
   });
+
+  it("reports the regions the API omits as the defaults", () => {
+    const sandbox = makeSandbox({
+      region: undefined,
+      failoverRegions: undefined,
+    });
+    expect(sandbox.region).toBe("iad1");
+    expect(sandbox.failoverRegions).toEqual([]);
+  });
+
+  it("exposes the regions the API reports", () => {
+    const sandbox = makeSandbox({
+      region: "sfo1",
+      failoverRegions: ["iad1", "cle1"],
+    });
+    expect(sandbox.region).toBe("sfo1");
+    expect(sandbox.failoverRegions).toEqual(["iad1", "cle1"]);
+  });
 });
 
 describe("updatePorts", () => {

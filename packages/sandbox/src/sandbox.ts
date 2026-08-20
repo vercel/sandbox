@@ -2,6 +2,7 @@ import { run, setDefaultHelpFormatter } from "cmd-ts";
 import { app } from "./app";
 import dotenv from "dotenv-flow";
 import { printTopLevelError } from "./util/format-error";
+import { steerShCommand } from "./util/steer-sh";
 import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 
 dotenv.config({
@@ -12,6 +13,7 @@ async function main() {
   setDefaultHelpFormatter(vercelFormatter);
 
   try {
+    steerShCommand(process.argv.slice(2));
     await run(app(), process.argv.slice(2));
   } catch (e) {
     await printTopLevelError(e);

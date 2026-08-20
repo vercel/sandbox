@@ -50,6 +50,52 @@ describe("Sandbox.fork", () => {
     }
   });
 
+  test("inherits the source region and honors an explicit override", async () => {
+    const name = uniq();
+    const source = await Sandbox.create({
+      name,
+      region: "sfo1",
+      failoverRegions: ["iad1"],
+    });
+
+    let inherited: Sandbox | undefined;
+    let overridden: Sandbox | undefined;
+    try {
+      inherited = await Sandbox.fork({ sourceSandbox: name });
+      expect(inherited.region).toBe("sfo1");
+      expect(inherited.failoverRegions).toEqual(["iad1"]);
+
+      // The region and the failover set are copied independently, so an
+      // override only replaces its own side.
+      overridden = await Sandbox.fork({ sourceSandbox: name, region: "cle1" });
+      expect(overridden.region).toBe("cle1");
+      expect(overridden.failoverRegions).toEqual(["iad1"]);
+    } finally {
+      await Promise.allSettled([
+        inherited?.delete(),
+        overridden?.delete(),
+        source.delete(),
+      ]);
+    }
+  });
+
+  test("rejects a region override that collides with the inherited failover regions", async () => {
+    const name = uniq();
+    const source = await Sandbox.create({
+      name,
+      region: "sfo1",
+      failoverRegions: ["iad1"],
+    });
+
+    try {
+      await expect(
+        Sandbox.fork({ sourceSandbox: name, region: "iad1" }),
+      ).rejects.toMatchObject({ response: { status: 400 } });
+    } finally {
+      await source.delete();
+    }
+  });
+
   test("applies overrides on top of the copied source config", async () => {
     const name = uniq();
     const source = await Sandbox.create({

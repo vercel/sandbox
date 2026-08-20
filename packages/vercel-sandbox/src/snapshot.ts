@@ -62,6 +62,13 @@ export class Snapshot {
   }
 
   /**
+   * All regions where this snapshot is available.
+   */
+  public get regions(): string[] {
+    return this.snapshot.regions ?? [this.snapshot.region];
+  }
+
+  /**
    * The status of the snapshot.
    */
   public get status(): SnapshotMetadata["status"] {

@@ -28,6 +28,18 @@ describe("Snapshot (real SDK over mock fetch)", () => {
     await sandbox.delete();
   });
 
+  test("snapshots expose the regions of the sandbox they were taken from", async () => {
+    const sandbox = await Sandbox.create({
+      name: `snap-region-${randomUUID().slice(0, 8)}`,
+      region: "sfo1",
+    });
+    const snapshot = await sandbox.snapshot();
+
+    const got = await Snapshot.get({ snapshotId: snapshot.snapshotId });
+    expect(got.regions).toEqual(["sfo1"]);
+    await sandbox.delete();
+  });
+
   test("a sandbox created from a snapshot restores its filesystem", async () => {
     const sandbox = await Sandbox.create({ name: `snap-src-${randomUUID().slice(0, 8)}` });
     await sandbox.fs.writeFile("/tmp/seed.txt", "from-snapshot");
