@@ -284,6 +284,31 @@ describe("defineSandboxProxy", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it("limits the number of cached JWKS issuers", async () => {
+    jwtVerifyMock.mockRejectedValue(new Error("bad token"));
+    const proxy = defineSandboxProxy(() => new Response("ok"));
+    const sendRequestWithIssuer = async (issuerIndex: number) => {
+      decodeJwtMock.mockReturnValue({
+        iss: `https://oidc.vercel.com/cache-test-${issuerIndex}`,
+      });
+      await proxy(makeProxyRequest());
+    };
+
+    for (let issuerIndex = 0; issuerIndex < 100; issuerIndex++) {
+      await sendRequestWithIssuer(issuerIndex);
+    }
+
+    await sendRequestWithIssuer(0);
+    await sendRequestWithIssuer(100);
+    await sendRequestWithIssuer(0);
+
+    expect(createRemoteJWKSetMock).toHaveBeenCalledTimes(101);
+
+    await sendRequestWithIssuer(1);
+
+    expect(createRemoteJWKSetMock).toHaveBeenCalledTimes(102);
+  });
+
   it("rejects tokens without a Vercel OIDC issuer before verifying the signature", async () => {
     decodeJwtMock.mockReturnValue({ iss: "https://example.com/team_123" });
     const handler = vi.fn(() => new Response("ok"));
