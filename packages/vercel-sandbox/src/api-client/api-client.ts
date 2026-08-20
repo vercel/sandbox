@@ -38,7 +38,7 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
-import type { RUNTIMES } from "../constants.js";
+import type { RUNTIMES, SandboxRegion } from "../constants.js";
 
 interface Claims {
   owner_id: string;
@@ -183,6 +183,8 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
     }>,
   ) {
@@ -210,6 +212,8 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
+          region: params.region,
+          failoverRegions: params.failoverRegions,
           ...privateParams,
         }),
         signal: params.signal,
@@ -236,6 +240,8 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
     }>,
   ) {
@@ -261,6 +267,8 @@ export class APIClient extends BaseClient {
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
             keepLastSnapshots: params.keepLastSnapshots,
+            region: params.region,
+            failoverRegions: params.failoverRegions,
             ...privateParams,
           }),
           signal: params.signal,
@@ -944,6 +952,8 @@ export class APIClient extends BaseClient {
       deleteEvicted?: boolean;
     } | null;
     currentSnapshotId?: string;
+    region?: SandboxRegion;
+    failoverRegions?: SandboxRegion[];
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -965,6 +975,8 @@ export class APIClient extends BaseClient {
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
           currentSnapshotId: params.currentSnapshotId,
+          region: params.region,
+          failoverRegions: params.failoverRegions,
         }),
         signal: params.signal,
       }),

@@ -77,6 +77,23 @@ describe("fork command", () => {
     expect(call.tags).toEqual({ env: "staging" });
   });
 
+  test("forwards --region and --failover-regions to Sandbox.fork", async () => {
+    const { fork } = await import("../../src/commands/fork.ts");
+    await cmd.run(fork, [
+      "my-source",
+      "--region=cle1",
+      "--failover-regions",
+      "sfo1, iad1,sfo1",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    const call = mockFork.mock.calls[0][0];
+    expect(call.region).toBe("cle1");
+    expect(call.failoverRegions).toEqual(["sfo1", "iad1"]);
+  });
+
   test("does not forward overrides for unspecified options (server uses copied source values)", async () => {
     const { fork } = await import("../../src/commands/fork.ts");
     await cmd.run(fork, [
@@ -94,6 +111,8 @@ describe("fork command", () => {
     expect(call.tags).toBeUndefined();
     expect(call.snapshotExpiration).toBeUndefined();
     expect(call.keepLastSnapshots).toBeUndefined();
+    expect(call.region).toBeUndefined();
+    expect(call.failoverRegions).toBeUndefined();
   });
 
   test("fails when the source positional is missing", async () => {
