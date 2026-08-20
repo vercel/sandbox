@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
+import { LRUCache } from "lru-cache";
 
 const FORWARDED_HOST_HEADER = "vercel-forwarded-host";
 const FORWARDED_SCHEME_HEADER = "vercel-forwarded-scheme";
@@ -8,8 +9,11 @@ const SANDBOX_OIDC_TOKEN_HEADER = "vercel-sandbox-oidc-token";
 
 const VERCEL_OIDC_HOSTNAME = "oidc.vercel.com";
 const CLOCK_TOLERANCE_SECONDS = 60;
+const MAX_JWKS_CACHE_SIZE = 100;
 
-const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+const jwksCache = new LRUCache<string, ReturnType<typeof createRemoteJWKSet>>({
+  max: MAX_JWKS_CACHE_SIZE,
+});
 
 export interface ProxyMeta {
   /**
