@@ -4,6 +4,7 @@ import type { DriveMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { attachPaginator } from "./utils/paginator.js";
+import type { SandboxRegion } from "./constants.js";
 
 export interface SerializedDrive {
   drive: DriveMetadata;
@@ -16,6 +17,11 @@ interface GetOrCreateDriveParams {
    * The name of the drive to get or create. Must be unique within the project.
    */
   name: string;
+  /**
+   * The region where the drive is created and stores its data. Defaults to `iad1`.
+   * See the Vercel documentation for the available regions.
+   */
+  region?: SandboxRegion;
   /**
    * Maximum drive size in bytes. If omitted, a default of 100 GiB is used.
    */
@@ -65,6 +71,13 @@ export class Drive {
    */
   public get projectId(): string {
     return this._projectId;
+  }
+
+  /**
+   * The region where the drive data is stored.
+   */
+  public get region(): string {
+    return this.drive.region;
   }
 
   /**
@@ -204,10 +217,7 @@ export class Drive {
    * @returns A promise resolving to the {@link Drive}.
    */
   static async getOrCreate(
-    params: (
-      | GetOrCreateDriveParams
-      | (GetOrCreateDriveParams & Credentials)
-    ) &
+    params: (GetOrCreateDriveParams | (GetOrCreateDriveParams & Credentials)) &
       WithFetchOptions,
   ): Promise<Drive> {
     "use step";
@@ -221,6 +231,7 @@ export class Drive {
     const response = await client.getOrCreateDrive({
       projectId: credentials.projectId,
       name: params.name,
+      region: params.region,
       maxSizeBytes: params.maxSize,
       signal: params.signal,
     });

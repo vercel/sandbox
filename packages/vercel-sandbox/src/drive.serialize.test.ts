@@ -13,6 +13,7 @@ describe("Drive serialization", () => {
   const mockDriveMetadata: DriveMetadata = {
     name: "workspace",
     projectId: "proj_test",
+    region: "sfo1",
     maxSizeBytes: 1073741824,
     currentSessionId: "sess_test123",
     currentSandboxName: "test-sandbox",
@@ -54,6 +55,7 @@ describe("Drive serialization", () => {
 
       expect(serialized.drive.name).toBe("workspace");
       expect(serialized.drive.projectId).toBe("proj_test");
+      expect(serialized.drive.region).toBe("sfo1");
       expect(serialized.drive.maxSizeBytes).toBe(1073741824);
       expect(serialized.projectId).toBe("proj_test");
     });
@@ -87,6 +89,7 @@ describe("Drive serialization", () => {
 
       expect(result.name).toBe("workspace");
       expect(result.projectId).toBe("proj_test");
+      expect(result.region).toBe("sfo1");
       expect(result.maxSize).toBe(1073741824);
       expect(result.currentSessionId).toBe("sess_test123");
       expect(result.currentSandboxName).toBe("test-sandbox");

@@ -271,6 +271,7 @@ export const SnapshotResponse = z.object({
 export const Drive = z.object({
   name: z.string(),
   projectId: z.string(),
+  region: z.string(),
   maxSizeBytes: z.number(),
   currentSessionId: z.string().optional(),
   currentSandboxName: z.string().optional(),

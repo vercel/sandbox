@@ -667,6 +667,7 @@ export class APIClient extends BaseClient {
   async getOrCreateDrive(params: {
     projectId: string;
     name: string;
+    region?: string;
     maxSizeBytes?: number;
     signal?: AbortSignal;
   }) {
@@ -678,6 +679,7 @@ export class APIClient extends BaseClient {
           method: "POST",
           body: JSON.stringify({
             projectId: params.projectId,
+            region: params.region,
             maxSizeBytes: params.maxSizeBytes,
           }),
           signal: params.signal,

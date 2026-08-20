@@ -5,10 +5,15 @@ import chalk from "chalk";
 import ora from "ora";
 import type { Drive } from "@vercel/sandbox";
 import { scope } from "../args/scope";
-import { driveMaxSize, driveName } from "../args/drive";
+import { driveMaxSize, driveName, driveRegion } from "../args/drive";
 import { driveClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
+import {
+  formatBytes,
+  formatNextCursorHint,
+  table,
+  timeAgo,
+} from "../util/output";
 
 const list = cmd.command({
   name: "list",
@@ -79,12 +84,18 @@ const getOrCreate = cmd.command({
     }),
     maxSize: cmd.option({
       long: "max-size",
-      description: "Maximum drive size in bytes. If omitted, a default of 100 GiB is used.",
+      description:
+        "Maximum drive size in bytes. If omitted, a default of 100 GiB is used.",
       type: cmd.optional(driveMaxSize),
+    }),
+    region: cmd.option({
+      long: "region",
+      description: "Region where the drive is created.",
+      type: cmd.optional(driveRegion),
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, name, maxSize }) {
+  async handler({ scope: { token, team, project }, name, maxSize, region }) {
     const drive = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Creating drive...").start(),
@@ -97,10 +108,14 @@ const getOrCreate = cmd.command({
         projectId: project,
         name,
         maxSize,
+        region,
       });
     })();
 
     process.stderr.write("✅ Drive " + chalk.cyan(drive.name) + " ready.\n");
+    process.stderr.write(
+      chalk.dim("   │ ") + "region: " + chalk.cyan(drive.region) + "\n",
+    );
     process.stderr.write(
       chalk.dim("   │ ") +
         "max size: " +
@@ -179,6 +194,7 @@ function printDrives(drives: Drive[]) {
       rows: drives,
       columns: {
         NAME: { value: (v) => v.name },
+        REGION: { value: (v) => v.region },
         CREATED: { value: (v) => timeAgo(v.createdAt) },
         UPDATED: { value: (v) => timeAgo(v.updatedAt) },
         SIZE: { value: formatDriveSize },

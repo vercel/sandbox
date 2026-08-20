@@ -10,6 +10,7 @@ const CREDENTIALS = {
 const drivePayload = {
   name: "workspace",
   projectId: "proj_123",
+  region: "sfo1",
   maxSizeBytes: 1024,
   currentSessionId: "sbx_123",
   currentSandboxName: "my-sandbox",
@@ -32,12 +33,14 @@ describe("Drive", () => {
     const drive = await Drive.getOrCreate({
       ...CREDENTIALS,
       name: "workspace",
+      region: "sfo1",
       maxSize: 1024,
       fetch: mockFetch,
     });
 
     expect(drive.name).toBe("workspace");
     expect(drive.projectId).toBe("proj_123");
+    expect(drive.region).toBe("sfo1");
     expect(drive.maxSize).toBe(1024);
     expect(drive.currentSessionId).toBe("sbx_123");
     expect(drive.currentSandboxName).toBe("my-sandbox");
@@ -49,6 +52,7 @@ describe("Drive", () => {
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toEqual({
       projectId: "proj_123",
+      region: "sfo1",
       maxSizeBytes: 1024,
     });
   });
@@ -76,6 +80,7 @@ describe("Drive", () => {
 
     expect(result.drives[0]).toBeInstanceOf(Drive);
     expect(result.drives[0].name).toBe("workspace");
+    expect(result.drives[0].region).toBe("sfo1");
     await expect(result.toArray()).resolves.toEqual([
       expect.objectContaining({ name: "workspace" }),
       expect.objectContaining({ name: "cache" }),

@@ -62,6 +62,17 @@ export const driveMaxSize = cmd.extendType(cmd.number, {
   },
 });
 
+export const driveRegion = cmd.extendType(cmd.string, {
+  displayName: "REGION",
+  async from(input) {
+    const region = input.trim();
+    if (region.length === 0) {
+      throw new Error("Drive region cannot be empty.");
+    }
+    return region;
+  },
+});
+
 export function parseDriveMount(input: string): DriveMount {
   const [drive, path, mode, ...rest] = input.split(":");
   const validModes: SandboxMountMode[] = ["read-only", "read-write"];
