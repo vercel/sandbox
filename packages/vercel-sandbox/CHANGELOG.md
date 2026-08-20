@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 3.0.1
+
+### Patch Changes
+
+- Surface the server's error message in `APIError.message`. Failed API requests previously reported only `Status code 400 is not ok`, hiding the actionable detail (e.g. ``Invalid request: `ports` should NOT have more than 15 items.``) in `error.json`. The message now includes it directly. ([#291](https://github.com/vercel/sandbox/pull/291))
+
+- Correct the `ports` option JSDoc: the limit is 15 ports (matching the docs and API validation), not 4. ([#292](https://github.com/vercel/sandbox/pull/292))
+
+- Correct the `resume` option JSDoc on `Sandbox.get` and `Sandbox.getOrCreate`: the default is `false` (the client omits the param and the API defaults to not resuming), not `true`. A stopped persistent sandbox still auto-resumes on the first SDK call that needs a running session. ([#293](https://github.com/vercel/sandbox/pull/293))
+
 ## 3.0.0
 
 ### Major Changes
