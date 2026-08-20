@@ -17,6 +17,8 @@ import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
 import { mounts } from "../args/drive";
+import { startLatestVersionCheck } from "../util/check-latest-version";
+import { region, failoverRegions } from "../args/region";
 
 export const args = {
   name: cmd.option({
@@ -69,6 +71,8 @@ export const args = {
       "Key-value tags to associate with the sandbox (e.g. --tag env=staging)",
   }),
   mounts,
+  region,
+  failoverRegions,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -84,33 +88,45 @@ export const create = cmd.command({
       command: `sandbox run --network-policy=none --connect`,
     },
   ],
-  async handler({
-    name,
-    nonPersistent,
-    ports,
-    scope,
-    runtime,
-    image,
-    timeout,
-    vcpus,
-    silent,
-    snapshot,
-    connect,
-    envVars,
-    tags,
-    mounts,
-    snapshotExpiration,
-    keepLastSnapshots,
-    keepLastSnapshotsFor,
-    deleteEvictedSnapshots,
-    networkPolicy: networkPolicyMode,
-    allowedDomains,
-    allowedCIDRs,
-    deniedCIDRs,
-  }) {
+  async handler(input) {
+    const {
+      name,
+      nonPersistent,
+      ports,
+      scope,
+      runtime,
+      image,
+      timeout,
+      vcpus,
+      silent,
+      snapshot,
+      connect,
+      envVars,
+      tags,
+      mounts,
+      region,
+      failoverRegions,
+      snapshotExpiration,
+      keepLastSnapshots,
+      keepLastSnapshotsFor,
+      deleteEvictedSnapshots,
+      networkPolicy: networkPolicyMode,
+      allowedDomains,
+      allowedCIDRs,
+      deniedCIDRs,
+    } = input;
+    // Internal flag for composing commands (e.g. `run`) that create a sandbox
+    // as a step rather than as the outcome, where a connect hint would mislead.
+    const { __printConnectHint = true } = input as {
+      __printConnectHint?: boolean;
+    };
     if (runtime !== undefined && image !== undefined) {
       throw new Error("--runtime and --image cannot be used together.");
     }
+
+    // Look up the latest published CLI version while the creation request is
+    // in flight, so stale installs learn they're behind at no latency cost.
+    const versionCheck = silent ? undefined : startLatestVersionCheck();
 
     const networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
@@ -144,6 +160,8 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           mounts: mountsObj,
+          region,
+          failoverRegions,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)
@@ -168,6 +186,8 @@ export const create = cmd.command({
           env: envVars,
           tags: tagsObj,
           mounts: mountsObj,
+          region,
+          failoverRegions,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)
@@ -188,7 +208,13 @@ export const create = cmd.command({
     }
 
     if (!silent) {
-      printSandboxSummary({ sandbox, scope, action: "created" });
+      printSandboxSummary({
+        sandbox,
+        scope,
+        action: "created",
+        connectHint: !connect && __printConnectHint,
+      });
+      versionCheck?.report();
     }
 
     if (connect) {
