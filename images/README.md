@@ -10,6 +10,9 @@ Dockerfiles for Vercel Managed Images published to Vercel Container Registry (VC
 | [`vercel/sandbox/python:3.14`](./python)         | `vercel/sandbox/ubuntu` | Python 3.14 (pinned), pip, venv, uv                       |
 | [`vercel/sandbox/arch:latest`](./arch)           | `archlinux:latest`      | Arch Linux, yay (AUR), base-devel, git                    |
 | [`vercel/sandbox/ubuntu:latest`](./ubuntu)       | `ubuntu:26.04`          | Ubuntu + sudo                                             |
+| [`vercel/sandbox/runtime-base:latest`](./runtime-base) | `amazonlinux:2023` | Amazon Linux runtime base, Git 2.49.0, sudo               |
+| [`vercel/sandbox/runtime-node:22\|24\|26`](./runtime-node) | `runtime-base` | Node.js runtime (major pinned), pnpm                      |
+| [`vercel/sandbox/runtime-python:3.13.1`](./runtime-python) | `runtime-base` | Python 3.13.1, pip, venv, uv                              |
 
 All images are built for `linux/amd64`.
 
