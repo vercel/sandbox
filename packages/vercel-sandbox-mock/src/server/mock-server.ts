@@ -8,6 +8,7 @@ import { extractTarGz } from "./tar.js";
 import { captureFileSystem, restoreFileSystem } from "./snapshot-fs.js";
 import {
   commandPayload,
+  drivePayload,
   routesPayload,
   sandboxPayload,
   sessionPayload,
@@ -16,6 +17,7 @@ import {
 import {
   createUserState,
   type CommandRecord,
+  type DriveRecord,
   type SandboxRecord,
   type SessionRecord,
   type SnapshotFileEntry,
@@ -74,6 +76,12 @@ interface CreateBody {
   source?: { type: "git" | "tarball" | "snapshot"; snapshotId?: string };
 }
 
+interface CreateDriveBody {
+  projectId: string;
+  region?: string;
+  maxSizeBytes?: number;
+}
+
 /**
  * A stateful in-memory implementation of the Vercel Sandbox HTTP API,
  * backed by just-bash. Inject {@link MockServer.fetch} into the real
@@ -91,6 +99,7 @@ export class MockServer {
   #sandboxes = new Map<string, SandboxRecord>();
   #sessions = new Map<string, SessionRecord>();
   #snapshots = new Map<string, SnapshotRecord>();
+  #drives = new Map<string, DriveRecord>();
   #commands = new Map<string, CommandRecord>();
   /** FS persisted across stop→resume, keyed by sandbox name. */
   #disks = new Map<string, SnapshotFileEntry[]>();
@@ -117,6 +126,7 @@ export class MockServer {
     this.#sandboxes.clear();
     this.#sessions.clear();
     this.#snapshots.clear();
+    this.#drives.clear();
     this.#commands.clear();
     this.#disks.clear();
     this.#runtimeHandlers = [];
@@ -139,6 +149,8 @@ export class MockServer {
       return this.#sessionRoutes(method, rest.slice(1), url, init);
     if (rest[0] === "snapshots")
       return this.#snapshotRoutes(method, rest.slice(1), url);
+    if (rest[0] === "drives")
+      return this.#driveRoutes(method, rest.slice(1), url, init);
     if (rest.length === 0) {
       if (method === "POST") return this.#createSandbox(init);
       if (method === "GET") return this.#listSandboxes(url);
@@ -150,6 +162,63 @@ export class MockServer {
     if (method === "GET") return this.#getSandbox(name, url);
     if (method === "PATCH") return this.#updateSandbox(name, init);
     if (method === "DELETE") return this.#deleteSandbox(name);
+
+    return apiError(404, "not_found", `No route for ${method} ${url.pathname}`);
+  }
+
+  // ---- drives --------------------------------------------------------------
+
+  #driveRoutes(
+    method: string,
+    parts: string[],
+    url: URL,
+    init?: RequestInit,
+  ): Response {
+    if (parts.length === 0 && method === "GET") {
+      const namePrefix = url.searchParams.get("namePrefix");
+      const drives = [...this.#drives.values()]
+        .filter((drive) => !namePrefix || drive.name.startsWith(namePrefix))
+        .map(drivePayload);
+      return json({
+        drives,
+        pagination: { count: drives.length, next: null },
+      });
+    }
+
+    const name = decodeURIComponent(parts[0] ?? "");
+    if (!name) {
+      return apiError(
+        404,
+        "not_found",
+        `No route for ${method} ${url.pathname}`,
+      );
+    }
+
+    if (method === "POST") {
+      const existingDrive = this.#drives.get(name);
+      if (existingDrive) return json({ drive: drivePayload(existingDrive) });
+
+      const body = readJson<CreateDriveBody>(init);
+      const now = Date.now();
+      const drive: DriveRecord = {
+        name,
+        projectId: body.projectId,
+        region: body.region ?? REGION,
+        maxSizeBytes: body.maxSizeBytes ?? 100 * 1024 ** 3,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.#drives.set(name, drive);
+      return json({ drive: drivePayload(drive) });
+    }
+
+    const drive = this.#drives.get(name);
+    if (!drive) return apiError(404, "not_found", `Drive not found: ${name}`);
+
+    if (method === "DELETE") {
+      this.#drives.delete(name);
+      return json({ drive: drivePayload(drive) });
+    }
 
     return apiError(404, "not_found", `No route for ${method} ${url.pathname}`);
   }

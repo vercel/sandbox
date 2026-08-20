@@ -97,6 +97,18 @@ describe("Drive serialization", () => {
       expect(result.updatedAt).toEqual(new Date(1775650621393));
     });
 
+    it("uses the default region for legacy metadata", () => {
+      const legacyDriveMetadata = { ...mockDriveMetadata };
+      delete (legacyDriveMetadata as Partial<DriveMetadata>).region;
+
+      const result = deserializeDrive({
+        drive: legacyDriveMetadata,
+        projectId: "proj_test",
+      });
+
+      expect(result.region).toBe("iad1");
+    });
+
     it("does not require global credentials just to deserialize and read metadata", async () => {
       vi.resetModules();
       const { Drive: FreshDrive } = await import("./drive");

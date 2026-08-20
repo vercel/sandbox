@@ -3,6 +3,7 @@
 // real SDK, re-exported so the public surface matches exactly.
 export { Sandbox } from "./sandbox.js";
 export { Snapshot } from "./snapshot.js";
+export { Drive } from "./drive.js";
 
 // Mock-specific helpers for controlling stubbed commands.
 export { setupSandbox } from "./setup.js";
@@ -18,7 +19,6 @@ export type {
 export {
   DEFAULT_SANDBOX_REGION,
   Session,
-  Drive,
   SandboxUser,
   SandboxUserAlreadyExistsError,
   Command,

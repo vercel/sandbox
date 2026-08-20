@@ -4,7 +4,7 @@ import type { DriveMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { attachPaginator } from "./utils/paginator.js";
-import type { SandboxRegion } from "./constants.js";
+import { DEFAULT_SANDBOX_REGION, type SandboxRegion } from "./constants.js";
 
 export interface SerializedDrive {
   drive: DriveMetadata;
@@ -77,7 +77,7 @@ export class Drive {
    * The region where the drive data is stored.
    */
   public get region(): string {
-    return this.drive.region;
+    return this.drive.region ?? DEFAULT_SANDBOX_REGION;
   }
 
   /**
