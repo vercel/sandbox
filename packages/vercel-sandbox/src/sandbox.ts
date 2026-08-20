@@ -11,7 +11,7 @@ import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import type { WithFetchOptions } from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
-import type { ManagedImage, RUNTIMES } from "./constants.js";
+import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
@@ -111,12 +111,12 @@ export interface BaseCreateSandboxParams {
    * The region to create the sandbox in. Defaults to `iad1`.
    * See the Vercel documentation for the available regions.
    */
-  region?: string;
+  region?: SandboxRegion;
   /**
    * Additional regions the sandbox can fail over to. Must not include
    * `region`.
    */
-  failoverRegions?: string[];
+  failoverRegions?: SandboxRegion[];
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -1727,8 +1727,8 @@ export class Sandbox implements ExecutionContext {
         deleteEvicted?: boolean;
       } | null;
       currentSnapshotId?: string;
-      region?: string;
-      failoverRegions?: string[];
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {

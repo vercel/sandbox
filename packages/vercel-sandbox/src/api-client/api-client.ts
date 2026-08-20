@@ -38,7 +38,7 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
-import type { RUNTIMES } from "../constants.js";
+import type { RUNTIMES, SandboxRegion } from "../constants.js";
 
 interface Claims {
   owner_id: string;
@@ -183,8 +183,8 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
-      region?: string;
-      failoverRegions?: string[];
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
     }>,
   ) {
@@ -240,8 +240,8 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
-      region?: string;
-      failoverRegions?: string[];
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
     }>,
   ) {
@@ -952,8 +952,8 @@ export class APIClient extends BaseClient {
       deleteEvicted?: boolean;
     } | null;
     currentSnapshotId?: string;
-    region?: string;
-    failoverRegions?: string[];
+    region?: SandboxRegion;
+    failoverRegions?: SandboxRegion[];
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
