@@ -29,6 +29,29 @@ function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "")}`;
 }
 
+/**
+ * Mirrors the server validation: failover regions cannot include the region
+ * the sandbox runs in.
+ *
+ * `region` is the region the collision is checked against, and is only defined
+ * when it is one the caller can act on: a value it sent, or (on fork) one it
+ * can read off the source. An overlap with a default region is filtered on
+ * read instead, see {@link sanitizeFailoverRegions}.
+ */
+function validateFailoverRegions(
+  region: string | undefined,
+  failoverRegions?: string[],
+): Response | undefined {
+  if (region !== undefined && failoverRegions?.includes(region)) {
+    return apiError(
+      400,
+      "bad_request",
+      `failoverRegions must not include the sandbox region: ${region}`,
+    );
+  }
+  return undefined;
+}
+
 interface CreateBody {
   name?: string;
   ports?: number[];
@@ -46,6 +69,8 @@ interface CreateBody {
     expiration?: number;
     deleteEvicted?: boolean;
   };
+  region?: string;
+  failoverRegions?: string[];
   source?: { type: "git" | "tarball" | "snapshot"; snapshotId?: string };
 }
 
@@ -136,10 +161,20 @@ export class MockServer {
     const name = body.name ?? `sandbox-${randomUUID()}`;
     const ports = body.ports ?? [];
 
+    // Only the requested region is checked: an overlap with the default region
+    // is not something the caller can act on, so it is filtered on read.
+    const region = body.region ?? REGION;
+    const failoverError = validateFailoverRegions(
+      body.region,
+      body.failoverRegions,
+    );
+    if (failoverError) return failoverError;
+
     const record: SandboxRecord = {
       name,
       persistent: body.persistent ?? false,
-      region: REGION,
+      region,
+      failoverRegions: body.failoverRegions,
       vcpus: body.resources?.vcpus ?? 2,
       memory: 2048,
       runtime: body.runtime,
@@ -197,11 +232,20 @@ export class MockServer {
     const body = readJson<CreateBody>(init);
     const name = body.name ?? `sandbox-${randomUUID()}`;
 
+    // Each side is copied independently, so the fork can end up with a region
+    // and a failover set that collide. Both values are ones the caller either
+    // sent or can read off the source, so the combination is rejected.
+    const region = body.region ?? source.region;
+    const failoverRegions = body.failoverRegions ?? source.failoverRegions;
+    const failoverError = validateFailoverRegions(region, failoverRegions);
+    if (failoverError) return failoverError;
+
     // Copy the source's config; any body field overrides the copied value.
     const record: SandboxRecord = {
       name,
       persistent: body.persistent ?? source.persistent,
-      region: source.region,
+      region,
+      failoverRegions,
       vcpus: body.resources?.vcpus ?? source.vcpus,
       memory: source.memory,
       runtime: body.image === undefined ? source.runtime : undefined,
@@ -302,6 +346,20 @@ export class MockServer {
       return apiError(404, "not_found", `Sandbox not found: ${name}`);
     const body = readJson<CreateBody & { currentSnapshotId?: string }>(init);
     const session = this.#sessions.get(record.sessionId)!;
+
+    // Each side can be updated on its own, so the resulting combination is
+    // validated whenever either changes. Both values are ones the caller either
+    // sent or can read off the sandbox, so the combination is rejected.
+    if (body.region !== undefined || body.failoverRegions !== undefined) {
+      const failoverError = validateFailoverRegions(
+        body.region ?? record.region,
+        body.failoverRegions ?? record.failoverRegions,
+      );
+      if (failoverError) return failoverError;
+    }
+    if (body.region !== undefined) record.region = body.region;
+    if (body.failoverRegions !== undefined)
+      record.failoverRegions = body.failoverRegions;
 
     if (body.persistent !== undefined) record.persistent = body.persistent;
     if (body.resources?.vcpus !== undefined) {
@@ -463,6 +521,7 @@ export class MockServer {
       sandboxName: session.sandboxName,
       sourceSessionId: session.id,
       region: session.region,
+      regions: [session.region],
       runtime: record.runtime,
       status: "created",
       sizeBytes: files.reduce(

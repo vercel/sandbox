@@ -1,5 +1,5 @@
 import * as cmd from "cmd-ts";
-import { Sandbox } from "@vercel/sandbox";
+import { DEFAULT_SANDBOX_REGION, Sandbox } from "@vercel/sandbox";
 import { sandboxClient } from "../client";
 import { scope } from "../args/scope";
 import chalk, { ChalkInstance } from "chalk";
@@ -131,6 +131,9 @@ export const list = cmd.command({
       CREATED: {
         value: (s) => timeAgo(s.createdAt),
       },
+      // Raw list metadata, not a Sandbox instance, so the default is applied
+      // here rather than by the `region` getter.
+      REGION: { value: (s) => s.region ?? DEFAULT_SANDBOX_REGION },
       MEMORY: {
         value: (s) =>
           s.memory != null ? memoryFormatter.format(s.memory) : "-",

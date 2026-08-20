@@ -10,7 +10,8 @@ import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
 import type { WithFetchOptions } from "./api-client/api-client.js";
-import type { ManagedImage, RUNTIMES } from "./constants.js";
+import { DEFAULT_SANDBOX_REGION } from "./constants.js";
+import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Snapshot } from "./snapshot.js";
@@ -69,7 +70,7 @@ export interface BaseCreateSandboxParams {
     | { type: "tarball"; url: string };
   /**
    * Array of port numbers to expose from the sandbox. Sandboxes can
-   * expose up to 4 ports.
+   * expose up to 15 ports.
    */
   ports?: number[];
   /**
@@ -111,6 +112,16 @@ export interface BaseCreateSandboxParams {
    * @example { env: "staging", team: "infra" }
    */
   tags?: Record<string, string>;
+  /**
+   * The region to create the sandbox in. Defaults to `iad1`.
+   * See the Vercel documentation for the available regions.
+   */
+  region?: SandboxRegion;
+  /**
+   * Additional regions the sandbox can fail over to. Must not include
+   * `region`.
+   */
+  failoverRegions?: SandboxRegion[];
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -229,7 +240,9 @@ interface GetSandboxParams {
    */
   name: string;
   /**
-   * Whether to resume an existing session. Defaults to true.
+   * Whether to resume an existing session immediately. Defaults to false;
+   * a persistent sandbox still auto-resumes on the first SDK call that
+   * needs a running session (such as `runCommand`).
    */
   resume?: boolean;
   /**
@@ -250,7 +263,9 @@ interface GetSandboxParams {
  */
 type GetOrCreateSandboxParams = CreateSandboxParams & {
   /**
-   * Whether to resume an existing session. Defaults to true.
+   * Whether to resume an existing session immediately. Defaults to false;
+   * a persistent sandbox still auto-resumes on the first SDK call that
+   * needs a running session (such as `runCommand`).
    */
   resume?: boolean;
   /**
@@ -394,10 +409,19 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * The region this sandbox runs in.
+   * The region this sandbox is configured to run in. Where the running session
+   * actually landed is reported by {@link Session.region}.
    */
-  public get region(): string | undefined {
-    return this.sandbox.region;
+  public get region(): string {
+    return this.sandbox.region ?? DEFAULT_SANDBOX_REGION;
+  }
+
+  /**
+   * The additional regions this sandbox can fail over to, in order. Empty when
+   * it does not fail over.
+   */
+  public get failoverRegions(): string[] {
+    return this.sandbox.failoverRegions ?? [];
   }
 
   /**
@@ -722,6 +746,8 @@ export class Sandbox implements ExecutionContext {
       tags: params?.tags,
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
+      region: params?.region,
+      failoverRegions: params?.failoverRegions,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
@@ -790,6 +816,8 @@ export class Sandbox implements ExecutionContext {
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
       keepLastSnapshots: params.keepLastSnapshots,
+      region: params.region,
+      failoverRegions: params.failoverRegions,
       persistent: params.persistent,
       signal: params.signal,
       ...privateParams,
@@ -1683,6 +1711,10 @@ export class Sandbox implements ExecutionContext {
    * When `timeout` is increased and a session is currently running, the running
    * session's deadline is also extended.
    *
+   * `region` and `failoverRegions` apply to the next session; the currently
+   * running session keeps the region it started in. Pass an empty
+   * `failoverRegions` array to remove all failover regions.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1701,6 +1733,8 @@ export class Sandbox implements ExecutionContext {
         deleteEvicted?: boolean;
       } | null;
       currentSnapshotId?: string;
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -1727,6 +1761,8 @@ export class Sandbox implements ExecutionContext {
       snapshotExpiration: params.snapshotExpiration,
       keepLastSnapshots: params.keepLastSnapshots,
       currentSnapshotId: params.currentSnapshotId,
+      region: params.region,
+      failoverRegions: params.failoverRegions,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;

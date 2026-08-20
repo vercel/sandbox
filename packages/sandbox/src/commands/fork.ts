@@ -15,6 +15,7 @@ import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
+import { region, failoverRegions } from "../args/region";
 
 export const args = {
   source: cmd.positional({
@@ -64,6 +65,8 @@ export const args = {
     description:
       "Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).",
   }),
+  region,
+  failoverRegions,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -96,6 +99,8 @@ export const fork = cmd.command({
     connect,
     envVars,
     tags,
+    region,
+    failoverRegions,
     snapshotExpiration,
     keepLastSnapshots,
     keepLastSnapshotsFor,
@@ -143,6 +148,8 @@ export const fork = cmd.command({
       ...(networkPolicy !== undefined && { networkPolicy }),
       ...(envObj !== undefined && { env: envObj }),
       ...(tagsObj !== undefined && { tags: tagsObj }),
+      ...(region !== undefined && { region }),
+      ...(failoverRegions !== undefined && { failoverRegions }),
       ...(nonPersistent && { persistent: false }),
       ...(snapshotExpiration !== undefined && {
         snapshotExpiration: ms(snapshotExpiration),
@@ -169,6 +176,7 @@ export const fork = cmd.command({
         sandbox,
         scope,
         action: `forked from ${chalk.cyan(source)}`,
+        connectHint: !connect,
       });
     }
 

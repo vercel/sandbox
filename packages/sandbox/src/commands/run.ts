@@ -55,7 +55,8 @@ export const run = cmd.command({
           sandbox = await Create.create.handler({
             ...rest,
             nonPersistent: rest.nonPersistent || removeAfterUse,
-          });
+            __printConnectHint: false,
+          } as Parameters<typeof Create.create.handler>[0]);
         } else {
           throw error;
         }
@@ -64,7 +65,8 @@ export const run = cmd.command({
       sandbox = await Create.create.handler({
         ...rest,
         nonPersistent: rest.nonPersistent || removeAfterUse,
-      });
+        __printConnectHint: false,
+      } as Parameters<typeof Create.create.handler>[0]);
     }
 
     try {

@@ -340,6 +340,48 @@ describe("APIClient", () => {
       }
     });
 
+    it("surfaces the server's error message in APIError.message", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "bad_request",
+              message:
+                "Invalid request: `ports` should NOT have more than 15 items.",
+            },
+          }),
+          {
+            status: 400,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+
+      try {
+        await client.runCommand({
+          sessionId: "sbx_123",
+          command: "echo",
+          args: ["hello"],
+          env: {},
+          sudo: false,
+          wait: true,
+        });
+        expect.fail("Expected APIError to be thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(APIError);
+        expect(err.message).toBe(
+          "Status code 400 is not ok: Invalid request: `ports` should NOT have more than 15 items.",
+        );
+        expect(err.json).toEqual({
+          error: {
+            code: "bad_request",
+            message:
+              "Invalid request: `ports` should NOT have more than 15 items.",
+          },
+        });
+      }
+    });
+
     it("throws abort error (not Zod error) when signal aborts before stream finishes", async () => {
       const commandData = {
         command: {
@@ -1085,6 +1127,45 @@ describe("APIClient", () => {
       ).toBe(true);
       expect(body.keepLastSnapshots).toBeNull();
     });
+
+    it("forwards region and failoverRegions in the request body", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        region: "sfo1",
+        failoverRegions: ["iad1"],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.region).toBe("sfo1");
+      expect(body.failoverRegions).toEqual(["iad1"]);
+    });
+
+    it("sends an empty failoverRegions array to clear them", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        failoverRegions: [],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.failoverRegions).toEqual([]);
+      expect(body).not.toHaveProperty("region");
+    });
   });
 
   describe("deleteSandbox", () => {
@@ -1291,6 +1372,32 @@ describe("APIClient", () => {
       expect(JSON.parse(opts.body)).not.toHaveProperty("networkId");
     });
 
+    it("forwards region and failoverRegions in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        region: "iad1",
+        failoverRegions: ["sfo1"],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.region).toBe("iad1");
+      expect(body.failoverRegions).toEqual(["sfo1"]);
+    });
+
+    it("omits region and failoverRegions when not provided", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body).not.toHaveProperty("region");
+      expect(body).not.toHaveProperty("failoverRegions");
+    });
+
     it("uses v2 when runtime is provided", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
@@ -1311,6 +1418,68 @@ describe("APIClient", () => {
 
       const [url] = mockFetch.mock.calls[0];
       expect(url).toContain("/v3/sandboxes");
+    });
+  });
+
+  describe("forkSandbox", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+
+    const sandboxResponse = () =>
+      new Response(
+        JSON.stringify({
+          sandbox: {
+            name: "my-fork",
+            persistent: true,
+            region: "iad1",
+            vcpus: 1,
+            memory: 2048,
+            timeout: 300000,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            status: "running",
+            currentSessionId: "sbx_123",
+          },
+          session: {
+            id: "sbx_123",
+            memory: 2048,
+            vcpus: 1,
+            region: "iad1",
+            timeout: 300000,
+            status: "running",
+            requestedAt: Date.now(),
+            createdAt: Date.now(),
+            cwd: "/",
+            updatedAt: Date.now(),
+          },
+          routes: [],
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("forwards region and failoverRegions in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.forkSandbox({
+        projectId: "proj_123",
+        sourceSandbox: "my-sandbox",
+        region: "sfo1",
+        failoverRegions: ["iad1"],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.region).toBe("sfo1");
+      expect(body.failoverRegions).toEqual(["iad1"]);
     });
   });
 

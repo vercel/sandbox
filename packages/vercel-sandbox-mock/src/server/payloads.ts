@@ -56,11 +56,30 @@ export function sessionPayload(session: SessionRecord) {
   };
 }
 
+/**
+ * Drops the sandbox region from a stored failover set, and de-duplicates it.
+ * A stored set can legitimately contain the region a sandbox ended up in, so
+ * the server filters on read rather than rejecting on write.
+ */
+function sanitizeFailoverRegions(
+  failoverRegions: string[] | undefined,
+  region: string,
+): string[] | undefined {
+  if (!failoverRegions) return undefined;
+  return [...new Set(failoverRegions)].filter(
+    (failover) => failover !== region,
+  );
+}
+
 export function sandboxPayload(sandbox: SandboxRecord, session: SessionRecord) {
   return {
     name: sandbox.name,
     persistent: sandbox.persistent,
     region: sandbox.region,
+    failoverRegions: sanitizeFailoverRegions(
+      sandbox.failoverRegions,
+      sandbox.region,
+    ),
     vcpus: sandbox.vcpus,
     memory: sandbox.memory,
     runtime: sandbox.runtime,
@@ -84,6 +103,7 @@ export function snapshotPayload(snapshot: SnapshotRecord) {
     id: snapshot.id,
     sourceSessionId: snapshot.sourceSessionId,
     region: snapshot.region,
+    regions: snapshot.regions,
     status: snapshot.status,
     sizeBytes: snapshot.sizeBytes,
     expiresAt: snapshot.expiresAt,
