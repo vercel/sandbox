@@ -1,0 +1,27 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "ai-example": "0.1.1",
+    "charts-python-example": "0.1.4",
+    "dev-server-example": "0.1.4",
+    "sandbox-filesystem-snapshots-example": "0.0.17",
+    "install-packages-example": "0.1.4",
+    "private-repo-example": "0.1.4",
+    "sandbox-basics-example": "0.1.4",
+    "workflow-code-runner-example": "0.1.6",
+    "sandbox": "4.0.0",
+    "@vercel/sandbox": "3.0.0",
+    "@vercel/sandbox-mock": "3.0.0",
+    "sandbox-image-arch": "0.1.0",
+    "sandbox-image-node": "0.1.0",
+    "sandbox-image-python": "0.1.0",
+    "sandbox-image-ubuntu": "0.1.0",
+    "sandbox-image-universal": "0.1.0"
+  },
+  "changesets": [
+    "bright-nodes-build",
+    "curly-drives-mock",
+    "famous-pugs-scream"
+  ]
+}

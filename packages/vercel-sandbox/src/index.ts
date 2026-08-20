@@ -3,6 +3,8 @@ export {
   type NetworkPolicyKeyValueMatcher,
   type NetworkPolicyMatch,
   type NetworkPolicyMatcher,
+  type SandboxMountMode,
+  type SandboxMounts,
   Sandbox,
 } from "./sandbox.js";
 export {
@@ -20,6 +22,8 @@ export { DEFAULT_SANDBOX_REGION } from "./constants.js";
 export type { SandboxRegion } from "./constants.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
+export { Drive } from "./drive.js";
+export type { SerializedDrive } from "./drive.js";
 export type { SnapshotTreeNodeData } from "./api-client/validators.js";
 export { Command, CommandFinished } from "./command.js";
 export type {

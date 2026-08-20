@@ -693,6 +693,60 @@ describe("Sandbox.getOrCreate", () => {
   });
 });
 
+describe("Sandbox.create mounts", () => {
+  it("sends mounts to the API", async () => {
+    const mockFetch = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            sandbox: makeSandboxMetadata(),
+            session: {
+              id: "sbx_123",
+              memory: 2048,
+              vcpus: 1,
+              region: "iad1",
+              runtime: "node24",
+              timeout: 300_000,
+              status: "running",
+              requestedAt: 1,
+              createdAt: 1,
+              cwd: "/",
+              updatedAt: 1,
+            },
+            routes: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+
+    await Sandbox.create({
+      token: "test-token",
+      teamId: "team_123",
+      projectId: "proj_123",
+      name: "my-sandbox",
+      mounts: {
+        "/mnt/storage": {
+          drive: "my-drive",
+          mode: "read-only",
+        },
+      },
+      fetch: mockFetch,
+    });
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      name: "my-sandbox",
+      projectId: "proj_123",
+      mounts: {
+        "/mnt/storage": {
+          drive: "my-drive",
+          mode: "read-only",
+        },
+      },
+    });
+  });
+});
+
 describe("Sandbox.create environment selection", () => {
   const CREDENTIALS = {
     token: "test-token",

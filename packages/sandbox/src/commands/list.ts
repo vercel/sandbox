@@ -153,6 +153,7 @@ export const list = cmd.command({
         },
       },
       SNAPSHOT: { value: (s) => s.currentSnapshotId ?? "-" },
+      MOUNTS: { value: (s) => formatMounts(s.mounts) },
       TAGS: {
         value: (s) =>
           s.tags && Object.keys(s.tags).length > 0
@@ -194,3 +195,15 @@ const SandboxStatusColor: Record<Sandbox["status"], ChalkInstance> = {
   snapshotting: chalk.blue,
   aborted: chalk.gray.dim,
 };
+
+function formatMounts(
+  mounts: Record<string, { drive: string; mode?: "read-only" | "read-write" }> | undefined,
+): string {
+  if (!mounts || Object.keys(mounts).length === 0) {
+    return "-";
+  }
+
+  return Object.entries(mounts)
+    .map(([path, mount]) => `${mount.drive}:${path}:${mount.mode ?? "read-write"}`)
+    .join(", ");
+}

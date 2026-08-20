@@ -1,5 +1,16 @@
 # sandbox
 
+## 4.1.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+### Patch Changes
+
+- Updated dependencies [[`6405a3836fb1934da8620e5597042509229c7f35`](https://github.com/vercel/sandbox/commit/6405a3836fb1934da8620e5597042509229c7f35)]:
+  - @vercel/sandbox@3.1.0-beta.0
+
 ## 4.0.1
 
 ### Patch Changes
@@ -37,6 +48,28 @@
 
 - Updated dependencies [[`5c9e2d5f34f20632ed5a1de1288e811b67b95423`](https://github.com/vercel/sandbox/commit/5c9e2d5f34f20632ed5a1de1288e811b67b95423)]:
   - @vercel/sandbox@3.0.0
+
+## 3.6.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+### Patch Changes
+
+- Updated dependencies [[`6405a3836fb1934da8620e5597042509229c7f35`](https://github.com/vercel/sandbox/commit/6405a3836fb1934da8620e5597042509229c7f35)]:
+  - @vercel/sandbox@2.10.0-beta.0
+
+## 3.5.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+### Patch Changes
+
+- Updated dependencies [[`d51a1b7cd19de15018dab2140cbc08ba646c9e2f`](https://github.com/vercel/sandbox/commit/d51a1b7cd19de15018dab2140cbc08ba646c9e2f)]:
+  - @vercel/sandbox@2.6.0-beta.0
 
 ## 3.5.5
 

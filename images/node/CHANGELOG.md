@@ -1,5 +1,11 @@
 # sandbox-image-node
 
+## 0.1.1-beta.0
+
+### Patch Changes
+
+- Pin exact Node.js versions during builds and publish exact-version image tags alongside the major-version tags. ([#286](https://github.com/vercel/sandbox/pull/286))
+
 ## 0.1.1
 
 ### Patch Changes

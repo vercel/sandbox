@@ -1,5 +1,11 @@
 # @vercel/sandbox-mock
 
+## 3.1.0-beta.0
+
+### Patch Changes
+
+- Re-export the Drive API from the mock package.
+
 ## 3.0.1
 
 ### Patch Changes
@@ -27,6 +33,12 @@
 
 - Updated dependencies [[`5c9e2d5f34f20632ed5a1de1288e811b67b95423`](https://github.com/vercel/sandbox/commit/5c9e2d5f34f20632ed5a1de1288e811b67b95423)]:
   - @vercel/sandbox@3.0.0
+
+## 2.10.0-beta.0
+
+### Patch Changes
+
+- Re-export the Drive API from the mock package.
 
 ## 2.9.2
 

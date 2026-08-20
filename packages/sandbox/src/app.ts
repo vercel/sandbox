@@ -16,6 +16,7 @@ import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
 import { sessions } from "./commands/sessions";
 import { config } from "./commands/config";
+import { drives } from "./commands/drives";
 
 export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
   const appName = opts?.appName ?? "sandbox";
@@ -38,6 +39,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       snapshot,
       snapshots,
       sessions,
+      drives,
       ...(!opts?.withoutAuth && {
         login,
         logout,

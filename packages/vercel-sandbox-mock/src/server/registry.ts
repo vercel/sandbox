@@ -107,6 +107,17 @@ export interface SnapshotRecord {
   files: SnapshotFileEntry[];
 }
 
+export interface DriveRecord {
+  name: string;
+  projectId: string;
+  region: string;
+  maxSizeBytes: number;
+  currentSessionId?: string;
+  currentSandboxName?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type SnapshotFileEntry =
   | { path: string; type: "directory"; mode: number }
   | { path: string; type: "symlink"; target: string }

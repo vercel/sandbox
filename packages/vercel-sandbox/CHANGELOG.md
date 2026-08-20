@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 3.1.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
 ## 3.0.1
 
 ### Patch Changes
@@ -25,6 +31,18 @@
   - Using `runtime: "node24"`: use `image: "vercel/sandbox/node:24"` for an Ubuntu-based equivalent.
   - Using `runtime: "node26"`: use `image: "vercel/sandbox/node:26"` for an Ubuntu-based equivalent.
   - Using `runtime: "python3.13"`: use `image: "vercel/sandbox/python:3.14"` for an Ubuntu-based equivalent, and note the Python version upgrade.
+
+## 2.10.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
+
+## 2.6.0-beta.0
+
+### Minor Changes
+
+- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
 
 ## 2.9.2
 

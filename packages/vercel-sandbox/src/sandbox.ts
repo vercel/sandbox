@@ -119,6 +119,34 @@ export interface BaseCreateSandboxParams {
   failoverRegions?: SandboxRegion[];
 
   /**
+   * List of drives to attach to the sandbox, keyed by the desired mount path.
+   * The drive must be created beforehand with `Drive.getOrCreate`.
+   *
+   * The mount paths must be absolute and cannot overlap with each other.
+   *
+   * @example
+   * const drive = await Drive.getOrCreate({ name: "my-drive" });
+   * const sandbox = await Sandbox.create({
+   *   mounts: {
+   *     "/data": { drive: drive.name, mode: "read-write" },
+   *   },
+   * });
+   */
+  mounts?: Record<
+    string,
+    {
+      /**
+       * The drive name to mount.
+       */
+      drive: string;
+      /**
+       * Mount mode. Defaults to `read-write` if unspecified.
+       */
+      mode?: "read-only" | "read-write";
+    }
+  >;
+
+  /**
    * An AbortSignal to cancel sandbox creation.
    */
   signal?: AbortSignal;
@@ -158,6 +186,9 @@ export interface BaseCreateSandboxParams {
    */
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
+
+export type SandboxMounts = NonNullable<BaseCreateSandboxParams["mounts"]>;
+export type SandboxMountMode = NonNullable<SandboxMounts[string]["mode"]>;
 
 /**
  * A VCR image reference.
@@ -552,6 +583,13 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * Drives mounted on the sandbox, keyed by mount path.
+   */
+  public get mounts(): SandboxMounts | undefined {
+    return this.sandbox.mounts;
+  }
+
+  /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
@@ -738,6 +776,7 @@ export class Sandbox implements ExecutionContext {
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,
+      mounts: params?.mounts,
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
       region: params?.region,
