@@ -1,6 +1,6 @@
 ---
-"@vercel/sandbox": patch
-"sandbox": patch
+"@vercel/sandbox": minor
+"sandbox": minor
 ---
 
 Add multi-region support for drives:
