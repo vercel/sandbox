@@ -212,16 +212,16 @@ export const create = cmd.command({
     }
 
     if (connect) {
-      await Exec.exec.handler({
+      await Exec.execute({
         scope,
         asSudo: false,
         args: [],
         cwd: undefined,
         skipExtendingTimeout: false,
         envVars: {},
-        command: "sh",
+        // No command: the sandbox opens the account's configured shell.
+        command: undefined,
         interactive: true,
-        tty: true,
         sandbox,
         timeout: undefined,
       });
