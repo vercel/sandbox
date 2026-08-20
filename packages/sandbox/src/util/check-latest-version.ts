@@ -3,6 +3,7 @@ import xdgAppPaths from "xdg-app-paths";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import Path from "node:path";
 import { version } from "../pkg";
+import { getInvokedAs, isVercelCliInvocation } from "./invocation";
 
 const REGISTRY_URL = "https://registry.npmjs.org/sandbox/latest";
 
@@ -42,6 +43,7 @@ export interface VersionCheckOptions {
   ttlMs?: number;
   fetchImpl?: typeof fetch;
   currentVersion?: string;
+  invokedAs?: string;
 }
 
 function defaultCachePath(): string {
@@ -93,6 +95,7 @@ export function startLatestVersionCheck(
   const ttlMs = opts.ttlMs ?? CACHE_TTL_MS;
   const fetchImpl = opts.fetchImpl ?? fetch;
   const current = opts.currentVersion ?? version;
+  const invokedAs = opts.invokedAs ?? getInvokedAs();
 
   const cached = readCache(cachePath);
   let latest = cached?.latest;
@@ -124,14 +127,35 @@ export function startLatestVersionCheck(
       // not keep the event loop alive after the command has finished.
       controller?.abort();
       if (latest && isOutdated(current, latest)) {
+        // A copy bundled in the Vercel CLI is a pinned dependency, so installing
+        // `sandbox` globally would add a second CLI and leave this one behind.
+        // Point at the host CLI instead, and name it so the version that is
+        // actually behind is unambiguous.
+        const bundled = isVercelCliInvocation(invokedAs);
+        const headline = bundled
+          ? `${invokedAs} bundles Sandbox CLI ${chalk.dim(current)}, but ${chalk.cyan(latest)} is available`
+          : `A newer Sandbox CLI is available: ${chalk.cyan(latest)}` +
+            chalk.dim(` (you're on ${current})`);
+        // Don't promise that updating the Vercel CLI reaches `latest`: the
+        // bundled copy is capped by whatever the newest Vercel CLI pins, which
+        // routinely lags the registry. Name the mechanism and both levers
+        // instead, so the advice stays true in the window where it lags.
+        // Deliberately does not offer the standalone CLI as a way out: routing a
+        // Vercel CLI user onto a second CLI is a worse outcome than being a
+        // version behind. Name the pin so the message stays true while the
+        // Vercel CLI's pinned version lags the registry.
+        const advice = bundled
+          ? "This copy is pinned by the Vercel CLI and updates when it does (" +
+            chalk.cyan("npm i -g vercel@latest") +
+            ")"
+          : "Update with " + chalk.cyan("npm i -g sandbox@latest");
         process.stderr.write(
           chalk.yellow("⚠ ") +
-            `A newer Sandbox CLI is available: ${chalk.cyan(latest)}` +
-            chalk.dim(` (you're on ${current})`) +
+            headline +
             "\n" +
             chalk.dim("   ╰ ") +
-            "newer versions can change creation defaults like the base image. Update with " +
-            chalk.cyan("npm i -g sandbox@latest") +
+            "newer versions can change creation defaults like the base image. " +
+            advice +
             "\n",
         );
       }
