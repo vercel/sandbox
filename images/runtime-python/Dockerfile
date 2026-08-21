@@ -7,7 +7,7 @@ RUN mkdir -p /vercel/runtimes/python && \
     tar -xvf "Python-$PYTHON_VERSION.tgz" && \
     cd "Python-$PYTHON_VERSION" && \
     ./configure --enable-optimizations --prefix=/vercel/runtimes/python && \
-    make -j $NUM_CORES && \
+    make -j "$(nproc)" && \
     make install && \
     cd .. && \
     rm -rf "Python-$PYTHON_VERSION" "Python-$PYTHON_VERSION.tgz"
