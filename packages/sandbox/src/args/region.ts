@@ -35,7 +35,14 @@ export const regionListType = cmd.extendType(cmd.string, {
 export const failoverRegionListType = cmd.extendType(cmd.string, {
   displayName: "REGION,...|none",
   async from(value) {
-    return value.trim() === "none" ? [] : regionListType.from(value);
+    if (value.trim() === "none") {
+      return [];
+    }
+    const regions = await regionListType.from(value);
+    if (regions.includes("none")) {
+      throw new Error('"none" cannot be combined with region names.');
+    }
+    return regions;
   },
 });
 
