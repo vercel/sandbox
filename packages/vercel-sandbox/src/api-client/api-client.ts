@@ -1100,4 +1100,4 @@ export type SingleTagFilter<Tags> = [keyof Tags] extends [
   UnionToIntersection<keyof Tags>,
 ]
   ? Tags
-  : "Error: filtering by multiple tags is not supported yet. Pass a single `{ key: value }` tag.";
+  : "Error: filtering by multiple tags is not supported. Pass a single `{ key: value }` tag.";
