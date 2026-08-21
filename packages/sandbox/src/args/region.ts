@@ -32,9 +32,16 @@ export const regionListType = cmd.extendType(cmd.string, {
   },
 });
 
+export const failoverRegionListType = cmd.extendType(cmd.string, {
+  displayName: "REGION,...|none",
+  async from(value) {
+    return value.trim() === "none" ? [] : regionListType.from(value);
+  },
+});
+
 export const failoverRegions = cmd.option({
   long: "failover-regions",
-  type: cmd.optional(regionListType),
+  type: cmd.optional(failoverRegionListType),
   description:
-    "Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region.",
+    'Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default.',
 });

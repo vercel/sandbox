@@ -10,7 +10,7 @@ import {
 } from "../args/network-policy";
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
-import { regionListType, regionType } from "../args/region";
+import { failoverRegionListType, regionType } from "../args/region";
 import { Duration } from "../types/duration";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -551,13 +551,6 @@ const regionCommand = cmd.command({
   },
 });
 
-const failoverRegionsListType = cmd.extendType(cmd.string, {
-  displayName: "REGION,...|none",
-  async from(value) {
-    return value.trim() === "none" ? [] : regionListType.from(value);
-  },
-});
-
 const failoverRegionsCommand = cmd.command({
   name: "failover-regions",
   description: "Update the failover regions of a sandbox (replaces the existing list)",
@@ -567,7 +560,7 @@ const failoverRegionsCommand = cmd.command({
       description: "Sandbox name to update",
     }),
     failoverRegions: cmd.positional({
-      type: failoverRegionsListType,
+      type: failoverRegionListType,
       description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,cle1). Must not include the sandbox region. Pass "none" to remove them.',
     }),
     scope,
