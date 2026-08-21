@@ -3,7 +3,7 @@ variable "REGISTRY" {
 }
 
 group "default" {
-  targets = ["ubuntu", "node", "python", "universal", "arch"]
+  targets = ["ubuntu", "node", "python", "universal", "arch", "runtime-node", "runtime-python"]
 }
 
 target "_common" {
@@ -87,4 +87,76 @@ target "arch" {
   inherits = ["_common"]
   context  = "arch"
   tags     = ["${REGISTRY}/arch:latest"]
+}
+
+target "runtime-builder-base" {
+  inherits   = ["_common"]
+  context    = "runtime-base"
+  dockerfile = "Dockerfile"
+  target     = "builder-base"
+}
+
+target "runtime-base" {
+  inherits   = ["_common"]
+  context    = "runtime-base"
+  dockerfile = "Dockerfile"
+  target     = "sandbox-base"
+
+  contexts = {
+    src = "runtime-base"
+  }
+}
+
+target "runtime-node" {
+  matrix = {
+    node = [
+      {
+        major   = "22"
+        version = "22.22.2"
+      },
+      {
+        major   = "24"
+        version = "24.14.1"
+      },
+      {
+        major   = "26"
+        version = "26.1.0"
+      },
+    ]
+  }
+
+  name       = "runtime-node-${node.major}"
+  inherits   = ["_common"]
+  context    = "runtime-node"
+  dockerfile = "Dockerfile"
+  tags = [
+    "${REGISTRY}/node:al-${node.major}",
+    "${REGISTRY}/node:al-${node.version}",
+  ]
+
+  contexts = {
+    sandbox-base = "target:runtime-base"
+  }
+
+  args = {
+    NODE_ARCH    = "x64"
+    NODE_MAJOR   = node.major
+    NODE_VERSION = node.version
+  }
+}
+
+target "runtime-python" {
+  inherits   = ["_common"]
+  context    = "runtime-python"
+  dockerfile = "Dockerfile"
+  tags       = ["${REGISTRY}/python:al-3.13.1"]
+
+  contexts = {
+    builder-base = "target:runtime-builder-base"
+    sandbox-base = "target:runtime-base"
+  }
+
+  args = {
+    PYTHON_VERSION = "3.13.1"
+  }
 }
