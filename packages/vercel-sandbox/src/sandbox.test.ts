@@ -1205,6 +1205,15 @@ for (const port of ports) {
     }
   });
 
+  it("rejects Sandbox.list with multiple tag filters at the type level", () => {
+    const check = () =>
+      Sandbox.list({
+        // @ts-expect-error — only a single tag filter is supported
+        tags: { purpose: "benchmark", execution: "execution-123" },
+      });
+    expect(check).toBeInstanceOf(Function);
+  });
+
   it("paginates listSessions across multiple pages", async () => {
     const sbx = await Sandbox.create({
       persistent: true,
