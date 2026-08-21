@@ -1,5 +1,21 @@
 # @vercel/sandbox
 
+## 3.1.0
+
+### Minor Changes
+
+- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
+
+  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
+  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
+  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
+
+- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
+
+### Patch Changes
+
+- Update `defineSandboxProxy` to limit the JWKS issuer cache size to prevent unbounded memory usage. ([#309](https://github.com/vercel/sandbox/pull/309))
+
 ## 3.0.1
 
 ### Patch Changes

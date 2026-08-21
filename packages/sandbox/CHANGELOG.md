@@ -1,5 +1,31 @@
 # sandbox
 
+## 4.1.0
+
+### Minor Changes
+
+- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
+
+  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
+  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
+  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
+
+### Patch Changes
+
+- Accept `none` for `--failover-regions` on `sandbox create`, `sandbox run` and `sandbox fork`. ([#310](https://github.com/vercel/sandbox/pull/310))
+
+  `sandbox config failover-regions <name> none` already clears the list, but at creation time
+  `none` was forwarded as a literal region name and rejected by the API. With a project-level
+  default failover list there was no way to create a sandbox in one of those regions from the
+  CLI, while the SDK and the HTTP API both accept an empty `failoverRegions` array.
+
+  The `none` sentinel is now shared between `create`/`run`/`fork` and `config`.
+
+- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
+
+- Updated dependencies [[`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2023195eafe3199c2372f7dad8bfaf0878267c52`](https://github.com/vercel/sandbox/commit/2023195eafe3199c2372f7dad8bfaf0878267c52)]:
+  - @vercel/sandbox@3.1.0
+
 ## 4.0.1
 
 ### Patch Changes
