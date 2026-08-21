@@ -908,14 +908,19 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async listSandboxes(params: {
+  async listSandboxes<Tags extends Record<string, string>>(params: {
     projectId: string;
     limit?: number;
     sortBy?: "createdAt" | "name" | "statusUpdatedAt";
     sortOrder?: "asc" | "desc";
     namePrefix?: string;
     cursor?: string;
-    tags?: Record<string, string>;
+    /**
+     * Filter sandboxes by tag. Only a single `{ key: value }` tag filter is
+     * currently supported.
+     * @example { env: "staging" }
+     */
+    tags?: Tags & SingleTagFilter<Tags>;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -1084,3 +1089,15 @@ function toTagsFilter(
   if (entries.length === 0) return undefined;
   return entries.map(([key, value]) => `${key}:${value}`);
 }
+
+type UnionToIntersection<Union> = (
+  Union extends unknown ? (arg: Union) => void : never
+) extends (arg: infer Intersection) => void
+  ? Intersection
+  : never;
+
+export type SingleTagFilter<Tags> = [keyof Tags] extends [
+  UnionToIntersection<keyof Tags>,
+]
+  ? Tags
+  : "Error: filtering by multiple tags is not supported yet. Pass a single `{ key: value }` tag.";
