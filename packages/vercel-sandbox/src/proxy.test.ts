@@ -112,7 +112,9 @@ describe("defineSandboxProxy", () => {
     const handler = vi.fn(() => new Response("ok"));
     const proxy = defineSandboxProxy(handler);
 
-    await proxy(makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }));
+    await proxy(
+      makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }),
+    );
 
     expect(jwtVerifyMock).toHaveBeenCalledWith(
       "token_123",

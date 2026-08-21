@@ -7,7 +7,9 @@ const userName = () => `u${randomUUID().slice(0, 8).replace(/-/g, "")}`;
 describe("SandboxUser (real SDK over mock fetch)", () => {
   let sandbox: Sandbox;
   beforeAll(async () => {
-    sandbox = await Sandbox.create({ name: `user-${randomUUID().slice(0, 8)}` });
+    sandbox = await Sandbox.create({
+      name: `user-${randomUUID().slice(0, 8)}`,
+    });
   });
   afterAll(async () => {
     await sandbox.stop();

@@ -26,7 +26,7 @@ export function formatBytes(bytes: number) {
 
 export function timeAgo(date: string | number | Date | undefined) {
   if (date === undefined) {
-    return '-';
+    return "-";
   }
 
   return formatDistanceStrict(date, new Date(), {
@@ -76,7 +76,7 @@ export function formatRunDuration(d: number): string {
   if (d < 1000) {
     return `${d}ms`;
   }
-  return `${d/1000}s`
+  return `${d / 1000}s`;
 }
 
 export function formatNextCursorHint(cursor: string): string {

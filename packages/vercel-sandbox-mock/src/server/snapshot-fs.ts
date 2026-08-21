@@ -6,14 +6,20 @@ import type { SnapshotFileEntry } from "./registry.js";
  * with modes preserved. Used to snapshot a session and to persist a sandbox's
  * disk across stop/resume.
  */
-export async function captureFileSystem(source: IFileSystem): Promise<SnapshotFileEntry[]> {
+export async function captureFileSystem(
+  source: IFileSystem,
+): Promise<SnapshotFileEntry[]> {
   const entries: SnapshotFileEntry[] = [];
   for (const path of source.getAllPaths().filter((p) => p !== "/")) {
     const stats = await source.lstat(path);
     if (stats.isDirectory) {
       entries.push({ path, mode: stats.mode, type: "directory" });
     } else if (stats.isSymbolicLink) {
-      entries.push({ path, type: "symlink", target: await source.readlink(path) });
+      entries.push({
+        path,
+        type: "symlink",
+        target: await source.readlink(path),
+      });
     } else {
       entries.push({
         path,
@@ -44,7 +50,8 @@ export async function restoreFileSystem(
   for (const entry of ordered) {
     if (entry.type === "directory") continue;
     if (entry.type === "symlink") {
-      if (targetPaths.has(entry.path)) await target.rm(entry.path, { force: true });
+      if (targetPaths.has(entry.path))
+        await target.rm(entry.path, { force: true });
       await target.symlink(entry.target, entry.path);
     } else {
       await target.writeFile(entry.path, entry.content);

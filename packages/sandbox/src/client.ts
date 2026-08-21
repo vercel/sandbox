@@ -28,17 +28,16 @@ export const sandboxClient: Pick<
     ),
 };
 
-export const snapshotClient: Pick<
-  typeof Snapshot,
-  "get" | "list" | "tree"
-> = {
+export const snapshotClient: Pick<typeof Snapshot, "get" | "list" | "tree"> = {
   list: (params) =>
     withErrorHandling(() =>
       Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
     ),
   get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
   tree: (params) =>
-    withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() =>
+      Snapshot.tree({ fetch: fetchWithUserAgent, ...params }),
+    ),
 };
 
 const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {

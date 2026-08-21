@@ -25,7 +25,11 @@ export type CommandMatcher = string | RegExp;
 export interface CommandHandler {
   commandNames: string[];
   matches(cmd: string, args: string[]): boolean;
-  resolve(cmd: string, args: string[], ctx: CommandHandlerContext): Promise<CommandResponse>;
+  resolve(
+    cmd: string,
+    args: string[],
+    ctx: CommandHandlerContext,
+  ): Promise<CommandResponse>;
 }
 
 type ResponseFn = (
@@ -133,7 +137,9 @@ function extractCommandName(regex: RegExp): string {
  * Convert an array of CommandHandlers to just-bash Command objects.
  * Groups handlers by command name and creates a defineCommand for each.
  */
-export function handlersToCustomCommands(handlers: CommandHandler[]): Command[] {
+export function handlersToCustomCommands(
+  handlers: CommandHandler[],
+): Command[] {
   // Group handlers by command name
   const handlersByName = new Map<string, CommandHandler[]>();
   for (const handler of handlers) {
@@ -154,7 +160,9 @@ export function handlersToCustomCommands(handlers: CommandHandler[]): Command[] 
         // Provide exec so handlers can delegate to just-bash
         const exec = ctx.exec
           ? async (execCmd: string, execArgs?: string[]) => {
-              const cmdLine = execArgs?.length ? [execCmd, ...execArgs].join(" ") : execCmd;
+              const cmdLine = execArgs?.length
+                ? [execCmd, ...execArgs].join(" ")
+                : execCmd;
               return ctx.exec!(cmdLine, { cwd: ctx.cwd });
             }
           : undefined;

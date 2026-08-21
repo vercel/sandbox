@@ -38,7 +38,9 @@ function printTree(rows: Cell[][]) {
       .map((cell, i) => {
         if (!cell) return " ".repeat(widths[i]);
         const pad = widths[i] - cell.label.length - cell.value.length;
-        return cell.label + chalk.cyan(cell.value) + " ".repeat(Math.max(0, pad));
+        return (
+          cell.label + chalk.cyan(cell.value) + " ".repeat(Math.max(0, pad))
+        );
       })
       .join("  ")
       .trimEnd();
@@ -46,7 +48,11 @@ function printTree(rows: Cell[][]) {
   }
 }
 
-function printStopResult(name: string, sandbox: Sandbox, sessionSnapshot: StopResult) {
+function printStopResult(
+  name: string,
+  sandbox: Sandbox,
+  sessionSnapshot: StopResult,
+) {
   process.stderr.write(chalk.green("✔") + " Sandbox stopped.\n");
 
   const snapshot = sessionSnapshot.snapshot;
@@ -54,26 +60,50 @@ function printStopResult(name: string, sandbox: Sandbox, sessionSnapshot: StopRe
   const rows: Cell[][] = [
     [
       c("sandbox: ", name),
-      sandbox.totalActiveCpuDurationMs != null ? c("active cpu: ", formatRunDuration(sandbox.totalActiveCpuDurationMs)) : null,
+      sandbox.totalActiveCpuDurationMs != null
+        ? c("active cpu: ", formatRunDuration(sandbox.totalActiveCpuDurationMs))
+        : null,
       sandbox.memory != null ? c("mem: ", `${sandbox.memory} MB`) : null,
-      sandbox.totalDurationMs != null ? c("duration: ", formatRunDuration(sandbox.totalDurationMs)) : null,
-      sandbox.totalIngressBytes != null ? c("ingress: ", formatBytes(sandbox.totalIngressBytes)) : null,
-      sandbox.totalEgressBytes != null ? c("egress: ", formatBytes(sandbox.totalEgressBytes)) : null,
+      sandbox.totalDurationMs != null
+        ? c("duration: ", formatRunDuration(sandbox.totalDurationMs))
+        : null,
+      sandbox.totalIngressBytes != null
+        ? c("ingress: ", formatBytes(sandbox.totalIngressBytes))
+        : null,
+      sandbox.totalEgressBytes != null
+        ? c("egress: ", formatBytes(sandbox.totalEgressBytes))
+        : null,
     ],
     [
       c("session: ", sessionSnapshot.id),
-      sessionSnapshot.activeCpuDurationMs != null ? c("active cpu: ", formatRunDuration(sessionSnapshot.activeCpuDurationMs)) : null,
+      sessionSnapshot.activeCpuDurationMs != null
+        ? c(
+            "active cpu: ",
+            formatRunDuration(sessionSnapshot.activeCpuDurationMs),
+          )
+        : null,
       c("mem: ", `${sessionSnapshot.memory} MB`),
-      sessionSnapshot.duration != null ? c("duration: ", formatRunDuration(sessionSnapshot.duration)) : null,
-      sessionSnapshot.networkTransfer ? c("ingress: ", formatBytes(sessionSnapshot.networkTransfer.ingress)) : null,
-      sessionSnapshot.networkTransfer ? c("egress: ", formatBytes(sessionSnapshot.networkTransfer.egress)) : null,
+      sessionSnapshot.duration != null
+        ? c("duration: ", formatRunDuration(sessionSnapshot.duration))
+        : null,
+      sessionSnapshot.networkTransfer
+        ? c("ingress: ", formatBytes(sessionSnapshot.networkTransfer.ingress))
+        : null,
+      sessionSnapshot.networkTransfer
+        ? c("egress: ", formatBytes(sessionSnapshot.networkTransfer.egress))
+        : null,
     ],
     ...(snapshot
-      ? [[
-          c("snapshot: ", snapshot.id),
-          c("size: ", formatBytes(snapshot.sizeBytes)),
-          c("expires: ", snapshot.expiresAt ? timeAgo(snapshot.expiresAt) : "never"),
-        ]]
+      ? [
+          [
+            c("snapshot: ", snapshot.id),
+            c("size: ", formatBytes(snapshot.sizeBytes)),
+            c(
+              "expires: ",
+              snapshot.expiresAt ? timeAgo(snapshot.expiresAt) : "never",
+            ),
+          ],
+        ]
       : []),
   ];
 
@@ -94,12 +124,17 @@ export const stop = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, sandboxName, sandboxNames }) {
+  async handler({
+    scope: { token, team, project },
+    sandboxName,
+    sandboxNames,
+  }) {
     const names = Array.from(new Set([sandboxName, ...sandboxNames]));
     const spinner = ora({
-      text: names.length === 1
-        ? `Stopping ${names[0]}`
-        : `Stopping ${names.length} sandboxes`,
+      text:
+        names.length === 1
+          ? `Stopping ${names[0]}`
+          : `Stopping ${names.length} sandboxes`,
       stream: process.stderr,
     }).start();
 

@@ -5,7 +5,9 @@ import { command, setupSandbox } from "./index";
 describe("command stubbing", () => {
   // Baseline handlers registered once, MSW-style, so `resetHandlers` must
   // preserve them across tests.
-  const server = setupSandbox(command("npm install", { stdout: "installed\n" }));
+  const server = setupSandbox(
+    command("npm install", { stdout: "installed\n" }),
+  );
   afterEach(() => server.resetHandlers());
 
   test("a default handler overrides just-bash for a matching command", async () => {
@@ -18,13 +20,18 @@ describe("command stubbing", () => {
   test("use() registers a per-test handler that takes priority", async () => {
     server.use(command("deploy", { stdout: "deployed\n" }));
     const sandbox = await Sandbox.create();
-    expect(await (await sandbox.runCommand("deploy", [])).stdout()).toContain("deployed");
+    expect(await (await sandbox.runCommand("deploy", [])).stdout()).toContain(
+      "deployed",
+    );
     await sandbox.stop();
   });
 
   test("a regex handler can compute a response from args", async () => {
     server.use(
-      command(/^echo-json/, (args) => ({ stdout: JSON.stringify(args), exitCode: 0 })),
+      command(/^echo-json/, (args) => ({
+        stdout: JSON.stringify(args),
+        exitCode: 0,
+      })),
     );
     const sandbox = await Sandbox.create();
     const result = await sandbox.runCommand("echo-json", ["a", "b"]);
@@ -37,7 +44,9 @@ describe("command stubbing", () => {
     server.resetHandlers();
     const sandbox = await Sandbox.create();
     // The per-test override is gone, but the module-scope default persists.
-    expect(await (await sandbox.runCommand("npm", ["install"])).stdout()).toContain("installed");
+    expect(
+      await (await sandbox.runCommand("npm", ["install"])).stdout(),
+    ).toContain("installed");
     await sandbox.stop();
   });
 
@@ -47,7 +56,9 @@ describe("command stubbing", () => {
     const sandbox = await Sandbox.create();
     // With the override cleared and no baseline stub for `echo`, real
     // just-bash `echo` runs again.
-    expect(await (await sandbox.runCommand("echo", ["real"])).stdout()).toBe("real\n");
+    expect(await (await sandbox.runCommand("echo", ["real"])).stdout()).toBe(
+      "real\n",
+    );
     await sandbox.stop();
   });
 });

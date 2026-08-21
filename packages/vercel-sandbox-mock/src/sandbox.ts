@@ -15,7 +15,9 @@ type ListParams = Parameters<typeof RealSandbox.list>[0];
  * existing `Sandbox` code works unchanged.
  */
 export class Sandbox extends RealSandbox {
-  static override create(params?: CreateParams): ReturnType<typeof RealSandbox.create> {
+  static override create(
+    params?: CreateParams,
+  ): ReturnType<typeof RealSandbox.create> {
     return RealSandbox.create(withMockDefaults(params) as CreateParams);
   }
 
@@ -26,14 +28,20 @@ export class Sandbox extends RealSandbox {
   static override getOrCreate(
     params?: GetOrCreateParams,
   ): ReturnType<typeof RealSandbox.getOrCreate> {
-    return RealSandbox.getOrCreate(withMockDefaults(params) as GetOrCreateParams);
+    return RealSandbox.getOrCreate(
+      withMockDefaults(params) as GetOrCreateParams,
+    );
   }
 
-  static override fork(params: ForkParams): ReturnType<typeof RealSandbox.fork> {
+  static override fork(
+    params: ForkParams,
+  ): ReturnType<typeof RealSandbox.fork> {
     return RealSandbox.fork(withMockDefaults(params) as ForkParams);
   }
 
-  static override list(params?: ListParams): ReturnType<typeof RealSandbox.list> {
+  static override list(
+    params?: ListParams,
+  ): ReturnType<typeof RealSandbox.list> {
     return RealSandbox.list(withMockDefaults(params) as ListParams);
   }
 }

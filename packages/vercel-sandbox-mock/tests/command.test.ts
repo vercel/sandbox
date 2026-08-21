@@ -20,7 +20,10 @@ describe("Command (real SDK over mock fetch)", () => {
   });
 
   test("separates stdout and stderr", async () => {
-    const result = await sandbox.runCommand("sh", ["-c", "echo out; echo err >&2"]);
+    const result = await sandbox.runCommand("sh", [
+      "-c",
+      "echo out; echo err >&2",
+    ]);
     expect(await result.stdout()).toContain("out");
     expect(await result.stderr()).toContain("err");
     expect(await result.output()).toContain("out");
@@ -39,7 +42,11 @@ describe("Command (real SDK over mock fetch)", () => {
         cb();
       },
     });
-    await sandbox.runCommand({ cmd: "echo", args: ["piped"], stdout: writable });
+    await sandbox.runCommand({
+      cmd: "echo",
+      args: ["piped"],
+      stdout: writable,
+    });
     expect(chunks.join("")).toContain("piped");
   });
 });

@@ -23,7 +23,9 @@ describe("validateName", () => {
   });
 
   it("rejects names with an invalid regex", () => {
-    expect(() => validateName("INVALID_REGEX", "username")).toThrow("Invalid username");
+    expect(() => validateName("INVALID_REGEX", "username")).toThrow(
+      "Invalid username",
+    );
   });
 
   it("rejects names that do not start with a letter or underscore", () => {
