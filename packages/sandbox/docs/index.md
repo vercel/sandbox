@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.1.0-beta.0
+sandbox 4.1.0-beta.1
 
 ▲ sandbox [options] <command>
 
@@ -93,6 +93,8 @@ Options:
     --env <key=value>, -e=<key=value>          Environment variables to set for the command
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
+    --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
+    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -152,6 +154,8 @@ Options:
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
+    --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
+    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -205,6 +209,8 @@ Options:
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
+    --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
+    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -251,6 +257,8 @@ Options:
     --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
     --env <key=value>, -e=<key=value>          Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).
+    --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
+    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -479,18 +487,20 @@ For command help, run `sandbox config <command> --help`
 
 Commands:
 
-    list                      <name>                  Display the current configuration of a sandbox
-    vcpus                     <name> <COUNT>          Update the vCPU count of a sandbox
-    timeout                   <name> <num UNIT>       Update the timeout of a sandbox (will be applied to all new sessions)
-    persistent                <name> <true|false>     Enable or disable automatic restore of the filesystem between sessions
-    network-policy            <name>                  Update the network policy of a sandbox
-    snapshot-expiration       <name> <DURATION|none>  Update the default snapshot expiration of a sandbox
-    keep-last-snapshots       <name> <COUNT>          Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox
-    keep-last-snapshots-for   <name> <DURATION|none>  Update the expiration applied to snapshots kept by the retention policy
-    delete-evicted-snapshots  <name> <true|false>     When "true" (the default), snapshots evicted by the keep-last-snapshots policy are deleted immediately; when "false", they keep the default expiration.
-    current-snapshot          <name> <snapshot_id>    Update the current snapshot of a sandbox
-    ports                     <name>                  Update the published ports of a sandbox. Replaces all existing published ports.
-    tags                      <name>                  Update the tags of a sandbox. Replaces all existing tags with the provided tags.
+    list                      <name>                    Display the current configuration of a sandbox
+    vcpus                     <name> <COUNT>            Update the vCPU count of a sandbox
+    timeout                   <name> <num UNIT>         Update the timeout of a sandbox (will be applied to all new sessions)
+    persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
+    region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
+    failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
+    network-policy            <name>                    Update the network policy of a sandbox
+    snapshot-expiration       <name> <DURATION|none>    Update the default snapshot expiration of a sandbox
+    keep-last-snapshots       <name> <COUNT>            Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox
+    keep-last-snapshots-for   <name> <DURATION|none>    Update the expiration applied to snapshots kept by the retention policy
+    delete-evicted-snapshots  <name> <true|false>       When "true" (the default), snapshots evicted by the keep-last-snapshots policy are deleted immediately; when "false", they keep the default expiration.
+    current-snapshot          <name> <snapshot_id>      Update the current snapshot of a sandbox
+    ports                     <name>                    Update the published ports of a sandbox. Replaces all existing published ports.
+    tags                      <name>                    Update the tags of a sandbox. Replaces all existing tags with the provided tags.
 ```
 
 ## `sandbox login`

@@ -1,5 +1,27 @@
 # @vercel/sandbox
 
+## 3.1.0-beta.1
+
+### Minor Changes
+
+- Add multi-region support for drives: ([#307](https://github.com/vercel/sandbox/pull/307))
+
+  - Set the `region` field when creating a new drive, or use the `--region` flag in the CLI.
+  - You can retrieve the region of a drive using the `region` getter on the `Drive` class.
+  - Drives can be only be mounted to sandboxes running on the same region.
+
+- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
+
+  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
+  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
+  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
+
+- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
+
+### Patch Changes
+
+- Update `defineSandboxProxy` to limit the JWKS issuer cache size to prevent unbounded memory usage. ([#309](https://github.com/vercel/sandbox/pull/309))
+
 ## 3.1.0-beta.0
 
 ### Minor Changes

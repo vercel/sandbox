@@ -1,5 +1,24 @@
 # @vercel/sandbox-mock
 
+## 3.1.0-beta.1
+
+### Minor Changes
+
+- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
+
+  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
+  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
+  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
+
+- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
+
+### Patch Changes
+
+- Add mock for the `Drive` class. ([#307](https://github.com/vercel/sandbox/pull/307))
+
+- Updated dependencies [[`c2b5d7b45340b485264abb82f0cd640ed4e93293`](https://github.com/vercel/sandbox/commit/c2b5d7b45340b485264abb82f0cd640ed4e93293), [`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2023195eafe3199c2372f7dad8bfaf0878267c52`](https://github.com/vercel/sandbox/commit/2023195eafe3199c2372f7dad8bfaf0878267c52)]:
+  - @vercel/sandbox@3.1.0-beta.1
+
 ## 3.1.0-beta.0
 
 ### Patch Changes
