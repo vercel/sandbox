@@ -1,4 +1,4 @@
-# sandbox-image-runtime-base
+# sandbox-image-al-base
 
 ## 0.1.0
 

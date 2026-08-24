@@ -1,8 +1,8 @@
-# runtime-node
+# al-node
 
-`vercel/sandbox/runtime-node:22` | `vercel/sandbox/runtime-node:24` | `vercel/sandbox/runtime-node:26`
+`vercel/sandbox/node:al-22` | `vercel/sandbox/node:al-24` | `vercel/sandbox/node:al-26`
 
-Node.js on top of the [runtime-base](../runtime-base) image. Each tag pins a
+Node.js on top of the [al-base](../al-base) image. Each tag pins a
 major version, with the exact release supplied to the build through
 `NODE_VERSION`.
 

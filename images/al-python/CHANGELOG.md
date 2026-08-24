@@ -1,4 +1,4 @@
-# sandbox-image-runtime-python
+# sandbox-image-al-python
 
 ## 0.1.0
 

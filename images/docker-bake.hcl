@@ -3,7 +3,7 @@ variable "REGISTRY" {
 }
 
 group "default" {
-  targets = ["ubuntu", "node", "python", "universal", "arch", "runtime-node", "runtime-python"]
+  targets = ["ubuntu", "node", "python", "universal", "arch", "al-node", "al-python"]
 }
 
 target "_common" {
@@ -89,16 +89,16 @@ target "arch" {
   tags     = ["${REGISTRY}/arch:latest"]
 }
 
-target "runtime-builder-base" {
+target "al-builder-base" {
   inherits   = ["_common"]
-  context    = "runtime-base"
+  context    = "al-base"
   dockerfile = "Dockerfile"
   target     = "builder-base"
 }
 
-target "runtime-base" {
+target "al-base" {
   inherits   = ["_common"]
-  context    = "runtime-base"
+  context    = "al-base"
   dockerfile = "Dockerfile"
   target     = "sandbox-base"
 
@@ -107,7 +107,7 @@ target "runtime-base" {
   }
 }
 
-target "runtime-node" {
+target "al-node" {
   matrix = {
     node = [
       {
@@ -125,9 +125,9 @@ target "runtime-node" {
     ]
   }
 
-  name       = "runtime-node-${node.major}"
+  name       = "al-node-${node.major}"
   inherits   = ["_common"]
-  context    = "runtime-node"
+  context    = "al-node"
   dockerfile = "Dockerfile"
   tags = [
     "${REGISTRY}/node:al-${node.major}",
@@ -135,7 +135,7 @@ target "runtime-node" {
   ]
 
   contexts = {
-    sandbox-base = "target:runtime-base"
+    sandbox-base = "target:al-base"
   }
 
   args = {
@@ -145,15 +145,15 @@ target "runtime-node" {
   }
 }
 
-target "runtime-python" {
+target "al-python" {
   inherits   = ["_common"]
-  context    = "runtime-python"
+  context    = "al-python"
   dockerfile = "Dockerfile"
   tags       = ["${REGISTRY}/python:al-3.13.1"]
 
   contexts = {
-    builder-base = "target:runtime-builder-base"
-    sandbox-base = "target:runtime-base"
+    builder-base = "target:al-builder-base"
+    sandbox-base = "target:al-base"
   }
 
   args = {

@@ -1,6 +1,6 @@
-# runtime-base
+# al-base
 
-`vercel/sandbox/runtime-base:latest`
+`vercel/sandbox/al-base:latest`
 
 The Amazon Linux 2023 base image for the runtime image family. It includes a
 compiled Git 2.49.0 installation and common runtime utilities.

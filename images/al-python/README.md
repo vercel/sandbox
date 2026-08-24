@@ -1,8 +1,8 @@
-# runtime-python
+# al-python
 
-`vercel/sandbox/runtime-python:3.13.1`
+`vercel/sandbox/python:al-3.13.1`
 
-Python on top of the [runtime-base](../runtime-base) image. Python 3.13.1 is
+Python on top of the [al-base](../al-base) image. Python 3.13.1 is
 compiled from source and installed under `/vercel/runtimes/python`.
 
 Runs as the `vercel-sandbox` user (uid 1000) with passwordless sudo.
