@@ -77,16 +77,6 @@ export const list = cmd.command({
     limit,
     cursor,
   }) {
-    const tagKeys = Object.keys(tags);
-    if (tagKeys.length > 1) {
-      console.error(
-        chalk.red(
-          "Error: only one --tag filter is supported. Pass a single --tag key=value.",
-        ),
-      );
-      return;
-    }
-
     if (namePrefix) {
       if (sortBy && sortBy !== "name") {
         console.error(
@@ -96,6 +86,17 @@ export const list = cmd.command({
       }
 
       sortBy = "name";
+    }
+
+    const tagKeys = Object.keys(tags);
+    if (tagKeys.length > 1) {
+      console.error(
+        chalk.red(
+          "Error: only one --tag filter is supported. Pass a single --tag key=value.",
+        ),
+      );
+      process.exitCode = 1;
+      return;
     }
 
     const { sandboxes, pagination } = await (async () => {
