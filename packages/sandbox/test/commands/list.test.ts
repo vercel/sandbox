@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
 
 const { mockList } = vi.hoisted(() => ({
@@ -33,6 +33,10 @@ describe("list command", () => {
       sandboxes: [],
       pagination: { count: 0, next: null },
     });
+  });
+
+  afterEach(() => {
+    process.exitCode = undefined;
   });
 
   test("passes a single tag filter to the client", async () => {
