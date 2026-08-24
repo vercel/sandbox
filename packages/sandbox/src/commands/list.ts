@@ -77,6 +77,16 @@ export const list = cmd.command({
     limit,
     cursor,
   }) {
+    const tagKeys = Object.keys(tags);
+    if (tagKeys.length > 1) {
+      console.error(
+        chalk.red(
+          "Error: only one --tag filter is supported. Pass a single --tag key=value.",
+        ),
+      );
+      return;
+    }
+
     if (namePrefix) {
       if (sortBy && sortBy !== "name") {
         console.error(
@@ -103,7 +113,7 @@ export const list = cmd.command({
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
         ...(sortOrder && { sortOrder }),
-        ...(Object.keys(tags).length > 0 && { tags }),
+        ...(tagKeys.length > 0 && { tags }),
       });
     })();
 
