@@ -27,6 +27,7 @@ vi.mock("../../src/commands/login", () => ({
 describe("list command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.exitCode = undefined;
     process.env.VERCEL_AUTH_TOKEN = "tok";
     mockList.mockResolvedValue({
       sandboxes: [],
@@ -66,6 +67,7 @@ describe("list command", () => {
     expect(error).toHaveBeenCalledWith(
       expect.stringContaining("only one --tag filter is supported"),
     );
+    expect(process.exitCode).toBe(1);
     error.mockRestore();
   });
 });
