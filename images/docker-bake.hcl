@@ -103,7 +103,7 @@ target "al-base" {
   target     = "sandbox-base"
 
   contexts = {
-    src = "runtime-base"
+    src = "al-base"
   }
 }
 

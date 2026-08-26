@@ -89,5 +89,5 @@ COPY --from=src ./sudoers /etc/sudoers
 
 RUN groupadd -g 1000 vercel-sandbox && \
     useradd -m -u 1000 -g vercel-sandbox -s /bin/bash vercel-sandbox && \
-    mkdir /vercel/sandbox && \
+    mkdir -p /vercel/sandbox && \
     chown vercel-sandbox:vercel-sandbox /vercel/sandbox

@@ -279,6 +279,12 @@ importers:
         specifier: ^5
         version: 5.8.3
 
+  images/al-base: {}
+
+  images/al-node: {}
+
+  images/al-python: {}
+
   images/arch: {}
 
   images/node: {}
