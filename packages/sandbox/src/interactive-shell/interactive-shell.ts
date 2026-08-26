@@ -1,9 +1,14 @@
 import { Sandbox } from "@vercel/sandbox";
 import createDebugger from "debug";
+import retry from "async-retry";
 import { WebSocket } from "ws";
 import { printCommand } from "../util/print-command";
 import ora from "ora";
-import { acquireRelease, createAbortController, defer } from "../util/disposables";
+import {
+  acquireRelease,
+  createAbortController,
+  defer,
+} from "../util/disposables";
 import chalk from "chalk";
 import { extendSandboxTimeoutPeriodically } from "./extend-sandbox-timeout";
 
@@ -68,6 +73,7 @@ export async function startInteractiveShell(options: {
     (s) => s.stop(),
   );
 
+  debug("Opening interactive session...");
   progress.text = "Opening interactive session...";
   const { url, token } = await options.sandbox.openInteractive();
 
@@ -76,8 +82,47 @@ export async function startInteractiveShell(options: {
     ? ["sudo", command, ...args]
     : [command, ...args];
 
+  debug("Connecting...");
   progress.text = "Connecting...";
-  const client = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
+
+  let client: WebSocket;
+  try {
+    // Wait for the websocket server to be ready
+    // to accept traffic. This is important for
+    // cross region connections because the sevrer
+    // will have been instructed to start, but may not
+    // be fully ready to accept connections yet.
+    const { hostname } = new URL(url);
+    await retry(
+      async (_, attempt) => {
+        debug("Validating server health... (attempt %d)", attempt);
+        const response = await fetch(`https://${hostname}/health`);
+        if (!response.ok) {
+          throw new Error(`Server health check failed: ${response.statusText}`);
+        }
+      },
+      {
+        onRetry: (error: unknown, attempt: number) => {
+          debug(
+            "Server health check failed: %s (attempt %d)",
+            (error as Error).message,
+            attempt,
+          );
+        },
+        retries: 5,
+        minTimeout: 100,
+        randomize: true,
+      },
+    );
+
+    client = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
+  } catch (e) {
+    console.error(
+      chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} failed.`),
+    );
+    process.exitCode = 1;
+    return;
+  }
   using _client = defer(() => {
     try {
       client.close();
@@ -91,6 +136,7 @@ export async function startInteractiveShell(options: {
     client.once("error", (err) => reject(err));
   });
   debug("connected to %s", url);
+  progress.text = "Connected successfully.";
 
   client.send(
     JSON.stringify({
@@ -165,7 +211,9 @@ export async function startInteractiveShell(options: {
   process.removeListener("SIGWINCH", onResize);
   process.stdin.removeListener("data", onStdin);
 
-  console.error(chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`));
+  console.error(
+    chalk.dim(`\n╰▶ connection to ▲ ${options.sandbox.name} closed.`),
+  );
 }
 
 function toEnvArray(env: Record<string, string>): string[] {
