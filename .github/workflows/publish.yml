@@ -10,7 +10,10 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBOREPO_REMOTE_CACHING_TOKEN }}
   TURBO_TEAM: vercel
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel in progress if the workflow is a pull request
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   prepare:
