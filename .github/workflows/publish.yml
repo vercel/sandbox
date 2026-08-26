@@ -24,6 +24,7 @@ jobs:
         id: generate
         uses: docker/bake-action/subaction/matrix@v7
         with:
+          workdir: images
           target: default
   images:
       name: Images
