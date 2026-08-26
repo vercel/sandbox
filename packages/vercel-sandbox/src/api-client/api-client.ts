@@ -986,6 +986,7 @@ export class APIClient extends BaseClient {
   async deleteSandbox(params: {
     name: string;
     projectId: string;
+    deleteOrphanSnapshots?: boolean;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -994,6 +995,9 @@ export class APIClient extends BaseClient {
         method: "DELETE",
         query: {
           projectId: params.projectId,
+          deleteOrphanSnapshots: params.deleteOrphanSnapshots
+            ? "true"
+            : undefined,
         },
         signal: params.signal,
       }),

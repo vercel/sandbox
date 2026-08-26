@@ -149,7 +149,7 @@ export class MockServer {
       return this.#forkSandbox(name, init);
     if (method === "GET") return this.#getSandbox(name, url);
     if (method === "PATCH") return this.#updateSandbox(name, init);
-    if (method === "DELETE") return this.#deleteSandbox(name);
+    if (method === "DELETE") return this.#deleteSandbox(name, url);
 
     return apiError(404, "not_found", `No route for ${method} ${url.pathname}`);
   }
@@ -396,7 +396,7 @@ export class MockServer {
     return json({ sandbox: sandboxPayload(record, session), routes });
   }
 
-  async #deleteSandbox(name: string): Promise<Response> {
+  async #deleteSandbox(name: string, url: URL): Promise<Response> {
     const record = this.#sandboxes.get(name);
     if (!record)
       return apiError(404, "not_found", `Sandbox not found: ${name}`);
@@ -408,7 +408,33 @@ export class MockServer {
     }
     this.#sandboxes.delete(name);
     this.#disks.delete(name);
+    if (url.searchParams.get("deleteOrphanSnapshots") === "true") {
+      this.#deleteOrphanSnapshots(name);
+    }
     return json({ sandbox: sandboxPayload(record, session) });
+  }
+
+  /**
+   * Deletes the snapshots of a removed sandbox that no other sandbox still
+   * references, either as its current snapshot or as the snapshot it was
+   * created from — a fork keeps the snapshot it restored.
+   */
+  #deleteOrphanSnapshots(name: string): void {
+    const referenced = new Set(
+      [...this.#sandboxes.values()]
+        .flatMap((sandbox) => [
+          sandbox.currentSnapshotId,
+          sandbox.sourceSnapshotId,
+        ])
+        .filter((id): id is string => id !== undefined),
+    );
+    for (const snapshot of this.#snapshots.values()) {
+      if (snapshot.sandboxName !== name) continue;
+      if (snapshot.status === "deleted") continue;
+      if (referenced.has(snapshot.id)) continue;
+      snapshot.status = "deleted";
+      snapshot.updatedAt = Date.now();
+    }
   }
 
   // ---- sessions ------------------------------------------------------------

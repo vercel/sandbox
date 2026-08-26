@@ -17,12 +17,18 @@ export const remove = cmd.command({
       type: sandboxName,
       description: "more sandboxes to remove",
     }),
+    deleteOrphanSnapshots: cmd.flag({
+      long: "delete-orphan-snapshots",
+      description:
+        "Also delete the snapshots of the sandbox that are not used by any other sandbox",
+    }),
     scope,
   },
   async handler({
     scope: { token, team, project },
     sandboxName,
     sandboxNames,
+    deleteOrphanSnapshots,
   }) {
     const tasks = Array.from(
       new Set([sandboxName, ...sandboxNames]),
@@ -35,7 +41,7 @@ export const remove = cmd.command({
             projectId: project,
             name,
           });
-          await sandbox.delete();
+          await sandbox.delete({ deleteOrphanSnapshots });
         },
       }),
     );

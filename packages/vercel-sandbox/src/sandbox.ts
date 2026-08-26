@@ -1800,13 +1800,21 @@ export class Sandbox implements ExecutionContext {
    *
    * After deletion the instance becomes inert — all further API calls will
    * throw immediately.
+   *
+   * @param opts.deleteOrphanSnapshots - When true, the snapshots of this
+   * sandbox that are not used by any other sandbox are deleted asynchronously
+   * too. Defaults to false, which keeps them until they expire.
    */
-  async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+  async delete(opts?: {
+    deleteOrphanSnapshots?: boolean;
+    signal?: AbortSignal;
+  }): Promise<void> {
     "use step";
     const client = await this.ensureClient();
     await client.deleteSandbox({
       name: this.sandbox.name,
       projectId: this.projectId,
+      deleteOrphanSnapshots: opts?.deleteOrphanSnapshots,
       signal: opts?.signal,
     });
   }
