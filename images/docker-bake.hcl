@@ -3,7 +3,15 @@ variable "REGISTRY" {
 }
 
 group "default" {
-  targets = ["ubuntu", "node", "python", "universal", "arch", "al-node", "al-python"]
+  targets = ["runtimes", "vmi"]
+}
+
+group "runtimes" {
+  targets = ["al-node", "al-python"]
+}
+
+group "vmi" {
+  targets = ["ubuntu", "node", "python", "universal", "arch"]
 }
 
 target "_common" {
