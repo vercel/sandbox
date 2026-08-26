@@ -46,6 +46,7 @@ jobs:
         - name: Build Images
           uses: docker/bake-action@v7
           with:
+            source: images
             targets: ${{ matrix.target }}
 
 
