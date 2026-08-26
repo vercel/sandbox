@@ -10,11 +10,51 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBOREPO_REMOTE_CACHING_TOKEN }}
   TURBO_TEAM: vercel
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel in progress if the workflow is a pull request
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  release:
-    name: Release
+  prepare:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Generate matrix
+        id: generate
+        uses: docker/bake-action/subaction/matrix@v7
+        with:
+          workdir: images
+          target: default
+  images:
+      name: Images
+      runs-on: ubuntu-latest
+      permissions:
+        contents: read
+      needs:
+        - prepare
+      strategy:
+        fail-fast: false
+        matrix:
+          include: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v6
+
+        - name: Build Images
+          uses: docker/bake-action@v7
+          with:
+            source: images
+            targets: ${{ matrix.target }}
+
+
+  publish:
+    name: Publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -51,3 +91,14 @@ jobs:
           version: pnpm version:prepare
           publish: pnpm release
           commitMode: github-api
+
+  release:
+    name: Release
+    needs: 
+      - images
+      - publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - run: echo "Done"
