@@ -382,6 +382,9 @@ importers:
       async-retry:
         specifier: 1.3.3
         version: 1.3.3
+      detect-agent:
+        specifier: 1.2.0
+        version: 1.2.0
       jose:
         specifier: 6.2.3
         version: 6.2.3

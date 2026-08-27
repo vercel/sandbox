@@ -64,14 +64,18 @@ const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   );
   let agent = `vercel/sandbox-cli/${version}`;
 
+  const existingAgent = headers.get("user-agent");
+
   // Attribute API traffic to the AI agent driving this invocation, if any,
-  // so the server side can record it once ingestion support lands.
-  const aiAgent = await detectAgentName();
-  if (aiAgent) {
-    agent += ` agent/${aiAgent}`;
+  // so the server side can record it once ingestion support lands. The SDK
+  // stamps its own agent phrase, so skip ours when one is already present.
+  if (!existingAgent?.includes(" agent/")) {
+    const aiAgent = await detectAgentName();
+    if (aiAgent) {
+      agent += ` agent/${aiAgent}`;
+    }
   }
 
-  const existingAgent = headers.get("user-agent");
   if (existingAgent) {
     agent += ` ${existingAgent}`;
   }
