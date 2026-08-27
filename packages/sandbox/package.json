@@ -4,9 +4,9 @@
   "version": "4.2.0",
   "scripts": {
     "clean": "rm -rf node_modules dist",
-    "sandbox": "ts-node ./src/sandbox.ts",
+    "sandbox": "tsx ./src/sandbox.ts",
     "build": "tsdown",
-    "vercel-build": "ts-node ./scripts/create-preview-deployment-tgz.ts",
+    "vercel-build": "tsx ./scripts/create-preview-deployment-tgz.ts",
     "test": "vitest",
     "example-whoami": "ts-node ./src/example-whoami.ts",
     "example-next": "ts-node ./src/example-next.ts",
@@ -61,6 +61,7 @@
     "open": "^10.2.0",
     "ora": "^8.2.0",
     "tsdown": "catalog:",
+    "tsx": "4.20.3",
     "vitest": "catalog:",
     "xdg-app-paths": "5.1.0"
   }
