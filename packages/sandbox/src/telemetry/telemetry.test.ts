@@ -15,7 +15,15 @@ vi.mock("xdg-app-paths", () => ({
 import { Telemetry, writeTelemetryConfig } from "./index";
 
 describe("telemetry", () => {
-  const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+  const fetchMock = vi.fn(
+    async (..._args: Parameters<typeof globalThis.fetch>) =>
+      new Response(null, { status: 204 }),
+  );
+
+  function sentEvents(): Array<Record<string, string>> {
+    const init = fetchMock.mock.calls[0]?.[1];
+    return JSON.parse(String(init?.body));
+  }
 
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
@@ -38,17 +46,14 @@ describe("telemetry", () => {
     await telemetry.flush();
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://telemetry.vercel.com/api/sandbox-cli/v1/events");
-    const headers = new Headers(init.headers);
+    const headers = new Headers(init?.headers);
     expect(headers.get("client-id")).toBe("sandbox-cli");
     expect(headers.get("x-sandbox-cli-topic-id")).toBe("generic");
     expect(headers.get("x-sandbox-cli-session-id")).toBeTruthy();
 
-    const events = JSON.parse(String(init.body));
+    const events = sentEvents();
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
       key: "subcommand",
@@ -109,8 +114,7 @@ describe("telemetry", () => {
     });
     await telemetry.flush();
 
-    const events = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    const keys = events.map((event: { key: string }) => event.key);
+    const keys = sentEvents().map((event) => event.key);
     expect(keys).toContain("subcommand");
     expect(keys).toContain("version");
     expect(keys).toContain("platform");
@@ -126,8 +130,7 @@ describe("telemetry", () => {
     });
     await telemetry.flush();
 
-    const events = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(events).toContainEqual(
+    expect(sentEvents()).toContainEqual(
       expect.objectContaining({ key: "embedded", value: "vercel sandbox" }),
     );
   });
