@@ -644,8 +644,11 @@ await sandbox.update({
 ## Deleting a Sandbox
 
 ```typescript
-// Permanently remove a sandbox and all its snapshots.
+// Permanently remove a sandbox. Its snapshots are kept until they expire.
 await sandbox.delete();
+
+// Also delete the snapshots that no other sandbox uses.
+await sandbox.delete({ deleteOrphanSnapshots: true });
 ```
 
 ## Stopping a Sandbox
@@ -1013,8 +1016,9 @@ sandbox cp local-file.txt <name>:/vercel/sandbox/
 # Stop sandbox (synchronous; reports snapshot + usage)
 sandbox stop <name>
 
-# Permanently delete sandbox and all its snapshots
+# Permanently delete sandbox; its snapshots are kept until they expire
 sandbox remove <name>
+sandbox remove <name> --delete-orphan-snapshots  # Also delete snapshots no other sandbox uses
 
 # Sessions
 sandbox sessions list <name>

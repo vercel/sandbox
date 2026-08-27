@@ -290,5 +290,59 @@ describe("MockServer routing", () => {
       expect(recreate.status).toBe(410);
       expect((await j(recreate)).error.code).toBe("snapshot_not_found");
     });
+
+    test("deleting a sandbox keeps its snapshots unless asked to delete them", async () => {
+      const { call } = makeServer();
+      const { session } = await createSandbox(call, { name: "keep-sb" });
+      const created = await j(
+        await call("POST", `/v2/sandboxes/sessions/${session.id}/snapshot`, {
+          body: {},
+        }),
+      );
+
+      await call("DELETE", "/v2/sandboxes/keep-sb");
+
+      const got = await j(
+        await call("GET", `/v2/sandboxes/snapshots/${created.snapshot.id}`),
+      );
+      expect(got.snapshot.status).toBe("created");
+    });
+
+    test("deleting a sandbox with deleteOrphanSnapshots keeps the snapshots a fork still uses", async () => {
+      const { call } = makeServer();
+      const { session } = await createSandbox(call, { name: "orphan-sb" });
+      const orphan = await j(
+        await call("POST", `/v2/sandboxes/sessions/${session.id}/snapshot`, {
+          body: {},
+        }),
+      );
+
+      // A second snapshot becomes the sandbox's current one, and the fork
+      // restores from it, so only the first snapshot is an orphan.
+      const forked = await j(
+        await call("POST", `/v2/sandboxes/sessions/${session.id}/snapshot`, {
+          body: {},
+        }),
+      );
+      await call("POST", "/v2/sandboxes/orphan-sb/fork", {
+        body: { name: "orphan-sb-fork" },
+      });
+
+      const res = await call(
+        "DELETE",
+        "/v2/sandboxes/orphan-sb?deleteOrphanSnapshots=true",
+      );
+      expect(res.status).toBe(200);
+
+      const deleted = await j(
+        await call("GET", `/v2/sandboxes/snapshots/${orphan.snapshot.id}`),
+      );
+      expect(deleted.snapshot.status).toBe("deleted");
+
+      const kept = await j(
+        await call("GET", `/v2/sandboxes/snapshots/${forked.snapshot.id}`),
+      );
+      expect(kept.snapshot.status).toBe("created");
+    });
   });
 });

@@ -1212,7 +1212,44 @@ describe("APIClient", () => {
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
+      expect(url).not.toContain("deleteOrphanSnapshots");
       expect(opts.method).toBe("DELETE");
+    });
+
+    it("sends deleteOrphanSnapshots when requested", async () => {
+      const body = { sandbox: makeSandboxMetadata() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.deleteSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        deleteOrphanSnapshots: true,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("deleteOrphanSnapshots=true");
+    });
+
+    it("omits deleteOrphanSnapshots when false", async () => {
+      const body = { sandbox: makeSandboxMetadata() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.deleteSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        deleteOrphanSnapshots: false,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).not.toContain("deleteOrphanSnapshots");
     });
   });
 
