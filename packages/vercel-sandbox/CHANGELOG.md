@@ -1,5 +1,13 @@
 # @vercel/sandbox
 
+## 3.2.0
+
+### Minor Changes
+
+- Add a `deleteOrphanSnapshots` option when deleting a sandbox. ([#316](https://github.com/vercel/sandbox/pull/316))
+
+  Deleting a persistent sandbox left all of its snapshots alive until they expired. `sandbox.delete({ deleteOrphanSnapshots: true })` in the SDK and `sandbox remove <name> --delete-orphan-snapshots` in the CLI now also delete the snapshots of that sandbox that no other sandbox uses. It defaults to `false`, so the existing behaviour is unchanged.
+
 ## 3.1.0
 
 ### Minor Changes
