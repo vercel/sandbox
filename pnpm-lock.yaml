@@ -340,6 +340,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      detect-agent:
+        specifier: 1.2.0
+        version: 1.2.0
       dotenv-flow:
         specifier: ^4.1.0
         version: 4.1.0
@@ -3476,6 +3479,10 @@ packages:
   destroy@1.2.0:
     resolution: {integrity: sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
+
+  detect-agent@1.2.0:
+    resolution: {integrity: sha512-fW/515FHIogLopGDTSMc4XXkJV6mkVC10gVPoenb7cgY7PZAF/jakLDdDUBQ9QpJEA9AYgEg3/B9WqLTUtz3Ag==}
+    engines: {node: '>=20'}
 
   detect-indent@6.1.0:
     resolution: {integrity: sha512-reYkTUJAZb9gUuZ2RvVCNhVHdg62RHnJ7WJl8ftMi4diZ6NWlciOzQN88pUhSELEwflJht4oQDv0F0BMlwaYtA==}
@@ -9424,6 +9431,8 @@ snapshots:
   destr@2.0.5: {}
 
   destroy@1.2.0: {}
+
+  detect-agent@1.2.0: {}
 
   detect-indent@6.1.0: {}
 
