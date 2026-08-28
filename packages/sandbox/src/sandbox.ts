@@ -19,8 +19,10 @@ async function main() {
   try {
     steerShCommand(argv);
     await run(app(), argv);
+    telemetry.trackExitCode(0);
     await telemetry.flush();
   } catch (e) {
+    telemetry.trackExitCode(1);
     await telemetry.flush();
     await printTopLevelError(e);
     process.exit(1);

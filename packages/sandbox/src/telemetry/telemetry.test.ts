@@ -110,16 +110,60 @@ describe("telemetry", () => {
     const telemetry = new Telemetry();
     await telemetry.trackInvocation({
       appName: "sandbox",
-      argv: ["--token", "create"],
+      argv: ["create", "--token", "secret"],
     });
     await telemetry.flush();
 
-    const keys = sentEvents().map((event) => event.key);
-    expect(keys).toContain("subcommand");
+    const events = sentEvents();
+    expect(events).toContainEqual(
+      expect.objectContaining({ key: "subcommand", value: "create" }),
+    );
+    const keys = events.map((event) => event.key);
     expect(keys).toContain("version");
     expect(keys).toContain("platform");
     expect(keys).toContain("arch");
     expect(keys).not.toContain("embedded");
+  });
+
+  it("records no subcommand when argv does not start with a known command", async () => {
+    const telemetry = new Telemetry();
+    // A registered command name appearing as an option value must not win:
+    // cmd-ts only dispatches on argv[0].
+    await telemetry.trackInvocation({
+      appName: "sandbox",
+      argv: ["--scope", "create", "exec", "my-box"],
+    });
+    await telemetry.flush();
+
+    const keys = sentEvents().map((event) => event.key);
+    expect(keys).not.toContain("subcommand");
+  });
+
+  it("carries project id and the Vercel CLI invocation id on every event", async () => {
+    vi.stubEnv("VERCEL_CLI_INVOCATION_ID", "inv_123");
+    const telemetry = new Telemetry();
+    telemetry.updateProjectId("prj_123");
+    telemetry.track("subcommand", "create");
+    await telemetry.flush();
+
+    expect(sentEvents()[0]).toMatchObject({
+      project_id: "prj_123",
+      vercel_cli_invocation_id: "inv_123",
+    });
+  });
+
+  it("records sandbox session ids with their origin", async () => {
+    const telemetry = new Telemetry();
+    telemetry.trackSandboxSession("sbx_abc", "created");
+    await telemetry.flush();
+
+    const events = sentEvents();
+    expect(events).toContainEqual(
+      expect.objectContaining({ key: "sandbox_session_id", value: "sbx_abc" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ key: "sandbox_session_origin", value: "created" }),
+    );
   });
 
   it("marks embedded invocations", async () => {

@@ -13,23 +13,29 @@ export const sandboxClient: Pick<
   "get" | "list" | "create" | "fork"
 > = {
   get: (params) =>
-    withErrorHandling(() => {
-      telemetry.updateTeamId(teamIdOf(params));
-      return Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params });
+    withErrorHandling(async () => {
+      updateScope(params);
+      const sandbox = await Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params });
+      trackSession(sandbox, "attached");
+      return sandbox;
     }),
   create: (params) =>
-    withErrorHandling(() => {
-      telemetry.updateTeamId(teamIdOf(params));
-      return Sandbox.create({ fetch: fetchWithUserAgent, ...params });
+    withErrorHandling(async () => {
+      updateScope(params);
+      const sandbox = await Sandbox.create({ fetch: fetchWithUserAgent, ...params });
+      trackSession(sandbox, "created");
+      return sandbox;
     }),
   fork: (params) =>
-    withErrorHandling(() => {
-      telemetry.updateTeamId(teamIdOf(params));
-      return Sandbox.fork({ fetch: fetchWithUserAgent, ...params });
+    withErrorHandling(async () => {
+      updateScope(params);
+      const sandbox = await Sandbox.fork({ fetch: fetchWithUserAgent, ...params });
+      trackSession(sandbox, "created");
+      return sandbox;
     }),
   list: (params) =>
     withErrorHandling(() => {
-      telemetry.updateTeamId(teamIdOf(params));
+      updateScope(params);
       return Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
     }),
 };
@@ -47,12 +53,25 @@ export const snapshotClient: Pick<
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };
 
-function teamIdOf(params: unknown): string | undefined {
-  if (params && typeof params === "object" && "teamId" in params) {
-    const { teamId } = params as { teamId?: unknown };
-    if (typeof teamId === "string") return teamId;
+function scopeField(params: unknown, field: string): string | undefined {
+  if (params && typeof params === "object" && field in params) {
+    const value = (params as Record<string, unknown>)[field];
+    if (typeof value === "string") return value;
   }
   return undefined;
+}
+
+function updateScope(params: unknown): void {
+  telemetry.updateTeamId(scopeField(params, "teamId"));
+  telemetry.updateProjectId(scopeField(params, "projectId"));
+}
+
+function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {
+  try {
+    telemetry.trackSandboxSession(sandbox.currentSession().sessionId, origin);
+  } catch {
+    // No active session on this instance; nothing to record.
+  }
 }
 
 const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
@@ -65,10 +84,13 @@ const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   let agent = `vercel/sandbox-cli/${version}`;
 
   // Attribute API traffic to the AI agent driving this invocation, if any,
-  // so the server side can record it once ingestion support lands.
-  const aiAgent = await detectAgentName();
-  if (aiAgent) {
-    agent += ` agent/${aiAgent}`;
+  // so the server side can record it once ingestion support lands. Gated on
+  // the telemetry setting so opting out covers agent attribution too.
+  if (telemetry.enabled) {
+    const aiAgent = await detectAgentName();
+    if (aiAgent) {
+      agent += ` agent/${aiAgent}`;
+    }
   }
 
   const existingAgent = headers.get("user-agent");

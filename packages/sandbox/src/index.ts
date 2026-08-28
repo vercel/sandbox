@@ -9,6 +9,10 @@ export function createApp(opts: { withoutAuth: boolean; appName: string }) {
       await telemetry.trackInvocation({ appName: opts.appName, argv: args });
       try {
         await runCmd(instance, args);
+        telemetry.trackExitCode(0);
+      } catch (error) {
+        telemetry.trackExitCode(1);
+        throw error;
       } finally {
         await telemetry.flush();
       }
