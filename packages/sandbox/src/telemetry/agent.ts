@@ -1,4 +1,4 @@
-import { determineAgent } from "detect-agent";
+import { determineAgent } from "@vercel/detect-agent";
 
 let agentNamePromise: Promise<string | undefined> | undefined;
 
