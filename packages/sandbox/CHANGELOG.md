@@ -1,5 +1,14 @@
 # sandbox
 
+## 4.2.1
+
+### Patch Changes
+
+- Ensure that the interactive server is available before creating websocket connection requests. ([#317](https://github.com/vercel/sandbox/pull/317))
+
+- Updated dependencies [[`bb190077ca365bab432c98a2f5bb6e8e2621cf10`](https://github.com/vercel/sandbox/commit/bb190077ca365bab432c98a2f5bb6e8e2621cf10)]:
+  - @vercel/sandbox@3.2.1
+
 ## 4.2.0
 
 ### Minor Changes

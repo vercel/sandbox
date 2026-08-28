@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 3.2.1
+
+### Patch Changes
+
+- Reject multiple `tags` filters on `Sandbox.list()` at the type level. The API supports filtering by a single tag, so passing more than one key in `tags` is now a compile-time error instead of a 400 from the API. ([#312](https://github.com/vercel/sandbox/pull/312))
+
 ## 3.2.0
 
 ### Minor Changes
