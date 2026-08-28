@@ -1087,6 +1087,11 @@ function toTagsFilter(
   if (tags === undefined) return undefined;
   const entries = Object.entries(tags);
   if (entries.length === 0) return undefined;
+  if (entries.length > 1) {
+    throw new Error(
+      "Filtering by multiple tags is not supported. Pass a single `{ key: value }` tag.",
+    );
+  }
   return entries.map(([key, value]) => `${key}:${value}`);
 }
 

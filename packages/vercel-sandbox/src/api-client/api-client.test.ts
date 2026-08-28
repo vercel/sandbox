@@ -798,6 +798,16 @@ describe("APIClient", () => {
       expect(check).toBeInstanceOf(Function);
     });
 
+    it("rejects multiple tag filters at runtime", async () => {
+      await expect(
+        client.listSandboxes({
+          projectId: "proj_123",
+          // @ts-expect-error — only a single tag filter is supported
+          tags: { env: "staging", team: "infra" },
+        }),
+      ).rejects.toThrow("Filtering by multiple tags is not supported");
+    });
+
     it("passes sortOrder and sortBy statusUpdatedAt", async () => {
       const body = {
         sandboxes: [makeSandboxMetadata("sb-1")],
