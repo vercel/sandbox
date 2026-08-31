@@ -83,17 +83,25 @@ const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   );
   let agent = `vercel/sandbox-cli/${version}`;
 
-  // Attribute API traffic to the AI agent driving this invocation, if any,
-  // so the server side can record it once ingestion support lands. Gated on
-  // the telemetry setting so opting out covers agent attribution too.
+  let existingAgent = headers.get("user-agent");
+
   if (telemetry.enabled) {
-    const aiAgent = await detectAgentName();
-    if (aiAgent) {
-      agent += ` agent/${aiAgent}`;
+    // Attribute API traffic to the AI agent driving this invocation, if any,
+    // so the server side can record it once ingestion support lands. The SDK
+    // stamps its own phrase, so skip ours when one is already present.
+    if (!existingAgent?.includes(" agent/")) {
+      const aiAgent = await detectAgentName();
+      if (aiAgent) {
+        agent += ` agent/${aiAgent}`;
+      }
     }
+  } else if (existingAgent) {
+    // The SDK gates its stamp on env vars only, so a config-file opt-out
+    // (`sandbox telemetry disable`) must be enforced here: strip any agent
+    // phrase from the header rather than trusting upstream gates.
+    existingAgent = existingAgent.replace(/ agent\/\S+/g, "");
   }
 
-  const existingAgent = headers.get("user-agent");
   if (existingAgent) {
     agent += ` ${existingAgent}`;
   }

@@ -38,6 +38,7 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
 
 interface Claims {
@@ -125,12 +126,17 @@ export class APIClient extends BaseClient {
   protected async request(path: string, params?: RequestParams) {
     await this.ensureValidToken();
 
+    // Attribute traffic to the AI agent driving this process, if any, so the
+    // server side can record it once ingestion support lands.
+    const aiAgent = await detectAgentName();
+    const agentSuffix = aiAgent ? ` agent/${aiAgent}` : "";
+
     return super.request(path, {
       ...params,
       query: { teamId: this.teamId, ...params?.query },
       headers: {
         "content-type": "application/json",
-        "user-agent": `vercel/sandbox/${VERSION} (Node.js/${process.version}; ${os.platform()}/${os.arch()})`,
+        "user-agent": `vercel/sandbox/${VERSION}${agentSuffix} (Node.js/${process.version}; ${os.platform()}/${os.arch()})`,
         ...params?.headers,
       },
     });
