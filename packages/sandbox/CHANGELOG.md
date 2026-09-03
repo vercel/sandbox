@@ -1,5 +1,11 @@
 # sandbox
 
+## 4.3.0
+
+### Minor Changes
+
+- Add `sandbox sh --rm` to create a non-persistent sandbox and remove it when the shell exits. ([#324](https://github.com/vercel/sandbox/pull/324))
+
 ## 4.2.1
 
 ### Patch Changes
