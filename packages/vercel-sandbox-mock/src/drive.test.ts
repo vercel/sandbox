@@ -14,12 +14,14 @@ describe("Drive", () => {
       maxSize: 1024,
     });
 
+    expect(drive.driveId).toMatch(/^drive_/);
     expect(drive.name).toBe("cache");
     expect(drive.region).toBe("sfo1");
     expect(drive.maxSize).toBe(1024);
 
     const result = await Drive.list();
     expect(result.drives).toHaveLength(1);
+    expect(result.drives[0].driveId).toBe(drive.driveId);
     expect(result.drives[0].name).toBe("cache");
     expect(result.drives[0].region).toBe("sfo1");
 

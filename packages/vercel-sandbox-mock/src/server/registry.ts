@@ -108,6 +108,7 @@ export interface SnapshotRecord {
 }
 
 export interface DriveRecord {
+  id: string;
   name: string;
   projectId: string;
   region: string;

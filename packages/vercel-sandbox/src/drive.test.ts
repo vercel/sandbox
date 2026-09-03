@@ -8,6 +8,7 @@ const CREDENTIALS = {
 };
 
 const drivePayload = {
+  id: "drive_123",
   name: "workspace",
   projectId: "proj_123",
   region: "sfo1",
@@ -38,6 +39,7 @@ describe("Drive", () => {
       fetch: mockFetch,
     });
 
+    expect(drive.driveId).toBe("drive_123");
     expect(drive.name).toBe("workspace");
     expect(drive.projectId).toBe("proj_123");
     expect(drive.region).toBe("sfo1");
@@ -79,6 +81,7 @@ describe("Drive", () => {
     });
 
     expect(result.drives[0]).toBeInstanceOf(Drive);
+    expect(result.drives[0].driveId).toBe("drive_123");
     expect(result.drives[0].name).toBe("workspace");
     expect(result.drives[0].region).toBe("sfo1");
     await expect(result.toArray()).resolves.toEqual([

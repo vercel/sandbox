@@ -60,6 +60,13 @@ export class Drive {
   }
 
   /**
+   * Unique ID of this drive.
+   */
+  public get driveId(): string {
+    return this.drive.id;
+  }
+
+  /**
    * The name of the drive.
    */
   public get name(): string {
