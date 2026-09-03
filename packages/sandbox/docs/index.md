@@ -223,6 +223,7 @@ Flags:
 
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
+    --rm              Automatically remove the sandbox when the shell exits. [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:
