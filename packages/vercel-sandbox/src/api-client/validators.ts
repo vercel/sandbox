@@ -270,6 +270,7 @@ export const SnapshotResponse = z.object({
 });
 
 export const Drive = z.object({
+  id: z.string(),
   name: z.string(),
   projectId: z.string(),
   region: z.string(),

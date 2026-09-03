@@ -11,6 +11,7 @@ import { Drive, type SerializedDrive } from "./drive";
 
 describe("Drive serialization", () => {
   const mockDriveMetadata: DriveMetadata = {
+    id: "drive_test123",
     name: "workspace",
     projectId: "proj_test",
     region: "sfo1",
@@ -53,6 +54,7 @@ describe("Drive serialization", () => {
       const drive = createMockDrive();
       const serialized = serializeDrive(drive);
 
+      expect(serialized.drive.id).toBe("drive_test123");
       expect(serialized.drive.name).toBe("workspace");
       expect(serialized.drive.projectId).toBe("proj_test");
       expect(serialized.drive.region).toBe("sfo1");
@@ -87,6 +89,7 @@ describe("Drive serialization", () => {
 
       const result = deserializeDrive(serialized);
 
+      expect(result.driveId).toBe("drive_test123");
       expect(result.name).toBe("workspace");
       expect(result.projectId).toBe("proj_test");
       expect(result.region).toBe("sfo1");
@@ -153,6 +156,7 @@ describe("Drive serialization", () => {
       );
 
       expect(rehydrated).toBeInstanceOf(Drive);
+      expect(rehydrated.driveId).toBe("drive_test123");
       expect(rehydrated.name).toBe("workspace");
       expect(rehydrated.maxSize).toBe(1073741824);
     });

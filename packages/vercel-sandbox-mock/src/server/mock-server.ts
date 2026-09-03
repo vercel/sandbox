@@ -201,6 +201,7 @@ export class MockServer {
       const body = readJson<CreateDriveBody>(init);
       const now = Date.now();
       const drive: DriveRecord = {
+        id: newId("drive"),
         name,
         projectId: body.projectId,
         region: body.region ?? REGION,
