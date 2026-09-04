@@ -54,6 +54,13 @@ function validateFailoverRegions(
   return undefined;
 }
 
+/** An empty mounts object clears the mounts, matching the API. */
+function normalizeMounts(
+  mounts: SandboxRecord["mounts"],
+): SandboxRecord["mounts"] {
+  return mounts && Object.keys(mounts).length > 0 ? mounts : undefined;
+}
+
 interface CreateBody {
   name?: string;
   ports?: number[];
@@ -65,6 +72,7 @@ interface CreateBody {
   networkPolicy?: unknown;
   env?: Record<string, string>;
   tags?: Record<string, string>;
+  mounts?: SandboxRecord["mounts"];
   snapshotExpiration?: number;
   keepLastSnapshots?: {
     count: number;
@@ -250,6 +258,7 @@ export class MockServer {
       runtime: body.runtime,
       timeout: body.timeout ?? 300_000,
       tags: body.tags,
+      mounts: normalizeMounts(body.mounts),
       networkPolicy: body.networkPolicy,
       cwd: DEFAULT_CWD,
       env: body.env,
@@ -447,6 +456,7 @@ export class MockServer {
       session.networkPolicy = body.networkPolicy;
     }
     if (body.tags !== undefined) record.tags = body.tags;
+    if (body.mounts !== undefined) record.mounts = normalizeMounts(body.mounts);
     if (body.snapshotExpiration !== undefined)
       record.snapshotExpiration = body.snapshotExpiration;
     if (body.keepLastSnapshots !== undefined) {

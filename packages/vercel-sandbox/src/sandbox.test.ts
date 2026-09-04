@@ -747,6 +747,33 @@ describe("Sandbox.create mounts", () => {
   });
 });
 
+describe("Sandbox.update mounts", () => {
+  it("forwards mounts to updateSandbox and reflects the response", async () => {
+    const mounts = { "/mnt/storage": { drive: "my-drive" } };
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: { ...makeSandboxMetadata(), mounts } },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ mounts });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "test-name",
+        projectId: "test-project",
+        mounts,
+      }),
+    );
+    expect(sandbox.mounts).toEqual(mounts);
+  });
+});
+
 describe("Sandbox.create environment selection", () => {
   const CREDENTIALS = {
     token: "test-token",

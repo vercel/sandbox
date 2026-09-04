@@ -1030,6 +1030,7 @@ export class APIClient extends BaseClient {
     currentSnapshotId?: string;
     region?: SandboxRegion;
     failoverRegions?: SandboxRegion[];
+    mounts?: BaseCreateSandboxParams["mounts"];
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -1053,6 +1054,7 @@ export class APIClient extends BaseClient {
           currentSnapshotId: params.currentSnapshotId,
           region: params.region,
           failoverRegions: params.failoverRegions,
+          mounts: params.mounts,
         }),
         signal: params.signal,
       }),
