@@ -50,6 +50,8 @@
     "@types/ms": "^2.1.0",
     "@types/node": "^22.15.12",
     "@types/ws": "^8.18.1",
+    "@vercel/cli-config": "0.2.4",
+    "@vercel/detect-agent": "1.2.5",
     "@vercel/oidc": "^3.2.0",
     "@vercel/sandbox": "workspace:*",
     "chalk": "^5.6.0",

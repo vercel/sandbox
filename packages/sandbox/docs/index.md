@@ -23,6 +23,7 @@ Commands:
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
     snapshots                                  Manage sandbox snapshots
     sessions                                   Manage sandbox sessions
+    telemetry                                  Manage telemetry collection status
     login                                      Log in to the Sandbox CLI
     logout                                     Log out of the Sandbox CLI
 
