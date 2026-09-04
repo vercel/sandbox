@@ -217,11 +217,11 @@ describe("toAPINetworkPolicy", () => {
     } as unknown as NetworkPolicy;
 
     expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
-      "transform and forwardURL cannot be used together",
+      "only one of transform, forwardURL, or response can be used per rule",
     );
   });
 
-  it("rejects rules without transform or forwardURL", () => {
+  it("rejects rules without transform, forwardURL, or response", () => {
     const networkPolicy = {
       allow: {
         "api.example.com": [{ match: { method: ["GET"] } }],
@@ -229,7 +229,105 @@ describe("toAPINetworkPolicy", () => {
     } as unknown as NetworkPolicy;
 
     expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
-      "transform or forwardURL must be provided",
+      "transform, forwardURL, or response must be provided",
+    );
+  });
+
+  it("converts a path allowlist built from a trailing response rule", () => {
+    const networkPolicy: NetworkPolicy = {
+      allow: {
+        "api.github.com": [
+          {
+            match: { path: { startsWith: "/repos/my-org/" } },
+            transform: [{ headers: { authorization: "Bearer secret" } }],
+          },
+          { response: { statusCode: 403 } },
+        ],
+      },
+    };
+
+    expect(toAPINetworkPolicy(networkPolicy)).toEqual(networkPolicy);
+  });
+
+  it("converts a response rule with a body", () => {
+    const networkPolicy: NetworkPolicy = {
+      allow: {
+        "api.example.com": [
+          {
+            response: {
+              statusCode: 451,
+              headers: { "x-denied-by": "policy" },
+              body: '{"error":"blocked"}',
+              contentType: "application/json",
+            },
+          },
+        ],
+      },
+    };
+
+    expect(toAPINetworkPolicy(networkPolicy)).toEqual(networkPolicy);
+  });
+
+  it("rejects rules with response and transform", () => {
+    const networkPolicy = {
+      allow: {
+        "api.example.com": [
+          {
+            transform: [{ headers: { authorization: "Bearer secret" } }],
+            response: { statusCode: 403 },
+          },
+        ],
+      },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "only one of transform, forwardURL, or response can be used per rule",
+    );
+  });
+
+  it("rejects a response status code outside 200 to 599", () => {
+    const networkPolicy = {
+      allow: { "api.example.com": [{ response: { statusCode: 100 } }] },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow();
+  });
+
+  it("rejects a response body without a contentType", () => {
+    const networkPolicy = {
+      allow: { "api.example.com": [{ response: { statusCode: 403, body: "nope" } }] },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "contentType must be provided when body is set",
+    );
+  });
+
+  it("rejects a response body on a bodyless status code", () => {
+    const networkPolicy = {
+      allow: {
+        "api.example.com": [
+          { response: { statusCode: 204, body: "nope", contentType: "text/plain" } },
+        ],
+      },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "body is not allowed on status codes 204, 205, and 304",
+    );
+  });
+
+  it("rejects a response that sets a proxy-managed header", () => {
+    const networkPolicy = {
+      allow: {
+        "api.example.com": [
+          { response: { statusCode: 403, headers: { "Content-Length": "0" } } },
+        ],
+      },
+    } as unknown as NetworkPolicy;
+
+    expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
+      "headers cannot set proxy-managed headers",
     );
   });
 
