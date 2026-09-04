@@ -117,10 +117,11 @@ export const login = cmd.command({
       const auth = getAuth();
       if (auth?.token) {
         try {
-          const { teamId, teamSlug, projectId, projectSlug } =
-            await inferScope({
+          const { teamId, teamSlug, projectId, projectSlug } = await inferScope(
+            {
               token: auth.token,
-            });
+            },
+          );
           process.stderr.write(
             chalk.dim("   │ ") +
               "team: " +

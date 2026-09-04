@@ -8,7 +8,12 @@ import { sandboxName } from "../args/sandbox-name";
 import { snapshotId } from "../args/snapshot-id";
 import { sandboxClient, snapshotClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { formatBytes, formatNextCursorHint, table, timeAgo } from "../util/output";
+import {
+  formatBytes,
+  formatNextCursorHint,
+  table,
+  timeAgo,
+} from "../util/output";
 import { renderSnapshotTree } from "../util/snapshot-tree";
 
 const list = cmd.command({
@@ -38,7 +43,13 @@ const list = cmd.command({
       type: cmd.optional(cmd.string),
     }),
   },
-  async handler({ scope: { token, team, project }, name, sortOrder, limit, cursor }) {
+  async handler({
+    scope: { token, team, project },
+    name,
+    sortOrder,
+    limit,
+    cursor,
+  }) {
     const { snapshots, pagination } = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching snapshots...").start(),
@@ -120,7 +131,12 @@ const get = cmd.command({
             color: (s) => SnapshotStatusColor.get(s.status) ?? chalk.reset,
           },
           CREATED: { value: (s) => timeAgo(s.createdAt) },
-          EXPIRATION: { value: (s) => s.status === 'deleted' ? chalk.gray.dim('deleted') : timeAgo(s.expiresAt) },
+          EXPIRATION: {
+            value: (s) =>
+              s.status === "deleted"
+                ? chalk.gray.dim("deleted")
+                : timeAgo(s.expiresAt),
+          },
           SIZE: { value: (s) => formatBytes(s.sizeBytes) },
           REGIONS: { value: (s) => s.regions.join(", ") },
           ["SOURCE SESSION"]: { value: (s) => s.sourceSessionId },
@@ -194,8 +210,7 @@ const tree = cmd.command({
     }),
     limit: cmd.option({
       long: "limit",
-      description:
-        "Maximum number of snapshots per page (1–10, default 10).",
+      description: "Maximum number of snapshots per page (1–10, default 10).",
       type: cmd.optional(cmd.number),
     }),
     cursor: cmd.option({
@@ -213,17 +228,13 @@ const tree = cmd.command({
     cursor,
   }) {
     if (limit !== undefined && (limit < 1 || limit > 10)) {
-      console.error(
-        chalk.red("Error: --limit must be between 1 and 10."),
-      );
+      console.error(chalk.red("Error: --limit must be between 1 and 10."));
       process.exitCode = 1;
       return;
     }
 
     if (sortOrder !== undefined && !cursor) {
-      console.error(
-        chalk.red("Error: --sort-order requires --cursor."),
-      );
+      console.error(chalk.red("Error: --sort-order requires --cursor."));
       process.exitCode = 1;
       return;
     }

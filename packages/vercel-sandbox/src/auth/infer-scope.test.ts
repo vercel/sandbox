@@ -477,7 +477,8 @@ describe("inferScope", () => {
         if (endpoint.includes("teamId=team_blocked")) {
           throw new NotOk({
             statusCode: 402,
-            responseText: "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
+            responseText:
+              "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
           });
         }
         return {};

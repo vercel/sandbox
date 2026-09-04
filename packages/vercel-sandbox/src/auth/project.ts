@@ -42,7 +42,10 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
 
 /** Status codes that mean "this team can't be used, try the next one". */
 function isSkippableTeamError(e: unknown): boolean {
-  return e instanceof NotOk && (e.response.statusCode === 402 || e.response.statusCode === 403);
+  return (
+    e instanceof NotOk &&
+    (e.response.statusCode === 402 || e.response.statusCode === 403)
+  );
 }
 
 /**
@@ -124,9 +127,7 @@ export async function inferScope(opts: {
   let next: number | null = null;
   do {
     const endpoint: string =
-      next === null
-        ? "/v2/teams?limit=20"
-        : `/v2/teams?limit=20&until=${next}`;
+      next === null ? "/v2/teams?limit=20" : `/v2/teams?limit=20&until=${next}`;
     const page = await fetchApi({ token: opts.token, endpoint }).then(
       TeamsSchema.parse,
     );
@@ -142,7 +143,9 @@ export async function inferScope(opts: {
 
     const bestHobbyTeam =
       hobbyOwnerTeams.find((t) => t.slug === username) ??
-      hobbyOwnerTeams.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+      hobbyOwnerTeams.sort(
+        (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
+      )[0];
 
     if (bestHobbyTeam && bestHobbyTeam.id !== defaultTeamId) {
       try {

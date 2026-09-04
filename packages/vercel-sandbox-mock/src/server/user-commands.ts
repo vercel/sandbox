@@ -40,22 +40,28 @@ export function buildUserCommands(state: UserState): Command[] {
     return state.users.get(user)?.group;
   };
 
-  const id = defineCommand("id", async (args: string[]): Promise<ExecResult> => {
-    const flag = args.find((a) => a.startsWith("-")) ?? "";
-    const target = positionals(args, new Set())[0] ?? state.defaultUser;
-    if (!exists(target)) return fail(`id: ‘${target}’: no such user`);
-    if (flag.includes("g")) {
-      const group = primaryGroup(target);
-      return group ? ok(`${group}\n`) : fail(`id: ‘${target}’: no such user`);
-    }
-    // Default and `-u`: report the login name.
-    return ok(`${target}\n`);
-  });
+  const id = defineCommand(
+    "id",
+    async (args: string[]): Promise<ExecResult> => {
+      const flag = args.find((a) => a.startsWith("-")) ?? "";
+      const target = positionals(args, new Set())[0] ?? state.defaultUser;
+      if (!exists(target)) return fail(`id: ‘${target}’: no such user`);
+      if (flag.includes("g")) {
+        const group = primaryGroup(target);
+        return group ? ok(`${group}\n`) : fail(`id: ‘${target}’: no such user`);
+      }
+      // Default and `-u`: report the login name.
+      return ok(`${target}\n`);
+    },
+  );
 
   const useradd = defineCommand(
     "useradd",
     async (args: string[], ctx: CommandContext): Promise<ExecResult> => {
-      const username = positionals(args, new Set(["-s", "-g", "-G", "-u", "-d"]))[0];
+      const username = positionals(
+        args,
+        new Set(["-s", "-g", "-G", "-u", "-d"]),
+      )[0];
       if (!username) return fail("useradd: missing operand");
       if (state.users.has(username)) {
         return fail(`useradd: user '${username}' already exists`, 9);
@@ -70,45 +76,57 @@ export function buildUserCommands(state: UserState): Command[] {
     },
   );
 
-  const groupadd = defineCommand("groupadd", async (args: string[]): Promise<ExecResult> => {
-    const groupname = positionals(args, new Set(["-g"]))[0];
-    if (!groupname) return fail("groupadd: missing operand");
-    if (state.groups.has(groupname)) {
-      return fail(`groupadd: group '${groupname}' already exists`, 9);
-    }
-    state.groups.set(groupname, new Set());
-    return ok();
-  });
+  const groupadd = defineCommand(
+    "groupadd",
+    async (args: string[]): Promise<ExecResult> => {
+      const groupname = positionals(args, new Set(["-g"]))[0];
+      if (!groupname) return fail("groupadd: missing operand");
+      if (state.groups.has(groupname)) {
+        return fail(`groupadd: group '${groupname}' already exists`, 9);
+      }
+      state.groups.set(groupname, new Set());
+      return ok();
+    },
+  );
 
-  const usermod = defineCommand("usermod", async (args: string[]): Promise<ExecResult> => {
-    // usermod -aG <group> <user>
-    const rest = positionals(args, new Set());
-    const [groupname, username] = rest;
-    const members = groupname ? state.groups.get(groupname) : undefined;
-    if (!members) {
-      return fail(`usermod: group '${groupname}' does not exist`, 6);
-    }
-    if (!username || !exists(username)) {
-      return fail(`usermod: user '${username}' does not exist`, 6);
-    }
-    members.add(username);
-    return ok();
-  });
+  const usermod = defineCommand(
+    "usermod",
+    async (args: string[]): Promise<ExecResult> => {
+      // usermod -aG <group> <user>
+      const rest = positionals(args, new Set());
+      const [groupname, username] = rest;
+      const members = groupname ? state.groups.get(groupname) : undefined;
+      if (!members) {
+        return fail(`usermod: group '${groupname}' does not exist`, 6);
+      }
+      if (!username || !exists(username)) {
+        return fail(`usermod: user '${username}' does not exist`, 6);
+      }
+      members.add(username);
+      return ok();
+    },
+  );
 
-  const gpasswd = defineCommand("gpasswd", async (args: string[]): Promise<ExecResult> => {
-    // gpasswd -d <user> <group>
-    const rest = positionals(args, new Set());
-    const [username, groupname] = rest;
-    const members = groupname ? state.groups.get(groupname) : undefined;
-    if (!members) {
-      return fail(`gpasswd: group '${groupname}' does not exist`, 1);
-    }
-    if (!username || !members.has(username)) {
-      return fail(`gpasswd: user '${username}' is not a member of '${groupname}'`, 3);
-    }
-    members.delete(username);
-    return ok();
-  });
+  const gpasswd = defineCommand(
+    "gpasswd",
+    async (args: string[]): Promise<ExecResult> => {
+      // gpasswd -d <user> <group>
+      const rest = positionals(args, new Set());
+      const [username, groupname] = rest;
+      const members = groupname ? state.groups.get(groupname) : undefined;
+      if (!members) {
+        return fail(`gpasswd: group '${groupname}' does not exist`, 1);
+      }
+      if (!username || !members.has(username)) {
+        return fail(
+          `gpasswd: user '${username}' is not a member of '${groupname}'`,
+          3,
+        );
+      }
+      members.delete(username);
+      return ok();
+    },
+  );
 
   // just-bash has no real ownership; chown is accepted as a no-op so the SDK's
   // exitCode checks pass. `chmod` is provided natively by just-bash.

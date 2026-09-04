@@ -17,7 +17,9 @@ describe("FileSystem (real SDK over mock fetch)", () => {
     await sandbox.fs.mkdir(root, { recursive: true });
     await sandbox.fs.writeFile(`${root}/text.txt`, "héllo");
     expect(await sandbox.fs.readFile(`${root}/text.txt`, "utf8")).toBe("héllo");
-    expect(await sandbox.fs.readFile(`${root}/text.txt`)).toEqual(Buffer.from("héllo"));
+    expect(await sandbox.fs.readFile(`${root}/text.txt`)).toEqual(
+      Buffer.from("héllo"),
+    );
   });
 
   test("appendFile appends", async () => {
@@ -29,7 +31,9 @@ describe("FileSystem (real SDK over mock fetch)", () => {
   test("exists reflects presence; missing reads throw ENOENT", async () => {
     expect(await sandbox.fs.exists(`${root}/text.txt`)).toBe(true);
     expect(await sandbox.fs.exists(`${root}/missing`)).toBe(false);
-    await expect(sandbox.fs.readFile(`${root}/missing`)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(sandbox.fs.readFile(`${root}/missing`)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 
   test("rm recursive removes a tree", async () => {

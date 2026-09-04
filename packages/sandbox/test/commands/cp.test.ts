@@ -3,12 +3,12 @@ import { parseLocalOrRemotePath } from "../../src/commands/cp";
 
 describe("copy path parsing", () => {
   test("accepts non-existent local paths", async () => {
-    await expect(parseLocalOrRemotePath("./does-not-exist.txt")).resolves.toEqual(
-      {
-        type: "local",
-        path: "./does-not-exist.txt",
-      },
-    );
+    await expect(
+      parseLocalOrRemotePath("./does-not-exist.txt"),
+    ).resolves.toEqual({
+      type: "local",
+      path: "./does-not-exist.txt",
+    });
   });
 
   test("parses remote paths with a sandbox name", async () => {

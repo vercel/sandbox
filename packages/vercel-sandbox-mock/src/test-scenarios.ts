@@ -29,13 +29,23 @@ export async function expectForkToPreserveSnapshotFileSystem(
       name: `fork-target-${suffix}`,
     });
 
-    expect(await fork.fs.readFile("/tmp/tree/nested/payload.bin")).toEqual(binary);
+    expect(await fork.fs.readFile("/tmp/tree/nested/payload.bin")).toEqual(
+      binary,
+    );
     expect((await fork.fs.stat("/tmp/tree/run.sh")).mode & 0o777).toBe(0o755);
-    expect((await fork.fs.lstat("/tmp/tree/payload-link")).isSymbolicLink()).toBe(true);
-    expect(await fork.fs.readlink("/tmp/tree/payload-link")).toBe("nested/payload.bin");
+    expect(
+      (await fork.fs.lstat("/tmp/tree/payload-link")).isSymbolicLink(),
+    ).toBe(true);
+    expect(await fork.fs.readlink("/tmp/tree/payload-link")).toBe(
+      "nested/payload.bin",
+    );
     expect(await fork.fs.readFile("/tmp/tree/payload-link")).toEqual(binary);
     expect(await fork.fs.exists("/tmp/tree/after-snapshot.txt")).toBe(false);
   } finally {
-    await Promise.allSettled([fork?.delete(), snapshot?.delete(), source.delete()]);
+    await Promise.allSettled([
+      fork?.delete(),
+      snapshot?.delete(),
+      source.delete(),
+    ]);
   }
 }

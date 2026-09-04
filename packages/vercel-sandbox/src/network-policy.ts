@@ -14,16 +14,19 @@ export type NetworkTransformer = {
 /**
  * Defines how a request value is matched.
  */
-export type NetworkPolicyMatcher = {
-  /** Match the value exactly. */
-  exact?: string;
-} | {
-  /** Match values that start with the provided prefix. */
-  startsWith?: string;
-} | {
-  /** Match values against an RE2 regular expression. */
-  regex?: string;
-};
+export type NetworkPolicyMatcher =
+  | {
+      /** Match the value exactly. */
+      exact?: string;
+    }
+  | {
+      /** Match values that start with the provided prefix. */
+      startsWith?: string;
+    }
+  | {
+      /** Match values against an RE2 regular expression. */
+      regex?: string;
+    };
 
 /**
  * Matcher for key/value request entries such as headers and query parameters.

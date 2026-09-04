@@ -1,5 +1,19 @@
 # Contributing
 
+## Formatting
+
+Everything is formatted with [oxfmt](https://oxc.rs/docs/guide/usage/formatter),
+configured in [`.oxfmtrc.json`](./.oxfmtrc.json). That covers JavaScript,
+TypeScript, JSON, Markdown, YAML and CSS — oxfmt skips any file type it does
+not understand.
+
+- `pnpm run format` formats the whole repo.
+- `pnpm run format:check` reports files that are not formatted. CI runs this on
+  every pull request, so unformatted code fails the build.
+
+A `pre-commit` hook runs oxfmt over staged files, so in practice you rarely
+need to run either command by hand.
+
 ## Running the tests
 
 NOTE: Running the tests creates actual sandboxes.

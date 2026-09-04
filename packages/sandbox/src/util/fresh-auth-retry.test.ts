@@ -11,9 +11,7 @@ vi.mock("../args/auth", () => ({
 const { withFreshAuthRetry } = await import("./fresh-auth-retry");
 
 function makeApiError(status: number): APIError<unknown> {
-  return new APIError(
-    new Response("", { status, statusText: "Unauthorized" }),
-  );
+  return new APIError(new Response("", { status, statusText: "Unauthorized" }));
 }
 
 function makeNotOk(statusCode: number): NotOk {
