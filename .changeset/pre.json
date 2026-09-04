@@ -20,12 +20,14 @@
     "sandbox-image-universal": "0.1.0"
   },
   "changesets": [
+    "bright-drives-wave",
     "brown-impalas-camp",
     "curly-drives-mock",
     "famous-pugs-scream",
     "multi-region-support",
     "sandbox-region-getter-defaults",
     "tidy-cats-cache",
-    "tidy-drives-mock"
+    "tidy-drives-mock",
+    "update-sandbox-mounts"
   ]
 }

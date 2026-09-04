@@ -1,5 +1,19 @@
 # @vercel/sandbox
 
+## 3.1.0-beta.2
+
+### Minor Changes
+
+- Add a `driveId` field on the `Drive` entity to retrieve the unique ID of a drive. ([#322](https://github.com/vercel/sandbox/pull/322))
+
+### Patch Changes
+
+- Allow updating the drives mounted on a sandbox: ([#327](https://github.com/vercel/sandbox/pull/327))
+
+  - New `mounts` option on `Sandbox.update()`. It replaces all existing mounts and applies to the next session. Pass an empty object to remove all mounts.
+  - New `sandbox config mounts <name> --mount drive:/path[:mode]` CLI command. Omit `--mount` to remove all mounts.
+  - `sandbox config list` now shows the mounts.
+
 ## 3.1.0-beta.1
 
 ### Minor Changes
