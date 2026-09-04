@@ -16,9 +16,13 @@ import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
 import { sessions } from "./commands/sessions";
 import { config } from "./commands/config";
+import { setInvokedAs } from "./util/invocation";
 
 export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
   const appName = opts?.appName ?? "sandbox";
+  // Record it before building the command tree so anything running inside a
+  // command (e.g. the staleness notice) can tell how it was invoked.
+  setInvokedAs(appName);
   return subcommands({
     name: appName,
     description: "Interfacing with Vercel Sandbox",
