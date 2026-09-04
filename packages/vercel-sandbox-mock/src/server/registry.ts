@@ -71,6 +71,7 @@ export interface SandboxRecord {
   runtime?: string;
   timeout: number;
   tags?: Record<string, string>;
+  mounts?: Record<string, { drive: string; mode?: "read-only" | "read-write" }>;
   networkPolicy?: unknown;
   cwd: string;
   env?: Record<string, string>;

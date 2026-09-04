@@ -1748,6 +1748,9 @@ export class Sandbox implements ExecutionContext {
    * running session keeps the region it started in. Pass an empty
    * `failoverRegions` array to remove all failover regions.
    *
+   * When `mounts` is provided, it replaces all current mounts and applies to
+   * the next session. Pass an empty object to remove all mounts.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1768,6 +1771,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId?: string;
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
+      mounts?: SandboxMounts;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -1796,6 +1800,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId: params.currentSnapshotId,
       region: params.region,
       failoverRegions: params.failoverRegions,
+      mounts: params.mounts,
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;

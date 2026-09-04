@@ -493,6 +493,7 @@ Commands:
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
+    mounts                    <name>                    Update the drives mounted on a sandbox (replaces all existing mounts, applied to all new sessions). Pass no --mount flag to remove them.
     network-policy            <name>                    Update the network policy of a sandbox
     snapshot-expiration       <name> <DURATION|none>    Update the default snapshot expiration of a sandbox
     keep-last-snapshots       <name> <COUNT>            Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox

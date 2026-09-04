@@ -27,6 +27,30 @@ describe("Sandbox (real SDK over mock fetch)", () => {
     await withRegion.delete();
   });
 
+  test("update replaces and clears mounts", async () => {
+    const sandbox = await Sandbox.create({
+      name: uniq(),
+      mounts: { "/mnt/data": { drive: "data" } },
+    });
+    expect(sandbox.mounts).toEqual({ "/mnt/data": { drive: "data" } });
+
+    await sandbox.update({
+      mounts: { "/mnt/cache": { drive: "cache", mode: "read-only" } },
+    });
+    expect(sandbox.mounts).toEqual({
+      "/mnt/cache": { drive: "cache", mode: "read-only" },
+    });
+
+    const reread = await Sandbox.get({ name: sandbox.name, resume: false });
+    expect(reread.mounts).toEqual({
+      "/mnt/cache": { drive: "cache", mode: "read-only" },
+    });
+
+    await sandbox.update({ mounts: {} });
+    expect(sandbox.mounts).toBeUndefined();
+    await sandbox.delete();
+  });
+
   test("create rejects failover regions that include the requested region", async () => {
     await expect(
       Sandbox.create({

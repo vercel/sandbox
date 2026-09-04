@@ -98,6 +98,7 @@ export function sandboxPayload(sandbox: SandboxRecord, session: SessionRecord) {
     statusUpdatedAt: sandbox.statusUpdatedAt,
     cwd: sandbox.cwd,
     tags: sandbox.tags,
+    mounts: sandbox.mounts,
     snapshotExpiration: sandbox.snapshotExpiration,
     keepLastSnapshots: sandbox.keepLastSnapshots,
   };
