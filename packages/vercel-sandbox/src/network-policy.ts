@@ -53,12 +53,29 @@ export type NetworkPolicyMatch = {
 };
 
 /**
+ * A response the sandbox network proxy returns itself, without contacting the
+ * destination. Use it to deny the requests an allowed domain's earlier rules
+ * did not claim, since allowing a domain otherwise allows every request to it.
+ */
+export type NetworkPolicyResponse = {
+  /** Status code to answer with, between 200 and 599. */
+  statusCode: number;
+  /** Response headers. Proxy-managed headers are rejected. */
+  headers?: Record<string, string>;
+  /** Response body. Requires `contentType`, and is not allowed on 204, 205, or 304. */
+  body?: string;
+  /** Content type for `body`. Required whenever `body` is set. */
+  contentType?: string;
+};
+
+/**
  * A rule applied to requests matching a domain in the network policy.
  */
 export type NetworkPolicyRule = {
   /**
-   * Optional request matcher. When provided, transforms and forwarding rules
-   * only apply to requests that match every specified dimension.
+   * Optional request matcher. When provided, the rule only applies to requests
+   * that match every specified dimension. A rule without `match` applies to
+   * every request to the domain.
    */
   match?: NetworkPolicyMatch;
 } & (
@@ -66,24 +83,40 @@ export type NetworkPolicyRule = {
       /**
        * Transforms to apply to matching requests.
        *
-       * `transform` cannot be used together with `forwardURL`.
+       * `transform` cannot be used together with `forwardURL` or `response`.
        */
       transform: NetworkTransformer[];
       forwardURL?: never;
+      response?: never;
     }
   | {
       transform?: never;
+      response?: never;
       /**
        * HTTPS proxy URL to forward matching requests to. Must not include query string or fragment.
        *
        * You can use the `defineSandboxProxy` helper from `@vercel/sandbox/proxy` to implement the proxy handler
        * automatically, which handles authorization and extracts metadata about the request and sandbox.
        *
-       * `forwardURL` cannot be used together with `transform`.
+       * `forwardURL` cannot be used together with `transform` or `response`.
        *
        * @see https://vercel.com/docs/vercel-sandbox/concepts/firewall#requests-proxying
        */
       forwardURL: string;
+    }
+  | {
+      transform?: never;
+      forwardURL?: never;
+      /**
+       * Answer matching requests from the proxy instead of contacting the destination.
+       *
+       * Rules run in declaration order, so a trailing `response` rule with no `match`
+       * answers whatever the earlier rules did not claim. This is how you restrict an
+       * allowed domain to specific paths without running a proxy of your own.
+       *
+       * `response` cannot be used together with `transform` or `forwardURL`.
+       */
+      response: NetworkPolicyResponse;
     }
 );
 
