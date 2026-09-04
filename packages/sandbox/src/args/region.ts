@@ -15,7 +15,7 @@ export const regionType = cmd.extendType(cmd.string, {
 export const region = cmd.option({
   long: "region",
   type: cmd.optional(regionType),
-  description: `Region to create the sandbox in (defaults to ${DEFAULT_SANDBOX_REGION}; see the Vercel docs for available regions)`,
+  description: `Region to create the sandbox in (defaults to ${DEFAULT_SANDBOX_REGION}; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1)`,
 });
 
 export const regionListType = cmd.extendType(cmd.string, {
@@ -50,5 +50,5 @@ export const failoverRegions = cmd.option({
   long: "failover-regions",
   type: cmd.optional(failoverRegionListType),
   description:
-    'Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default.',
+    'Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default.',
 });
