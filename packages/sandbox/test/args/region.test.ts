@@ -30,6 +30,18 @@ describe("region args", () => {
     expect(args.failoverRegions).toBeUndefined();
   });
 
+  test('parses "none" as an empty failover region list', async () => {
+    const args = await cmd.run(command, ["--failover-regions", " none "]);
+
+    expect(args.failoverRegions).toEqual([]);
+  });
+
+  test('rejects "none" combined with region names', async () => {
+    await expect(
+      cmd.run(command, ["--failover-regions", "sfo1,none"]),
+    ).rejects.toThrow();
+  });
+
   test("rejects empty values", async () => {
     await expect(cmd.run(command, ["--region", " "])).rejects.toThrow();
     await expect(

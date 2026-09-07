@@ -768,6 +768,46 @@ describe("APIClient", () => {
       expect(url).toContain("cursor=abc");
     });
 
+    it("passes a single tag filter as a query param", async () => {
+      const body = {
+        sandboxes: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSandboxes({
+        projectId: "proj_123",
+        tags: { env: "staging" },
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain(`tags=${encodeURIComponent("env:staging")}`);
+    });
+
+    it("rejects multiple tag filters at the type level", () => {
+      const check = () =>
+        client.listSandboxes({
+          projectId: "proj_123",
+          // @ts-expect-error — only a single tag filter is supported
+          tags: { env: "staging", team: "infra" },
+        });
+      expect(check).toBeInstanceOf(Function);
+    });
+
+    it("rejects multiple tag filters at runtime", async () => {
+      await expect(
+        client.listSandboxes({
+          projectId: "proj_123",
+          // @ts-expect-error — only a single tag filter is supported
+          tags: { env: "staging", team: "infra" },
+        }),
+      ).rejects.toThrow("Filtering by multiple tags is not supported");
+    });
+
     it("passes sortOrder and sortBy statusUpdatedAt", async () => {
       const body = {
         sandboxes: [makeSandboxMetadata("sb-1")],
@@ -1212,7 +1252,44 @@ describe("APIClient", () => {
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
+      expect(url).not.toContain("deleteOrphanSnapshots");
       expect(opts.method).toBe("DELETE");
+    });
+
+    it("sends deleteOrphanSnapshots when requested", async () => {
+      const body = { sandbox: makeSandboxMetadata() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.deleteSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        deleteOrphanSnapshots: true,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("deleteOrphanSnapshots=true");
+    });
+
+    it("omits deleteOrphanSnapshots when false", async () => {
+      const body = { sandbox: makeSandboxMetadata() };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.deleteSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        deleteOrphanSnapshots: false,
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).not.toContain("deleteOrphanSnapshots");
     });
   });
 

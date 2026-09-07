@@ -25,6 +25,41 @@
 
 - Re-export the Drive API from the mock package.
 
+## 3.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`bb190077ca365bab432c98a2f5bb6e8e2621cf10`](https://github.com/vercel/sandbox/commit/bb190077ca365bab432c98a2f5bb6e8e2621cf10)]:
+  - @vercel/sandbox@3.2.1
+
+## 3.2.0
+
+### Patch Changes
+
+- Add a `deleteOrphanSnapshots` option when deleting a sandbox. ([#316](https://github.com/vercel/sandbox/pull/316))
+
+  Deleting a persistent sandbox left all of its snapshots alive until they expired. `sandbox.delete({ deleteOrphanSnapshots: true })` in the SDK and `sandbox remove <name> --delete-orphan-snapshots` in the CLI now also delete the snapshots of that sandbox that no other sandbox uses. It defaults to `false`, so the existing behaviour is unchanged.
+
+- Updated dependencies [[`6a9d34f0a2a469fda4818ae81e21c80418d095cd`](https://github.com/vercel/sandbox/commit/6a9d34f0a2a469fda4818ae81e21c80418d095cd)]:
+  - @vercel/sandbox@3.2.0
+
+## 3.1.0
+
+### Minor Changes
+
+- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
+
+  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
+  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
+  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
+
+- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
+
+### Patch Changes
+
+- Updated dependencies [[`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2023195eafe3199c2372f7dad8bfaf0878267c52`](https://github.com/vercel/sandbox/commit/2023195eafe3199c2372f7dad8bfaf0878267c52)]:
+  - @vercel/sandbox@3.1.0
+
 ## 3.0.1
 
 ### Patch Changes

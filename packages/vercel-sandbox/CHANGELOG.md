@@ -28,6 +28,36 @@
 
 - Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
 
+## 3.2.1
+
+### Patch Changes
+
+- Reject multiple `tags` filters on `Sandbox.list()` at the type level. The API supports filtering by a single tag, so passing more than one key in `tags` is now a compile-time error instead of a 400 from the API. ([#312](https://github.com/vercel/sandbox/pull/312))
+
+## 3.2.0
+
+### Minor Changes
+
+- Add a `deleteOrphanSnapshots` option when deleting a sandbox. ([#316](https://github.com/vercel/sandbox/pull/316))
+
+  Deleting a persistent sandbox left all of its snapshots alive until they expired. `sandbox.delete({ deleteOrphanSnapshots: true })` in the SDK and `sandbox remove <name> --delete-orphan-snapshots` in the CLI now also delete the snapshots of that sandbox that no other sandbox uses. It defaults to `false`, so the existing behaviour is unchanged.
+
+## 3.1.0
+
+### Minor Changes
+
+- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
+
+  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
+  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
+  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
+
+- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
+
+### Patch Changes
+
+- Update `defineSandboxProxy` to limit the JWKS issuer cache size to prevent unbounded memory usage. ([#309](https://github.com/vercel/sandbox/pull/309))
+
 ## 3.0.1
 
 ### Patch Changes

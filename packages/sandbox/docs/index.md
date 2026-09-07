@@ -94,7 +94,7 @@ Options:
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
-    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
+    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -155,7 +155,7 @@ Options:
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
-    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
+    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -210,7 +210,7 @@ Options:
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
-    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
+    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -227,6 +227,7 @@ Flags:
 
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
+    --rm              Automatically remove the sandbox when the shell exits. [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:
@@ -258,7 +259,7 @@ Options:
     --env <key=value>, -e=<key=value>          Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; see the Vercel docs for available regions) [optional]
-    --failover-regions <REGION,...>            Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. [optional]
+    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,cle1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]

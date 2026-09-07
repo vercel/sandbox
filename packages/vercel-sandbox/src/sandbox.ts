@@ -9,7 +9,10 @@ import { APIClient } from "./api-client/index.js";
 import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
-import type { WithFetchOptions } from "./api-client/api-client.js";
+import type {
+  SingleTagFilter,
+  WithFetchOptions,
+} from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
 import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
@@ -659,9 +662,17 @@ export class Sandbox implements ExecutionContext {
    * // or: for await (const page of result.pages()) { ... }
    * ```
    */
-  static async list(
-    params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
-      Partial<Credentials> &
+  static async list<Tags extends Record<string, string>>(
+    params?: Partial<
+      Omit<Parameters<APIClient["listSandboxes"]>[0], "tags">
+    > & {
+      /**
+       * Filter sandboxes by tag. Only a single `{ key: value }` tag filter
+       * is currently supported.
+       * @example { env: "staging" }
+       */
+      tags?: Tags & SingleTagFilter<Tags>;
+    } & Partial<Credentials> &
       WithFetchOptions,
   ) {
     "use step";
@@ -672,7 +683,7 @@ export class Sandbox implements ExecutionContext {
       fetch: params?.fetch,
     });
     const fetchPage = async (cursor?: string) => {
-      const response = await client.listSandboxes({
+      const response = await client.listSandboxes<Tags>({
         ...credentials,
         ...params,
         ...(cursor !== undefined && { cursor }),
@@ -1844,13 +1855,21 @@ export class Sandbox implements ExecutionContext {
    *
    * After deletion the instance becomes inert — all further API calls will
    * throw immediately.
+   *
+   * @param opts.deleteOrphanSnapshots - When true, the snapshots of this
+   * sandbox that are not used by any other sandbox are deleted asynchronously
+   * too. Defaults to false, which keeps them until they expire.
    */
-  async delete(opts?: { signal?: AbortSignal }): Promise<void> {
+  async delete(opts?: {
+    deleteOrphanSnapshots?: boolean;
+    signal?: AbortSignal;
+  }): Promise<void> {
     "use step";
     const client = await this.ensureClient();
     await client.deleteSandbox({
       name: this.sandbox.name,
       projectId: this.projectId,
+      deleteOrphanSnapshots: opts?.deleteOrphanSnapshots,
       signal: opts?.signal,
     });
   }

@@ -1,0 +1,30 @@
+# Set `HOME` to `/root` when executing commands as `sudo`. This
+# means that configuration files from `root` will be picked up
+# instead of the users configuration files. This is consistent
+# with a lot of other Linux distributions.
+Defaults    always_set_home
+
+# Improve performance of any group lookups, if any.
+Defaults    match_group_by_gid
+
+# Disable environment variable reset for most varriables. This
+# allows us to have intuitive semantics when users run:
+#
+#   runCommand({
+#     cmd: "some-command",
+#     sudo: true,
+#     env: {
+#       SOME_VAR: "value"
+#     },
+#   })
+#
+# Note: we do not set the `secure_path` option, meaning we allow users
+# to customize their paths. That fixes a common papercut with `sudo` usage
+# and is no different than allowing `sudo ./some-local-binary` or invoking
+# commands with an absolute path.
+Defaults    !env_reset
+
+# Allow `root` and `vercel-sandbox` to run all commands without specifying
+# a password. (As any user).
+root           ALL=(ALL) NOPASSWD:ALL
+vercel-sandbox ALL=(ALL) NOPASSWD:ALL
