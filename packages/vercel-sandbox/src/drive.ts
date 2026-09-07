@@ -23,7 +23,7 @@ interface GetOrCreateDriveParams {
    */
   region?: SandboxRegion;
   /**
-   * Maximum drive size in bytes. If omitted, a default of 100 GiB is used.
+   * Drive size in bytes. Defaults to 1 TiB.
    */
   maxSize?: number;
   /**
