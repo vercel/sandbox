@@ -1,5 +1,24 @@
 # sandbox
 
+## 4.3.0-beta.0
+
+### Minor Changes
+
+- Add `sandbox sh --rm` to create a non-persistent sandbox and remove it when the shell exits. ([#324](https://github.com/vercel/sandbox/pull/324))
+
+### Patch Changes
+
+- Preserve drive mount configuration with shared failover region parsing.
+
+- Allow updating the drives mounted on a sandbox: ([#327](https://github.com/vercel/sandbox/pull/327))
+
+  - New `mounts` option on `Sandbox.update()`. It replaces all existing mounts and applies to the next session. Pass an empty object to remove all mounts.
+  - New `sandbox config mounts <name> --mount drive:/path[:mode]` CLI command. Omit `--mount` to remove all mounts.
+  - `sandbox config list` now shows the mounts.
+
+- Updated dependencies [[`3e847f4cf7a37892d7ce874db168667cae1a6576`](https://github.com/vercel/sandbox/commit/3e847f4cf7a37892d7ce874db168667cae1a6576), [`bb7975e0139f8e3c9cb5bc69c1418d291e5e7483`](https://github.com/vercel/sandbox/commit/bb7975e0139f8e3c9cb5bc69c1418d291e5e7483)]:
+  - @vercel/sandbox@3.3.0-beta.0
+
 ## 4.1.0-beta.1
 
 ### Minor Changes
