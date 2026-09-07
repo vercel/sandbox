@@ -940,29 +940,7 @@ const result = await sandbox.runCommand({
 | Base system     | Ubuntu 26.04                                                                    |
 | User context    | `ubuntu` user                                                                   |
 | Writable path   | `/vercel/sandbox`                                                               |
-| Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (see below). Snapshots restore only in regions where they are available. |
-
-### Regions
-
-- `iad1` (default)
-- `sfo1`
-- `cle1`
-- `cdg1`
-- `fra1`
-- `arn1`
-- `sin1`
-- `pdx1`
-- `lhr1`
-- `icn1`
-- `bom1`
-- `cpt1`
-- `dub1`
-- `gru1`
-- `hkg1`
-- `syd1`
-- `yul1`
-- `hnd1`
-- `kix1`
+| Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
 
