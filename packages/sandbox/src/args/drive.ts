@@ -1,6 +1,6 @@
 import * as cmd from "cmd-ts";
 import chalk from "chalk";
-import type { SandboxMountMode, SandboxMounts } from "@vercel/sandbox";
+import type { SandboxMountMode, Sandbox } from "@vercel/sandbox";
 
 export interface DriveMount {
   drive: string;
@@ -8,7 +8,7 @@ export interface DriveMount {
   mode?: SandboxMountMode;
 }
 
-export type DriveMounts = SandboxMounts;
+export type DriveMounts = NonNullable<Sandbox["mounts"]>;
 
 export const driveName = cmd.extendType(cmd.string, {
   displayName: "name",
@@ -25,7 +25,7 @@ export const driveName = cmd.extendType(cmd.string, {
 export const driveMount = cmd.extendType(cmd.string, {
   displayName: "drive:path[:mode]",
   description:
-    'Drive mount in the format "drive:/path[:read-only|read-write]".',
+    'Drive mount in the format "drive:/path[:snapshot|read-write]".',
   async from(input) {
     return parseDriveMount(input);
   },
@@ -36,7 +36,10 @@ export const driveMounts = cmd.extendType(cmd.array(driveMount), {
     const mounts: DriveMounts = Object.create(null);
 
     for (const mount of input) {
-      mounts[mount.path] = { drive: mount.drive, mode: mount.mode };
+      mounts[mount.path] = {
+        name: mount.drive,
+        mode: mount.mode ?? "read-write",
+      };
     }
 
     return mounts;
@@ -47,7 +50,7 @@ export const mounts = cmd.multioption({
   long: "mount",
   type: driveMounts,
   description:
-    'Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".',
+    'Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".',
 });
 
 export const driveMaxSize = cmd.extendType(cmd.number, {
@@ -75,13 +78,13 @@ export const driveRegion = cmd.extendType(cmd.string, {
 
 export function parseDriveMount(input: string): DriveMount {
   const [drive, path, mode, ...rest] = input.split(":");
-  const validModes: SandboxMountMode[] = ["read-only", "read-write"];
+  const validModes: SandboxMountMode[] = ["snapshot", "read-write"];
 
   if (rest.length > 0 || !drive || path === undefined) {
     throw new Error(
       [
         `Invalid drive mount: ${input}.`,
-        `${chalk.bold("hint:")} Use "drive:/path" or "drive:/path:read-only".`,
+        `${chalk.bold("hint:")} Use "drive:/path" or "drive:/path:snapshot".`,
       ].join("\n"),
     );
   }
@@ -98,6 +101,6 @@ export function parseDriveMount(input: string): DriveMount {
   return {
     drive,
     path,
-    mode: mode as SandboxMountMode | undefined,
+    mode: mode as DriveMount["mode"],
   };
 }

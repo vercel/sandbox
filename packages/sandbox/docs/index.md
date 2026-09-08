@@ -92,7 +92,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Environment variables to set for the command
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
+    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -153,7 +153,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
+    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -208,7 +208,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:read-only|read-write]".
+    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]

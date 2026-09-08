@@ -34,7 +34,7 @@ interface GetOrCreateDriveParams {
 
 /**
  * A Drive is a persistent, bottomless storage that can be attached and detached to Sandboxes.
- * Drives can be mounted as read-write or read-only, at a configurable path with `Sandbox.create()`.
+ * Drives can be mounted as read-write or as read-only snapshots, at a configurable path with `Sandbox.create()`.
  *
  * Use {@link Drive.getOrCreate} to construct.
  * @hideconstructor
@@ -120,6 +120,13 @@ export class Drive {
    */
   public get updatedAt(): Date {
     return new Date(this.drive.updatedAt);
+  }
+
+  /** 
+   * Mount this drive as a read-only snapshot.
+   */
+  public snapshot() {
+    return { name: this.name, mode: "snapshot" as const };
   }
 
   /**
