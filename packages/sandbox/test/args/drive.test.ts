@@ -6,6 +6,15 @@ import {
 } from "../../src/args/drive";
 
 describe("drive arguments", () => {
+  test("rejects read-only mount inputs", async () => {
+    expect(() => parseDriveMount("cache:/data:read-only")).toThrow(
+      "Invalid drive mount mode: read-only.",
+    );
+    await expect(driveMounts.from(["cache:/data:read-only"])).rejects.toThrow(
+      "Invalid drive mount mode: read-only.",
+    );
+  });
+
   test("parses and trims a drive region", async () => {
     await expect(driveRegion.from(" sfo1 ")).resolves.toBe("sfo1");
   });
@@ -24,11 +33,11 @@ describe("drive arguments", () => {
     });
   });
 
-  test("parses read-only drive mounts", () => {
-    expect(parseDriveMount("cache:/data:read-only")).toEqual({
+  test("parses snapshot drive mounts", () => {
+    expect(parseDriveMount("cache:/data:snapshot")).toEqual({
       drive: "cache",
       path: "/data",
-      mode: "read-only",
+      mode: "snapshot",
     });
   });
 
@@ -44,8 +53,8 @@ describe("drive arguments", () => {
     await expect(
       driveMounts.from(["cache:/data", "nested-cache:/data/cache"]),
     ).resolves.toEqual({
-      "/data": { drive: "cache", mode: undefined },
-      "/data/cache": { drive: "nested-cache", mode: undefined },
+      "/data": { name: "cache", mode: "read-write" },
+      "/data/cache": { name: "nested-cache", mode: "read-write" },
     });
   });
 });

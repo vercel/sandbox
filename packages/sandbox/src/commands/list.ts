@@ -196,14 +196,14 @@ const SandboxStatusColor: Record<Sandbox["status"], ChalkInstance> = {
   aborted: chalk.gray.dim,
 };
 
-function formatMounts(
-  mounts: Record<string, { drive: string; mode?: "read-only" | "read-write" }> | undefined,
-): string {
+function formatMounts(mounts: Sandbox["mounts"]): string {
   if (!mounts || Object.keys(mounts).length === 0) {
     return "-";
   }
 
   return Object.entries(mounts)
-    .map(([path, mount]) => `${mount.drive}:${path}:${mount.mode ?? "read-write"}`)
+    .map(
+      ([path, mount]) => `${mount.name}:${path}:${mount.mode ?? "read-write"}`,
+    )
     .join(", ");
 }

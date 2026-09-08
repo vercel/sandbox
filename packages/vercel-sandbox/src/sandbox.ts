@@ -17,6 +17,7 @@ import { DEFAULT_SANDBOX_REGION } from "./constants.js";
 import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
+import type { Drive } from "./drive.js";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import type {
@@ -132,23 +133,12 @@ export interface BaseCreateSandboxParams {
    * const drive = await Drive.getOrCreate({ name: "my-drive" });
    * const sandbox = await Sandbox.create({
    *   mounts: {
-   *     "/data": { drive: drive.name, mode: "read-write" },
+   *     "/data": drive,
+   *     "/snapshot": drive.snapshot(),
    *   },
    * });
    */
-  mounts?: Record<
-    string,
-    {
-      /**
-       * The drive name to mount.
-       */
-      drive: string;
-      /**
-       * Mount mode. Defaults to `read-write` if unspecified.
-       */
-      mode?: "read-only" | "read-write";
-    }
-  >;
+  mounts?: SandboxMounts;
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -191,8 +181,24 @@ export interface BaseCreateSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
-export type SandboxMounts = NonNullable<BaseCreateSandboxParams["mounts"]>;
-export type SandboxMountMode = NonNullable<SandboxMounts[string]["mode"]>;
+export type SandboxMountMode = "read-write" | "snapshot";
+export type SandboxMounts = Record<
+  string,
+  Drive | { name: string; mode: SandboxMountMode }
+>;
+
+function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
+  if (mounts === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(mounts).map(([path, mount]) => [
+      path,
+      {
+        name: mount.name,
+        mode: "mode" in mount ? mount.mode : "read-write",
+      },
+    ]),
+  );
+}
 
 /**
  * A VCR image reference.
@@ -589,7 +595,7 @@ export class Sandbox implements ExecutionContext {
   /**
    * Drives mounted on the sandbox, keyed by mount path.
    */
-  public get mounts(): SandboxMounts | undefined {
+  public get mounts(): SandboxMetaData["mounts"] {
     return this.sandbox.mounts;
   }
 
@@ -788,7 +794,7 @@ export class Sandbox implements ExecutionContext {
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,
-      mounts: params?.mounts,
+      mounts: toAPIMounts(params?.mounts),
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
       region: params?.region,
@@ -1812,7 +1818,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId: params.currentSnapshotId,
       region: params.region,
       failoverRegions: params.failoverRegions,
-      mounts: params.mounts,
+      mounts: toAPIMounts(params.mounts),
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;

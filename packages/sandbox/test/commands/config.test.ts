@@ -80,7 +80,7 @@ describe("config command", () => {
     await cmd.run(config, [
       "mounts",
       "my-sandbox",
-      "--mount=data:/mnt/data:read-only",
+      "--mount=data:/mnt/data:snapshot",
       "--mount=cache:/mnt/cache",
       "--scope=team",
       "--project=proj",
@@ -88,8 +88,8 @@ describe("config command", () => {
 
     expect(mockUpdate).toHaveBeenCalledWith({
       mounts: {
-        "/mnt/data": { drive: "data", mode: "read-only" },
-        "/mnt/cache": { drive: "cache", mode: undefined },
+        "/mnt/data": { name: "data", mode: "snapshot" },
+        "/mnt/cache": { name: "cache", mode: "read-write" },
       },
     });
   });
