@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 3.2.2
+
+### Patch Changes
+
+- Update region hints to cover all 19 Vercel regions. ([#326](https://github.com/vercel/sandbox/pull/326))
+
 ## 3.2.1
 
 ### Patch Changes
