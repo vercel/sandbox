@@ -53,6 +53,19 @@
 - Updated dependencies [[`6405a3836fb1934da8620e5597042509229c7f35`](https://github.com/vercel/sandbox/commit/6405a3836fb1934da8620e5597042509229c7f35)]:
   - @vercel/sandbox@3.1.0-beta.0
 
+## 4.3.0
+
+### Minor Changes
+
+- Add `sandbox sh --rm` to create a non-persistent sandbox and remove it when the shell exits. ([#324](https://github.com/vercel/sandbox/pull/324))
+
+### Patch Changes
+
+- Update region hints to cover all 19 Vercel regions. ([#326](https://github.com/vercel/sandbox/pull/326))
+
+- Updated dependencies [[`fa937652e5b9fabf0735a7fc2dceade7f68bbd57`](https://github.com/vercel/sandbox/commit/fa937652e5b9fabf0735a7fc2dceade7f68bbd57)]:
+  - @vercel/sandbox@3.2.2
+
 ## 4.2.1
 
 ### Patch Changes
