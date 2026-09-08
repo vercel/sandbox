@@ -721,28 +721,28 @@ const mountCases: {
   },
   {
     label: "named read-write",
-    mount: { name: "my-drive", mode: "read-write" },
+    mount: { drive: "my-drive", mode: "read-write" },
     mode: "read-write",
   },
   {
     label: "named snapshot",
-    mount: { name: "my-drive", mode: "snapshot" },
+    mount: { drive: "my-drive", mode: "snapshot" },
     mode: "snapshot",
   },
 ];
 
 describe("Sandbox mount responses", () => {
   it.each([
-    [{ name: "my-drive" }, "read-write"],
-    [{ name: "my-drive", mode: "read-only" }, "snapshot"],
-    [{ name: "my-drive", mode: "snapshot" }, "snapshot"],
-    [{ name: "my-drive", mode: "read-write" }, "read-write"],
+    [{ drive: "my-drive" }, "read-write"],
+    [{ drive: "my-drive", mode: "read-only" }, "snapshot"],
+    [{ drive: "my-drive", mode: "snapshot" }, "snapshot"],
+    [{ drive: "my-drive", mode: "read-write" }, "read-write"],
   ])("normalizes %j to %s", (mount, mode) => {
     const sandbox = SandboxSchema.parse({
       ...makeSandboxMetadata(),
       mounts: { "/data": mount },
     });
-    expect(sandbox.mounts).toEqual({ "/data": { name: "my-drive", mode } });
+    expect(sandbox.mounts).toEqual({ "/data": { drive: "my-drive", mode } });
   });
 
   it("accepts absent and empty mounts", () => {
@@ -755,8 +755,8 @@ describe("Sandbox mount responses", () => {
   it("rejects invalid mount data", () => {
     for (const mount of [
       { mode: "read-write" },
-      { drive: "my-drive", mode: "read-write" },
-      { name: "my-drive", mode: "invalid" },
+      { name: "my-drive", mode: "read-write" },
+      { drive: "my-drive", mode: "invalid" },
     ]) {
       expect(
         SandboxSchema.safeParse({
@@ -809,7 +809,7 @@ describe("Sandbox.create mounts", () => {
 
       const [, init] = mockFetch.mock.calls[0];
       expect(JSON.parse(String(init?.body)).mounts).toEqual({
-        "/mnt/storage": { name: "my-drive", mode },
+        "/mnt/storage": { drive: "my-drive", mode },
       });
     },
   );
@@ -819,7 +819,7 @@ describe("Sandbox.update mounts", () => {
   it.each(mountCases)(
     "converts $label mounts and reflects the response",
     async ({ mount, mode }) => {
-      const mounts = { "/mnt/storage": { name: "my-drive", mode } };
+      const mounts = { "/mnt/storage": { drive: "my-drive", mode } };
       const updateSandboxMock = vi.fn(async () => ({
         json: { sandbox: { ...makeSandboxMetadata(), mounts } },
       }));

@@ -28,7 +28,7 @@ const jsonResponse = (body: unknown) =>
 describe("Drive", () => {
   it("creates a snapshot mount without changing the drive", () => {
     const drive = new Drive({ drive: drivePayload });
-    expect(drive.snapshot()).toEqual({ name: "workspace", mode: "snapshot" });
+    expect(drive.snapshot()).toEqual({ drive: "workspace", mode: "snapshot" });
     expect(drive.name).toBe("workspace");
     expect(drive).not.toHaveProperty("mode");
   });

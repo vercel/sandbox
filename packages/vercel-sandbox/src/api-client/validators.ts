@@ -321,12 +321,12 @@ export const Sandbox = z.object({
       z.string(),
       z
         .object({
-          name: z.string(),
-        // read-only is kept for backward-compatibility with existing mounts
+          drive: z.string(),
+          // read-only is kept for backward-compatibility with existing mounts
           mode: z.enum(["snapshot", "read-write", "read-only"]).optional(),
         })
         .transform((mount) => ({
-          name: mount.name,
+          drive: mount.drive,
           mode:
             mount.mode === "read-only"
               ? ("snapshot" as const)

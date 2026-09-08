@@ -53,8 +53,8 @@ describe("drive arguments", () => {
     await expect(
       driveMounts.from(["cache:/data", "nested-cache:/data/cache"]),
     ).resolves.toEqual({
-      "/data": { name: "cache", mode: "read-write" },
-      "/data/cache": { name: "nested-cache", mode: "read-write" },
+      "/data": { drive: "cache", mode: "read-write" },
+      "/data/cache": { drive: "nested-cache", mode: "read-write" },
     });
   });
 });

@@ -203,7 +203,7 @@ function formatMounts(mounts: Sandbox["mounts"]): string {
 
   return Object.entries(mounts)
     .map(
-      ([path, mount]) => `${mount.name}:${path}:${mount.mode ?? "read-write"}`,
+      ([path, mount]) => `${mount.drive}:${path}:${mount.mode ?? "read-write"}`,
     )
     .join(", ");
 }

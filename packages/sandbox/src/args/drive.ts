@@ -37,7 +37,7 @@ export const driveMounts = cmd.extendType(cmd.array(driveMount), {
 
     for (const mount of input) {
       mounts[mount.path] = {
-        name: mount.drive,
+        drive: mount.drive,
         mode: mount.mode ?? "read-write",
       };
     }

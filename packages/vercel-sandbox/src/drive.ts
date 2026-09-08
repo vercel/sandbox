@@ -126,7 +126,7 @@ export class Drive {
    * Mount this drive as a read-only snapshot.
    */
   public snapshot() {
-    return { name: this.name, mode: "snapshot" as const };
+    return { drive: this.name, mode: "snapshot" as const };
   }
 
   /**

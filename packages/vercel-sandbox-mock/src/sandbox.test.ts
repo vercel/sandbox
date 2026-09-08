@@ -35,19 +35,19 @@ describe("Sandbox (real SDK over mock fetch)", () => {
       mounts: { "/mnt/data": drive },
     });
     expect(sandbox.mounts).toEqual({
-      "/mnt/data": { name: drive.name, mode: "read-write" },
+      "/mnt/data": { drive: drive.name, mode: "read-write" },
     });
 
     await sandbox.update({
       mounts: { "/mnt/cache": drive.snapshot() },
     });
     expect(sandbox.mounts).toEqual({
-      "/mnt/cache": { name: drive.name, mode: "snapshot" },
+      "/mnt/cache": { drive: drive.name, mode: "snapshot" },
     });
 
     const reread = await Sandbox.get({ name: sandbox.name, resume: false });
     expect(reread.mounts).toEqual({
-      "/mnt/cache": { name: drive.name, mode: "snapshot" },
+      "/mnt/cache": { drive: drive.name, mode: "snapshot" },
     });
 
     await sandbox.update({ mounts: {} });

@@ -88,8 +88,8 @@ describe("config command", () => {
 
     expect(mockUpdate).toHaveBeenCalledWith({
       mounts: {
-        "/mnt/data": { name: "data", mode: "snapshot" },
-        "/mnt/cache": { name: "cache", mode: "read-write" },
+        "/mnt/data": { drive: "data", mode: "snapshot" },
+        "/mnt/cache": { drive: "cache", mode: "read-write" },
       },
     });
   });

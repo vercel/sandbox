@@ -184,7 +184,7 @@ export interface BaseCreateSandboxParams {
 export type SandboxMountMode = "read-write" | "snapshot";
 export type SandboxMounts = Record<
   string,
-  Drive | { name: string; mode: SandboxMountMode }
+  Drive | { drive: string; mode: SandboxMountMode }
 >;
 
 function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
@@ -193,7 +193,7 @@ function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
     Object.entries(mounts).map(([path, mount]) => [
       path,
       {
-        name: mount.name,
+        drive: "mode" in mount ? mount.drive : mount.name,
         mode: "mode" in mount ? mount.mode : "read-write",
       },
     ]),
