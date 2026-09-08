@@ -42,6 +42,12 @@
 
 - Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
 
+## 3.2.2
+
+### Patch Changes
+
+- Update region hints to cover all 19 Vercel regions. ([#326](https://github.com/vercel/sandbox/pull/326))
+
 ## 3.2.1
 
 ### Patch Changes
