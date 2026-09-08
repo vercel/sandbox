@@ -72,6 +72,7 @@ export interface SandboxRecord {
   timeout: number;
   tags?: Record<string, string>;
   networkPolicy?: unknown;
+  networkId?: string;
   cwd: string;
   env?: Record<string, string>;
   ports: number[];

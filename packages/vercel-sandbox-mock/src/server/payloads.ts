@@ -85,6 +85,7 @@ export function sandboxPayload(sandbox: SandboxRecord, session: SessionRecord) {
     runtime: sandbox.runtime,
     timeout: sandbox.timeout,
     networkPolicy: responseNetworkPolicy(sandbox.networkPolicy),
+    networkId: sandbox.networkId,
     createdAt: sandbox.createdAt,
     updatedAt: sandbox.updatedAt,
     currentSessionId: sandbox.sessionId,

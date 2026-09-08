@@ -94,6 +94,19 @@ describe("fork command", () => {
     expect(call.failoverRegions).toEqual(["sfo1", "iad1"]);
   });
 
+  test("forwards --network-id to Sandbox.fork", async () => {
+    const { fork } = await import("../../src/commands/fork.ts");
+    await cmd.run(fork, [
+      "my-source",
+      "--network-id=network_123",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockFork.mock.calls[0][0].networkId).toBe("network_123");
+  });
+
   test("does not forward overrides for unspecified options (server uses copied source values)", async () => {
     const { fork } = await import("../../src/commands/fork.ts");
     await cmd.run(fork, [
@@ -113,6 +126,7 @@ describe("fork command", () => {
     expect(call.keepLastSnapshots).toBeUndefined();
     expect(call.region).toBeUndefined();
     expect(call.failoverRegions).toBeUndefined();
+    expect(call.networkId).toBeUndefined();
   });
 
   test("fails when the source positional is missing", async () => {

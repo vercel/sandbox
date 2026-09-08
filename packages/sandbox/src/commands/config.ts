@@ -11,6 +11,7 @@ import {
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
 import { failoverRegionListType, regionType } from "../args/region";
+import { networkIdOrNoneType } from "../args/network-id";
 import { Duration } from "../types/duration";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -51,9 +52,7 @@ const vcpusCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "vcpus: " + chalk.cyan(count) + "\n",
@@ -67,7 +66,8 @@ const vcpusCommand = cmd.command({
 
 const timeoutCommand = cmd.command({
   name: "timeout",
-  description: "Update the timeout of a sandbox (will be applied to all new sessions)",
+  description:
+    "Update the timeout of a sandbox (will be applied to all new sessions)",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -75,15 +75,12 @@ const timeoutCommand = cmd.command({
     }),
     duration: cmd.positional({
       type: Duration,
-      description: "The maximum duration a sandbox can run for. Example: 5m, 1h",
+      description:
+        "The maximum duration a sandbox can run for. Example: 5m, 1h",
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    duration,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, duration }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -97,9 +94,7 @@ const timeoutCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "timeout: " + chalk.cyan(duration) + "\n",
@@ -113,7 +108,8 @@ const timeoutCommand = cmd.command({
 
 const persistentCommand = cmd.command({
   name: "persistent",
-  description: "Enable or disable automatic restore of the filesystem between sessions",
+  description:
+    "Enable or disable automatic restore of the filesystem between sessions",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -121,15 +117,12 @@ const persistentCommand = cmd.command({
     }),
     value: cmd.positional({
       type: { ...cmd.oneOf(["true", "false"]), displayName: "true|false" },
-      description: "Enable or disable automatic restore of the filesystem between sessions",
+      description:
+        "Enable or disable automatic restore of the filesystem between sessions",
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    value,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, value }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -143,9 +136,7 @@ const persistentCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "persistent: " + chalk.cyan(value) + "\n",
@@ -167,15 +158,12 @@ const snapshotExpirationCommand = cmd.command({
     }),
     duration: cmd.positional({
       type: SnapshotExpiration,
-      description: 'Snapshot expiration duration (e.g. 7d, 30d) or "none" for no expiration',
+      description:
+        'Snapshot expiration duration (e.g. 7d, 30d) or "none" for no expiration',
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    duration,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, duration }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -190,12 +178,13 @@ const snapshotExpirationCommand = cmd.command({
 
       const display = ms(duration) === 0 ? "none" : duration;
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
-        chalk.dim("   ╰ ") + "snapshot-expiration: " + chalk.cyan(display) + "\n",
+        chalk.dim("   ╰ ") +
+          "snapshot-expiration: " +
+          chalk.cyan(display) +
+          "\n",
       );
     } catch (error) {
       spinner.stop();
@@ -232,11 +221,7 @@ const keepLastSnapshotsCommand = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    count,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, count }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -292,11 +277,7 @@ const keepLastSnapshotsForCommand = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    duration,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, duration }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -358,11 +339,7 @@ const deleteEvictedSnapshotsCommand = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    sandbox: name,
-    value,
-  }) {
+  async handler({ scope: { token, team, project }, sandbox: name, value }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -439,19 +416,17 @@ const currentSnapshotCommand = cmd.command({
       spinner.stop();
 
       process.stderr.write(
-        "✅ Configuration updated for sandbox " +
-          chalk.cyan(name) +
-          "\n",
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
-        chalk.dim("   ╰ ") + "current-snapshot: " + chalk.cyan(snapshotId) + "\n",
+        chalk.dim("   ╰ ") +
+          "current-snapshot: " +
+          chalk.cyan(snapshotId) +
+          "\n",
       );
     } catch (error) {
       spinner.stop();
-      if (
-        error instanceof APIError &&
-        error.response.status === 404
-      ) {
+      if (error instanceof APIError && error.response.status === 404) {
         throw new StyledError(
           `Snapshot '${snapshotId}' was not found or does not belong to this project.`,
           error,
@@ -513,7 +488,8 @@ const portsCommand = cmd.command({
 
 const regionCommand = cmd.command({
   name: "region",
-  description: "Update the region of a sandbox (will be applied to all new sessions)",
+  description:
+    "Update the region of a sandbox (will be applied to all new sessions)",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -553,7 +529,8 @@ const regionCommand = cmd.command({
 
 const failoverRegionsCommand = cmd.command({
   name: "failover-regions",
-  description: "Update the failover regions of a sandbox (replaces the existing list)",
+  description:
+    "Update the failover regions of a sandbox (replaces the existing list)",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -561,11 +538,16 @@ const failoverRegionsCommand = cmd.command({
     }),
     failoverRegions: cmd.positional({
       type: failoverRegionListType,
-      description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,cle1). Must not include the sandbox region. Pass "none" to remove them.',
+      description:
+        'Comma-separated regions the sandbox can fail over to (e.g. sfo1,cle1). Must not include the sandbox region. Pass "none" to remove them.',
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, sandbox: name, failoverRegions }) {
+  async handler({
+    scope: { token, team, project },
+    sandbox: name,
+    failoverRegions,
+  }) {
     const sandbox = await sandboxClient.get({
       name,
       projectId: project,
@@ -578,12 +560,56 @@ const failoverRegionsCommand = cmd.command({
       await sandbox.update({ failoverRegions });
       spinner.stop();
 
-      const display = failoverRegions.length === 0 ? "cleared" : failoverRegions.join(", ");
+      const display =
+        failoverRegions.length === 0 ? "cleared" : failoverRegions.join(", ");
       process.stderr.write(
         "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "failover-regions: " + chalk.cyan(display) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
+const networkIdCommand = cmd.command({
+  name: "network-id",
+  description: "Update the Secure Compute network of a sandbox",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    networkId: cmd.positional({
+      type: networkIdOrNoneType,
+      description: 'Connect network ID, or "none" to remove Secure Compute',
+    }),
+    scope,
+  },
+  async handler({ scope: { token, team, project }, sandbox: name, networkId }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ networkId });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") +
+          "network-id: " +
+          chalk.cyan(networkId ?? "cleared") +
+          "\n",
       );
     } catch (error) {
       spinner.stop();
@@ -616,23 +642,47 @@ const listCommand = cmd.command({
       });
     })();
 
-    const networkPolicy = typeof sandbox.networkPolicy === "string" ? sandbox.networkPolicy : "restricted";
-    const tagsDisplay = sandbox.tags && Object.keys(sandbox.tags).length > 0
-      ? Object.entries(sandbox.tags).map(([k, v]) => `${k}=${v}`).join(", ")
-      : "-";
+    const networkPolicy =
+      typeof sandbox.networkPolicy === "string"
+        ? sandbox.networkPolicy
+        : "restricted";
+    const tagsDisplay =
+      sandbox.tags && Object.keys(sandbox.tags).length > 0
+        ? Object.entries(sandbox.tags)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(", ")
+        : "-";
     const rows = [
       { field: "Region", value: sandbox.region },
       {
         field: "Failover regions",
-        value: sandbox.failoverRegions.length ? sandbox.failoverRegions.join(", ") : "-",
+        value: sandbox.failoverRegions.length
+          ? sandbox.failoverRegions.join(", ")
+          : "-",
       },
+      { field: "Secure Compute network", value: sandbox.networkId ?? "-" },
       { field: "vCPUs", value: String(sandbox.vcpus ?? "-") },
-      { field: "Timeout", value: sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-" },
+      {
+        field: "Timeout",
+        value:
+          sandbox.timeout != null ? ms(sandbox.timeout, { long: true }) : "-",
+      },
       { field: "Persistent", value: String(sandbox.persistent) },
       { field: "Network policy", value: String(networkPolicy) },
       { field: "Ports", value: formatPorts(sandbox) },
-      { field: "Snapshot expiration", value: sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0 ? ms(sandbox.snapshotExpiration, { long: true }) : sandbox.snapshotExpiration === 0 ? "none" : "-" },
-      { field: "Keep last snapshots", value: formatKeepLastSnapshots(sandbox.keepLastSnapshots) },
+      {
+        field: "Snapshot expiration",
+        value:
+          sandbox.snapshotExpiration != null && sandbox.snapshotExpiration > 0
+            ? ms(sandbox.snapshotExpiration, { long: true })
+            : sandbox.snapshotExpiration === 0
+              ? "none"
+              : "-",
+      },
+      {
+        field: "Keep last snapshots",
+        value: formatKeepLastSnapshots(sandbox.keepLastSnapshots),
+      },
       { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
       { field: "Tags", value: tagsDisplay },
     ];
@@ -711,7 +761,8 @@ const networkPolicyCommand = cmd.command({
           chalk.cyan(sandbox.name) +
           "\n",
       );
-      const mode = typeof networkPolicy === "string" ? networkPolicy : "restricted";
+      const mode =
+        typeof networkPolicy === "string" ? networkPolicy : "restricted";
       process.stderr.write(
         chalk.dim("   ╰ ") + "mode: " + chalk.cyan(mode) + "\n",
       );
@@ -724,7 +775,8 @@ const networkPolicyCommand = cmd.command({
 
 const tagsCommand = cmd.command({
   name: "tags",
-  description: "Update the tags of a sandbox. Replaces all existing tags with the provided tags.",
+  description:
+    "Update the tags of a sandbox. Replaces all existing tags with the provided tags.",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,
@@ -734,7 +786,8 @@ const tagsCommand = cmd.command({
       long: "tag",
       short: "t",
       type: ObjectFromKeyValue,
-      description: "Key-value tags to set (e.g. --tag env=staging). Omit to clear all tags.",
+      description:
+        "Key-value tags to set (e.g. --tag env=staging). Omit to clear all tags.",
     }),
     scope,
   },
@@ -764,7 +817,9 @@ const tagsCommand = cmd.command({
           const [k, v] = entries[i];
           const isLast = i === entries.length - 1;
           const prefix = isLast ? chalk.dim("   ╰ ") : chalk.dim("   │ ");
-          process.stderr.write(prefix + chalk.cyan(k) + "=" + chalk.cyan(v) + "\n");
+          process.stderr.write(
+            prefix + chalk.cyan(k) + "=" + chalk.cyan(v) + "\n",
+          );
         }
       }
     } catch (error) {
@@ -822,6 +877,7 @@ export const config = cmd.subcommands({
     persistent: persistentCommand,
     region: regionCommand,
     "failover-regions": failoverRegionsCommand,
+    "network-id": networkIdCommand,
     "network-policy": networkPolicyCommand,
     "snapshot-expiration": snapshotExpirationCommand,
     "keep-last-snapshots": keepLastSnapshotsCommand,

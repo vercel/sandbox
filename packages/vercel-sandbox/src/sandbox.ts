@@ -93,6 +93,10 @@ export interface BaseCreateSandboxParams {
    */
   networkPolicy?: NetworkPolicy;
   /**
+   * Connect network ID for the target Secure Compute private network.
+   */
+  networkId?: string;
+  /**
    * Default environment variables for the sandbox.
    * These are inherited by all commands unless overridden with
    * the `env` option in `runCommand`.
@@ -423,6 +427,13 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * Connect network ID for the target Secure Compute private network.
+   */
+  public get networkId(): string | undefined {
+    return this.sandbox.networkId;
+  }
+
+  /**
    * Number of virtual CPUs allocated.
    */
   public get vcpus(): number | undefined {
@@ -747,6 +758,7 @@ export class Sandbox implements ExecutionContext {
       runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
+      networkId: params?.networkId,
       env: params?.env,
       tags: params?.tags,
       snapshotExpiration: params?.snapshotExpiration,
@@ -817,6 +829,7 @@ export class Sandbox implements ExecutionContext {
       resources: params.resources,
       image: params.image,
       networkPolicy: params.networkPolicy,
+      networkId: params.networkId,
       env: params.env,
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
@@ -1729,6 +1742,8 @@ export class Sandbox implements ExecutionContext {
       resources?: { vcpus?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
+      /** Set to `null` to remove the sandbox from Secure Compute. */
+      networkId?: string | null;
       tags?: Record<string, string>;
       ports?: number[];
       snapshotExpiration?: number;
@@ -1761,6 +1776,7 @@ export class Sandbox implements ExecutionContext {
       resources,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
+      networkId: params.networkId,
       tags: params.tags,
       ports: params.ports,
       snapshotExpiration: params.snapshotExpiration,

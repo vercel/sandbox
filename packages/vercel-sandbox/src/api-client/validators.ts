@@ -274,6 +274,7 @@ export const Sandbox = z.object({
   persistent: z.boolean(),
   region: z.string().optional(),
   failoverRegions: z.array(z.string()).optional(),
+  networkId: z.string().optional(),
   vcpus: z.number().optional(),
   memory: z.number().optional(),
   runtime: z.string().optional(),

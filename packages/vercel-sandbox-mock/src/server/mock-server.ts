@@ -61,6 +61,7 @@ interface CreateBody {
   image?: string;
   persistent?: boolean;
   networkPolicy?: unknown;
+  networkId?: string;
   env?: Record<string, string>;
   tags?: Record<string, string>;
   snapshotExpiration?: number;
@@ -181,6 +182,7 @@ export class MockServer {
       timeout: body.timeout ?? 300_000,
       tags: body.tags,
       networkPolicy: body.networkPolicy,
+      networkId: body.networkId,
       cwd: DEFAULT_CWD,
       env: body.env,
       ports,
@@ -252,6 +254,7 @@ export class MockServer {
       timeout: body.timeout ?? source.timeout,
       tags: body.tags ?? source.tags,
       networkPolicy: body.networkPolicy ?? source.networkPolicy,
+      networkId: body.networkId ?? source.networkId,
       cwd: source.cwd,
       env: body.env ?? source.env,
       ports: body.ports ?? source.ports,
@@ -344,7 +347,12 @@ export class MockServer {
     const record = this.#sandboxes.get(name);
     if (!record)
       return apiError(404, "not_found", `Sandbox not found: ${name}`);
-    const body = readJson<CreateBody & { currentSnapshotId?: string }>(init);
+    const body = readJson<
+      Omit<CreateBody, "networkId"> & {
+        currentSnapshotId?: string;
+        networkId?: string | null;
+      }
+    >(init);
     const session = this.#sessions.get(record.sessionId)!;
 
     // Each side can be updated on its own, so the resulting combination is
@@ -375,6 +383,9 @@ export class MockServer {
     if (body.networkPolicy !== undefined) {
       record.networkPolicy = body.networkPolicy;
       session.networkPolicy = body.networkPolicy;
+    }
+    if (body.networkId !== undefined) {
+      record.networkId = body.networkId ?? undefined;
     }
     if (body.tags !== undefined) record.tags = body.tags;
     if (body.snapshotExpiration !== undefined)
