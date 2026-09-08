@@ -1,5 +1,35 @@
 # @vercel/sandbox-mock
 
+## 3.4.0-beta.0
+
+### Minor Changes
+
+- `read-only` mounts have been replaced by snapshots: you can now mount the same drive on many sandboxes at once, using read-only snapshots: ([#331](https://github.com/vercel/sandbox/pull/331))
+
+  ```ts
+  const drive = await Drive.getOrCreate({ name: "test" });
+  await Sandbox.create({
+    mounts: {
+      "/data": drive.snapshot(),
+    },
+  });
+  ```
+
+  To mount a drive as `read-write`, simply pass in the drive object:
+
+  ```ts
+  await Sandbox.create({
+    mounts: {
+      "/data": drive,
+    },
+  });
+  ```
+
+### Patch Changes
+
+- Updated dependencies [[`f45a57b1c6b022f751c3ea43cf23920e6e0d8489`](https://github.com/vercel/sandbox/commit/f45a57b1c6b022f751c3ea43cf23920e6e0d8489)]:
+  - @vercel/sandbox@3.4.0-beta.0
+
 ## 3.3.0-beta.0
 
 ### Minor Changes
