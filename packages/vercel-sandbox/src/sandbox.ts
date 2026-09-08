@@ -111,13 +111,14 @@ export interface BaseCreateSandboxParams {
    */
   tags?: Record<string, string>;
   /**
-   * The region to create the sandbox in. Defaults to `iad1`.
-   * See the Vercel documentation for the available regions.
+   * The region to create the sandbox in. Defaults to `iad1`. Any Vercel
+   * region is supported, e.g. `sfo1`, `fra1`, `hnd1`, `syd1`.
+   * See the Vercel documentation for the full list.
    */
   region?: SandboxRegion;
   /**
-   * Additional regions the sandbox can fail over to. Must not include
-   * `region`.
+   * Additional regions the sandbox can fail over to, e.g. `["sfo1", "fra1"]`.
+   * Must not include `region`.
    */
   failoverRegions?: SandboxRegion[];
 

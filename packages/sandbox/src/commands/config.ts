@@ -561,7 +561,7 @@ const failoverRegionsCommand = cmd.command({
     }),
     failoverRegions: cmd.positional({
       type: failoverRegionListType,
-      description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,cle1). Must not include the sandbox region. Pass "none" to remove them.',
+      description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,fra1). Must not include the sandbox region. Pass "none" to remove them.',
     }),
     scope,
   },
