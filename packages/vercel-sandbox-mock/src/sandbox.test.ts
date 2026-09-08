@@ -27,6 +27,21 @@ describe("Sandbox (real SDK over mock fetch)", () => {
     await withRegion.delete();
   });
 
+  test("creates and updates a Secure Compute network", async () => {
+    const sandbox = await Sandbox.create({
+      name: uniq(),
+      networkId: "network_123",
+    });
+    expect(sandbox.networkId).toBe("network_123");
+
+    await sandbox.update({ networkId: "network_456" });
+    expect(sandbox.networkId).toBe("network_456");
+
+    await sandbox.update({ networkId: null });
+    expect(sandbox.networkId).toBeUndefined();
+    await sandbox.delete();
+  });
+
   test("create rejects failover regions that include the requested region", async () => {
     await expect(
       Sandbox.create({
@@ -93,16 +108,24 @@ describe("Sandbox (real SDK over mock fetch)", () => {
   });
 
   test("get on an unknown name throws a 404 APIError", async () => {
-    await expect(Sandbox.get({ name: "does-not-exist" })).rejects.toMatchObject({
-      response: { status: 404 },
-    });
+    await expect(Sandbox.get({ name: "does-not-exist" })).rejects.toMatchObject(
+      {
+        response: { status: 404 },
+      },
+    );
   });
 
   test("getOrCreate runs onCreate exactly once for a name", async () => {
     const name = uniq();
     let created = 0;
-    const first = await Sandbox.getOrCreate({ name, onCreate: async () => void created++ });
-    const second = await Sandbox.getOrCreate({ name, onCreate: async () => void created++ });
+    const first = await Sandbox.getOrCreate({
+      name,
+      onCreate: async () => void created++,
+    });
+    const second = await Sandbox.getOrCreate({
+      name,
+      onCreate: async () => void created++,
+    });
     expect(created).toBe(1);
     expect(second.name).toBe(name);
     await first.delete();
@@ -140,14 +163,20 @@ describe("Sandbox (real SDK over mock fetch)", () => {
   test("update({ ports }) refreshes routes so domain() resolves", async () => {
     const sandbox = await Sandbox.create({ name: uniq() });
     await sandbox.update({ ports: [8080] });
-    expect(sandbox.domain(8080)).toBe(sandbox.routes.find((r) => r.port === 8080)?.url);
+    expect(sandbox.domain(8080)).toBe(
+      sandbox.routes.find((r) => r.port === 8080)?.url,
+    );
     expect(() => sandbox.domain(9999)).toThrow(/No route/);
     await sandbox.stop();
   });
 
   test("detached commands expose wait/logs/kill", async () => {
     const sandbox = await Sandbox.create({ name: uniq() });
-    const command = await sandbox.runCommand({ cmd: "echo", args: ["detached"], detached: true });
+    const command = await sandbox.runCommand({
+      cmd: "echo",
+      args: ["detached"],
+      detached: true,
+    });
     expect(typeof command.cmdId).toBe("string");
 
     const finished = await command.wait();

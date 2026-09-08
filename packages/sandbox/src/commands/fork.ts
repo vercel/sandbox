@@ -16,6 +16,7 @@ import { ObjectFromKeyValue } from "../args/key-value-pair";
 import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
 import { region, failoverRegions } from "../args/region";
+import { networkId } from "../args/network-id";
 
 export const args = {
   source: cmd.positional({
@@ -67,6 +68,7 @@ export const args = {
   }),
   region,
   failoverRegions,
+  networkId,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -101,6 +103,7 @@ export const fork = cmd.command({
     tags,
     region,
     failoverRegions,
+    networkId,
     snapshotExpiration,
     keepLastSnapshots,
     keepLastSnapshotsFor,
@@ -150,6 +153,7 @@ export const fork = cmd.command({
       ...(tagsObj !== undefined && { tags: tagsObj }),
       ...(region !== undefined && { region }),
       ...(failoverRegions !== undefined && { failoverRegions }),
+      ...(networkId !== undefined && { networkId }),
       ...(nonPersistent && { persistent: false }),
       ...(snapshotExpiration !== undefined && {
         snapshotExpiration: ms(snapshotExpiration),

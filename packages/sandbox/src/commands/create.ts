@@ -18,6 +18,7 @@ import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
 import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
+import { networkId } from "../args/network-id";
 
 export const args = {
   name: cmd.option({
@@ -71,6 +72,7 @@ export const args = {
   }),
   region,
   failoverRegions,
+  networkId,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -103,6 +105,7 @@ export const create = cmd.command({
       tags,
       region,
       failoverRegions,
+      networkId,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
@@ -157,6 +160,7 @@ export const create = cmd.command({
           tags: tagsObj,
           region,
           failoverRegions,
+          networkId,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)
@@ -182,6 +186,7 @@ export const create = cmd.command({
           tags: tagsObj,
           region,
           failoverRegions,
+          networkId,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)

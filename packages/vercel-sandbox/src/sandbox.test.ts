@@ -133,6 +133,35 @@ describe("source getters", () => {
     expect(sandbox.region).toBe("sfo1");
     expect(sandbox.failoverRegions).toEqual(["iad1", "cle1"]);
   });
+
+  it("exposes the Secure Compute network ID", () => {
+    const sandbox = makeSandbox({ networkId: "network_123" });
+    expect(sandbox.networkId).toBe("network_123");
+  });
+});
+
+describe("update networkId", () => {
+  it.each([
+    ["sets", "network_123"],
+    ["clears", null],
+  ])("%s the Secure Compute network", async (_action, networkId) => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ networkId });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ networkId }),
+    );
+  });
 });
 
 describe("updatePorts", () => {

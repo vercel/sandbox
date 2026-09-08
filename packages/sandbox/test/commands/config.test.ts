@@ -33,6 +33,7 @@ const fakeSandbox = (overrides: Record<string, unknown> = {}) => ({
   timeout: 300_000,
   persistent: true,
   networkPolicy: "restricted",
+  networkId: "network_123",
   interactivePort: 8443,
   routes: [],
   tags: undefined,
@@ -88,6 +89,22 @@ describe("config command", () => {
     expect(mockUpdate).toHaveBeenCalledWith({ failoverRegions: [] });
   });
 
+  test.each([
+    ["network_456", "network_456"],
+    ["none", null],
+  ])("network-id updates with %s", async (value, networkId) => {
+    const { config } = await import("../../src/commands/config.ts");
+    await cmd.run(config, [
+      "network-id",
+      "my-sandbox",
+      value,
+      "--scope=team",
+      "--project=proj",
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith({ networkId });
+  });
+
   test("list prints the region and the failover regions", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const { config } = await import("../../src/commands/config.ts");
@@ -101,6 +118,7 @@ describe("config command", () => {
     const output = log.mock.calls.map(([line]) => String(line)).join("\n");
     expect(output).toContain("sfo1");
     expect(output).toContain("iad1, cle1");
+    expect(output).toContain("network_123");
     log.mockRestore();
   });
 

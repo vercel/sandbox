@@ -41,7 +41,9 @@ describe("Sandbox.fork", () => {
       expect(fork.snapshotExpiration).toBe(7 * DAY);
       expect(fork.keepLastSnapshots?.count).toBe(3);
 
-      const forkPorts = fork.routes.map((route) => route.port).sort((a, b) => a - b);
+      const forkPorts = fork.routes
+        .map((route) => route.port)
+        .sort((a, b) => a - b);
       expect(forkPorts).toEqual([3000, 8080]);
 
       expect(await readEnv(fork, "FORKED")).toBe("yes");
@@ -70,6 +72,33 @@ describe("Sandbox.fork", () => {
       overridden = await Sandbox.fork({ sourceSandbox: name, region: "cle1" });
       expect(overridden.region).toBe("cle1");
       expect(overridden.failoverRegions).toEqual(["iad1"]);
+    } finally {
+      await Promise.allSettled([
+        inherited?.delete(),
+        overridden?.delete(),
+        source.delete(),
+      ]);
+    }
+  });
+
+  test("inherits the source network and honors an explicit override", async () => {
+    const name = uniq();
+    const source = await Sandbox.create({
+      name,
+      networkId: "network_123",
+    });
+
+    let inherited: Sandbox | undefined;
+    let overridden: Sandbox | undefined;
+    try {
+      inherited = await Sandbox.fork({ sourceSandbox: name });
+      expect(inherited.networkId).toBe("network_123");
+
+      overridden = await Sandbox.fork({
+        sourceSandbox: name,
+        networkId: "network_456",
+      });
+      expect(overridden.networkId).toBe("network_456");
     } finally {
       await Promise.allSettled([
         inherited?.delete(),
