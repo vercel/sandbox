@@ -23,6 +23,7 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 - Claude Code (`claude`)
 - Codex (`codex`)
 - pi (`pi`)
+- fx (`fx`)
 
 ### Utilities
 
