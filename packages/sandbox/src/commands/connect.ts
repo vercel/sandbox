@@ -8,11 +8,11 @@ export const connect = cmd.command({
   description: "Start an interactive shell in an existing sandbox",
   args: omit(Exec.args, "command", "args", "interactive", "tty"),
   async handler(args) {
-    return Exec.exec.handler({
-      command: "sh",
+    return Exec.execute({
+      // No command: the sandbox opens the account's configured shell.
+      command: undefined,
       args: [],
       interactive: true,
-      tty: true,
       ...args,
     });
   },
