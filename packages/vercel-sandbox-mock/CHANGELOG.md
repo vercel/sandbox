@@ -1,77 +1,5 @@
 # @vercel/sandbox-mock
 
-## 3.4.0-beta.0
-
-### Minor Changes
-
-- `read-only` mounts have been replaced by snapshots: you can now mount the same drive on many sandboxes at once, using read-only snapshots: ([#331](https://github.com/vercel/sandbox/pull/331))
-
-  ```ts
-  const drive = await Drive.getOrCreate({ name: "test" });
-  await Sandbox.create({
-    mounts: {
-      "/data": drive.snapshot(),
-    },
-  });
-  ```
-
-  To mount a drive as `read-write`, simply pass in the drive object:
-
-  ```ts
-  await Sandbox.create({
-    mounts: {
-      "/data": drive,
-    },
-  });
-  ```
-
-### Patch Changes
-
-- Updated dependencies [[`f45a57b1c6b022f751c3ea43cf23920e6e0d8489`](https://github.com/vercel/sandbox/commit/f45a57b1c6b022f751c3ea43cf23920e6e0d8489)]:
-  - @vercel/sandbox@3.4.0-beta.0
-
-## 3.3.0-beta.0
-
-### Minor Changes
-
-- Add a `driveId` field on the `Drive` entity to retrieve the unique ID of a drive. ([#322](https://github.com/vercel/sandbox/pull/322))
-
-### Patch Changes
-
-- Allow updating the drives mounted on a sandbox: ([#327](https://github.com/vercel/sandbox/pull/327))
-
-  - New `mounts` option on `Sandbox.update()`. It replaces all existing mounts and applies to the next session. Pass an empty object to remove all mounts.
-  - New `sandbox config mounts <name> --mount drive:/path[:mode]` CLI command. Omit `--mount` to remove all mounts.
-  - `sandbox config list` now shows the mounts.
-
-- Updated dependencies [[`3e847f4cf7a37892d7ce874db168667cae1a6576`](https://github.com/vercel/sandbox/commit/3e847f4cf7a37892d7ce874db168667cae1a6576), [`bb7975e0139f8e3c9cb5bc69c1418d291e5e7483`](https://github.com/vercel/sandbox/commit/bb7975e0139f8e3c9cb5bc69c1418d291e5e7483)]:
-  - @vercel/sandbox@3.3.0-beta.0
-
-## 3.1.0-beta.1
-
-### Minor Changes
-
-- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
-
-  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
-  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
-  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
-
-- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
-
-### Patch Changes
-
-- Add mock for the `Drive` class. ([#307](https://github.com/vercel/sandbox/pull/307))
-
-- Updated dependencies [[`c2b5d7b45340b485264abb82f0cd640ed4e93293`](https://github.com/vercel/sandbox/commit/c2b5d7b45340b485264abb82f0cd640ed4e93293), [`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2997ecc32a77c145289fbbd89ae2dc0214767ae3`](https://github.com/vercel/sandbox/commit/2997ecc32a77c145289fbbd89ae2dc0214767ae3), [`2023195eafe3199c2372f7dad8bfaf0878267c52`](https://github.com/vercel/sandbox/commit/2023195eafe3199c2372f7dad8bfaf0878267c52)]:
-  - @vercel/sandbox@3.1.0-beta.1
-
-## 3.1.0-beta.0
-
-### Patch Changes
-
-- Re-export the Drive API from the mock package.
-
 ## 3.2.2
 
 ### Patch Changes
@@ -141,12 +69,6 @@
 
 - Updated dependencies [[`5c9e2d5f34f20632ed5a1de1288e811b67b95423`](https://github.com/vercel/sandbox/commit/5c9e2d5f34f20632ed5a1de1288e811b67b95423)]:
   - @vercel/sandbox@3.0.0
-
-## 2.10.0-beta.0
-
-### Patch Changes
-
-- Re-export the Drive API from the mock package.
 
 ## 2.9.2
 

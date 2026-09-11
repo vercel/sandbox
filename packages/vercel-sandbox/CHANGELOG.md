@@ -1,72 +1,5 @@
 # @vercel/sandbox
 
-## 3.4.0-beta.0
-
-### Minor Changes
-
-- `read-only` mounts have been replaced by snapshots: you can now mount the same drive on many sandboxes at once, using read-only snapshots: ([#331](https://github.com/vercel/sandbox/pull/331))
-
-  ```ts
-  const drive = await Drive.getOrCreate({ name: "test" });
-  await Sandbox.create({
-    mounts: {
-      "/data": drive.snapshot(),
-    },
-  });
-  ```
-
-  To mount a drive as `read-write`, simply pass in the drive object:
-
-  ```ts
-  await Sandbox.create({
-    mounts: {
-      "/data": drive,
-    },
-  });
-  ```
-
-## 3.3.0-beta.0
-
-### Minor Changes
-
-- Add a `driveId` field on the `Drive` entity to retrieve the unique ID of a drive. ([#322](https://github.com/vercel/sandbox/pull/322))
-
-### Patch Changes
-
-- Allow updating the drives mounted on a sandbox: ([#327](https://github.com/vercel/sandbox/pull/327))
-
-  - New `mounts` option on `Sandbox.update()`. It replaces all existing mounts and applies to the next session. Pass an empty object to remove all mounts.
-  - New `sandbox config mounts <name> --mount drive:/path[:mode]` CLI command. Omit `--mount` to remove all mounts.
-  - `sandbox config list` now shows the mounts.
-
-## 3.1.0-beta.1
-
-### Minor Changes
-
-- Add multi-region support for drives: ([#307](https://github.com/vercel/sandbox/pull/307))
-
-  - Set the `region` field when creating a new drive, or use the `--region` flag in the CLI.
-  - You can retrieve the region of a drive using the `region` getter on the `Drive` class.
-  - Drives can be only be mounted to sandboxes running on the same region.
-
-- Add multi-region support: ([#301](https://github.com/vercel/sandbox/pull/301))
-
-  - New `region` and `failoverRegions` options on sandbox create, fork, and update (SDK), with matching flags on `sandbox create`, `fork`, `run`, `sh`, and the `sandbox config region` / `sandbox config failover-regions` commands (CLI).
-  - New `failoverRegions` getter on `Sandbox` and `regions` getter on `Snapshot`.
-  - Regions are now shown in `sandbox ls`, `sessions list`, `snapshots list`/`get`, `sandbox config list`, and the create/fork summary.
-
-- `Sandbox.region` and `Sandbox.failoverRegions` no longer return `undefined`: the getters now report the platform defaults (`iad1` and `[]`) when the API omits the fields, so their types are `string` and `string[]`. The new `DEFAULT_SANDBOX_REGION` export makes the default region readable. ([#301](https://github.com/vercel/sandbox/pull/301))
-
-### Patch Changes
-
-- Update `defineSandboxProxy` to limit the JWKS issuer cache size to prevent unbounded memory usage. ([#309](https://github.com/vercel/sandbox/pull/309))
-
-## 3.1.0-beta.0
-
-### Minor Changes
-
-- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
-
 ## 3.2.2
 
 ### Patch Changes
@@ -128,18 +61,6 @@
   - Using `runtime: "node24"`: use `image: "vercel/sandbox/node:24"` for an Ubuntu-based equivalent.
   - Using `runtime: "node26"`: use `image: "vercel/sandbox/node:26"` for an Ubuntu-based equivalent.
   - Using `runtime: "python3.13"`: use `image: "vercel/sandbox/python:3.14"` for an Ubuntu-based equivalent, and note the Python version upgrade.
-
-## 2.10.0-beta.0
-
-### Minor Changes
-
-- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
-
-## 2.6.0-beta.0
-
-### Minor Changes
-
-- Add support for drives via a new `Drive` class and CLI commands. ([#196](https://github.com/vercel/sandbox/pull/196))
 
 ## 2.9.2
 
