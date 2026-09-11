@@ -13,7 +13,7 @@ sandbox create --name my-sandbox --mount workspace-cache:/data
 
 Create a snapshot to mount the same drive on multiple sandboxes at a time:
 
-```ts
+```sh
 sandbox drives get-or-create shared
 
 sandbox create --name reader-1 --mount shared:/data:snapshot
