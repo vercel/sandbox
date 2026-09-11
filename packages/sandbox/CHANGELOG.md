@@ -1,5 +1,44 @@
 # sandbox
 
+## 4.4.0
+
+### Minor Changes
+
+- Add support for [Drives](https://vercel.com/docs/sandbox/concepts/drives), persistent storage that can store TBs of data and be mounted on sandboxes at a specific path. Drives support point-in-time, read-only snapshots. ([#285](https://github.com/vercel/sandbox/pull/285))
+
+  Get started by creating a drive, then mount it on a sandbox:
+
+  ```sh
+  sandbox drives get-or-create workspace-cache
+
+  sandbox create --name my-sandbox --mount workspace-cache:/data
+  ```
+
+  Create a snapshot to mount the same drive on multiple sandboxes at a time:
+
+  ```sh
+  sandbox drives get-or-create shared
+
+  sandbox create --name reader-1 --mount shared:/data:snapshot
+  sandbox create --name reader-2 --mount shared:/data:snapshot
+  ```
+
+  Read the documentation to learn more: https://vercel.com/docs/sandbox/concepts/drives
+
+- Add opt-out usage telemetry and AI-agent attribution. The CLI now reports ([#319](https://github.com/vercel/sandbox/pull/319))
+  anonymous usage events (subcommand, CLI version, platform, and the AI agent
+  driving the invocation, detected via `detect-agent`) to Vercel's telemetry
+  bridge, and tags API requests with the detected agent in the user-agent
+  header. Manage collection with `sandbox telemetry status|enable|disable`,
+  `VERCEL_SANDBOX_TELEMETRY_DISABLED=1`, or inspect events without sending via
+  `VERCEL_TELEMETRY_DEBUG=1`. Running as `vercel sandbox` respects the Vercel
+  CLI's own telemetry preference.
+
+### Patch Changes
+
+- Updated dependencies [[`6afca1fe55c9058416b622d1108123134bc5ff5e`](https://github.com/vercel/sandbox/commit/6afca1fe55c9058416b622d1108123134bc5ff5e)]:
+  - @vercel/sandbox@3.3.0
+
 ## 4.3.0
 
 ### Minor Changes
