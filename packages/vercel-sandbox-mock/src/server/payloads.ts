@@ -1,9 +1,14 @@
 import type {
   CommandRecord,
+  DriveRecord,
   SandboxRecord,
   SessionRecord,
   SnapshotRecord,
 } from "./registry.js";
+
+export function drivePayload(drive: DriveRecord) {
+  return { ...drive };
+}
 
 /**
  * Coerce a stored network policy into a shape the SDK's response validator
@@ -93,6 +98,7 @@ export function sandboxPayload(sandbox: SandboxRecord, session: SessionRecord) {
     statusUpdatedAt: sandbox.statusUpdatedAt,
     cwd: sandbox.cwd,
     tags: sandbox.tags,
+    mounts: sandbox.mounts,
     snapshotExpiration: sandbox.snapshotExpiration,
     keepLastSnapshots: sandbox.keepLastSnapshots,
   };

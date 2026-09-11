@@ -1,7 +1,9 @@
 import { it, beforeEach, afterEach, expect, describe, vi } from "vitest";
 import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable.js";
-import { Sandbox } from "./sandbox.js";
+import { Sandbox, type SandboxMounts } from "./sandbox.js";
+import { Sandbox as SandboxSchema } from "./api-client/validators.js";
+import { Drive } from "./drive.js";
 import { Snapshot } from "./snapshot.js";
 import { APIError } from "./api-client/api-error.js";
 import type {
@@ -691,6 +693,160 @@ describe("Sandbox.getOrCreate", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(onCreate).not.toHaveBeenCalled();
   });
+});
+
+function makeMountDrive() {
+  return new Drive({
+    drive: {
+      id: "drive_123",
+      name: "my-drive",
+      projectId: "proj_123",
+      maxSizeBytes: 1024,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  });
+}
+
+const mountCases: {
+  label: string;
+  mount: SandboxMounts[string];
+  mode: "snapshot" | "read-write";
+}[] = [
+  { label: "Drive", mount: makeMountDrive(), mode: "read-write" },
+  {
+    label: "Drive snapshot",
+    mount: makeMountDrive().snapshot(),
+    mode: "snapshot",
+  },
+  {
+    label: "named read-write",
+    mount: { drive: "my-drive", mode: "read-write" },
+    mode: "read-write",
+  },
+  {
+    label: "named snapshot",
+    mount: { drive: "my-drive", mode: "snapshot" },
+    mode: "snapshot",
+  },
+];
+
+describe("Sandbox mount responses", () => {
+  it.each([
+    [{ drive: "my-drive" }, "read-write"],
+    [{ drive: "my-drive", mode: "read-only" }, "snapshot"],
+    [{ drive: "my-drive", mode: "snapshot" }, "snapshot"],
+    [{ drive: "my-drive", mode: "read-write" }, "read-write"],
+  ])("normalizes %j to %s", (mount, mode) => {
+    const sandbox = SandboxSchema.parse({
+      ...makeSandboxMetadata(),
+      mounts: { "/data": mount },
+    });
+    expect(sandbox.mounts).toEqual({ "/data": { drive: "my-drive", mode } });
+  });
+
+  it("accepts absent and empty mounts", () => {
+    expect(SandboxSchema.parse(makeSandboxMetadata()).mounts).toBeUndefined();
+    expect(
+      SandboxSchema.parse({ ...makeSandboxMetadata(), mounts: {} }).mounts,
+    ).toEqual({});
+  });
+
+  it("rejects invalid mount data", () => {
+    for (const mount of [
+      { mode: "read-write" },
+      { name: "my-drive", mode: "read-write" },
+      { drive: "my-drive", mode: "invalid" },
+    ]) {
+      expect(
+        SandboxSchema.safeParse({
+          ...makeSandboxMetadata(),
+          mounts: { "/data": mount },
+        }).success,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("Sandbox.create mounts", () => {
+  it.each(mountCases)(
+    "sends $label mounts to the API",
+    async ({ mount, mode }) => {
+      const mockFetch = vi.fn<typeof fetch>(
+        async () =>
+          new Response(
+            JSON.stringify({
+              sandbox: makeSandboxMetadata(),
+              session: {
+                id: "sbx_123",
+                memory: 2048,
+                vcpus: 1,
+                region: "iad1",
+                runtime: "node24",
+                timeout: 300_000,
+                status: "running",
+                requestedAt: 1,
+                createdAt: 1,
+                cwd: "/",
+                updatedAt: 1,
+              },
+              routes: [],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+      );
+
+      await Sandbox.create({
+        token: "test-token",
+        teamId: "team_123",
+        projectId: "proj_123",
+        name: "my-sandbox",
+        mounts: {
+          "/mnt/storage": mount,
+        },
+        fetch: mockFetch,
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(JSON.parse(String(init?.body)).mounts).toEqual({
+        "/mnt/storage": { drive: "my-drive", mode },
+      });
+    },
+  );
+});
+
+describe("Sandbox.update mounts", () => {
+  it.each(mountCases)(
+    "converts $label mounts and reflects the response",
+    async ({ mount, mode }) => {
+      const mounts = { "/mnt/storage": { drive: "my-drive", mode } };
+      const updateSandboxMock = vi.fn(async () => ({
+        json: { sandbox: { ...makeSandboxMetadata(), mounts } },
+      }));
+      const sandbox = new Sandbox({
+        client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+        routes: [],
+        sandbox: makeSandboxMetadata(),
+        session: {} as any,
+        projectId: "test-project",
+      });
+
+      await sandbox.update({
+        mounts: {
+          "/mnt/storage": mount,
+        },
+      });
+
+      expect(updateSandboxMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "test-name",
+          projectId: "test-project",
+          mounts,
+        }),
+      );
+      expect(sandbox.mounts).toEqual(mounts);
+    },
+  );
 });
 
 describe("Sandbox.create environment selection", () => {

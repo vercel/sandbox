@@ -75,6 +75,37 @@ describe("config command", () => {
     });
   });
 
+  test("mounts sends the parsed mounts to the SDK", async () => {
+    const { config } = await import("../../src/commands/config.ts");
+    await cmd.run(config, [
+      "mounts",
+      "my-sandbox",
+      "--mount=data:/mnt/data:snapshot",
+      "--mount=cache:/mnt/cache",
+      "--scope=team",
+      "--project=proj",
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      mounts: {
+        "/mnt/data": { drive: "data", mode: "snapshot" },
+        "/mnt/cache": { drive: "cache", mode: "read-write" },
+      },
+    });
+  });
+
+  test("mounts without --mount clears the mounts", async () => {
+    const { config } = await import("../../src/commands/config.ts");
+    await cmd.run(config, [
+      "mounts",
+      "my-sandbox",
+      "--scope=team",
+      "--project=proj",
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith({ mounts: {} });
+  });
+
   test('failover-regions "none" clears the failover regions', async () => {
     const { config } = await import("../../src/commands/config.ts");
     await cmd.run(config, [

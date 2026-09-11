@@ -269,6 +269,29 @@ export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
+export const Drive = z.object({
+  id: z.string(),
+  name: z.string(),
+  projectId: z.string(),
+  region: z.string(),
+  maxSizeBytes: z.number(),
+  currentSessionId: z.string().optional(),
+  currentSandboxName: z.string().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+export type DriveMetadata = z.infer<typeof Drive>;
+
+export const DrivesResponse = z.object({
+  drives: z.array(Drive),
+  pagination: CursorPagination,
+});
+
+export const DriveResponse = z.object({
+  drive: Drive,
+});
+
 export const Sandbox = z.object({
   name: z.string(),
   persistent: z.boolean(),
@@ -293,6 +316,24 @@ export const Sandbox = z.object({
   statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
   tags: z.record(z.string(), z.string()).optional(),
+  mounts: z
+    .record(
+      z.string(),
+      z
+        .object({
+          drive: z.string(),
+          // read-only is kept for backward-compatibility with existing mounts
+          mode: z.enum(["snapshot", "read-write", "read-only"]).optional(),
+        })
+        .transform((mount) => ({
+          drive: mount.drive,
+          mode:
+            mount.mode === "read-only"
+              ? ("snapshot" as const)
+              : (mount.mode ?? ("read-write" as const)),
+        })),
+    )
+    .optional(),
   snapshotExpiration: z.number().optional(),
   keepLastSnapshots: z
     .object({
