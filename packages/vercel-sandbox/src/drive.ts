@@ -198,7 +198,7 @@ export class Drive {
       token: credentials.token,
       fetch: params?.fetch,
     });
-    const fetchPage = async (cursor?: string | number) => {
+    const fetchPage = async (cursor?: string) => {
       const response = await client.listDrives({
         ...credentials,
         ...params,
@@ -216,7 +216,7 @@ export class Drive {
         ),
       };
     };
-    const firstPage = await fetchPage(params?.cursor ?? params?.until);
+    const firstPage = await fetchPage(params?.cursor);
     return attachPaginator(firstPage, {
       itemsKey: "drives",
       fetchNext: fetchPage,

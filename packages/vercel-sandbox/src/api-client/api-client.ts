@@ -646,9 +646,7 @@ export class APIClient extends BaseClient {
   async listDrives(params: {
     projectId: string;
     limit?: number;
-    cursor?: string | number;
-    since?: number | string;
-    until?: number | string;
+    cursor?: string;
     sortBy?: "createdAt" | "updatedAt" | "name";
     sortOrder?: "asc" | "desc";
     namePrefix?: string;
@@ -660,8 +658,7 @@ export class APIClient extends BaseClient {
         query: {
           projectId: params.projectId,
           limit: params.limit,
-          cursor: params.cursor ?? params.until,
-          since: params.since,
+          cursor: params.cursor,
           sortBy: params.sortBy,
           sortOrder: params.sortOrder,
           namePrefix: params.namePrefix,

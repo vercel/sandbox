@@ -85,7 +85,7 @@ const getOrCreate = cmd.command({
     maxSize: cmd.option({
       long: "max-size",
       description:
-        "Maximum drive size in bytes. If omitted, a default of 100 GiB is used.",
+        "Maximum drive size in bytes. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
       type: cmd.optional(driveMaxSize),
     }),
     region: cmd.option({
@@ -119,7 +119,7 @@ const getOrCreate = cmd.command({
     process.stderr.write(
       chalk.dim("   │ ") +
         "max size: " +
-        chalk.cyan(formatDriveSize(drive)) +
+        chalk.cyan(formatBytes(drive.maxSize)) +
         "\n",
     );
     process.stderr.write(
@@ -197,16 +197,12 @@ function printDrives(drives: Drive[]) {
         REGION: { value: (v) => v.region },
         CREATED: { value: (v) => timeAgo(v.createdAt) },
         UPDATED: { value: (v) => timeAgo(v.updatedAt) },
-        SIZE: { value: formatDriveSize },
+        SIZE: { value: (v) => formatBytes(v.maxSize) },
         ["ATTACHED SANDBOX"]: { value: (v) => v.currentSandboxName ?? "-" },
         ["ATTACHED SESSION"]: { value: (v) => v.currentSessionId ?? "-" },
       },
     }),
   );
-}
-
-function formatDriveSize(drive: Drive): string {
-  return drive.maxSize === undefined ? "-" : formatBytes(drive.maxSize);
 }
 
 async function getDriveByName({
