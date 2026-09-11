@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.3.0
+sandbox 4.4.0
 
 ▲ sandbox [options] <command>
 
@@ -23,6 +23,7 @@ Commands:
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
     snapshots                                  Manage sandbox snapshots
     sessions                                   Manage sandbox sessions
+    drives                                     Manage sandbox drives
     telemetry                                  Manage telemetry collection status
     login                                      Log in to the Sandbox CLI
     logout                                     Log out of the Sandbox CLI
@@ -92,6 +93,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Environment variables to set for the command
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -152,6 +154,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -206,6 +209,7 @@ Options:
     --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
     --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -458,6 +462,22 @@ Commands:
     rm | delete  <snapshot_id> [...snapshot_id]  Delete one or more snapshots.
 ```
 
+## `sandbox drives`
+
+```
+sandbox drives
+
+▲ sandbox drives [options] <command>
+
+For command help, run `sandbox drives <command> --help`
+
+Commands:
+
+    ls | list                        List drives for the specified account and project.
+    get-or-create  <name>            Create a drive if it does not already exist, or retrieve it.
+    rm | delete    <name> [...name]  Delete one or more drives.
+```
+
 ## `sandbox config`
 
 ```
@@ -475,6 +495,7 @@ Commands:
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
+    mounts                    <name>                    Update the drives mounted on a sandbox (replaces all existing mounts, applied to all new sessions). Pass no --mount flag to remove them.
     network-policy            <name>                    Update the network policy of a sandbox
     snapshot-expiration       <name> <DURATION|none>    Update the default snapshot expiration of a sandbox
     keep-last-snapshots       <name> <COUNT>            Update the snapshot retention policy (keep only the N most recent snapshots) of a sandbox
