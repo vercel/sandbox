@@ -9,11 +9,15 @@ import { APIClient } from "./api-client/index.js";
 import { APIError } from "./api-client/api-error.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
 import { getPrivateParams, type WithPrivate } from "./utils/types.js";
-import type { WithFetchOptions } from "./api-client/api-client.js";
+import type {
+  SingleTagFilter,
+  WithFetchOptions,
+} from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
 import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
+import type { Drive } from "./drive.js";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import type {
@@ -108,15 +112,33 @@ export interface BaseCreateSandboxParams {
    */
   tags?: Record<string, string>;
   /**
-   * The region to create the sandbox in. Defaults to `iad1`.
-   * See the Vercel documentation for the available regions.
+   * The region to create the sandbox in. Defaults to `iad1`. Any Vercel
+   * region is supported, e.g. `sfo1`, `fra1`, `hnd1`, `syd1`.
+   * See the Vercel documentation for the full list.
    */
   region?: SandboxRegion;
   /**
-   * Additional regions the sandbox can fail over to. Must not include
-   * `region`.
+   * Additional regions the sandbox can fail over to, e.g. `["sfo1", "fra1"]`.
+   * Must not include `region`.
    */
   failoverRegions?: SandboxRegion[];
+
+  /**
+   * List of drives to attach to the sandbox, keyed by the desired mount path.
+   * The drive must be created beforehand with `Drive.getOrCreate`.
+   *
+   * The mount paths must be absolute and cannot overlap with each other.
+   *
+   * @example
+   * const drive = await Drive.getOrCreate({ name: "my-drive" });
+   * const sandbox = await Sandbox.create({
+   *   mounts: {
+   *     "/data": drive,
+   *     "/snapshot": drive.snapshot(),
+   *   },
+   * });
+   */
+  mounts?: SandboxMounts;
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -157,6 +179,25 @@ export interface BaseCreateSandboxParams {
    * Use this to re-warm caches, restore transient state, or run other setup logic.
    */
   onResume?: (sandbox: Sandbox) => Promise<void>;
+}
+
+export type SandboxMountMode = "read-write" | "snapshot";
+export type SandboxMounts = Record<
+  string,
+  Drive | { drive: string; mode: SandboxMountMode }
+>;
+
+function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
+  if (mounts === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(mounts).map(([path, mount]) => [
+      path,
+      {
+        drive: "mode" in mount ? mount.drive : mount.name,
+        mode: "mode" in mount ? mount.mode : "read-write",
+      },
+    ]),
+  );
 }
 
 /**
@@ -552,6 +593,13 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * Drives mounted on the sandbox, keyed by mount path.
+   */
+  public get mounts(): SandboxMetaData["mounts"] {
+    return this.sandbox.mounts;
+  }
+
+  /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
@@ -621,9 +669,17 @@ export class Sandbox implements ExecutionContext {
    * // or: for await (const page of result.pages()) { ... }
    * ```
    */
-  static async list(
-    params?: Partial<Parameters<APIClient["listSandboxes"]>[0]> &
-      Partial<Credentials> &
+  static async list<Tags extends Record<string, string>>(
+    params?: Partial<
+      Omit<Parameters<APIClient["listSandboxes"]>[0], "tags">
+    > & {
+      /**
+       * Filter sandboxes by tag. Only a single `{ key: value }` tag filter
+       * is currently supported.
+       * @example { env: "staging" }
+       */
+      tags?: Tags & SingleTagFilter<Tags>;
+    } & Partial<Credentials> &
       WithFetchOptions,
   ) {
     "use step";
@@ -634,7 +690,7 @@ export class Sandbox implements ExecutionContext {
       fetch: params?.fetch,
     });
     const fetchPage = async (cursor?: string) => {
-      const response = await client.listSandboxes({
+      const response = await client.listSandboxes<Tags>({
         ...credentials,
         ...params,
         ...(cursor !== undefined && { cursor }),
@@ -738,6 +794,7 @@ export class Sandbox implements ExecutionContext {
       networkPolicy: params?.networkPolicy,
       env: params?.env,
       tags: params?.tags,
+      mounts: toAPIMounts(params?.mounts),
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
       region: params?.region,
@@ -1709,6 +1766,9 @@ export class Sandbox implements ExecutionContext {
    * running session keeps the region it started in. Pass an empty
    * `failoverRegions` array to remove all failover regions.
    *
+   * When `mounts` is provided, it replaces all current mounts and applies to
+   * the next session. Pass an empty object to remove all mounts.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1729,6 +1789,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId?: string;
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
+      mounts?: SandboxMounts;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -1757,6 +1818,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId: params.currentSnapshotId,
       region: params.region,
       failoverRegions: params.failoverRegions,
+      mounts: toAPIMounts(params.mounts),
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;

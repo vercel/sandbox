@@ -4,6 +4,7 @@ import * as mock from "../src/index";
 import * as realProxy from "@vercel/sandbox/proxy";
 import * as mockProxy from "../src/proxy";
 import {
+  Drive as RealDrive,
   Sandbox as RealSandbox,
   Snapshot as RealSnapshot,
 } from "@vercel/sandbox";
@@ -29,7 +30,8 @@ describe("public exports", () => {
     }
   });
 
-  test("Sandbox and Snapshot are drop-in subclasses of the real classes", () => {
+  test("mock classes are drop-in subclasses of the real classes", () => {
+    expect(mock.Drive.prototype).toBeInstanceOf(RealDrive);
     expect(mock.Sandbox.prototype).toBeInstanceOf(RealSandbox);
     expect(mock.Snapshot.prototype).toBeInstanceOf(RealSnapshot);
   });

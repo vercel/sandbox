@@ -1,5 +1,70 @@
 # @vercel/sandbox-mock
 
+## 3.3.0
+
+### Minor Changes
+
+- Add support for [Drives](https://vercel.com/docs/sandbox/concepts/drives), persistent storage that can store TBs of data and be mounted on sandboxes at a specific path. Drives support point-in-time, read-only snapshots. ([#285](https://github.com/vercel/sandbox/pull/285))
+
+  Get started by creating a drive, then mount it on a sandbox:
+
+  ```ts
+  import { Sandbox, Drive } from "@vercel/sandbox";
+
+  const drive = await Drive.getOrCreate({ name: "workspace-cache" });
+
+  // Mount as read-write once
+  const sandbox = await Sandbox.create({
+    name: "my-sandbox",
+    mounts: {
+      "/data": drive,
+    },
+  });
+  ```
+
+  Create a snapshot to mount the same drive on multiple sandboxes at a time:
+
+  ```ts
+  import { Sandbox, Drive } from "@vercel/sandbox";
+
+  const drive = await Drive.getOrCreate({ name: "shared" });
+
+  // Mount many snapshots of the same drive
+  const firstReader = await Sandbox.create({
+    name: "reader-1",
+    mounts: {
+      "/data": drive.snapshot(),
+    },
+  });
+  const secondReader = await Sandbox.create({
+    name: "reader-2",
+    mounts: {
+      "/data": drive.snapshot(),
+    },
+  });
+  ```
+
+  Read the documentation to learn more: https://vercel.com/docs/sandbox/concepts/drives
+
+### Patch Changes
+
+- Updated dependencies [[`6afca1fe55c9058416b622d1108123134bc5ff5e`](https://github.com/vercel/sandbox/commit/6afca1fe55c9058416b622d1108123134bc5ff5e)]:
+  - @vercel/sandbox@3.3.0
+
+## 3.2.2
+
+### Patch Changes
+
+- Updated dependencies [[`fa937652e5b9fabf0735a7fc2dceade7f68bbd57`](https://github.com/vercel/sandbox/commit/fa937652e5b9fabf0735a7fc2dceade7f68bbd57)]:
+  - @vercel/sandbox@3.2.2
+
+## 3.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`bb190077ca365bab432c98a2f5bb6e8e2621cf10`](https://github.com/vercel/sandbox/commit/bb190077ca365bab432c98a2f5bb6e8e2621cf10)]:
+  - @vercel/sandbox@3.2.1
+
 ## 3.2.0
 
 ### Patch Changes

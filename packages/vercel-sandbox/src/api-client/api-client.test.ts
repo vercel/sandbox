@@ -695,6 +695,42 @@ describe("APIClient", () => {
     });
   });
 
+  describe("listDrives", () => {
+    it("passes the supported query parameters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            drives: [],
+            pagination: { count: 0, next: null },
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+      const client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+
+      await client.listDrives({
+        projectId: "proj_123",
+        limit: 5,
+        cursor: "opaque-cursor",
+        sortBy: "name",
+        sortOrder: "asc",
+        namePrefix: "test-",
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("projectId=proj_123");
+      expect(url).toContain("limit=5");
+      expect(url).toContain("cursor=opaque-cursor");
+      expect(url).toContain("sortBy=name");
+      expect(url).toContain("sortOrder=asc");
+      expect(url).toContain("namePrefix=test-");
+    });
+  });
+
   describe("listSandboxes", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
@@ -766,6 +802,46 @@ describe("APIClient", () => {
       expect(url).toContain("sortBy=name");
       expect(url).toContain("namePrefix=test-");
       expect(url).toContain("cursor=abc");
+    });
+
+    it("passes a single tag filter as a query param", async () => {
+      const body = {
+        sandboxes: [],
+        pagination: { count: 0, next: null },
+      };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.listSandboxes({
+        projectId: "proj_123",
+        tags: { env: "staging" },
+      });
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain(`tags=${encodeURIComponent("env:staging")}`);
+    });
+
+    it("rejects multiple tag filters at the type level", () => {
+      const check = () =>
+        client.listSandboxes({
+          projectId: "proj_123",
+          // @ts-expect-error — only a single tag filter is supported
+          tags: { env: "staging", team: "infra" },
+        });
+      expect(check).toBeInstanceOf(Function);
+    });
+
+    it("rejects multiple tag filters at runtime", async () => {
+      await expect(
+        client.listSandboxes({
+          projectId: "proj_123",
+          // @ts-expect-error — only a single tag filter is supported
+          tags: { env: "staging", team: "infra" },
+        }),
+      ).rejects.toThrow("Filtering by multiple tags is not supported");
     });
 
     it("passes sortOrder and sortBy statusUpdatedAt", async () => {

@@ -1,5 +1,63 @@
 # @vercel/sandbox
 
+## 3.3.0
+
+### Minor Changes
+
+- Add support for [Drives](https://vercel.com/docs/sandbox/concepts/drives), persistent storage that can store TBs of data and be mounted on sandboxes at a specific path. Drives support point-in-time, read-only snapshots. ([#285](https://github.com/vercel/sandbox/pull/285))
+
+  Get started by creating a drive, then mount it on a sandbox:
+
+  ```ts
+  import { Sandbox, Drive } from "@vercel/sandbox";
+
+  const drive = await Drive.getOrCreate({ name: "workspace-cache" });
+
+  // Mount as read-write once
+  const sandbox = await Sandbox.create({
+    name: "my-sandbox",
+    mounts: {
+      "/data": drive,
+    },
+  });
+  ```
+
+  Create a snapshot to mount the same drive on multiple sandboxes at a time:
+
+  ```ts
+  import { Sandbox, Drive } from "@vercel/sandbox";
+
+  const drive = await Drive.getOrCreate({ name: "shared" });
+
+  // Mount many snapshots of the same drive
+  const firstReader = await Sandbox.create({
+    name: "reader-1",
+    mounts: {
+      "/data": drive.snapshot(),
+    },
+  });
+  const secondReader = await Sandbox.create({
+    name: "reader-2",
+    mounts: {
+      "/data": drive.snapshot(),
+    },
+  });
+  ```
+
+  Read the documentation to learn more: https://vercel.com/docs/sandbox/concepts/drives
+
+## 3.2.2
+
+### Patch Changes
+
+- Update region hints to cover all 19 Vercel regions. ([#326](https://github.com/vercel/sandbox/pull/326))
+
+## 3.2.1
+
+### Patch Changes
+
+- Reject multiple `tags` filters on `Sandbox.list()` at the type level. The API supports filtering by a single tag, so passing more than one key in `tags` is now a compile-time error instead of a 400 from the API. ([#312](https://github.com/vercel/sandbox/pull/312))
+
 ## 3.2.0
 
 ### Minor Changes

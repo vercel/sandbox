@@ -1,5 +1,66 @@
 # sandbox
 
+## 4.4.0
+
+### Minor Changes
+
+- Add support for [Drives](https://vercel.com/docs/sandbox/concepts/drives), persistent storage that can store TBs of data and be mounted on sandboxes at a specific path. Drives support point-in-time, read-only snapshots. ([#285](https://github.com/vercel/sandbox/pull/285))
+
+  Get started by creating a drive, then mount it on a sandbox:
+
+  ```sh
+  sandbox drives get-or-create workspace-cache
+
+  sandbox create --name my-sandbox --mount workspace-cache:/data
+  ```
+
+  Create a snapshot to mount the same drive on multiple sandboxes at a time:
+
+  ```sh
+  sandbox drives get-or-create shared
+
+  sandbox create --name reader-1 --mount shared:/data:snapshot
+  sandbox create --name reader-2 --mount shared:/data:snapshot
+  ```
+
+  Read the documentation to learn more: https://vercel.com/docs/sandbox/concepts/drives
+
+- Add opt-out usage telemetry and AI-agent attribution. The CLI now reports ([#319](https://github.com/vercel/sandbox/pull/319))
+  anonymous usage events (subcommand, CLI version, platform, and the AI agent
+  driving the invocation, detected via `detect-agent`) to Vercel's telemetry
+  bridge, and tags API requests with the detected agent in the user-agent
+  header. Manage collection with `sandbox telemetry status|enable|disable`,
+  `VERCEL_SANDBOX_TELEMETRY_DISABLED=1`, or inspect events without sending via
+  `VERCEL_TELEMETRY_DEBUG=1`. Running as `vercel sandbox` respects the Vercel
+  CLI's own telemetry preference.
+
+### Patch Changes
+
+- Updated dependencies [[`6afca1fe55c9058416b622d1108123134bc5ff5e`](https://github.com/vercel/sandbox/commit/6afca1fe55c9058416b622d1108123134bc5ff5e)]:
+  - @vercel/sandbox@3.3.0
+
+## 4.3.0
+
+### Minor Changes
+
+- Add `sandbox sh --rm` to create a non-persistent sandbox and remove it when the shell exits. ([#324](https://github.com/vercel/sandbox/pull/324))
+
+### Patch Changes
+
+- Update region hints to cover all 19 Vercel regions. ([#326](https://github.com/vercel/sandbox/pull/326))
+
+- Updated dependencies [[`fa937652e5b9fabf0735a7fc2dceade7f68bbd57`](https://github.com/vercel/sandbox/commit/fa937652e5b9fabf0735a7fc2dceade7f68bbd57)]:
+  - @vercel/sandbox@3.2.2
+
+## 4.2.1
+
+### Patch Changes
+
+- Ensure that the interactive server is available before creating websocket connection requests. ([#317](https://github.com/vercel/sandbox/pull/317))
+
+- Updated dependencies [[`bb190077ca365bab432c98a2f5bb6e8e2621cf10`](https://github.com/vercel/sandbox/commit/bb190077ca365bab432c98a2f5bb6e8e2621cf10)]:
+  - @vercel/sandbox@3.2.1
+
 ## 4.2.0
 
 ### Minor Changes

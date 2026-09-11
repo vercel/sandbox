@@ -71,6 +71,7 @@ export interface SandboxRecord {
   runtime?: string;
   timeout: number;
   tags?: Record<string, string>;
+  mounts?: Record<string, { drive: string; mode: "snapshot" | "read-write" }>;
   networkPolicy?: unknown;
   cwd: string;
   env?: Record<string, string>;
@@ -105,6 +106,18 @@ export interface SnapshotRecord {
   parentId?: string;
   /** Captured filesystem, restored when a sandbox is created from this snapshot. */
   files: SnapshotFileEntry[];
+}
+
+export interface DriveRecord {
+  id: string;
+  name: string;
+  projectId: string;
+  region: string;
+  maxSizeBytes: number;
+  currentSessionId?: string;
+  currentSandboxName?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export type SnapshotFileEntry =

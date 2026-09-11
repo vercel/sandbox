@@ -11,6 +11,7 @@ import {
 import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
 import { failoverRegionListType, regionType } from "../args/region";
+import { mounts as mountsOption } from "../args/drive";
 import { Duration } from "../types/duration";
 import { SnapshotExpiration } from "../types/snapshot-expiration";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -561,7 +562,7 @@ const failoverRegionsCommand = cmd.command({
     }),
     failoverRegions: cmd.positional({
       type: failoverRegionListType,
-      description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,cle1). Must not include the sandbox region. Pass "none" to remove them.',
+      description: 'Comma-separated regions the sandbox can fail over to (e.g. sfo1,fra1). Must not include the sandbox region. Pass "none" to remove them.',
     }),
     scope,
   },
@@ -584,6 +585,43 @@ const failoverRegionsCommand = cmd.command({
       );
       process.stderr.write(
         chalk.dim("   ╰ ") + "failover-regions: " + chalk.cyan(display) + "\n",
+      );
+    } catch (error) {
+      spinner.stop();
+      throw error;
+    }
+  },
+});
+
+const mountsCommand = cmd.command({
+  name: "mounts",
+  description: "Update the drives mounted on a sandbox (replaces all existing mounts, applied to all new sessions). Pass no --mount flag to remove them.",
+  args: {
+    sandbox: cmd.positional({
+      type: sandboxName,
+      description: "Sandbox name to update",
+    }),
+    mounts: mountsOption,
+    scope,
+  },
+  async handler({ scope: { token, team, project }, sandbox: name, mounts }) {
+    const sandbox = await sandboxClient.get({
+      name,
+      projectId: project,
+      teamId: team,
+      token,
+    });
+
+    const spinner = ora("Updating sandbox configuration...").start();
+    try {
+      await sandbox.update({ mounts });
+      spinner.stop();
+
+      process.stderr.write(
+        "✅ Configuration updated for sandbox " + chalk.cyan(name) + "\n",
+      );
+      process.stderr.write(
+        chalk.dim("   ╰ ") + "mounts: " + chalk.cyan(formatMounts(mounts)) + "\n",
       );
     } catch (error) {
       spinner.stop();
@@ -635,6 +673,7 @@ const listCommand = cmd.command({
       { field: "Keep last snapshots", value: formatKeepLastSnapshots(sandbox.keepLastSnapshots) },
       { field: "Current snapshot", value: sandbox.currentSnapshotId ?? "-" },
       { field: "Tags", value: tagsDisplay },
+      { field: "Mounts", value: formatMounts(sandbox.mounts) },
     ];
 
     console.log(
@@ -796,6 +835,16 @@ function formatKeepLastSnapshots(
   return parts.join(", ");
 }
 
+function formatMounts(mounts: Sandbox["mounts"]): string {
+  const entries = Object.entries(mounts ?? {});
+  if (entries.length === 0) {
+    return "-";
+  }
+  return entries
+    .map(([path, { drive, mode }]) => `${drive}:${path}:${mode ?? "read-write"}`)
+    .join(", ");
+}
+
 function formatPorts(sandbox: Sandbox): string {
   const ports = getPublishedRoutes(sandbox)?.map((route) => route.port) ?? [];
 
@@ -822,6 +871,7 @@ export const config = cmd.subcommands({
     persistent: persistentCommand,
     region: regionCommand,
     "failover-regions": failoverRegionsCommand,
+    mounts: mountsCommand,
     "network-policy": networkPolicyCommand,
     "snapshot-expiration": snapshotExpirationCommand,
     "keep-last-snapshots": keepLastSnapshotsCommand,

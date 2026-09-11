@@ -1,5 +1,6 @@
 ---
 "@vercel/sandbox": minor
+"sandbox": patch
 ---
 
 Tag API requests with the AI agent driving the process, when one is

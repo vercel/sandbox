@@ -23,6 +23,8 @@ import {
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
+  DrivesResponse,
+  DriveResponse,
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
@@ -40,6 +42,7 @@ import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type { SandboxMetaData } from "./validators.js";
 
 interface Claims {
   owner_id: string;
@@ -189,6 +192,7 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      mounts?: SandboxMetaData["mounts"];
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
@@ -218,6 +222,7 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
+          mounts: params.mounts,
           region: params.region,
           failoverRegions: params.failoverRegions,
           ...privateParams,
@@ -644,6 +649,56 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async listDrives(params: {
+    projectId: string;
+    limit?: number;
+    cursor?: string;
+    sortBy?: "createdAt" | "updatedAt" | "name";
+    sortOrder?: "asc" | "desc";
+    namePrefix?: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DrivesResponse,
+      await this.request(`/v2/sandboxes/drives`, {
+        query: {
+          projectId: params.projectId,
+          limit: params.limit,
+          cursor: params.cursor,
+          sortBy: params.sortBy,
+          sortOrder: params.sortOrder,
+          namePrefix: params.namePrefix,
+        },
+        method: "GET",
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async getOrCreateDrive(params: {
+    projectId: string;
+    name: string;
+    region?: string;
+    maxSizeBytes?: number;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            projectId: params.projectId,
+            region: params.region,
+            maxSizeBytes: params.maxSizeBytes,
+          }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async writeFiles(params: {
     sessionId: string;
     cwd: string;
@@ -914,14 +969,19 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async listSandboxes(params: {
+  async listSandboxes<Tags extends Record<string, string>>(params: {
     projectId: string;
     limit?: number;
     sortBy?: "createdAt" | "name" | "statusUpdatedAt";
     sortOrder?: "asc" | "desc";
     namePrefix?: string;
     cursor?: string;
-    tags?: Record<string, string>;
+    /**
+     * Filter sandboxes by tag. Only a single `{ key: value }` tag filter is
+     * currently supported.
+     * @example { env: "staging" }
+     */
+    tags?: Tags & SingleTagFilter<Tags>;
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -937,6 +997,24 @@ export class APIClient extends BaseClient {
           tags: toTagsFilter(params.tags),
         },
         method: "GET",
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async deleteDrive(params: {
+    projectId: string;
+    name: string;
+    signal?: AbortSignal;
+  }) {
+    const url = `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`;
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(url, {
+        method: "DELETE",
+        query: {
+          projectId: params.projectId,
+        },
         signal: params.signal,
       }),
     );
@@ -960,6 +1038,7 @@ export class APIClient extends BaseClient {
     currentSnapshotId?: string;
     region?: SandboxRegion;
     failoverRegions?: SandboxRegion[];
+    mounts?: SandboxMetaData["mounts"];
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -983,6 +1062,7 @@ export class APIClient extends BaseClient {
           currentSnapshotId: params.currentSnapshotId,
           region: params.region,
           failoverRegions: params.failoverRegions,
+          mounts: params.mounts,
         }),
         signal: params.signal,
       }),
@@ -1092,5 +1172,22 @@ function toTagsFilter(
   if (tags === undefined) return undefined;
   const entries = Object.entries(tags);
   if (entries.length === 0) return undefined;
+  if (entries.length > 1) {
+    throw new Error(
+      "Filtering by multiple tags is not supported. Pass a single `{ key: value }` tag.",
+    );
+  }
   return entries.map(([key, value]) => `${key}:${value}`);
 }
+
+type UnionToIntersection<Union> = (
+  Union extends unknown ? (arg: Union) => void : never
+) extends (arg: infer Intersection) => void
+  ? Intersection
+  : never;
+
+export type SingleTagFilter<Tags> = [keyof Tags] extends [
+  UnionToIntersection<keyof Tags>,
+]
+  ? Tags
+  : "Error: filtering by multiple tags is not supported. Pass a single `{ key: value }` tag.";

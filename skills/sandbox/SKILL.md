@@ -88,8 +88,8 @@ const sandbox = await Sandbox.create({
   tags: { env: "staging", team: "infra" }, // Up to 5 key:value tags
   persistent: true, // Default: true. Auto-snapshots on stop, restores on resume.
   snapshotExpiration: ms("7d"), // Default TTL for snapshots. Use 0 for no expiration.
-  region: "<region>", // Optional, defaults to iad1. See the Vercel docs for available regions.
-  failoverRegions: ["<region>"], // Optional. Must not include `region`.
+  region: "<region>", // Optional, defaults to iad1. Any Vercel region, e.g. sfo1, fra1, hnd1, syd1.
+  failoverRegions: ["<region>"], // Optional, e.g. ["sfo1", "fra1"]. Must not include `region`.
 });
 
 console.log(sandbox.name);
@@ -940,7 +940,7 @@ const result = await sandbox.runCommand({
 | Base system     | Ubuntu 26.04                                                                    |
 | User context    | `ubuntu` user                                                                   |
 | Writable path   | `/vercel/sandbox`                                                               |
-| Regions         | One primary region per sandbox, plus optional failover regions. Snapshots restore only in regions where they are available. See the Vercel docs for the region list. |
+| Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
 
@@ -983,7 +983,7 @@ sandbox create --non-persistent              # Disable filesystem persistence
 sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
-sandbox create --region <region>             # Defaults to iad1; see the Vercel docs for available regions
+sandbox create --region <region>             # Defaults to iad1; any Vercel region, e.g. sfo1, fra1, hnd1, syd1
 sandbox create --failover-regions <region>,<region>  # Comma-separated
 sandbox create --failover-regions none               # No failover, overrides the project default
 
