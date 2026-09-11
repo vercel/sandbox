@@ -328,6 +328,12 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+      '@vercel/cli-config':
+        specifier: 0.2.4
+        version: 0.2.4
+      '@vercel/detect-agent':
+        specifier: 1.2.5
+        version: 1.2.5
       '@vercel/oidc':
         specifier: ^3.2.0
         version: 3.2.0
@@ -2576,6 +2582,13 @@ packages:
 
   '@vercel/cli-auth@0.0.1':
     resolution: {integrity: sha512-CnqiuMlZ4pjs2LCPYiR6aLKPPd3Xb8SBI1Y7eotXKgpx6qgrGNY+E7EIyUt5ErGHJGIrCZyGG5WEo4bHtVmz2Q==}
+
+  '@vercel/cli-config@0.2.4':
+    resolution: {integrity: sha512-kZ5SojbrV06GHoU6QIWGwDXLov+s9rWZ7QqdqKfJfBGCNUieGfgaCjeeenNy8Y+QC0bwC0dZ2B4l5Hvdmrgpdw==}
+
+  '@vercel/detect-agent@1.2.5':
+    resolution: {integrity: sha512-0krENrjuitlW8s6TJu0MlqCevyCU7K7JK63jZAf7xZ6n17tx+vUEwzHT3sTxawtwZxaW21hu+oFUpoOrm49FsQ==}
+    engines: {node: '>=14'}
 
   '@vercel/functions@3.4.3':
     resolution: {integrity: sha512-kA14KIUVgAY6VXbhZ5jjY+s0883cV3cZqIU3WhrSRxuJ9KvxatMjtmzl0K23HK59oOUjYl7HaE/eYMmhmqpZzw==}
@@ -8209,6 +8222,13 @@ snapshots:
       open: 8.4.0
       xdg-app-paths: 5.1.0
       zod: 4.1.11
+
+  '@vercel/cli-config@0.2.4':
+    dependencies:
+      xdg-app-paths: 5.1.0
+      zod: 4.1.11
+
+  '@vercel/detect-agent@1.2.5': {}
 
   '@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.13)':
     dependencies:
