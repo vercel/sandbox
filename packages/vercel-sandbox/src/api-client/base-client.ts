@@ -15,6 +15,7 @@ export interface RequestParams extends RequestInit {
 
 const DEFAULT_AGENT = new Agent({
   bodyTimeout: 0, // disable body timeout to allow long logs streaming
+  allowH2: true,
 });
 
 /**
