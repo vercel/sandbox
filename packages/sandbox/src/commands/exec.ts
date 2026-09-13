@@ -1,5 +1,6 @@
 import { Sandbox } from "@vercel/sandbox";
 import * as cmd from "cmd-ts";
+import type { ParsingInto } from "cmd-ts/dist/esm/argparser";
 import ms from "ms";
 import { sandboxName } from "../args/sandbox-name";
 import { isatty } from "node:tty";
@@ -81,75 +82,102 @@ export const args = {
   scope,
 } as const;
 
-export const exec = cmd.command({
-  name: "exec",
-  description: "Execute a command in an existing sandbox",
+/**
+ * What {@link execute} runs with: the `exec` command's own arguments, except
+ * that `command` is optional. The commands that only ever open a shell
+ * (`connect`, `create --connect`, `fork --connect`) leave it out so the
+ * sandbox spawns the account's configured shell as a login shell instead of a
+ * path the CLI guessed.
+ */
+export type ExecuteOptions = Omit<
+  { [K in keyof typeof args]: ParsingInto<(typeof args)[K]> },
+  "command" | "tty"
+> & { command?: string };
+
+/**
+ * Runs a command in a sandbox, interactively or not. Omitting `command`
+ * requires `interactive`; the session then opens the account's login shell.
+ */
+export async function execute({
+  command,
+  cwd,
   args,
-  async handler({
-    command,
-    cwd,
-    args,
-    asSudo,
-    sandbox: sandboxName,
-    scope: { token, team, project },
-    interactive,
-    envVars,
-    skipExtendingTimeout,
-    timeout,
-  }) {
-    if (interactive && timeout) {
+  asSudo,
+  sandbox: sandboxName,
+  scope: { token, team, project },
+  interactive,
+  envVars,
+  skipExtendingTimeout,
+  timeout,
+}: ExecuteOptions) {
+  if (interactive && timeout) {
+    throw new Error(
+      [
+        "--timeout cannot be combined with --interactive.",
+        `${chalk.bold("hint:")} Remove one of the two flags. Interactive sessions do not enforce a command timeout.`,
+      ].join("\n"),
+    );
+  }
+
+  const sandbox =
+    typeof sandboxName !== "string"
+      ? sandboxName
+      : await sandboxClient.get({
+          name: sandboxName,
+          projectId: project,
+          teamId: team,
+          token,
+          // Resume up front so the sandbox is already running by the time the
+          // interactive-shell setup runs its parallel steps.
+          resume: true,
+          __includeSystemRoutes: true,
+        });
+
+  if (!interactive) {
+    if (command === undefined) {
       throw new Error(
         [
-          "--timeout cannot be combined with --interactive.",
-          `${chalk.bold("hint:")} Remove one of the two flags. Interactive sessions do not enforce a command timeout.`,
+          "A command is required unless the session is interactive.",
+          `${chalk.bold("hint:")} Only interactive sessions can fall back to the sandbox's login shell.`,
         ].join("\n"),
       );
     }
 
-    const sandbox =
-      typeof sandboxName !== "string"
-        ? sandboxName
-        : await sandboxClient.get({
-            name: sandboxName,
-            projectId: project,
-            teamId: team,
-            token,
-            // Resume up front so the sandbox is already running by the time the
-            // interactive-shell setup runs its parallel steps.
-            resume: true,
-            __includeSystemRoutes: true,
-          });
+    console.error(printCommand(command, args));
+    const result = await sandbox.runCommand({
+      cmd: command,
+      args,
+      stderr: process.stderr,
+      stdout: process.stdout,
+      sudo: asSudo,
+      cwd,
+      env: envVars,
+      timeoutMs: timeout ? ms(timeout) : undefined,
+    });
 
-    if (!interactive) {
-      console.error(printCommand(command, args));
-      const result = await sandbox.runCommand({
-        cmd: command,
-        args,
-        stderr: process.stderr,
-        stdout: process.stdout,
-        sudo: asSudo,
-        cwd,
-        env: envVars,
-        timeoutMs: timeout ? ms(timeout) : undefined,
-      });
-
-      // Exit code 137 (128 + SIGKILL) is how a `--timeout` kill surfaces.
-      if (timeout && result.exitCode === 137) {
-        console.error(
-          `${chalk.yellow("Command was killed (SIGKILL, exit code 137)")}.`,
-        );
-      }
-
-      process.exitCode = result.exitCode;
-    } else {
-      await startInteractiveShell({
-        sandbox,
-        cwd,
-        execution: [command, ...args],
-        envVars,
-        sudo: asSudo,
-        skipExtendingTimeout,
-      });
+    // Exit code 137 (128 + SIGKILL) is how a `--timeout` kill surfaces.
+    if (timeout && result.exitCode === 137) {
+      console.error(
+        `${chalk.yellow("Command was killed (SIGKILL, exit code 137)")}.`,
+      );
     }
-  },
+
+    process.exitCode = result.exitCode;
+  } else {
+    await startInteractiveShell({
+      sandbox,
+      cwd,
+      execution: command === undefined ? undefined : [command, ...args],
+      envVars,
+      sudo: asSudo,
+      skipExtendingTimeout,
+    });
+  }
+}
+
+export const exec = cmd.command({
+  name: "exec",
+  description: "Execute a command in an existing sandbox",
+  args,
+  handler: execute,
 });
