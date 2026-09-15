@@ -51,6 +51,8 @@ jobs:
           with:
             source: images
             targets: ${{ matrix.target }}
+            push: false
+            vars: PUSH=false
 
 
   publish:
