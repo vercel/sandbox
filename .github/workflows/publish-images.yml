@@ -38,6 +38,8 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      STAGING_SUFFIX: -staging-${{ github.run_id }}
     permissions:
       contents: read
       id-token: write
@@ -64,7 +66,7 @@ jobs:
           source: images
           targets: ${{ matrix.target }}
           vars: |
-            TAG_SUFFIX=-staging
+            TAG_SUFFIX=${{ env.STAGING_SUFFIX }}
             PUSH=true
 
       - name: Select a staging tag for this image
@@ -90,6 +92,6 @@ jobs:
           for image in "${images[@]}"; do
             docker buildx imagetools create \
               --prefer-index=false \
-              --tag "${image%-staging}" \
+              --tag "${image%"$STAGING_SUFFIX"}" \
               "${image%:*}@$DIGEST"
           done
