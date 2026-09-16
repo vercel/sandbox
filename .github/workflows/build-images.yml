@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - images/**
-      - .github/workflows/publish-images.yml
+      - .github/workflows/build-images.yml
 
 permissions:
   contents: read
