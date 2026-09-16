@@ -1,5 +1,14 @@
 # @vercel/sandbox
 
+## 3.4.0
+
+### Minor Changes
+
+- Tag API requests with the AI agent driving the process, when one is ([#320](https://github.com/vercel/sandbox/pull/320))
+  detected via `detect-agent`, as an `agent/<name>` phrase in the user-agent
+  header. No agent detected means no change to the header. The SDK sends no
+  telemetry events; this is request metadata only.
+
 ## 3.3.0
 
 ### Minor Changes
