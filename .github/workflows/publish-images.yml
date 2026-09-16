@@ -20,17 +20,19 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.images.outputs.matrix }}
+      targets: ${{ steps.images.outputs.targets }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Generate image matrix
+      - name: Find publishable Bake targets
         id: images
-        uses: docker/bake-action/subaction/matrix@v7
-        with:
-          workdir: images
-          target: default
+        working-directory: images
+        run: |
+          targets=$(docker buildx bake --print | jq -c '
+            [.target | to_entries[] | select(.value.tags | length > 0) | .key]
+          ')
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
 
   publish:
     name: Publish ${{ matrix.target }}
@@ -46,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
