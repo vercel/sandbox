@@ -2,6 +2,14 @@ variable "REGISTRY" {
   default = "vcr.vercel.com/vercel/sandbox"
 }
 
+variable "TAG_SUFFIX" {
+  default = ""
+}
+
+variable "PUSH" {
+  default = false
+}
+
 group "default" {
   targets = ["runtimes", "vmi"]
 }
@@ -16,15 +24,19 @@ group "vmi" {
 
 target "_common" {
   platforms = ["linux/amd64"]
+  attest = [
+    "type=provenance,disabled=true",
+    "type=sbom,disabled=true"
+  ]
   output = [
-    "type=image,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
+    "type=image,push=${PUSH},oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
   ]
 }
 
 target "ubuntu" {
   inherits = ["_common"]
   context  = "ubuntu"
-  tags     = ["${REGISTRY}/ubuntu:latest"]
+  tags     = ["${REGISTRY}/ubuntu:latest${TAG_SUFFIX}"]
 }
 
 target "node" {
@@ -49,8 +61,8 @@ target "node" {
   inherits = ["_common"]
   context  = "node"
   tags = [
-    "${REGISTRY}/node:${node.major}",
-    "${REGISTRY}/node:${node.version}",
+    "${REGISTRY}/node:${node.major}${TAG_SUFFIX}",
+    "${REGISTRY}/node:${node.version}${TAG_SUFFIX}",
   ]
 
   contexts = {
@@ -65,7 +77,7 @@ target "node" {
 target "python" {
   inherits = ["_common"]
   context  = "python"
-  tags     = ["${REGISTRY}/python:3.14"]
+  tags     = ["${REGISTRY}/python:3.14${TAG_SUFFIX}"]
 
   contexts = {
     base = "target:ubuntu"
@@ -79,7 +91,7 @@ target "python" {
 target "universal" {
   inherits = ["_common"]
   context  = "universal"
-  tags     = ["${REGISTRY}/universal:latest"]
+  tags     = ["${REGISTRY}/universal:latest${TAG_SUFFIX}"]
 
   contexts = {
     base = "target:ubuntu"
@@ -94,7 +106,7 @@ target "universal" {
 target "arch" {
   inherits = ["_common"]
   context  = "arch"
-  tags     = ["${REGISTRY}/arch:latest"]
+  tags     = ["${REGISTRY}/arch:latest${TAG_SUFFIX}"]
 }
 
 target "al-builder-base" {
@@ -138,8 +150,8 @@ target "al-node" {
   context    = "al-node"
   dockerfile = "Dockerfile"
   tags = [
-    "${REGISTRY}/node:al-${node.major}",
-    "${REGISTRY}/node:al-${node.version}",
+    "${REGISTRY}/node:al-${node.major}${TAG_SUFFIX}",
+    "${REGISTRY}/node:al-${node.version}${TAG_SUFFIX}",
   ]
 
   contexts = {
@@ -157,7 +169,7 @@ target "al-python" {
   inherits   = ["_common"]
   context    = "al-python"
   dockerfile = "Dockerfile"
-  tags       = ["${REGISTRY}/python:al-3.13.1"]
+  tags       = ["${REGISTRY}/python:al-3.13.1${TAG_SUFFIX}"]
 
   contexts = {
     builder-base = "target:al-builder-base"
