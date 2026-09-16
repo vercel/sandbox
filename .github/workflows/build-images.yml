@@ -2,6 +2,9 @@ name: Build Images
 
 on:
   pull_request:
+    paths:
+      - images/**
+      - .github/workflows/publish-images.yml
 
 permissions:
   contents: read
