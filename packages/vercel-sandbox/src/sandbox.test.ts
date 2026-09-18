@@ -884,6 +884,57 @@ describe("Sandbox.create environment selection", () => {
     expect(body.image).toBe("my-repo:latest");
   });
 
+  it("sends managed GitHub credential requests in the create body", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        source: {
+          type: "git",
+          url: "https://github.com/acme/widgets.git",
+          credentials: true,
+        },
+        commitAs: {
+          name: "Vercel Agent Factory",
+          email: "factory@users.noreply.github.com",
+        },
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["github:pull-request:create", "github:issues:read"],
+            },
+          ],
+        },
+        fetch: mockFetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      source: {
+        type: "git",
+        url: "https://github.com/acme/widgets.git",
+        credentials: true,
+      },
+      commitAs: {
+        name: "Vercel Agent Factory",
+        email: "factory@users.noreply.github.com",
+      },
+      credentials: {
+        github: [
+          {
+            repositories: ["acme/widgets"],
+            actions: ["github:pull-request:create", "github:issues:read"],
+          },
+        ],
+      },
+    });
+  });
+
   it("uses the v2 endpoint when runtime is provided", async () => {
     const mockFetch = vi.fn<typeof fetch>(async () =>
       jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),

@@ -43,6 +43,7 @@ import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
 import type { SandboxMetaData } from "./validators.js";
+import type { GitHubCredentialRequest } from "../sandbox.js";
 
 interface Claims {
   owner_id: string;
@@ -175,6 +176,7 @@ export class APIClient extends BaseClient {
             revision?: string;
             username?: string;
             password?: string;
+            credentials?: true;
           }
         | { type: "tarball"; url: string }
         | { type: "snapshot"; snapshotId: string };
@@ -196,6 +198,8 @@ export class APIClient extends BaseClient {
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
+      commitAs?: { name: string; email: string };
+      credentials?: { github: GitHubCredentialRequest[] };
     }>,
   ) {
     const privateParams = getPrivateParams(params);
@@ -209,6 +213,8 @@ export class APIClient extends BaseClient {
           projectId: params.projectId,
           ports: params.ports,
           source: params.source,
+          commitAs: params.commitAs,
+          credentials: params.credentials,
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
