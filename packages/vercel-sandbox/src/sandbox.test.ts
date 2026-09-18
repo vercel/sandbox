@@ -935,6 +935,31 @@ describe("Sandbox.create environment selection", () => {
     });
   });
 
+  it("sends read-only managed Git source requests", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        source: {
+          type: "git",
+          url: "https://github.com/acme/widgets.git",
+          credentials: "read",
+        },
+        fetch: mockFetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(JSON.parse(String(init?.body)).source).toEqual({
+      type: "git",
+      url: "https://github.com/acme/widgets.git",
+      credentials: "read",
+    });
+  });
+
   it("uses the v2 endpoint when runtime is provided", async () => {
     const mockFetch = vi.fn<typeof fetch>(async () =>
       jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),

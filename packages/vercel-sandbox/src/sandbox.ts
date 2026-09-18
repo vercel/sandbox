@@ -73,7 +73,7 @@ export interface BaseCreateSandboxParams {
         url: string;
         depth?: number;
         revision?: string;
-        credentials?: true;
+        credentials?: true | "read";
       }
     | {
         type: "git";

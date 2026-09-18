@@ -176,7 +176,7 @@ export class APIClient extends BaseClient {
             revision?: string;
             username?: string;
             password?: string;
-            credentials?: true;
+            credentials?: true | "read";
           }
         | { type: "tarball"; url: string }
         | { type: "snapshot"; snapshotId: string };
