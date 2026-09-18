@@ -41,6 +41,17 @@ export type {
   NetworkPolicyMatcher,
 };
 
+/** GitHub API action supported by Vercel-managed Sandbox credentials. */
+export type GitHubCredentialAction =
+  | "github:pull-request:create"
+  | "github:issues:read";
+
+/** Repository and API actions requested for a Vercel-managed GitHub Grant. */
+export interface GitHubCredentialRequest {
+  repositories: string[];
+  actions: GitHubCredentialAction[];
+}
+
 /** @inline */
 export interface BaseCreateSandboxParams {
   /**
@@ -62,6 +73,7 @@ export interface BaseCreateSandboxParams {
         url: string;
         depth?: number;
         revision?: string;
+        credentials?: true | "read";
       }
     | {
         type: "git";
@@ -72,6 +84,10 @@ export interface BaseCreateSandboxParams {
         revision?: string;
       }
     | { type: "tarball"; url: string };
+  /** Commit metadata used by managed signed Git pushes. */
+  commitAs?: { name: string; email: string };
+  /** Vercel-managed provider credentials provisioned for this Sandbox. */
+  credentials?: { github: GitHubCredentialRequest[] };
   /**
    * Array of port numbers to expose from the sandbox. Sandboxes can
    * expose up to 15 ports.
@@ -257,7 +273,10 @@ export type CreateSandboxParams =
  * snapshot, its base environment is copied.
  * @inline
  */
-export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
+export type ForkSandboxParams = Omit<
+  BaseCreateSandboxParams,
+  "source" | "commitAs" | "credentials"
+> & {
   /**
    * Name of the source sandbox to fork from.
    */
@@ -785,6 +804,8 @@ export class Sandbox implements ExecutionContext {
     const privateParams = getPrivateParams(params);
     const response = await client.createSandbox({
       source: params?.source,
+      commitAs: params?.commitAs,
+      credentials: params?.credentials,
       projectId: credentials.projectId,
       ports: params?.ports ?? [],
       timeout: params?.timeout,

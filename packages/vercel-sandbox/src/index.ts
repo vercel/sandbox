@@ -3,6 +3,8 @@ export {
   type NetworkPolicyKeyValueMatcher,
   type NetworkPolicyMatch,
   type NetworkPolicyMatcher,
+  type GitHubCredentialAction,
+  type GitHubCredentialRequest,
   type SandboxMountMode,
   type SandboxMounts,
   Sandbox,
@@ -13,10 +15,7 @@ export {
   type NetworkTransformer,
 } from "./session.js";
 export type { SerializedSandbox } from "./sandbox.js";
-export {
-  SandboxUser,
-  SandboxUserAlreadyExistsError,
-} from "./sandbox-user.js";
+export { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 export type { ExecutionContext } from "./execution-context.js";
 export { DEFAULT_SANDBOX_REGION } from "./constants.js";
 export type { SandboxRegion } from "./constants.js";
