@@ -170,7 +170,10 @@ async function driveExists(params: {
       teamId: params.teamId,
       projectId: params.projectId,
       namePrefix: params.name,
+      // ascending puts the exact name first: it is the shortest string with
+      // this prefix, so it can never fall off the first page
       sortBy: "name",
+      sortOrder: "asc",
       limit: 50,
     });
     return drives.some((drive) => drive.name === params.name);
