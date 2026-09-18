@@ -88,6 +88,17 @@ export const list = cmd.command({
       sortBy = "name";
     }
 
+    const tagKeys = Object.keys(tags);
+    if (tagKeys.length > 1) {
+      console.error(
+        chalk.red(
+          "Error: only one --tag filter is supported. Pass a single --tag key=value.",
+        ),
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     const { sandboxes, pagination } = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Fetching sandboxes...").start(),
@@ -103,7 +114,7 @@ export const list = cmd.command({
         ...(namePrefix && { namePrefix }),
         ...(sortBy && { sortBy }),
         ...(sortOrder && { sortOrder }),
-        ...(Object.keys(tags).length > 0 && { tags }),
+        ...(tagKeys.length > 0 && { tags }),
       });
     })();
 
