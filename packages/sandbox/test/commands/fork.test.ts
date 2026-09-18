@@ -1,15 +1,16 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import * as cmd from "cmd-ts";
 
-const { mockFork } = vi.hoisted(() => ({
+const { mockFork, mockGet } = vi.hoisted(() => ({
   mockFork: vi.fn(),
+  mockGet: vi.fn(),
 }));
 
 vi.mock("../../src/client", () => ({
   sandboxClient: {
     fork: mockFork,
     create: vi.fn(),
-    get: vi.fn(),
+    get: mockGet,
     list: vi.fn(),
   },
   snapshotClient: { get: vi.fn(), list: vi.fn(), tree: vi.fn() },
@@ -34,7 +35,67 @@ describe("fork command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFork.mockResolvedValue(fakeSandbox);
+    mockGet.mockResolvedValue({ status: "stopped", currentSnapshotId: "snap_1" });
     process.env.VERCEL_AUTH_TOKEN = "tok";
+  });
+
+  test("looks up the source in the same scope before forking", async () => {
+    const { fork } = await import("../../src/commands/fork.ts");
+    await cmd.run(fork, [
+      "my-source",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet.mock.calls[0][0]).toMatchObject({
+      name: "my-source",
+      teamId: "team",
+      projectId: "proj",
+    });
+    expect(mockGet.mock.invocationCallOrder[0]).toBeLessThan(
+      mockFork.mock.invocationCallOrder[0],
+    );
+  });
+
+  test("warns on stderr when the source is running, and still forks", async () => {
+    mockGet.mockResolvedValue({ status: "running", currentSnapshotId: undefined });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { fork } = await import("../../src/commands/fork.ts");
+      await cmd.run(fork, [
+        "my-source",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ]);
+
+      expect(mockFork).toHaveBeenCalledTimes(1);
+      const output = error.mock.calls.map((call) => call.join(" ")).join("\n");
+      expect(output).toContain("my-source is running");
+      expect(output).toContain("sandbox snapshot --stop my-source");
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  test("does not warn when the source is stopped", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { fork } = await import("../../src/commands/fork.ts");
+      await cmd.run(fork, [
+        "my-source",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ]);
+
+      expect(mockFork).toHaveBeenCalledTimes(1);
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 
   test("passes the positional source to Sandbox.fork", async () => {
