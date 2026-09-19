@@ -190,13 +190,12 @@ describe("drives command", () => {
     expect(mockGetOrCreate).not.toHaveBeenCalled();
   });
 
-  test("prints the size as a limit", async () => {
+  test("labels the size after the flag that sets it", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     await getOrCreate();
 
     const output = write.mock.calls.map(([line]) => String(line)).join("");
-    expect(output).toContain("size limit: ");
-    expect(output).not.toContain("max size: ");
+    expect(output).toContain("max size: ");
   });
 });
