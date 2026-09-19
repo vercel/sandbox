@@ -140,7 +140,7 @@ const getOrCreate = cmd.command({
     );
     process.stderr.write(
       chalk.dim("   │ ") +
-        "size limit: " +
+        "max size: " +
         chalk.cyan(formatBytes(drive.maxSize)) +
         "\n",
     );
