@@ -8,6 +8,7 @@ import { scope } from "../args/scope";
 import { driveMaxSize, driveName, driveRegion } from "../args/drive";
 import { driveClient } from "../client";
 import { acquireRelease } from "../util/disposables";
+import { promptDriveSize, shouldPromptForDriveSize } from "../util/prompt";
 import {
   formatBytes,
   formatNextCursorHint,
@@ -85,7 +86,7 @@ const getOrCreate = cmd.command({
     maxSize: cmd.option({
       long: "max-size",
       description:
-        "Maximum drive size in bytes. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
+        "Maximum drive size, e.g. 200GiB or 2TiB (bytes if no unit). Fixed after creation. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
       type: cmd.optional(driveMaxSize),
     }),
     region: cmd.option({
@@ -95,7 +96,28 @@ const getOrCreate = cmd.command({
     }),
     scope,
   },
-  async handler({ scope: { token, team, project }, name, maxSize, region }) {
+  async handler({
+    scope: { token, team, project },
+    name,
+    maxSize: requestedMaxSize,
+    region,
+  }) {
+    let maxSize = requestedMaxSize;
+    // Only a person at a terminal is asked, and only for a drive that does
+    // not exist yet: an existing drive keeps its size, and re-requesting a
+    // different one is a 409. Everyone else gets the API default, as before.
+    if (maxSize === undefined && (await shouldPromptForDriveSize())) {
+      const exists = await driveExists({
+        token,
+        teamId: team,
+        projectId: project,
+        name,
+      });
+      if (!exists) {
+        maxSize = await promptDriveSize({ name });
+      }
+    }
+
     const drive = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Creating drive...").start(),
@@ -130,6 +152,35 @@ const getOrCreate = cmd.command({
     );
   },
 });
+
+/**
+ * Exact-name lookup via the list endpoint (there is no plain GET for a
+ * drive). A failed lookup falls through to prompting rather than aborting;
+ * getOrCreate reports the real error afterwards.
+ */
+async function driveExists(params: {
+  token: string;
+  teamId: string;
+  projectId: string;
+  name: string;
+}): Promise<boolean> {
+  try {
+    const { drives } = await driveClient.list({
+      token: params.token,
+      teamId: params.teamId,
+      projectId: params.projectId,
+      namePrefix: params.name,
+      // ascending puts the exact name first: it is the shortest string with
+      // this prefix, so it can never fall off the first page
+      sortBy: "name",
+      sortOrder: "asc",
+      limit: 50,
+    });
+    return drives.some((drive) => drive.name === params.name);
+  } catch {
+    return false;
+  }
+}
 
 const remove = cmd.command({
   name: "delete",
