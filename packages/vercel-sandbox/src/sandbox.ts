@@ -311,12 +311,26 @@ interface GetSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
-/**
- * Combines {@link CreateSandboxParams} with get-specific options so that any
- * new parameter added to either flow is picked up automatically.
- * @inline
- */
-type GetOrCreateSandboxParams = CreateSandboxParams & {
+type ReusableSandboxSource =
+  | {
+      type: "git";
+      url: string;
+      depth?: number;
+      revision?: string;
+      credentials?: never;
+    }
+  | {
+      type: "git";
+      url: string;
+      username: string;
+      password: string;
+      depth?: number;
+      revision?: string;
+      credentials?: never;
+    }
+  | { type: "tarball"; url: string };
+
+type GetOrCreateOptions = {
   /**
    * Whether to resume an existing session immediately. Defaults to false;
    * a persistent sandbox still auto-resumes on the first SDK call that
@@ -331,6 +345,53 @@ type GetOrCreateSandboxParams = CreateSandboxParams & {
    */
   onCreate?: (sandbox: Sandbox) => Promise<void>;
 };
+
+type NamedGetOrCreateBase = Omit<
+  BaseCreateSandboxParams,
+  "name" | "source" | "commitAs" | "credentials"
+> &
+  GetOrCreateOptions & {
+    name: string;
+    commitAs?: never;
+    credentials?: never;
+  };
+
+/** Parameters for named reuse without create-only managed credential authority. @inline */
+type NamedGetOrCreateSandboxParams =
+  | (NamedGetOrCreateBase & RuntimeOrImage & { source?: ReusableSandboxSource })
+  | (NamedGetOrCreateBase & {
+      source: { type: "snapshot"; snapshotId: string };
+      runtime?: never;
+      image?: never;
+    });
+
+/** Parameters for unnamed `getOrCreate`, which always creates a Sandbox. @inline */
+type UnnamedGetOrCreateSandboxParams = CreateSandboxParams &
+  GetOrCreateOptions & { name?: never };
+
+/** Parameters for {@link Sandbox.getOrCreate}. @inline */
+type GetOrCreateSandboxParams =
+  | NamedGetOrCreateSandboxParams
+  | UnnamedGetOrCreateSandboxParams;
+
+function hasManagedCredentialRequest(params: object): boolean {
+  if (
+    ("commitAs" in params && params.commitAs !== undefined) ||
+    ("credentials" in params && params.credentials !== undefined)
+  ) {
+    return true;
+  }
+  if (
+    !("source" in params) ||
+    params.source === null ||
+    typeof params.source !== "object"
+  ) {
+    return false;
+  }
+  return (
+    "credentials" in params.source && params.source.credentials !== undefined
+  );
+}
 
 function isSandboxStoppedError(err: unknown): boolean {
   return err instanceof APIError && err.response.status === 410;
@@ -955,7 +1016,9 @@ export class Sandbox implements ExecutionContext {
    * `onCreate`. If `name` is provided, it first tries {@link Sandbox.get};
    * on `not_found` it creates a new sandbox with that name; on
    * `snapshot_not_found` it deletes the stale named sandbox and creates
-   * a fresh one with the same name.
+   * a fresh one with the same name. Named reuse rejects managed Git and
+   * GitHub credential requests because an existing Sandbox cannot prove that
+   * it was created with the requested authority.
    *
    * @param params - Get/create parameters plus an optional `onCreate` hook.
    * @returns A promise resolving to the {@link Sandbox}.
@@ -988,6 +1051,11 @@ export class Sandbox implements ExecutionContext {
     "use step";
     if (params?.runtime !== undefined && params.image !== undefined) {
       throw new TypeError("`runtime` and `image` cannot be used together.");
+    }
+    if (params?.name && hasManagedCredentialRequest(params)) {
+      throw new TypeError(
+        "Managed credential requests are create-only and cannot be used with named Sandbox.getOrCreate.",
+      );
     }
 
     // No name → always create, fire onCreate.

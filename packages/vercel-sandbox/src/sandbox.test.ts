@@ -615,6 +615,97 @@ describe("Sandbox.getOrCreate", () => {
       headers: { "content-type": "application/json" },
     });
 
+  it.each([
+    {
+      name: "read-only managed Git",
+      params: {
+        source: {
+          type: "git",
+          url: "https://github.com/acme/repository.git",
+          credentials: "read",
+        },
+      },
+    },
+    {
+      name: "managed signed Git",
+      params: {
+        source: {
+          type: "git",
+          url: "https://github.com/acme/repository.git",
+          credentials: true,
+        },
+        commitAs: { name: "Factory", email: "factory@example.com" },
+      },
+    },
+    {
+      name: "managed GitHub API",
+      params: {
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/repository"],
+              actions: ["github:pull-request:create"],
+            },
+          ],
+        },
+      },
+    },
+  ])(
+    "rejects $name authority before looking up a named sandbox",
+    async ({ params }) => {
+      const mockFetch = vi.fn<typeof fetch>();
+
+      await expect(
+        Sandbox.getOrCreate({
+          ...CREDENTIALS,
+          name: "my-sandbox",
+          ...params,
+          fetch: mockFetch as unknown as typeof fetch,
+        } as any),
+      ).rejects.toThrow(
+        "Managed credential requests are create-only and cannot be used with named Sandbox.getOrCreate",
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it("excludes managed credential authority from named getOrCreate types", () => {
+    if (false) {
+      Sandbox.getOrCreate({
+        name: "ordinary-git",
+        source: { type: "git", url: "https://github.com/acme/repository.git" },
+      });
+      Sandbox.getOrCreate({
+        source: {
+          type: "git",
+          url: "https://github.com/acme/repository.git",
+          credentials: "read",
+        },
+      });
+      Sandbox.getOrCreate({
+        name: "managed-git",
+        // @ts-expect-error Managed Git credentials are create-only for named sandboxes.
+        source: {
+          type: "git",
+          url: "https://github.com/acme/repository.git",
+          credentials: "read",
+        },
+      });
+      Sandbox.getOrCreate({
+        name: "managed-api",
+        // @ts-expect-error Managed GitHub API credentials are create-only for named sandboxes.
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/repository"],
+              actions: ["github:issues:read"],
+            },
+          ],
+        },
+      });
+    }
+  });
+
   it("rejects runtime and image before looking up a named sandbox", async () => {
     const mockFetch = vi.fn<typeof fetch>();
 
