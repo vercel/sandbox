@@ -175,9 +175,17 @@ export class APIClient extends BaseClient {
             revision?: string;
             username?: string;
             password?: string;
+            credentials?: true;
           }
         | { type: "tarball"; url: string }
         | { type: "snapshot"; snapshotId: string };
+      commitAs?: { name: string; email: string };
+      credentials?: {
+        github: {
+          repositories: string[];
+          actions: ("github:pull-request:create" | "github:issues:read")[];
+        }[];
+      };
       timeout?: number;
       resources?: { vcpus: number };
       persistent?: boolean;
@@ -209,6 +217,8 @@ export class APIClient extends BaseClient {
           projectId: params.projectId,
           ports: params.ports,
           source: params.source,
+          commitAs: params.commitAs,
+          credentials: params.credentials,
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,

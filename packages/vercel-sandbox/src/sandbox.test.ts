@@ -884,6 +884,118 @@ describe("Sandbox.create environment selection", () => {
     expect(body.image).toBe("my-repo:latest");
   });
 
+  it("forwards internal creation options in the request body", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        source: {
+          type: "git",
+          url: "https://github.com/acme/widgets.git",
+          credentials: true,
+        },
+        commitAs: {
+          name: "Vercel Factory",
+          email: "not+real@example.org",
+        },
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["github:pull-request:create", "github:issues:read"],
+            },
+          ],
+        },
+        fetch: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(String(init?.body));
+    expect(body).toMatchObject({
+      source: {
+        type: "git",
+        url: "https://github.com/acme/widgets.git",
+        credentials: true,
+      },
+      commitAs: {
+        name: "Vercel Factory",
+        email: "not+real@example.org",
+      },
+      credentials: {
+        github: [
+          {
+            repositories: ["acme/widgets"],
+            actions: ["github:pull-request:create", "github:issues:read"],
+          },
+        ],
+      },
+    });
+  });
+
+  it("limits internal creation options to Sandbox.create types", () => {
+    if (false) {
+      Sandbox.create({
+        source: {
+          type: "git",
+          url: "https://github.com/acme/widgets.git",
+          credentials: true,
+        },
+        commitAs: {
+          name: "Vercel Factory",
+          email: "not+real@example.org",
+        },
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["github:pull-request:create"],
+            },
+          ],
+        },
+      });
+
+      Sandbox.create({
+        // @ts-expect-error Managed Git creation requires commit metadata.
+        source: {
+          type: "git",
+          url: "https://github.com/acme/widgets.git",
+          credentials: true,
+        },
+      });
+
+      Sandbox.create({
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["github:issues:read"],
+            },
+          ],
+        },
+      });
+
+      Sandbox.getOrCreate({
+        // @ts-expect-error Internal creation options cannot be used with getOrCreate.
+        commitAs: {
+          name: "Vercel Factory",
+          email: "not+real@example.org",
+        },
+      });
+
+      Sandbox.fork({
+        sourceSandbox: "source",
+        // @ts-expect-error Internal creation options cannot be used when forking.
+        credentials: {
+          github: [],
+        },
+      });
+    }
+  });
+
   it("uses the v2 endpoint when runtime is provided", async () => {
     const mockFetch = vi.fn<typeof fetch>(async () =>
       jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),

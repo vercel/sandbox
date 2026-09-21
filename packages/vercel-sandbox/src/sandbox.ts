@@ -247,6 +247,31 @@ export type CreateSandboxParams =
       image?: never;
     });
 
+type SandboxCreateParams = (
+  | (CreateSandboxParams & { commitAs?: never })
+  | (Omit<BaseCreateSandboxParams, "source"> &
+      RuntimeOrImage & {
+        source: {
+          type: "git";
+          url: string;
+          depth?: number;
+          revision?: string;
+          /** @hidden */
+          credentials: true;
+        };
+        /** @hidden */
+        commitAs: { name: string; email: string };
+      })
+) & {
+  /** @hidden */
+  credentials?: {
+    github: {
+      repositories: string[];
+      actions: ("github:pull-request:create" | "github:issues:read")[];
+    }[];
+  };
+};
+
 /**
  * Parameters for {@link Sandbox.fork}.
  *
@@ -766,7 +791,7 @@ export class Sandbox implements ExecutionContext {
    */
   static async create(
     params?: WithPrivate<
-      CreateSandboxParams | (CreateSandboxParams & Credentials)
+      SandboxCreateParams | (SandboxCreateParams & Credentials)
     > &
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
@@ -785,6 +810,8 @@ export class Sandbox implements ExecutionContext {
     const privateParams = getPrivateParams(params);
     const response = await client.createSandbox({
       source: params?.source,
+      commitAs: params?.commitAs,
+      credentials: params?.credentials,
       projectId: credentials.projectId,
       ports: params?.ports ?? [],
       timeout: params?.timeout,
