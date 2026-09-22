@@ -1,18 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
 
-const { mockGetOrCreate, mockList, mockShouldPrompt, mockPrompt } = vi.hoisted(
-  () => ({
-    mockGetOrCreate: vi.fn(),
-    mockList: vi.fn(),
-    mockShouldPrompt: vi.fn(),
-    mockPrompt: vi.fn(),
-  }),
-);
-
-vi.mock("../../src/util/prompt", () => ({
-  shouldPromptForDriveSize: mockShouldPrompt,
-  promptDriveSize: mockPrompt,
+const { mockGetOrCreate, mockList } = vi.hoisted(() => ({
+  mockGetOrCreate: vi.fn(),
+  mockList: vi.fn(),
 }));
 
 vi.mock("../../src/client", () => ({
@@ -50,8 +41,6 @@ describe("drives command", () => {
       drives: [fakeDrive],
       pagination: { count: 1, next: null },
     });
-    mockShouldPrompt.mockResolvedValue(false);
-    mockPrompt.mockResolvedValue(undefined);
     process.env.VERCEL_AUTH_TOKEN = "tok";
   });
 
@@ -100,64 +89,8 @@ describe("drives command", () => {
       ]),
     );
 
-  test("headless: no prompt and no size when --max-size is omitted", async () => {
+  test("--max-size accepts sizes with units", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    mockShouldPrompt.mockResolvedValue(false);
-
-    await getOrCreate();
-
-    expect(mockPrompt).not.toHaveBeenCalled();
-    expect(mockGetOrCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ maxSize: undefined }),
-    );
-  });
-
-  test("interactive: asks for a size when the drive does not exist yet", async () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    mockShouldPrompt.mockResolvedValue(true);
-    mockList.mockResolvedValue({ drives: [], pagination: { count: 0, next: null } });
-    mockPrompt.mockResolvedValue(5 * 1024 ** 3);
-
-    await getOrCreate();
-
-    expect(mockList).toHaveBeenCalledWith(
-      expect.objectContaining({ namePrefix: "workspace" }),
-    );
-    expect(mockPrompt).toHaveBeenCalledWith({ name: "workspace" });
-    expect(mockGetOrCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ maxSize: 5 * 1024 ** 3 }),
-    );
-  });
-
-  test("interactive: does not ask when the drive already exists", async () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    mockShouldPrompt.mockResolvedValue(true);
-
-    await getOrCreate();
-
-    expect(mockPrompt).not.toHaveBeenCalled();
-    expect(mockGetOrCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ maxSize: undefined }),
-    );
-  });
-
-  test("interactive: a failed lookup still lets the user answer", async () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    mockShouldPrompt.mockResolvedValue(true);
-    mockList.mockRejectedValue(new Error("network down"));
-    mockPrompt.mockResolvedValue(1024 ** 4);
-
-    await getOrCreate();
-
-    expect(mockPrompt).toHaveBeenCalledOnce();
-    expect(mockGetOrCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ maxSize: 1024 ** 4 }),
-    );
-  });
-
-  test("--max-size accepts units and never prompts", async () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    mockShouldPrompt.mockResolvedValue(true);
 
     await getOrCreate("--max-size", "5GiB");
     expect(mockGetOrCreate).toHaveBeenLastCalledWith(
@@ -168,8 +101,6 @@ describe("drives command", () => {
     expect(mockGetOrCreate).toHaveBeenLastCalledWith(
       expect.objectContaining({ maxSize: 2199023255552 }),
     );
-
-    expect(mockPrompt).not.toHaveBeenCalled();
   });
 
   test("--max-size rejects input it cannot parse", async () => {
@@ -190,12 +121,17 @@ describe("drives command", () => {
     expect(mockGetOrCreate).not.toHaveBeenCalled();
   });
 
-  test("labels the size after the flag that sets it", async () => {
+  test("points at --max-size only when the caller did not pass it", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const printed = () => write.mock.calls.map(([line]) => String(line)).join("");
 
     await getOrCreate();
+    expect(printed()).toContain("max size: ");
+    expect(printed()).toContain("set with --max-size at creation");
 
-    const output = write.mock.calls.map(([line]) => String(line)).join("");
-    expect(output).toContain("max size: ");
+    write.mockClear();
+    await getOrCreate("--max-size", "5GiB");
+    expect(printed()).toContain("max size: ");
+    expect(printed()).not.toContain("set with --max-size at creation");
   });
 });

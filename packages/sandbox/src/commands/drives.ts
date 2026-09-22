@@ -8,7 +8,6 @@ import { scope } from "../args/scope";
 import { driveMaxSize, driveName, driveRegion } from "../args/drive";
 import { driveClient } from "../client";
 import { acquireRelease } from "../util/disposables";
-import { promptDriveSize, shouldPromptForDriveSize } from "../util/prompt";
 import {
   formatBytes,
   formatNextCursorHint,
@@ -96,28 +95,7 @@ const getOrCreate = cmd.command({
     }),
     scope,
   },
-  async handler({
-    scope: { token, team, project },
-    name,
-    maxSize: requestedMaxSize,
-    region,
-  }) {
-    let maxSize = requestedMaxSize;
-    // Only a person at a terminal is asked, and only for a drive that does
-    // not exist yet: an existing drive keeps its size, and re-requesting a
-    // different one is a 409. Everyone else gets the API default, as before.
-    if (maxSize === undefined && (await shouldPromptForDriveSize())) {
-      const exists = await driveExists({
-        token,
-        teamId: team,
-        projectId: project,
-        name,
-      });
-      if (!exists) {
-        maxSize = await promptDriveSize({ name });
-      }
-    }
-
+  async handler({ scope: { token, team, project }, name, maxSize, region }) {
     const drive = await (async () => {
       using _spinner = acquireRelease(
         () => ora("Creating drive...").start(),
@@ -138,10 +116,19 @@ const getOrCreate = cmd.command({
     process.stderr.write(
       chalk.dim("   │ ") + "region: " + chalk.cyan(drive.region) + "\n",
     );
+    // Without --max-size the number is whatever the drive already had, which
+    // reads like an account ceiling. Say where it comes from, but only when the
+    // caller did not choose it, and without claiming it is the plan default:
+    // an existing drive keeps the size it was created with.
+    const sizeHint =
+      maxSize === undefined
+        ? chalk.dim(" (set with --max-size at creation, fixed afterwards)")
+        : "";
     process.stderr.write(
       chalk.dim("   │ ") +
         "max size: " +
         chalk.cyan(formatBytes(drive.maxSize)) +
+        sizeHint +
         "\n",
     );
     process.stderr.write(
@@ -152,35 +139,6 @@ const getOrCreate = cmd.command({
     );
   },
 });
-
-/**
- * Exact-name lookup via the list endpoint (there is no plain GET for a
- * drive). A failed lookup falls through to prompting rather than aborting;
- * getOrCreate reports the real error afterwards.
- */
-async function driveExists(params: {
-  token: string;
-  teamId: string;
-  projectId: string;
-  name: string;
-}): Promise<boolean> {
-  try {
-    const { drives } = await driveClient.list({
-      token: params.token,
-      teamId: params.teamId,
-      projectId: params.projectId,
-      namePrefix: params.name,
-      // ascending puts the exact name first: it is the shortest string with
-      // this prefix, so it can never fall off the first page
-      sortBy: "name",
-      sortOrder: "asc",
-      limit: 50,
-    });
-    return drives.some((drive) => drive.name === params.name);
-  } catch {
-    return false;
-  }
-}
 
 const remove = cmd.command({
   name: "delete",
