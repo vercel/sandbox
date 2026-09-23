@@ -1,5 +1,20 @@
 # sandbox
 
+## 4.4.1
+
+### Patch Changes
+
+- Label sizes with binary units (KiB, MiB, GiB, TiB) instead of KB/MB/GB/TB. The CLI already divided by 1024, so a 1 TiB drive printed as `1 TB`; drive, snapshot and network-transfer sizes now match the units used in the docs. ([#341](https://github.com/vercel/sandbox/pull/341))
+
+- `sandbox fork` now looks up the source before forking and warns on stderr when it is running. A fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none), never from the live filesystem, so anything written in a running source since its last snapshot is left behind while the command still exits 0. The warning points at `sandbox snapshot --stop <source>` as the way to fork the current state, and `fork --help` now says the same. ([#340](https://github.com/vercel/sandbox/pull/340))
+
+- Tag API requests with the AI agent driving the process, when one is ([#320](https://github.com/vercel/sandbox/pull/320))
+  detected via `detect-agent`, as an `agent/<name>` phrase in the user-agent
+  header. No agent detected means no change to the header. The SDK sends no
+  telemetry events; this is request metadata only.
+- Updated dependencies [[`fdd6912470338b15e303eaf515a78c21b2b19473`](https://github.com/vercel/sandbox/commit/fdd6912470338b15e303eaf515a78c21b2b19473), [`27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708`](https://github.com/vercel/sandbox/commit/27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708), [`4e7ab569a7e6cd905d43a198f2e08a627457a8ea`](https://github.com/vercel/sandbox/commit/4e7ab569a7e6cd905d43a198f2e08a627457a8ea), [`9d0403de39a4e58a2d37bdc1a00ca810e109e57b`](https://github.com/vercel/sandbox/commit/9d0403de39a4e58a2d37bdc1a00ca810e109e57b)]:
+  - @vercel/sandbox@3.4.0
+
 ## 4.4.0
 
 ### Minor Changes

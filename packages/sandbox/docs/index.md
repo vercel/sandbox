@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.4.0
+sandbox 4.4.1
 
 ▲ sandbox [options] <command>
 
@@ -12,7 +12,7 @@ Commands:
     ls | list                                  List all sandboxes for the specified account and project.
     create                                     Create a sandbox in the specified account and project.
     sh                                         Create a sandbox and start an interactive shell
-    fork           <source>                    Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.
+    fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
@@ -245,7 +245,7 @@ fork
 
 ▲ sandbox fork [options]
 
-Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.
+Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
 
 Arguments:
 

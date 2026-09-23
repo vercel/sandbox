@@ -1,5 +1,22 @@
 # @vercel/sandbox
 
+## 3.4.0
+
+### Minor Changes
+
+- Add `response` to network policy rules, so a rule can be answered by the sandbox proxy instead of being sent to the destination. A trailing `response` rule with no `match` answers whatever the earlier rules did not claim, which restricts an allowed domain to specific paths without running your own proxy. ([#328](https://github.com/vercel/sandbox/pull/328))
+
+- Tag API requests with the AI agent driving the process, when one is ([#320](https://github.com/vercel/sandbox/pull/320))
+  detected via `detect-agent`, as an `agent/<name>` phrase in the user-agent
+  header. No agent detected means no change to the header. The SDK sends no
+  telemetry events; this is request metadata only.
+
+### Patch Changes
+
+- Resume sessions through the API when they are stopping or snapshotting instead of polling indefinitely for a terminal status. ([#344](https://github.com/vercel/sandbox/pull/344))
+
+- Stabilize sandbox integration tests by isolating sandbox-list queries and cleanup, and remove an obsolete sudo PATH assertion. ([#346](https://github.com/vercel/sandbox/pull/346))
+
 ## 3.3.0
 
 ### Minor Changes
