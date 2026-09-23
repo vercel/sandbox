@@ -1,5 +1,12 @@
 # @vercel/sandbox-mock
 
+## 3.4.0
+
+### Patch Changes
+
+- Updated dependencies [[`fdd6912470338b15e303eaf515a78c21b2b19473`](https://github.com/vercel/sandbox/commit/fdd6912470338b15e303eaf515a78c21b2b19473), [`27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708`](https://github.com/vercel/sandbox/commit/27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708), [`4e7ab569a7e6cd905d43a198f2e08a627457a8ea`](https://github.com/vercel/sandbox/commit/4e7ab569a7e6cd905d43a198f2e08a627457a8ea), [`9d0403de39a4e58a2d37bdc1a00ca810e109e57b`](https://github.com/vercel/sandbox/commit/9d0403de39a4e58a2d37bdc1a00ca810e109e57b)]:
+  - @vercel/sandbox@3.4.0
+
 ## 3.3.0
 
 ### Minor Changes
