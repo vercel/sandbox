@@ -536,85 +536,93 @@ describe("_runCommand error handling", () => {
 });
 
 describe("auto-resume", () => {
-  it("resumes a session that remains in stopping status", async () => {
-    const stoppingSession: SessionMetaData = {
-      id: "sbx_123",
-      memory: 2048,
-      vcpus: 1,
-      region: "iad1",
-      timeout: 300_000,
-      status: "stopping",
-      requestedAt: 1,
-      requestedStopAt: 2,
-      createdAt: 1,
-      cwd: "/",
-      updatedAt: 2,
-    };
-    const resumedSession: SessionMetaData = {
-      ...stoppingSession,
-      id: "sbx_456",
-      status: "running",
-      requestedStopAt: undefined,
-    };
-    const command = { ...makeCommand(), sessionId: resumedSession.id };
-    const runCommandMock = vi
-      .fn()
-      .mockRejectedValueOnce(
-        new APIError(new Response(null, { status: 422 }), {
-          json: { error: { code: "sandbox_stopping" } },
-        }),
-      )
-      .mockResolvedValueOnce({
-        command,
-        finished: Promise.resolve({ ...command, exitCode: 0 }),
-      });
-    const getSandboxMock = vi.fn(async () => ({
-      json: {
-        sandbox: {
-          ...makeSandboxMetadata(),
-          currentSessionId: resumedSession.id,
-          status: "running" as const,
+  it.each([
+    ["stopping", "sandbox_stopping"],
+    ["snapshotting", "sandbox_snapshotting"],
+  ] as const)(
+    "resumes a session that remains in %s status",
+    async (status, errorCode) => {
+      const unavailableSession: SessionMetaData = {
+        id: "sbx_123",
+        memory: 2048,
+        vcpus: 1,
+        region: "iad1",
+        timeout: 300_000,
+        status,
+        requestedAt: 1,
+        requestedStopAt: status === "stopping" ? 2 : undefined,
+        snapshottedAt: status === "snapshotting" ? 2 : undefined,
+        createdAt: 1,
+        cwd: "/",
+        updatedAt: 2,
+      };
+      const resumedSession: SessionMetaData = {
+        ...unavailableSession,
+        id: "sbx_456",
+        status: "running",
+        requestedStopAt: undefined,
+        snapshottedAt: undefined,
+      };
+      const command = { ...makeCommand(), sessionId: resumedSession.id };
+      const runCommandMock = vi
+        .fn()
+        .mockRejectedValueOnce(
+          new APIError(new Response(null, { status: 422 }), {
+            json: { error: { code: errorCode } },
+          }),
+        )
+        .mockResolvedValueOnce({
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        });
+      const getSandboxMock = vi.fn(async () => ({
+        json: {
+          sandbox: {
+            ...makeSandboxMetadata(),
+            currentSessionId: resumedSession.id,
+            status: "running" as const,
+          },
+          session: resumedSession,
+          routes: [],
+          resumed: true,
         },
-        session: resumedSession,
+      }));
+      const getSessionMock = vi.fn(async () => {
+        throw new Error("unexpected session status poll");
+      });
+      const sandbox = new Sandbox({
+        client: {
+          getSandbox: getSandboxMock,
+          getSession: getSessionMock,
+          runCommand: runCommandMock,
+        } as unknown as APIClient,
         routes: [],
-        resumed: true,
-      },
-    }));
-    const getSessionMock = vi.fn(async () => {
-      throw new Error("unexpected session status poll");
-    });
-    const sandbox = new Sandbox({
-      client: {
-        getSandbox: getSandboxMock,
-        getSession: getSessionMock,
-        runCommand: runCommandMock,
-      } as unknown as APIClient,
-      routes: [],
-      sandbox: { ...makeSandboxMetadata(), status: "stopping" },
-      session: stoppingSession,
-      projectId: "test-project",
-    });
-
-    const result = await sandbox.runCommand("echo", ["hello"]);
-
-    expect(result.exitCode).toBe(0);
-    expect(getSandboxMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "test-name",
+        sandbox: { ...makeSandboxMetadata(), status },
+        session: unavailableSession,
         projectId: "test-project",
-        resume: true,
-      }),
-    );
-    expect(getSessionMock).not.toHaveBeenCalled();
-    expect(runCommandMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ sessionId: "sbx_123" }),
-    );
-    expect(runCommandMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ sessionId: "sbx_456" }),
-    );
-  });
+      });
+
+      const result = await sandbox.runCommand("echo", ["hello"]);
+
+      expect(result.exitCode).toBe(0);
+      expect(getSandboxMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "test-name",
+          projectId: "test-project",
+          resume: true,
+        }),
+      );
+      expect(getSessionMock).not.toHaveBeenCalled();
+      expect(runCommandMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ sessionId: "sbx_123" }),
+      );
+      expect(runCommandMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ sessionId: "sbx_456" }),
+      );
+    },
+  );
 });
 
 describe("runCommand timeoutMs", () => {
