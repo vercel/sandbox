@@ -28,7 +28,6 @@ import type {
 } from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
-import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
 import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
@@ -1103,31 +1102,6 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * Poll until the current session reaches a terminal state, then resume.
-   */
-  private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
-    "use step";
-    const client = await this.ensureClient();
-    const pollingInterval = 500;
-    let status = this.session!.status;
-
-    while (status === "stopping" || status === "snapshotting") {
-      await setTimeout(pollingInterval, undefined, { signal });
-      const poll = await client.getSession({
-        sessionId: this.session!.sessionId,
-        signal,
-      });
-      this.session = new Session({
-        client,
-        routes: poll.json.routes,
-        session: poll.json.session,
-      });
-      status = poll.json.session.status;
-    }
-    await this.resume(signal);
-  }
-
-  /**
    * Execute `fn`, and if the session is stopped/stopping/snapshotting, resume and retry.
    */
   private async withResume<T>(
@@ -1140,12 +1114,12 @@ export class Sandbox implements ExecutionContext {
     try {
       return await fn();
     } catch (err) {
-      if (isSandboxStoppedError(err)) {
+      if (
+        isSandboxStoppedError(err) ||
+        isSandboxStoppingError(err) ||
+        isSandboxSnapshottingError(err)
+      ) {
         await this.resume(signal);
-        return fn();
-      }
-      if (isSandboxStoppingError(err) || isSandboxSnapshottingError(err)) {
-        await this.waitForStopAndResume(signal);
         return fn();
       }
       throw err;
