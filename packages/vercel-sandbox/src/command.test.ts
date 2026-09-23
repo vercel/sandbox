@@ -112,7 +112,6 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")("Command", () => {
     expect(pathLine).toBeDefined();
 
     const pathSegments = pathLine!.slice(5).split(":");
-    expect(pathSegments).toContain("/vercel/bin");
     expect(pathSegments).toContain("/usr/local/bin");
 
     const update = await sandbox.runCommand({

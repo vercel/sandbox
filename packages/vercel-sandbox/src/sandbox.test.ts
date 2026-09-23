@@ -1340,7 +1340,11 @@ for (const port of ports) {
 
   it("appears in the sandbox list after creation", async () => {
     await sandbox.stop();
-    const { sandboxes } = await Sandbox.list({ limit: 1 });
+    const { sandboxes } = await Sandbox.list({
+      namePrefix: sandbox.name,
+      sortBy: "name",
+      limit: 1,
+    });
     expect(sandboxes).toHaveLength(1);
     expect(sandboxes[0].name).toBe(sandbox.name);
   });
