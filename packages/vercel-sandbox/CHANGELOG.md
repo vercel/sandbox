@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 3.5.1
+
+### Patch Changes
+
+- Forward Drive mounts when forking a sandbox. ([#348](https://github.com/vercel/sandbox/pull/348))
+
 ## 3.5.0
 
 ### Minor Changes

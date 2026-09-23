@@ -1,5 +1,12 @@
 # sandbox
 
+## 4.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`d5b845bbe1b21fffa79f77bf0cdccb183605703c`](https://github.com/vercel/sandbox/commit/d5b845bbe1b21fffa79f77bf0cdccb183605703c)]:
+  - @vercel/sandbox@3.5.1
+
 ## 4.5.0
 
 ### Minor Changes
