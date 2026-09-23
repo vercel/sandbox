@@ -258,6 +258,8 @@ export type CreateSandboxParams =
  * image, persistence, snapshot settings, and environment variables. Any field
  * set here acts as an override of the copied value. When the source has no
  * snapshot, its base environment is copied.
+ *
+ * Drive mounts are not inherited: set `mounts` to attach drives to the fork.
  * @inline
  */
 export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
@@ -876,6 +878,7 @@ export class Sandbox implements ExecutionContext {
       networkPolicy: params.networkPolicy,
       networkId: params.networkId,
       env: params.env,
+      mounts: toAPIMounts(params.mounts),
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
       keepLastSnapshots: params.keepLastSnapshots,
