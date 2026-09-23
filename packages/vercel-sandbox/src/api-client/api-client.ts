@@ -184,6 +184,7 @@ export class APIClient extends BaseClient {
       runtime?: RUNTIMES | (string & {});
       image?: string;
       networkPolicy?: NetworkPolicy;
+      networkId?: string;
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
@@ -218,6 +219,7 @@ export class APIClient extends BaseClient {
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
+          networkId: params.networkId,
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
@@ -243,6 +245,7 @@ export class APIClient extends BaseClient {
       persistent?: boolean;
       image?: string;
       networkPolicy?: NetworkPolicy;
+      networkId?: string;
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
@@ -274,6 +277,7 @@ export class APIClient extends BaseClient {
             networkPolicy: params.networkPolicy
               ? toAPINetworkPolicy(params.networkPolicy)
               : undefined,
+            networkId: params.networkId,
             env: params.env,
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
@@ -1027,6 +1031,7 @@ export class APIClient extends BaseClient {
     resources?: { vcpus?: number; memory?: number };
     timeout?: number;
     networkPolicy?: NetworkPolicy;
+    networkId?: string | null;
     tags?: Record<string, string>;
     ports?: number[];
     snapshotExpiration?: number;
@@ -1055,6 +1060,7 @@ export class APIClient extends BaseClient {
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
+          networkId: params.networkId,
           tags: params.tags,
           ports: params.ports,
           snapshotExpiration: params.snapshotExpiration,

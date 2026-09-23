@@ -19,6 +19,7 @@ import { printSandboxSummary } from "../util/print-sandbox-summary";
 import { mounts } from "../args/drive";
 import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
+import { networkId } from "../args/network-id";
 
 export const args = {
   name: cmd.option({
@@ -73,6 +74,7 @@ export const args = {
   mounts,
   region,
   failoverRegions,
+  networkId,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -106,6 +108,7 @@ export const create = cmd.command({
       mounts,
       region,
       failoverRegions,
+      networkId,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
@@ -162,6 +165,7 @@ export const create = cmd.command({
           mounts: mountsObj,
           region,
           failoverRegions,
+          networkId,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)
@@ -188,6 +192,7 @@ export const create = cmd.command({
           mounts: mountsObj,
           region,
           failoverRegions,
+          networkId,
           persistent,
           snapshotExpiration: snapshotExpiration
             ? ms(snapshotExpiration)

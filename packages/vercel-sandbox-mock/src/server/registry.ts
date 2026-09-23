@@ -73,6 +73,7 @@ export interface SandboxRecord {
   tags?: Record<string, string>;
   mounts?: Record<string, { drive: string; mode: "snapshot" | "read-write" }>;
   networkPolicy?: unknown;
+  networkId?: string;
   cwd: string;
   env?: Record<string, string>;
   ports: number[];

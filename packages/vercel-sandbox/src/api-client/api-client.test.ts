@@ -1224,6 +1224,26 @@ describe("APIClient", () => {
       expect(body.failoverRegions).toEqual(["iad1"]);
     });
 
+    it.each([
+      ["sets", "network_123"],
+      ["clears", null],
+    ])("%s the Secure Compute network", async (_action, networkId) => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        networkId,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body)).toHaveProperty("networkId", networkId);
+    });
+
     it("sends an empty failoverRegions array to clear them", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
@@ -1464,6 +1484,27 @@ describe("APIClient", () => {
       expect(body).not.toHaveProperty("keepLastSnapshots");
     });
 
+    it("forwards networkId in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        networkId: "network_123",
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).networkId).toBe("network_123");
+    });
+
+    it("omits networkId when not provided", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({ projectId: "proj_123" });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body)).not.toHaveProperty("networkId");
+    });
+
     it("forwards region and failoverRegions in the request body", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
@@ -1572,6 +1613,19 @@ describe("APIClient", () => {
       const body = JSON.parse(opts.body);
       expect(body.region).toBe("sfo1");
       expect(body.failoverRegions).toEqual(["iad1"]);
+    });
+
+    it("forwards networkId in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.forkSandbox({
+        projectId: "proj_123",
+        sourceSandbox: "my-sandbox",
+        networkId: "network_123",
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).networkId).toBe("network_123");
     });
   });
 
