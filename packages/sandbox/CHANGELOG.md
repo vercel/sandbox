@@ -1,5 +1,18 @@
 # sandbox
 
+## 4.5.0
+
+### Minor Changes
+
+- Add support for attaching sandboxes to Secure Compute networks: ([#329](https://github.com/vercel/sandbox/pull/329))
+  - In the CLI, use `sandbox create --network-id ID` with your Secure Compute network id
+  - In the SDK, use `Sandbox.create({ networkId: 'ID' })` with your Secure Compute network id
+
+### Patch Changes
+
+- Updated dependencies [[`752436bc32174bb6a37068536b231cf7b2c1cded`](https://github.com/vercel/sandbox/commit/752436bc32174bb6a37068536b231cf7b2c1cded)]:
+  - @vercel/sandbox@3.5.0
+
 ## 4.4.1
 
 ### Patch Changes
