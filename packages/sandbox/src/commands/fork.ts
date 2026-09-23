@@ -77,7 +77,7 @@ export const args = {
 export const fork = cmd.command({
   name: "fork",
   description:
-    "Fork an existing sandbox into a new one. Copies config (cpu, timeout, network policy, tags, env vars, etc.) from the source sandbox; any flag passed here overrides the copied value.",
+    "Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.",
   args,
   examples: [
     {
@@ -135,6 +135,28 @@ export const fork = cmd.command({
 
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
     const envObj = Object.keys(envVars).length > 0 ? envVars : undefined;
+
+    // The server forks from the source's latest snapshot, never from a live
+    // session, so a running source silently leaves its recent changes behind.
+    const sourceSandbox = await sandboxClient.get({
+      name: source,
+      teamId: scope.team,
+      projectId: scope.project,
+      token: scope.token,
+    });
+    if (sourceSandbox.status === "running") {
+      const from = sourceSandbox.currentSnapshotId
+        ? "last snapshot"
+        : "runtime image (it has no snapshot yet)";
+      console.error(
+        chalk.yellow(
+          [
+            `${chalk.bold("warn:")} ${source} is running. The fork starts from its ${from}, not from its live filesystem.`,
+            `╰▶ ${chalk.bold("hint:")} run \`sandbox snapshot --stop ${source}\` first to fork the current filesystem.`,
+          ].join("\n"),
+        ),
+      );
+    }
 
     const spinner = silent
       ? undefined

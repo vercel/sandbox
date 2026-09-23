@@ -16,43 +16,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  prepare:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Generate matrix
-        id: generate
-        uses: docker/bake-action/subaction/matrix@v7
-        with:
-          workdir: images
-          target: default
-  images:
-      name: Images
-      runs-on: ubuntu-latest
-      permissions:
-        contents: read
-      needs:
-        - prepare
-      strategy:
-        fail-fast: false
-        matrix:
-          include: ${{ fromJson(needs.prepare.outputs.matrix) }}
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v6
-
-        - name: Build Images
-          uses: docker/bake-action@v7
-          with:
-            source: images
-            targets: ${{ matrix.target }}
-
-
   publish:
     name: Publish
     runs-on: ubuntu-latest
@@ -95,7 +58,6 @@ jobs:
   release:
     name: Release
     needs: 
-      - images
       - publish
     runs-on: ubuntu-latest
     permissions:

@@ -39,21 +39,58 @@ export const NetworkPolicyTransformValidator = z.object({
   headers: z.record(z.string(), z.string()).optional(),
 });
 
+// Headers the proxy sets itself on a direct response. Mirrors hive's
+// ValidateDirectResponse so a bad rule fails here instead of at cell start.
+const PROXY_MANAGED_RESPONSE_HEADERS = new Set([
+  "connection",
+  "content-length",
+  "transfer-encoding",
+]);
+
+// Status codes that cannot carry a body.
+const BODYLESS_STATUS_CODES = new Set([204, 205, 304]);
+
+export const NetworkPolicyDirectResponseValidator = z
+  .object({
+    statusCode: z.number().int().min(200).max(599),
+    headers: z.record(z.string(), z.string()).optional(),
+    body: z.string().optional(),
+    contentType: z.string().optional(),
+  })
+  .refine(({ body, contentType }) => body === undefined || contentType !== undefined, {
+    message: "contentType must be provided when body is set",
+  })
+  .refine(({ statusCode, body }) => body === undefined || !BODYLESS_STATUS_CODES.has(statusCode), {
+    message: "body is not allowed on status codes 204, 205, and 304",
+  })
+  .refine(
+    ({ headers }) =>
+      Object.keys(headers ?? {}).every(
+        (name) => !PROXY_MANAGED_RESPONSE_HEADERS.has(name.toLowerCase()),
+      ),
+    { message: "headers cannot set proxy-managed headers" },
+  )
+  .refine(({ headers }) => {
+    const names = Object.keys(headers ?? {}).map((name) => name.toLowerCase());
+    return new Set(names).size === names.length;
+  }, { message: "headers cannot contain duplicate names" });
+
 export const NetworkPolicyRuleValidator = z
   .object({
     match: RuleMatchValidator.optional(),
     transform: z.array(NetworkPolicyTransformValidator).optional(),
     forwardURL: z.string().optional(),
+    response: NetworkPolicyDirectResponseValidator.optional(),
   })
   .refine(
-    ({ transform, forwardURL }) =>
-      transform === undefined || forwardURL === undefined,
-    { message: "transform and forwardURL cannot be used together" },
+    ({ transform, forwardURL, response }) =>
+      [transform, forwardURL, response].filter((v) => v !== undefined).length <= 1,
+    { message: "only one of transform, forwardURL, or response can be used per rule" },
   )
   .refine(
-    ({ transform, forwardURL }) =>
-      transform !== undefined || forwardURL !== undefined,
-    { message: "transform or forwardURL must be provided" },
+    ({ transform, forwardURL, response }) =>
+      transform !== undefined || forwardURL !== undefined || response !== undefined,
+    { message: "transform, forwardURL, or response must be provided" },
   );
 
 export const V2NetworkPolicyObjectValidator = z.object({
@@ -269,6 +306,29 @@ export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
+export const Drive = z.object({
+  id: z.string(),
+  name: z.string(),
+  projectId: z.string(),
+  region: z.string(),
+  maxSizeBytes: z.number(),
+  currentSessionId: z.string().optional(),
+  currentSandboxName: z.string().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+export type DriveMetadata = z.infer<typeof Drive>;
+
+export const DrivesResponse = z.object({
+  drives: z.array(Drive),
+  pagination: CursorPagination,
+});
+
+export const DriveResponse = z.object({
+  drive: Drive,
+});
+
 export const Sandbox = z.object({
   name: z.string(),
   persistent: z.boolean(),
@@ -294,6 +354,24 @@ export const Sandbox = z.object({
   statusUpdatedAt: z.number().optional(),
   cwd: z.string().optional(),
   tags: z.record(z.string(), z.string()).optional(),
+  mounts: z
+    .record(
+      z.string(),
+      z
+        .object({
+          drive: z.string(),
+          // read-only is kept for backward-compatibility with existing mounts
+          mode: z.enum(["snapshot", "read-write", "read-only"]).optional(),
+        })
+        .transform((mount) => ({
+          drive: mount.drive,
+          mode:
+            mount.mode === "read-only"
+              ? ("snapshot" as const)
+              : (mount.mode ?? ("read-write" as const)),
+        })),
+    )
+    .optional(),
   snapshotExpiration: z.number().optional(),
   keepLastSnapshots: z
     .object({

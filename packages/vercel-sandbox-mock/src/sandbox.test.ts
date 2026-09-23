@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { Sandbox } from "./sandbox";
+import { Drive } from "./drive";
 
 const uniq = () => `sb-${randomUUID().slice(0, 8)}`;
 
@@ -39,6 +40,33 @@ describe("Sandbox (real SDK over mock fetch)", () => {
 
     await sandbox.update({ networkId: null });
     expect(sandbox.networkId).toBeUndefined();
+    await sandbox.delete();
+  });
+
+  test("update replaces and clears mounts", async () => {
+    const drive = await Drive.getOrCreate({ name: uniq() });
+    const sandbox = await Sandbox.create({
+      name: uniq(),
+      mounts: { "/mnt/data": drive },
+    });
+    expect(sandbox.mounts).toEqual({
+      "/mnt/data": { drive: drive.name, mode: "read-write" },
+    });
+
+    await sandbox.update({
+      mounts: { "/mnt/cache": drive.snapshot() },
+    });
+    expect(sandbox.mounts).toEqual({
+      "/mnt/cache": { drive: drive.name, mode: "snapshot" },
+    });
+
+    const reread = await Sandbox.get({ name: sandbox.name, resume: false });
+    expect(reread.mounts).toEqual({
+      "/mnt/cache": { drive: drive.name, mode: "snapshot" },
+    });
+
+    await sandbox.update({ mounts: {} });
+    expect(sandbox.mounts).toBeUndefined();
     await sandbox.delete();
   });
 

@@ -23,6 +23,8 @@ import {
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
+  DrivesResponse,
+  DriveResponse,
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
@@ -38,7 +40,9 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
+import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type { SandboxMetaData } from "./validators.js";
 
 interface Claims {
   owner_id: string;
@@ -125,12 +129,17 @@ export class APIClient extends BaseClient {
   protected async request(path: string, params?: RequestParams) {
     await this.ensureValidToken();
 
+    // Attribute traffic to the AI agent driving this process, if any, so the
+    // server side can record it once ingestion support lands.
+    const aiAgent = await detectAgentName();
+    const agentSuffix = aiAgent ? ` agent/${aiAgent}` : "";
+
     return super.request(path, {
       ...params,
       query: { teamId: this.teamId, ...params?.query },
       headers: {
         "content-type": "application/json",
-        "user-agent": `vercel/sandbox/${VERSION} (Node.js/${process.version}; ${os.platform()}/${os.arch()})`,
+        "user-agent": `vercel/sandbox/${VERSION}${agentSuffix} (Node.js/${process.version}; ${os.platform()}/${os.arch()})`,
         ...params?.headers,
       },
     });
@@ -184,6 +193,7 @@ export class APIClient extends BaseClient {
         expiration?: number;
         deleteEvicted?: boolean;
       };
+      mounts?: SandboxMetaData["mounts"];
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
       signal?: AbortSignal;
@@ -214,6 +224,7 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
           keepLastSnapshots: params.keepLastSnapshots,
+          mounts: params.mounts,
           region: params.region,
           failoverRegions: params.failoverRegions,
           ...privateParams,
@@ -642,6 +653,56 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async listDrives(params: {
+    projectId: string;
+    limit?: number;
+    cursor?: string;
+    sortBy?: "createdAt" | "updatedAt" | "name";
+    sortOrder?: "asc" | "desc";
+    namePrefix?: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DrivesResponse,
+      await this.request(`/v2/sandboxes/drives`, {
+        query: {
+          projectId: params.projectId,
+          limit: params.limit,
+          cursor: params.cursor,
+          sortBy: params.sortBy,
+          sortOrder: params.sortOrder,
+          namePrefix: params.namePrefix,
+        },
+        method: "GET",
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async getOrCreateDrive(params: {
+    projectId: string;
+    name: string;
+    region?: string;
+    maxSizeBytes?: number;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            projectId: params.projectId,
+            region: params.region,
+            maxSizeBytes: params.maxSizeBytes,
+          }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async writeFiles(params: {
     sessionId: string;
     cwd: string;
@@ -945,6 +1006,24 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async deleteDrive(params: {
+    projectId: string;
+    name: string;
+    signal?: AbortSignal;
+  }) {
+    const url = `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`;
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(url, {
+        method: "DELETE",
+        query: {
+          projectId: params.projectId,
+        },
+        signal: params.signal,
+      }),
+    );
+  }
+
   async updateSandbox(params: {
     name: string;
     projectId: string;
@@ -964,6 +1043,7 @@ export class APIClient extends BaseClient {
     currentSnapshotId?: string;
     region?: SandboxRegion;
     failoverRegions?: SandboxRegion[];
+    mounts?: SandboxMetaData["mounts"];
     signal?: AbortSignal;
   }) {
     return parseOrThrow(
@@ -988,6 +1068,7 @@ export class APIClient extends BaseClient {
           currentSnapshotId: params.currentSnapshotId,
           region: params.region,
           failoverRegions: params.failoverRegions,
+          mounts: params.mounts,
         }),
         signal: params.signal,
       }),

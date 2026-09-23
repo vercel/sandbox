@@ -1,0 +1,99 @@
+name: Publish Images to VCR
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - images/**
+      - .github/workflows/publish-images.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-images-vcr
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.images.outputs.targets }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Find publishable Bake targets
+        id: images
+        working-directory: images
+        run: |
+          targets=$(docker buildx bake --print | jq -c '
+            [.target | to_entries[] | select(.value.tags | length > 0) | .key]
+          ')
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish ${{ matrix.target }}
+    if: github.ref == 'refs/heads/main'
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      STAGING_SUFFIX: -staging-${{ github.run_id }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to VCR with OIDC
+        uses: vercel/vcr-action/login@v1
+        with:
+          team: ${{ vars.VERCEL_TEAM_ID }}
+
+      - name: Build and push staging tags
+        id: bake
+        uses: docker/bake-action@v7
+        with:
+          source: images
+          targets: ${{ matrix.target }}
+          vars: |
+            TAG_SUFFIX=${{ env.STAGING_SUFFIX }}
+            PUSH=true
+
+      - name: Select a staging tag for this image
+        id: staging
+        env:
+          STAGING_IMAGES: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.target]['image.name'] }}
+        run: echo "image=${STAGING_IMAGES%%,*}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for image optimization
+        id: optimized
+        uses: vercel/vcr-action/wait-for-optimized-image@v1
+        timeout-minutes: 11
+        with:
+          image: ${{ steps.staging.outputs.image }}
+          timeout-seconds: 600
+
+      - name: Promote the optimized image to its final tags
+        env:
+          STAGING_IMAGES: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.target]['image.name'] }}
+          DIGEST: ${{ steps.optimized.outputs.digest }}
+        run: |
+          IFS=, read -r -a images <<< "$STAGING_IMAGES"
+          for image in "${images[@]}"; do
+            docker buildx imagetools create \
+              --prefer-index=false \
+              --tag "${image%"$STAGING_SUFFIX"}" \
+              "${image%:*}@$DIGEST"
+          done

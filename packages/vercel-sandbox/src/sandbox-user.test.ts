@@ -100,12 +100,12 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
     let sandbox: Sandbox;
 
     beforeEach(async () => {
-      sandbox = await Sandbox.create();
+      sandbox = await Sandbox.create({ persistent: false });
     });
 
     afterEach(async () => {
-      await sandbox.stop();
-    });
+      await sandbox.delete();
+    }, 30_000);
 
     // The default user and primary group depend on the image, so resolve them
     // from the running sandbox rather than assuming fixed names.

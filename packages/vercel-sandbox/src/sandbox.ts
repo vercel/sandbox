@@ -17,6 +17,7 @@ import { DEFAULT_SANDBOX_REGION } from "./constants.js";
 import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
+import type { Drive } from "./drive.js";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import type {
@@ -27,7 +28,6 @@ import type {
 } from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
-import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
 import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
@@ -115,15 +115,33 @@ export interface BaseCreateSandboxParams {
    */
   tags?: Record<string, string>;
   /**
-   * The region to create the sandbox in. Defaults to `iad1`.
-   * See the Vercel documentation for the available regions.
+   * The region to create the sandbox in. Defaults to `iad1`. Any Vercel
+   * region is supported, e.g. `sfo1`, `fra1`, `hnd1`, `syd1`.
+   * See the Vercel documentation for the full list.
    */
   region?: SandboxRegion;
   /**
-   * Additional regions the sandbox can fail over to. Must not include
-   * `region`.
+   * Additional regions the sandbox can fail over to, e.g. `["sfo1", "fra1"]`.
+   * Must not include `region`.
    */
   failoverRegions?: SandboxRegion[];
+
+  /**
+   * List of drives to attach to the sandbox, keyed by the desired mount path.
+   * The drive must be created beforehand with `Drive.getOrCreate`.
+   *
+   * The mount paths must be absolute and cannot overlap with each other.
+   *
+   * @example
+   * const drive = await Drive.getOrCreate({ name: "my-drive" });
+   * const sandbox = await Sandbox.create({
+   *   mounts: {
+   *     "/data": drive,
+   *     "/snapshot": drive.snapshot(),
+   *   },
+   * });
+   */
+  mounts?: SandboxMounts;
 
   /**
    * An AbortSignal to cancel sandbox creation.
@@ -164,6 +182,25 @@ export interface BaseCreateSandboxParams {
    * Use this to re-warm caches, restore transient state, or run other setup logic.
    */
   onResume?: (sandbox: Sandbox) => Promise<void>;
+}
+
+export type SandboxMountMode = "read-write" | "snapshot";
+export type SandboxMounts = Record<
+  string,
+  Drive | { drive: string; mode: SandboxMountMode }
+>;
+
+function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
+  if (mounts === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(mounts).map(([path, mount]) => [
+      path,
+      {
+        drive: "mode" in mount ? mount.drive : mount.name,
+        mode: "mode" in mount ? mount.mode : "read-write",
+      },
+    ]),
+  );
 }
 
 /**
@@ -566,6 +603,13 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * Drives mounted on the sandbox, keyed by mount path.
+   */
+  public get mounts(): SandboxMetaData["mounts"] {
+    return this.sandbox.mounts;
+  }
+
+  /**
    * The default network policy of this sandbox.
    */
   public get networkPolicy(): NetworkPolicy | undefined {
@@ -761,6 +805,7 @@ export class Sandbox implements ExecutionContext {
       networkId: params?.networkId,
       env: params?.env,
       tags: params?.tags,
+      mounts: toAPIMounts(params?.mounts),
       snapshotExpiration: params?.snapshotExpiration,
       keepLastSnapshots: params?.keepLastSnapshots,
       region: params?.region,
@@ -1070,31 +1115,6 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * Poll until the current session reaches a terminal state, then resume.
-   */
-  private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
-    "use step";
-    const client = await this.ensureClient();
-    const pollingInterval = 500;
-    let status = this.session!.status;
-
-    while (status === "stopping" || status === "snapshotting") {
-      await setTimeout(pollingInterval, undefined, { signal });
-      const poll = await client.getSession({
-        sessionId: this.session!.sessionId,
-        signal,
-      });
-      this.session = new Session({
-        client,
-        routes: poll.json.routes,
-        session: poll.json.session,
-      });
-      status = poll.json.session.status;
-    }
-    await this.resume(signal);
-  }
-
-  /**
    * Execute `fn`, and if the session is stopped/stopping/snapshotting, resume and retry.
    */
   private async withResume<T>(
@@ -1107,12 +1127,12 @@ export class Sandbox implements ExecutionContext {
     try {
       return await fn();
     } catch (err) {
-      if (isSandboxStoppedError(err)) {
+      if (
+        isSandboxStoppedError(err) ||
+        isSandboxStoppingError(err) ||
+        isSandboxSnapshottingError(err)
+      ) {
         await this.resume(signal);
-        return fn();
-      }
-      if (isSandboxStoppingError(err) || isSandboxSnapshottingError(err)) {
-        await this.waitForStopAndResume(signal);
         return fn();
       }
       throw err;
@@ -1733,6 +1753,9 @@ export class Sandbox implements ExecutionContext {
    * running session keeps the region it started in. Pass an empty
    * `failoverRegions` array to remove all failover regions.
    *
+   * When `mounts` is provided, it replaces all current mounts and applies to
+   * the next session. Pass an empty object to remove all mounts.
+   *
    * @param params - Fields to update.
    * @param opts - Optional abort signal.
    */
@@ -1755,6 +1778,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId?: string;
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
+      mounts?: SandboxMounts;
     },
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
@@ -1784,6 +1808,7 @@ export class Sandbox implements ExecutionContext {
       currentSnapshotId: params.currentSnapshotId,
       region: params.region,
       failoverRegions: params.failoverRegions,
+      mounts: toAPIMounts(params.mounts),
       signal: opts?.signal,
     });
     this.sandbox = response.json.sandbox;

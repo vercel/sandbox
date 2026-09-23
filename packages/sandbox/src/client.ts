@@ -1,7 +1,9 @@
-import { Sandbox, APIError, Snapshot } from "@vercel/sandbox";
+import { Sandbox, APIError, Snapshot, Drive } from "@vercel/sandbox";
 import { version } from "./pkg";
 import { withFreshAuthRetry } from "./util/fresh-auth-retry";
 import { formatApiError } from "./util/format-error";
+import { telemetry } from "./telemetry";
+import { detectAgentName } from "./telemetry/agent";
 
 /**
  * A {@link Sandbox} wrapper that adds user-agent headers and error handling.
@@ -11,21 +13,31 @@ export const sandboxClient: Pick<
   "get" | "list" | "create" | "fork"
 > = {
   get: (params) =>
-    withErrorHandling(() =>
-      Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params }),
-    ),
+    withErrorHandling(async () => {
+      updateScope(params);
+      const sandbox = await Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params });
+      trackSession(sandbox, "attached");
+      return sandbox;
+    }),
   create: (params) =>
-    withErrorHandling(() =>
-      Sandbox.create({ fetch: fetchWithUserAgent, ...params }),
-    ),
+    withErrorHandling(async () => {
+      updateScope(params);
+      const sandbox = await Sandbox.create({ fetch: fetchWithUserAgent, ...params });
+      trackSession(sandbox, "created");
+      return sandbox;
+    }),
   fork: (params) =>
-    withErrorHandling(() =>
-      Sandbox.fork({ fetch: fetchWithUserAgent, ...params }),
-    ),
+    withErrorHandling(async () => {
+      updateScope(params);
+      const sandbox = await Sandbox.fork({ fetch: fetchWithUserAgent, ...params });
+      trackSession(sandbox, "created");
+      return sandbox;
+    }),
   list: (params) =>
-    withErrorHandling(() =>
-      Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+    }),
 };
 
 export const snapshotClient: Pick<
@@ -41,7 +53,42 @@ export const snapshotClient: Pick<
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };
 
-const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
+export const driveClient: Pick<typeof Drive, "getOrCreate" | "list"> & {
+  delete(drive: Drive): Promise<void>;
+} = {
+  getOrCreate: (params) =>
+    withErrorHandling(() =>
+      Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
+    ),
+  list: (params) =>
+    withErrorHandling(() =>
+      Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
+    ),
+  delete: (drive) => withErrorHandling(() => drive.delete()),
+};
+
+function scopeField(params: unknown, field: string): string | undefined {
+  if (params && typeof params === "object" && field in params) {
+    const value = (params as Record<string, unknown>)[field];
+    if (typeof value === "string") return value;
+  }
+  return undefined;
+}
+
+function updateScope(params: unknown): void {
+  telemetry.updateTeamId(scopeField(params, "teamId"));
+  telemetry.updateProjectId(scopeField(params, "projectId"));
+}
+
+function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {
+  try {
+    telemetry.trackSandboxSession(sandbox.currentSession().sessionId, origin);
+  } catch {
+    // No active session on this instance; nothing to record.
+  }
+}
+
+const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   const headers = new Headers(
     init?.headers ??
       (input && typeof input === "object" && "headers" in input
@@ -50,7 +97,25 @@ const fetchWithUserAgent: typeof globalThis.fetch = (input, init) => {
   );
   let agent = `vercel/sandbox-cli/${version}`;
 
-  const existingAgent = headers.get("user-agent");
+  let existingAgent = headers.get("user-agent");
+
+  if (telemetry.enabled) {
+    // Attribute API traffic to the AI agent driving this invocation, if any,
+    // so the server side can record it once ingestion support lands. The SDK
+    // stamps its own phrase, so skip ours when one is already present.
+    if (!existingAgent?.includes(" agent/")) {
+      const aiAgent = await detectAgentName();
+      if (aiAgent) {
+        agent += ` agent/${aiAgent}`;
+      }
+    }
+  } else if (existingAgent) {
+    // The SDK gates its stamp on env vars only, so a config-file opt-out
+    // (`sandbox telemetry disable`) must be enforced here: strip any agent
+    // phrase from the header rather than trusting upstream gates.
+    existingAgent = existingAgent.replace(/ agent\/\S+/g, "");
+  }
+
   if (existingAgent) {
     agent += ` ${existingAgent}`;
   }
