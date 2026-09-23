@@ -247,6 +247,7 @@ export class APIClient extends BaseClient {
       networkPolicy?: NetworkPolicy;
       networkId?: string;
       env?: Record<string, string>;
+      mounts?: SandboxMetaData["mounts"];
       tags?: Record<string, string>;
       snapshotExpiration?: number;
       keepLastSnapshots?: {
@@ -279,6 +280,7 @@ export class APIClient extends BaseClient {
               : undefined,
             networkId: params.networkId,
             env: params.env,
+            mounts: params.mounts,
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
             keepLastSnapshots: params.keepLastSnapshots,

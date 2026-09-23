@@ -935,6 +935,53 @@ describe("Sandbox.create mounts", () => {
   );
 });
 
+describe("Sandbox.fork mounts", () => {
+  it.each(mountCases)(
+    "sends $label mounts to the API",
+    async ({ mount, mode }) => {
+      const mockFetch = vi.fn<typeof fetch>(
+        async () =>
+          new Response(
+            JSON.stringify({
+              sandbox: makeSandboxMetadata(),
+              session: {
+                id: "sbx_123",
+                memory: 2048,
+                vcpus: 1,
+                region: "iad1",
+                runtime: "node24",
+                timeout: 300_000,
+                status: "running",
+                requestedAt: 1,
+                createdAt: 1,
+                cwd: "/",
+                updatedAt: 1,
+              },
+              routes: [],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+      );
+
+      await Sandbox.fork({
+        token: "test-token",
+        teamId: "team_123",
+        projectId: "proj_123",
+        sourceSandbox: "source-sandbox",
+        mounts: {
+          "/mnt/storage": mount,
+        },
+        fetch: mockFetch,
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(JSON.parse(String(init?.body)).mounts).toEqual({
+        "/mnt/storage": { drive: "my-drive", mode },
+      });
+    },
+  );
+});
+
 describe("Sandbox.update mounts", () => {
   it.each(mountCases)(
     "converts $label mounts and reflects the response",
