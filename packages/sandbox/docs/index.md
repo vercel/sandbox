@@ -30,6 +30,10 @@ Commands:
 
 Examples:
 
+– Create a sandbox on a Secure Compute network (requires an Enterprise plan)
+
+  $ sandbox create --network-id your_network_id_here
+
 – Create a sandbox and start a shell
 
   $ sandbox sh
@@ -96,7 +100,7 @@ Options:
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Connect network ID for the target Secure Compute private network [optional]
+    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -158,7 +162,7 @@ Options:
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Connect network ID for the target Secure Compute private network [optional]
+    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -185,6 +189,10 @@ Auth & Scope:
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 
 Examples:
+
+– Create a sandbox on a Secure Compute network (requires an Enterprise plan)
+
+  $ sandbox create --network-id your_network_id_here
 
 – Create and connect to a sandbox without a network access
 
@@ -214,7 +222,7 @@ Options:
     --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Connect network ID for the target Secure Compute private network [optional]
+    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -264,7 +272,7 @@ Options:
     --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).
     --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Connect network ID for the target Secure Compute private network [optional]
+    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -499,7 +507,8 @@ Commands:
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
-    network-id                <name> <NETWORK_ID|none>  Update the Secure Compute network of a sandbox
+    network                   <name> <NETWORK_ID|none>  Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
+    network-id                <name> <NETWORK_ID|none>  Update the Secure Compute network of a sandbox (requires an Enterprise plan)
     mounts                    <name>                    Update the drives mounted on a sandbox (replaces all existing mounts, applied to all new sessions). Pass no --mount flag to remove them.
     network-policy            <name>                    Update the network policy of a sandbox
     snapshot-expiration       <name> <DURATION|none>    Update the default snapshot expiration of a sandbox
@@ -509,6 +518,70 @@ Commands:
     current-snapshot          <name> <snapshot_id>      Update the current snapshot of a sandbox
     ports                     <name>                    Update the published ports of a sandbox. Replaces all existing published ports.
     tags                      <name>                    Update the tags of a sandbox. Replaces all existing tags with the provided tags.
+```
+
+## `sandbox config network-id`
+
+```
+network-id
+
+▲ sandbox config network-id [options]
+
+Update the Secure Compute network of a sandbox (requires an Enterprise plan)
+
+Arguments:
+
+    <name>             Sandbox name to update
+    <NETWORK_ID|none>  Secure Compute network ID (requires an Enterprise plan), or "none" to detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox config network`
+
+```
+network
+
+▲ sandbox config network [options]
+
+Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
+
+Arguments:
+
+    <name>             Sandbox name to update
+    <NETWORK_ID|none>  Secure Compute network ID (requires an Enterprise plan), or "none" to detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+
+Examples:
+
+– Create a sandbox on a Secure Compute network (requires an Enterprise plan)
+
+  $ sandbox create --network-id your_network_id_here
+
+– Attach or change the network for an existing sandbox (requires an Enterprise plan)
+
+  $ sandbox config network my-sandbox your_network_id_here
+
+– Detach the Secure Compute network for the next session (Enterprise only)
+
+  $ sandbox config network my-sandbox none
 ```
 
 ## `sandbox login`

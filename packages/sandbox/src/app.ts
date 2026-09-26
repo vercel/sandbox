@@ -49,6 +49,11 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
     },
     examples: [
       {
+        description:
+          "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
+        command: `${appName} create --network-id your_network_id_here`,
+      },
+      {
         description: "Create a sandbox and start a shell",
         command: `${appName} sh`,
       },
