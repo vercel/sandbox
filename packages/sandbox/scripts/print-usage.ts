@@ -19,6 +19,8 @@ const docs = {
   "sandbox snapshots": "snapshots --help",
   "sandbox drives": "drives --help",
   "sandbox config": "config --help",
+  "sandbox config network-id": "config network-id --help",
+  "sandbox network": "network --help",
   "sandbox login": "login --help",
   "sandbox logout": "logout --help",
 };

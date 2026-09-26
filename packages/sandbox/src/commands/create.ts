@@ -86,7 +86,8 @@ export const create = cmd.command({
   args,
   examples: [
     {
-      description: "Create a sandbox on a Secure Compute network (Enterprise)",
+      description:
+        "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
       command: `sandbox create --network-id your_network_id_here`,
     },
     {

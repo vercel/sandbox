@@ -576,20 +576,24 @@ const failoverRegionsCommand = cmd.command({
   },
 });
 
+const networkArgs = {
+  sandbox: cmd.positional({
+    type: sandboxName,
+    description: "Sandbox name to update",
+  }),
+  networkId: cmd.positional({
+    type: networkIdOrNoneType,
+    description:
+      'Secure Compute network ID (requires an Enterprise plan), or "none" to detach',
+  }),
+  scope,
+};
+
 const networkIdCommand = cmd.command({
   name: "network-id",
-  description: "Update the Secure Compute network of a sandbox",
-  args: {
-    sandbox: cmd.positional({
-      type: sandboxName,
-      description: "Sandbox name to update",
-    }),
-    networkId: cmd.positional({
-      type: networkIdOrNoneType,
-      description: 'Connect network ID, or "none" to remove Secure Compute',
-    }),
-    scope,
-  },
+  description:
+    "Update the Secure Compute network of a sandbox (requires an Enterprise plan)",
+  args: networkArgs,
   async handler({ scope: { token, team, project }, sandbox: name, networkId }) {
     const sandbox = await sandboxClient.get({
       name,
@@ -617,6 +621,31 @@ const networkIdCommand = cmd.command({
       throw error;
     }
   },
+});
+
+export const network = cmd.command({
+  name: "network",
+  description:
+    "Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.",
+  args: networkArgs,
+  handler: networkIdCommand.handler,
+  examples: [
+    {
+      description:
+        "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
+      command: "sandbox create --network-id your_network_id_here",
+    },
+    {
+      description:
+        "Attach or change the network for an existing sandbox (requires an Enterprise plan)",
+      command: "sandbox network my-sandbox your_network_id_here",
+    },
+    {
+      description:
+        "Detach the Secure Compute network for the next session (Enterprise only)",
+      command: "sandbox network my-sandbox none",
+    },
+  ],
 });
 
 const mountsCommand = cmd.command({

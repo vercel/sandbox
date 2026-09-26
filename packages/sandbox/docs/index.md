@@ -14,6 +14,7 @@ Commands:
     sh                                         Create a sandbox and start an interactive shell
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
+    network        <name> <NETWORK_ID|none>    Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
@@ -29,6 +30,10 @@ Commands:
     logout                                     Log out of the Sandbox CLI
 
 Examples:
+
+– Create a sandbox on a Secure Compute network (requires an Enterprise plan)
+
+  $ sandbox create --network-id your_network_id_here
 
 – Create a sandbox and start a shell
 
@@ -186,7 +191,7 @@ Auth & Scope:
 
 Examples:
 
-– Create a sandbox on a Secure Compute network (Enterprise)
+– Create a sandbox on a Secure Compute network (requires an Enterprise plan)
 
   $ sandbox create --network-id your_network_id_here
 
@@ -503,7 +508,7 @@ Commands:
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
-    network-id                <name> <NETWORK_ID|none>  Update the Secure Compute network of a sandbox
+    network-id                <name> <NETWORK_ID|none>  Update the Secure Compute network of a sandbox (requires an Enterprise plan)
     mounts                    <name>                    Update the drives mounted on a sandbox (replaces all existing mounts, applied to all new sessions). Pass no --mount flag to remove them.
     network-policy            <name>                    Update the network policy of a sandbox
     snapshot-expiration       <name> <DURATION|none>    Update the default snapshot expiration of a sandbox
@@ -513,6 +518,70 @@ Commands:
     current-snapshot          <name> <snapshot_id>      Update the current snapshot of a sandbox
     ports                     <name>                    Update the published ports of a sandbox. Replaces all existing published ports.
     tags                      <name>                    Update the tags of a sandbox. Replaces all existing tags with the provided tags.
+```
+
+## `sandbox config network-id`
+
+```
+network-id
+
+▲ sandbox config network-id [options]
+
+Update the Secure Compute network of a sandbox (requires an Enterprise plan)
+
+Arguments:
+
+    <name>             Sandbox name to update
+    <NETWORK_ID|none>  Secure Compute network ID (requires an Enterprise plan), or "none" to detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox network`
+
+```
+network
+
+▲ sandbox network [options]
+
+Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
+
+Arguments:
+
+    <name>             Sandbox name to update
+    <NETWORK_ID|none>  Secure Compute network ID (requires an Enterprise plan), or "none" to detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+
+Examples:
+
+– Create a sandbox on a Secure Compute network (requires an Enterprise plan)
+
+  $ sandbox create --network-id your_network_id_here
+
+– Attach or change the network for an existing sandbox (requires an Enterprise plan)
+
+  $ sandbox network my-sandbox your_network_id_here
+
+– Detach the Secure Compute network for the next session (Enterprise only)
+
+  $ sandbox network my-sandbox none
 ```
 
 ## `sandbox login`

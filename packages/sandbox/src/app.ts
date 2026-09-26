@@ -15,7 +15,7 @@ import { version } from "./pkg";
 import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
 import { sessions } from "./commands/sessions";
-import { config } from "./commands/config";
+import { config, network } from "./commands/config";
 import { drives } from "./commands/drives";
 import { telemetryCommand } from "./commands/telemetry";
 
@@ -31,6 +31,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       sh,
       fork,
       config,
+      network,
       copy: cp,
       exec,
       connect,
@@ -48,6 +49,11 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       }),
     },
     examples: [
+      {
+        description:
+          "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
+        command: `${appName} create --network-id your_network_id_here`,
+      },
       {
         description: "Create a sandbox and start a shell",
         command: `${appName} sh`,
