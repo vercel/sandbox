@@ -623,7 +623,7 @@ const networkIdCommand = cmd.command({
   },
 });
 
-export const network = cmd.command({
+const networkCommand = cmd.command({
   name: "network",
   description:
     "Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.",
@@ -638,12 +638,12 @@ export const network = cmd.command({
     {
       description:
         "Attach or change the network for an existing sandbox (requires an Enterprise plan)",
-      command: "sandbox network my-sandbox your_network_id_here",
+      command: "sandbox config network my-sandbox your_network_id_here",
     },
     {
       description:
         "Detach the Secure Compute network for the next session (Enterprise only)",
-      command: "sandbox network my-sandbox none",
+      command: "sandbox config network my-sandbox none",
     },
   ],
 });
@@ -961,6 +961,7 @@ export const config = cmd.subcommands({
     persistent: persistentCommand,
     region: regionCommand,
     "failover-regions": failoverRegionsCommand,
+    network: networkCommand,
     "network-id": networkIdCommand,
     mounts: mountsCommand,
     "network-policy": networkPolicyCommand,

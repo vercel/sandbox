@@ -14,7 +14,6 @@ Commands:
     sh                                         Create a sandbox and start an interactive shell
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
-    network        <name> <NETWORK_ID|none>    Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
@@ -508,6 +507,7 @@ Commands:
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
+    network                   <name> <NETWORK_ID|none>  Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
     network-id                <name> <NETWORK_ID|none>  Update the Secure Compute network of a sandbox (requires an Enterprise plan)
     mounts                    <name>                    Update the drives mounted on a sandbox (replaces all existing mounts, applied to all new sessions). Pass no --mount flag to remove them.
     network-policy            <name>                    Update the network policy of a sandbox
@@ -545,12 +545,12 @@ Flags:
     --help, -h  show help [optional]
 ```
 
-## `sandbox network`
+## `sandbox config network`
 
 ```
 network
 
-▲ sandbox network [options]
+▲ sandbox config network [options]
 
 Attach or detach a sandbox's Secure Compute network (requires an Enterprise plan). Changes apply on the next session.
 
@@ -577,11 +577,11 @@ Examples:
 
 – Attach or change the network for an existing sandbox (requires an Enterprise plan)
 
-  $ sandbox network my-sandbox your_network_id_here
+  $ sandbox config network my-sandbox your_network_id_here
 
 – Detach the Secure Compute network for the next session (Enterprise only)
 
-  $ sandbox network my-sandbox none
+  $ sandbox config network my-sandbox none
 ```
 
 ## `sandbox login`

@@ -15,7 +15,7 @@ import { version } from "./pkg";
 import { snapshot } from "./commands/snapshot";
 import { snapshots } from "./commands/snapshots";
 import { sessions } from "./commands/sessions";
-import { config, network } from "./commands/config";
+import { config } from "./commands/config";
 import { drives } from "./commands/drives";
 import { telemetryCommand } from "./commands/telemetry";
 
@@ -31,7 +31,6 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       sh,
       fork,
       config,
-      network,
       copy: cp,
       exec,
       connect,

@@ -139,9 +139,10 @@ describe("config command", () => {
   test.each([
     ["network_456", "network_456"],
     ["none", null],
-  ])("top-level network command updates with %s", async (value, networkId) => {
+  ])("config network command updates with %s", async (value, networkId) => {
     const { app } = await import("../../src/app.ts");
     await cmd.run(app({ withoutAuth: true }), [
+      "config",
       "network",
       "my-sandbox",
       value,
@@ -159,10 +160,11 @@ describe("config command", () => {
     expect(mockUpdate).toHaveBeenCalledWith({ networkId });
   });
 
-  test("top-level network rejects an empty ID without updating", async () => {
+  test("config network rejects an empty ID without updating", async () => {
     const { app } = await import("../../src/app.ts");
     await expect(
       cmd.run(app({ withoutAuth: true }), [
+        "config",
         "network",
         "my-sandbox",
         " ",
