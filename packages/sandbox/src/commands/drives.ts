@@ -85,7 +85,7 @@ const getOrCreate = cmd.command({
     maxSize: cmd.option({
       long: "max-size",
       description:
-        "Maximum drive size in bytes. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
+        "Maximum drive size, e.g. 200GiB or 2TiB (bytes if no unit). Fixed after creation. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
       type: cmd.optional(driveMaxSize),
     }),
     region: cmd.option({
@@ -116,10 +116,19 @@ const getOrCreate = cmd.command({
     process.stderr.write(
       chalk.dim("   │ ") + "region: " + chalk.cyan(drive.region) + "\n",
     );
+    // Without --max-size the number is whatever the drive already had, which
+    // reads like an account ceiling. Say where it comes from, but only when the
+    // caller did not choose it, and without claiming it is the plan default:
+    // an existing drive keeps the size it was created with.
+    const sizeHint =
+      maxSize === undefined
+        ? chalk.dim(" (set with --max-size at creation, fixed afterwards)")
+        : "";
     process.stderr.write(
       chalk.dim("   │ ") +
         "max size: " +
         chalk.cyan(formatBytes(drive.maxSize)) +
+        sizeHint +
         "\n",
     );
     process.stderr.write(

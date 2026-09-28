@@ -77,4 +77,61 @@ describe("drives command", () => {
     expect(output).toContain("REGION");
     expect(output).toContain("sfo1");
   });
+
+  const getOrCreate = (...extra: string[]) =>
+    import("../../src/commands/drives.ts").then(({ drives }) =>
+      cmd.run(drives, [
+        "get-or-create",
+        "workspace",
+        "--scope=team",
+        "--project=proj",
+        ...extra,
+      ]),
+    );
+
+  test("--max-size accepts sizes with units", async () => {
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    await getOrCreate("--max-size", "5GiB");
+    expect(mockGetOrCreate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ maxSize: 5368709120 }),
+    );
+
+    await getOrCreate("--max-size", "2TiB");
+    expect(mockGetOrCreate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ maxSize: 2199023255552 }),
+    );
+  });
+
+  test("--max-size rejects input it cannot parse", async () => {
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const { drives } = await import("../../src/commands/drives.ts");
+
+    const result = await cmd.runSafely(drives, [
+      "get-or-create",
+      "workspace",
+      "--max-size",
+      "2 apples",
+      "--scope=team",
+      "--project=proj",
+    ]);
+
+    expect(result._tag).toBe("error");
+    expect(JSON.stringify(result)).toContain("Invalid size");
+    expect(mockGetOrCreate).not.toHaveBeenCalled();
+  });
+
+  test("points at --max-size only when the caller did not pass it", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const printed = () => write.mock.calls.map(([line]) => String(line)).join("");
+
+    await getOrCreate();
+    expect(printed()).toContain("max size: ");
+    expect(printed()).toContain("set with --max-size at creation");
+
+    write.mockClear();
+    await getOrCreate("--max-size", "5GiB");
+    expect(printed()).toContain("max size: ");
+    expect(printed()).not.toContain("set with --max-size at creation");
+  });
 });
