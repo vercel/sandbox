@@ -2,7 +2,6 @@ import { Sandbox } from "@vercel/sandbox";
 import createDebugger from "debug";
 import retry from "async-retry";
 import { WebSocket } from "ws";
-import { printCommand } from "../util/print-command";
 import ora from "ora";
 import {
   acquireRelease,
@@ -199,8 +198,6 @@ export async function startInteractiveShell(options: {
     );
   };
   process.on("SIGWINCH", onResize);
-
-  console.error(printCommand(options.execution[0], options.execution.slice(1)));
 
   await new Promise<void>((resolve, reject) => {
     client.once("close", () => resolve());
