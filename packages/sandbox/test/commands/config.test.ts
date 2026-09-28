@@ -136,6 +136,45 @@ describe("config command", () => {
     expect(mockUpdate).toHaveBeenCalledWith({ networkId });
   });
 
+  test.each([
+    ["network_456", "network_456"],
+    ["none", null],
+  ])("config network command updates with %s", async (value, networkId) => {
+    const { app } = await import("../../src/app.ts");
+    await cmd.run(app({ withoutAuth: true }), [
+      "config",
+      "network",
+      "my-sandbox",
+      value,
+      "--scope=team",
+      "--project=proj",
+    ]);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "my-sandbox",
+        teamId: "team",
+        projectId: "proj",
+      }),
+    );
+    expect(mockUpdate).toHaveBeenCalledWith({ networkId });
+  });
+
+  test("config network rejects an empty ID without updating", async () => {
+    const { app } = await import("../../src/app.ts");
+    await expect(
+      cmd.run(app({ withoutAuth: true }), [
+        "config",
+        "network",
+        "my-sandbox",
+        " ",
+        "--scope=team",
+        "--project=proj",
+      ]),
+    ).rejects.toThrow();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
   test("list prints the region and the failover regions", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const { config } = await import("../../src/commands/config.ts");

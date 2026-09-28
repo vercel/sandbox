@@ -25,5 +25,5 @@ export const networkId = cmd.option({
   long: "network-id",
   type: cmd.optional(networkIdType),
   description:
-    "Connect network ID for the target Secure Compute private network",
+    "Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan)",
 });
