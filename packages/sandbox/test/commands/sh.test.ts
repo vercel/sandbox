@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { defaultShell } from "../../src/interactive-shell/default-shell";
 
 const { mockCreate, mockExec } = vi.hoisted(() => ({
   mockCreate: vi.fn(),
@@ -70,8 +71,8 @@ describe("sh command", () => {
     });
     expect(mockExec).toHaveBeenCalledWith(
       expect.objectContaining({
+        ...defaultShell,
         sandbox,
-        command: "sh",
         interactive: true,
       }),
     );

@@ -17,6 +17,7 @@ import { buildKeepLastSnapshotsPayload } from "../util/keep-last-snapshots";
 import { printSandboxSummary } from "../util/print-sandbox-summary";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
+import { defaultShell } from "../interactive-shell/default-shell";
 
 export const args = {
   source: cmd.positional({
@@ -208,13 +209,12 @@ export const fork = cmd.command({
 
     if (connect) {
       await Exec.exec.handler({
+        ...defaultShell,
         scope,
         asSudo: false,
-        args: [],
         cwd: undefined,
         skipExtendingTimeout: false,
         envVars: {},
-        command: "sh",
         interactive: true,
         tty: true,
         sandbox,

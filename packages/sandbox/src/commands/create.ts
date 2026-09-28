@@ -20,6 +20,7 @@ import { mounts } from "../args/drive";
 import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
+import { defaultShell } from "../interactive-shell/default-shell";
 
 export const args = {
   name: cmd.option({
@@ -229,13 +230,12 @@ export const create = cmd.command({
 
     if (connect) {
       await Exec.exec.handler({
+        ...defaultShell,
         scope,
         asSudo: false,
-        args: [],
         cwd: undefined,
         skipExtendingTimeout: false,
         envVars: {},
-        command: "sh",
         interactive: true,
         tty: true,
         sandbox,

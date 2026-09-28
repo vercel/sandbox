@@ -2,6 +2,7 @@ import * as cmd from "cmd-ts";
 import * as Create from "./create";
 import * as Exec from "./exec";
 import { omit } from "../util/omit";
+import { defaultShell } from "../interactive-shell/default-shell";
 
 const args = {
   ...omit(Create.args, "connect"),
@@ -32,13 +33,12 @@ export const sh = cmd.command({
 
     try {
       await Exec.exec.handler({
+        ...defaultShell,
         scope: rest.scope,
         asSudo: false,
-        args: [],
         cwd: undefined,
         skipExtendingTimeout: false,
         envVars: {},
-        command: "sh",
         interactive: true,
         tty: true,
         sandbox,
