@@ -2,4 +2,4 @@
 "sandbox": patch
 ---
 
-Prefer Bash for default interactive shells and falling back to sh when Bash is unavailable.
+Use the sandbox's SHELL for interactive sessions, falling back to sh when it is unset or empty.
