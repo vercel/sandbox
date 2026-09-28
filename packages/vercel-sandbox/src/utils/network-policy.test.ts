@@ -57,6 +57,84 @@ describe("toAPINetworkPolicy", () => {
     });
   });
 
+  it("compiles httpOnly into a pinned Host header without changing the input", () => {
+    const policy: NetworkPolicy = {
+      allow: {
+        "api.example.com": [{ httpOnly: true }],
+        "other.example.com": [],
+      },
+    };
+
+    expect(toAPINetworkPolicy(policy)).toEqual({
+      allow: {
+        "api.example.com": [
+          { transform: [{ headers: { Host: "api.example.com" } }] },
+        ],
+        "other.example.com": [],
+      },
+    });
+    expect(policy.allow).toEqual({
+      "api.example.com": [{ httpOnly: true }],
+      "other.example.com": [],
+    });
+  });
+
+  it("keeps matches and the order of rules with httpOnly", () => {
+    expect(
+      toAPINetworkPolicy({
+        allow: {
+          "api.example.com": [
+            { match: { method: ["GET"] }, httpOnly: true },
+            { response: { statusCode: 403 } },
+          ],
+        },
+      }),
+    ).toEqual({
+      allow: {
+        "api.example.com": [
+          {
+            match: { method: ["GET"] },
+            transform: [{ headers: { Host: "api.example.com" } }],
+          },
+          { response: { statusCode: 403 } },
+        ],
+      },
+    });
+  });
+
+  it("rejects httpOnly for wildcard domains", () => {
+    for (const domain of ["*", "*.example.com"]) {
+      expect(() =>
+        toAPINetworkPolicy({
+          allow: { [domain]: [{ httpOnly: true }] },
+        }),
+      ).toThrow("httpOnly requires an exact domain");
+    }
+  });
+
+  it("rejects httpOnly values other than true", () => {
+    const policy = {
+      allow: { "api.example.com": [{ httpOnly: false }] },
+    } as unknown as NetworkPolicy;
+    expect(() => toAPINetworkPolicy(policy)).toThrow("httpOnly must be true");
+  });
+
+  it("rejects httpOnly combined with another action", () => {
+    const policy = {
+      allow: {
+        "api.example.com": [
+          {
+            httpOnly: true,
+            transform: [{ headers: { authorization: "secret" } }],
+          },
+        ],
+      },
+    } as unknown as NetworkPolicy;
+    expect(() => toAPINetworkPolicy(policy)).toThrow(
+      "httpOnly cannot be combined with another rule action",
+    );
+  });
+
   it("keeps record-form rules in v2 allow-map shape", () => {
     expect(
       toAPINetworkPolicy({
@@ -295,7 +373,9 @@ describe("toAPINetworkPolicy", () => {
 
   it("rejects a response body without a contentType", () => {
     const networkPolicy = {
-      allow: { "api.example.com": [{ response: { statusCode: 403, body: "nope" } }] },
+      allow: {
+        "api.example.com": [{ response: { statusCode: 403, body: "nope" } }],
+      },
     } as unknown as NetworkPolicy;
 
     expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
@@ -307,7 +387,13 @@ describe("toAPINetworkPolicy", () => {
     const networkPolicy = {
       allow: {
         "api.example.com": [
-          { response: { statusCode: 204, body: "nope", contentType: "text/plain" } },
+          {
+            response: {
+              statusCode: 204,
+              body: "nope",
+              contentType: "text/plain",
+            },
+          },
         ],
       },
     } as unknown as NetworkPolicy;
@@ -511,7 +597,9 @@ describe("fromAPINetworkPolicy", () => {
             match: {
               method: ["POST"],
               path: { startsWith: "/v1/" },
-              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+              headers: [
+                { key: { exact: "x-route" }, value: { exact: "proxy" } },
+              ],
             },
             forwardURL: "https://proxy.example.com",
           },
@@ -528,7 +616,9 @@ describe("fromAPINetworkPolicy", () => {
             match: {
               method: ["POST"],
               path: { startsWith: "/v1/" },
-              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+              headers: [
+                { key: { exact: "x-route" }, value: { exact: "proxy" } },
+              ],
             },
             forwardURL: "https://proxy.example.com",
           },
