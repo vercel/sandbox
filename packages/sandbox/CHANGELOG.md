@@ -1,5 +1,11 @@
 # sandbox
 
+## 4.6.1
+
+### Patch Changes
+
+- Use the sandbox's SHELL for interactive sessions, falling back to sh when it is unset or empty. ([#353](https://github.com/vercel/sandbox/pull/353))
+
 ## 4.6.0
 
 ### Minor Changes
