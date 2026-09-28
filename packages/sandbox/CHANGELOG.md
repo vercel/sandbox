@@ -1,5 +1,18 @@
 # sandbox
 
+## 4.6.0
+
+### Minor Changes
+
+- Add sandbox config network to attach or detach a sandbox from Secure Compute, keeping sandbox config network-id available. Explain the Enterprise plan requirement in root help, network configuration help, and network examples. ([#351](https://github.com/vercel/sandbox/pull/351))
+
+### Patch Changes
+
+- Clarify the Enterprise requirement and network ID location in Secure Compute CLI help, and add a creation example. ([#351](https://github.com/vercel/sandbox/pull/351))
+
+- Updated dependencies [[`d5b845bbe1b21fffa79f77bf0cdccb183605703c`](https://github.com/vercel/sandbox/commit/d5b845bbe1b21fffa79f77bf0cdccb183605703c)]:
+  - @vercel/sandbox@3.5.1
+
 ## 4.5.0
 
 ### Minor Changes
