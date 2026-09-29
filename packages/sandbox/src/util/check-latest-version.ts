@@ -3,6 +3,7 @@ import xdgAppPaths from "xdg-app-paths";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import Path from "node:path";
 import { version } from "../pkg";
+import { getAppName } from "./app-name";
 
 const REGISTRY_URL = "https://registry.npmjs.org/sandbox/latest";
 
@@ -80,12 +81,13 @@ function writeCache(cachePath: string, cache: VersionCache): void {
  * so surfacing "you're behind" at creation time is the only signal that
  * reaches globally-installed CLIs.
  *
- * Set SANDBOX_SKIP_VERSION_CHECK=1 to disable (e.g. in CI).
+ * Embedded invocations rely on the host CLI's version management and skip
+ * this check. Set SANDBOX_SKIP_VERSION_CHECK=1 to disable it elsewhere (e.g. in CI).
  */
 export function startLatestVersionCheck(
   opts: VersionCheckOptions = {},
 ): VersionCheck {
-  if (process.env.SANDBOX_SKIP_VERSION_CHECK) {
+  if (getAppName() !== "sandbox" || process.env.SANDBOX_SKIP_VERSION_CHECK) {
     return { report() {} };
   }
 
