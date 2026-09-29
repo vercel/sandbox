@@ -1,6 +1,3 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import Path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as cmd from "cmd-ts";
@@ -8,7 +5,6 @@ import { createApp } from "./index";
 import { create } from "./commands/create";
 
 const mocks = vi.hoisted(() => ({
-  cacheDir: "",
   create: vi.fn(),
   fork: vi.fn(),
   get: vi.fn(),
@@ -34,25 +30,12 @@ vi.mock("./telemetry", () => ({
   writeTelemetryConfig: vi.fn(),
 }));
 
-vi.mock("xdg-app-paths", () => ({
-  default: () => ({ cache: () => mocks.cacheDir }),
-}));
-
 describe("createApp output", () => {
   const scopeArgs = ["--scope=team", "--project=proj", "--token=test-token"];
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("SANDBOX_SKIP_VERSION_CHECK", "");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 503 })),
-    );
-    mocks.cacheDir = mkdtempSync(Path.join(tmpdir(), "sandbox-app-"));
-    writeFileSync(
-      Path.join(mocks.cacheDir, "latest-version.json"),
-      JSON.stringify({ latest: "999.0.0", checkedAt: Date.now() }),
-    );
+    vi.stubEnv("SANDBOX_SKIP_VERSION_CHECK", "1");
     const sandbox = {
       name: "my-sandbox",
       region: "iad1",
@@ -69,8 +52,6 @@ describe("createApp output", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-    rmSync(mocks.cacheDir, { recursive: true, force: true });
   });
 
   function stderr(): string {
@@ -99,25 +80,7 @@ describe("createApp output", () => {
     },
   );
 
-  it("suppresses the standalone update notice when embedded", async () => {
-    const app = createApp({ withoutAuth: true, appName: "vercel sandbox" });
-    await app.run(["create", ...scopeArgs]);
-
-    expect(stderr()).not.toContain("A newer Sandbox CLI is available");
-    expect(stderr()).not.toContain("npm i -g sandbox@latest");
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("skips registry lookups when embedded and the cache is missing", async () => {
-    rmSync(Path.join(mocks.cacheDir, "latest-version.json"));
-    const app = createApp({ withoutAuth: true, appName: "vercel sandbox" });
-    await app.run(["create", ...scopeArgs]);
-
-    expect(fetch).not.toHaveBeenCalled();
-    expect(stderr()).not.toContain("A newer Sandbox CLI is available");
-  });
-
-  it("preserves standalone hints and version notices after an embedded run", async () => {
+  it("preserves standalone hints after an embedded run", async () => {
     const app = createApp({ withoutAuth: true, appName: "vercel sandbox" });
     await app.run(["create", ...scopeArgs]);
     vi.mocked(process.stderr.write).mockClear();
@@ -126,7 +89,6 @@ describe("createApp output", () => {
     await cmd.run(create, scopeArgs);
 
     expect(stderr()).toContain("connect with: sandbox ssh my-sandbox");
-    expect(stderr()).toContain("A newer Sandbox CLI is available: 999.0.0");
     expect(process.stdout.write).toHaveBeenCalledExactlyOnceWith("my-sandbox");
   });
 });
