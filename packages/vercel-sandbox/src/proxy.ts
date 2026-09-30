@@ -39,7 +39,7 @@ export interface ProxyMeta {
   /**
    * Whether the sandbox that proxied the request is managed by v0.
    */
-  v0: boolean;
+  v0?: boolean;
 }
 
 export type ProxyHandler = (
