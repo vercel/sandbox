@@ -36,6 +36,10 @@ export interface ProxyMeta {
    * The name of the sandbox that proxied the request, when using persistent sandboxes.
    */
   sandboxName: string;
+  /**
+   * Whether the sandbox that proxied the request is managed by v0.
+   */
+  v0: boolean;
 }
 
 export type ProxyHandler = (
@@ -191,6 +195,7 @@ function getProxyMeta(
     projectId,
     sandboxId,
     sandboxName,
+    v0: claims.v0 === true,
   };
 }
 

@@ -48,6 +48,7 @@ describe("defineSandboxProxy", () => {
         projectId: "prj_123",
         sandboxId: "sbx_123",
         sandboxName: "sandbox-name",
+        v0: false,
       });
 
       return new Response("ok");
@@ -160,6 +161,27 @@ describe("defineSandboxProxy", () => {
       expect.objectContaining({
         audience: "https://proxy.vercel.app/api/proxy",
       }),
+    );
+  });
+
+  it("exposes the v0 claim as meta.v0", async () => {
+    jwtVerifyMock.mockResolvedValue(
+      makeJwtVerifyResult({
+        team_id: "team_123",
+        project_id: "prj_123",
+        sandbox_id: "sbx_123",
+        v0: true,
+      }),
+    );
+
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler);
+
+    await proxy(makeProxyRequest());
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.any(Request),
+      expect.objectContaining({ v0: true }),
     );
   });
 
