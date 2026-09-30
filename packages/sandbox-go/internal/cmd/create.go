@@ -94,8 +94,10 @@ func createBody(options createOptions) (map[string]any, error) {
 		return nil, err
 	}
 	body := map[string]any{
-		"timeout":    durationMilliseconds(options.timeout),
 		"persistent": !options.nonPersistent,
+	}
+	if options.timeout > 0 {
+		body["timeout"] = durationMilliseconds(options.timeout)
 	}
 	if len(env) > 0 {
 		body["env"] = env

@@ -63,10 +63,29 @@ func TestCreateOmitsUnsetOptionalFields(t *testing.T) {
 	}
 }
 
-func TestRootIncludesShCommand(t *testing.T) {
+func TestRootIncludesCompatibleCommandSurface(t *testing.T) {
 	root := NewRoot(nil, nil, nil)
-	command, _, err := root.Find([]string{"sh"})
-	if err != nil || command.Name() != "sh" {
-		t.Fatalf("sh command missing: command=%v err=%v", command, err)
+	commands := []string{"list", "create", "sh", "fork", "config", "copy", "exec", "connect", "stop", "remove", "run", "snapshot", "snapshots", "sessions", "drives", "telemetry", "login", "logout"}
+	for _, name := range commands {
+		command, _, err := root.Find([]string{name})
+		if err != nil || command.Name() != name {
+			t.Fatalf("%s command missing: command=%v err=%v", name, command, err)
+		}
+	}
+}
+
+func TestNestedCommandSurface(t *testing.T) {
+	root := NewRoot(nil, nil, nil)
+	paths := [][]string{
+		{"snapshots", "list"}, {"snapshots", "get"}, {"snapshots", "delete"},
+		{"sessions", "list"}, {"drives", "list"}, {"drives", "get-or-create"}, {"drives", "delete"},
+		{"config", "list"}, {"config", "vcpus"}, {"config", "timeout"}, {"config", "persistent"}, {"config", "region"}, {"config", "tags"},
+		{"telemetry", "status"}, {"telemetry", "enable"}, {"telemetry", "disable"},
+	}
+	for _, path := range paths {
+		command, _, err := root.Find(path)
+		if err != nil || command.Name() != path[len(path)-1] {
+			t.Fatalf("command %v missing: command=%v err=%v", path, command, err)
+		}
 	}
 }

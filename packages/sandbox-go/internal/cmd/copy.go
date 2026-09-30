@@ -40,14 +40,34 @@ func (a *app) newCopy() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if source.remote == destination.remote {
-				return fmt.Errorf("exactly one copy path must be remote")
+			if !source.remote && !destination.remote {
+				return fmt.Errorf("at least one copy path must be remote")
 			}
 			client, err := a.client(command.Context())
 			if err != nil {
 				return err
 			}
-			if source.remote {
+			if source.remote && destination.remote {
+				sourceSandbox, err := client.Get(command.Context(), source.sandbox, true)
+				if err != nil {
+					return err
+				}
+				reader, found, err := client.ReadFile(command.Context(), sourceSandbox.Session.ID, source.path)
+				if err != nil {
+					return err
+				}
+				if !found {
+					return fmt.Errorf("file not found: %s in sandbox %s", source.path, source.sandbox)
+				}
+				defer reader.Close()
+				destinationSandbox, err := client.Get(command.Context(), destination.sandbox, true)
+				if err != nil {
+					return err
+				}
+				if err := client.WriteFile(command.Context(), destinationSandbox.Session.ID, destination.path, reader); err != nil {
+					return err
+				}
+			} else if source.remote {
 				sandbox, err := client.Get(command.Context(), source.sandbox, true)
 				if err != nil {
 					return err

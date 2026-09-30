@@ -49,7 +49,12 @@ func NewRoot(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	root.PersistentFlags().StringVar(&a.flags.Scope, "scope", "", "Vercel team ID or slug")
 	root.PersistentFlags().StringVar(&a.flags.Team, "team", "", "Alias for --scope")
 	root.PersistentFlags().StringVar(&a.flags.Project, "project", "", "Vercel project ID or name")
-	root.AddCommand(a.newCreate(), a.newShell(), a.newList(), a.newExec(), a.newConnect(), a.newStop(), a.newCopy())
+	root.AddCommand(
+		a.newList(), a.newCreate(), a.newShell(), a.newFork(), a.newCopy(),
+		a.newExec(), a.newConnect(), a.newStop(), a.newRemove(), a.newRun(),
+		a.newSnapshot(), a.newSnapshots(), a.newSessions(), a.newDrives(), a.newConfig(),
+		a.newTelemetry(), a.newLogin(), a.newLogout(),
+	)
 	return root
 }
 

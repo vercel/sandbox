@@ -25,6 +25,8 @@ type connectOptions struct {
 	env             []string
 	sudo            bool
 	noExtendTimeout bool
+	command         string
+	args            []string
 }
 
 func (a *app) newConnect() *cobra.Command {
@@ -81,11 +83,15 @@ func (a *app) connect(ctx context.Context, client *api.Client, sandbox model.San
 	defer connection.Close()
 
 	cols, rows, _ := term.GetSize(int(outputFile.Fd()))
-	command := "sh"
-	args := []string{"-ic", defaultShell}
+	executable := options.command
+	args := options.args
+	if executable == "" {
+		executable = "sh"
+		args = []string{"-ic", defaultShell}
+	}
 	if options.sudo {
-		command = "sudo"
-		args = append([]string{"sh"}, args...)
+		args = append([]string{executable}, args...)
+		executable = "sudo"
 	}
 	envList := []string{"TERM=xterm-256color", "PS1=▲ $PWD/ "}
 	for key, value := range env {
@@ -95,7 +101,7 @@ func (a *app) connect(ctx context.Context, client *api.Client, sandbox model.San
 	if cwd == "" {
 		cwd = sandbox.Session.CWD
 	}
-	if err := connection.WriteJSON(map[string]any{"type": "start", "command": command, "args": args, "env": envList, "cwd": cwd, "cols": cols, "rows": rows}); err != nil {
+	if err := connection.WriteJSON(map[string]any{"type": "start", "command": executable, "args": args, "env": envList, "cwd": cwd, "cols": cols, "rows": rows}); err != nil {
 		return err
 	}
 

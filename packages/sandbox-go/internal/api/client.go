@@ -60,6 +60,19 @@ func (c *Client) Create(ctx context.Context, body map[string]any) (model.Sandbox
 	return model.DecodeMap[model.SandboxResponse](*response)
 }
 
+func (c *Client) Fork(ctx context.Context, source string, body map[string]any) (model.SandboxResponse, error) {
+	response, err := sandboxes.CreateSandboxesByNameForkV3(ctx, c.sdk, sandboxes.CreateSandboxesByNameForkV3Request{
+		Name:      source,
+		ProjectId: stringPtr(c.scope.ProjectID),
+		TeamId:    stringPtr(c.scope.TeamID),
+		Body:      body,
+	})
+	if err != nil {
+		return model.SandboxResponse{}, err
+	}
+	return model.DecodeMap[model.SandboxResponse](*response)
+}
+
 func (c *Client) List(ctx context.Context, options ListOptions) (model.ListResponse, error) {
 	request := sandboxes.ListNamedSandboxesRequest{
 		Project:    stringPtr(c.scope.ProjectID),
@@ -95,6 +108,13 @@ type ListOptions struct {
 	Tags       []string
 }
 
+type ResourceListOptions struct {
+	Name      string
+	Limit     int
+	Cursor    string
+	SortOrder string
+}
+
 func (c *Client) Get(ctx context.Context, name string, resume bool) (model.SandboxResponse, error) {
 	response, err := sandboxes.GetNamedSandbox(ctx, c.sdk, sandboxes.GetNamedSandboxRequest{
 		Name:      name,
@@ -109,12 +129,152 @@ func (c *Client) Get(ctx context.Context, name string, resume bool) (model.Sandb
 }
 
 func (c *Client) Delete(ctx context.Context, name string) error {
+	return c.DeleteWithSnapshots(ctx, name, false)
+}
+
+func (c *Client) DeleteWithSnapshots(ctx context.Context, name string, deleteOrphanSnapshots bool) error {
 	_, err := sandboxes.DeleteSandbox(ctx, c.sdk, sandboxes.DeleteSandboxRequest{
-		Name:      name,
-		ProjectId: stringPtr(c.scope.ProjectID),
-		TeamId:    stringPtr(c.scope.TeamID),
+		Name:                  name,
+		ProjectId:             stringPtr(c.scope.ProjectID),
+		DeleteOrphanSnapshots: boolPtr(deleteOrphanSnapshots),
+		TeamId:                stringPtr(c.scope.TeamID),
 	})
 	return err
+}
+
+func (c *Client) Snapshot(ctx context.Context, sessionID string, expiration *time.Duration) (model.Snapshot, error) {
+	body := map[string]any{}
+	if expiration != nil {
+		body["expiration"] = expiration.Milliseconds()
+	}
+	response, err := sandboxes.CreateSandboxesSessionsBySessionIdSnapshotV3(ctx, c.sdk, sandboxes.CreateSandboxesSessionsBySessionIdSnapshotV3Request{
+		SessionId: sessionID,
+		TeamId:    stringPtr(c.scope.TeamID),
+		Body:      body,
+	})
+	if err != nil {
+		return model.Snapshot{}, err
+	}
+	decoded, err := model.DecodeMap[struct {
+		Snapshot model.Snapshot `json:"snapshot"`
+	}](*response)
+	return decoded.Snapshot, err
+}
+
+func (c *Client) ListSessions(ctx context.Context, options ResourceListOptions) ([]model.Session, model.Pagination, error) {
+	response, err := sandboxes.ListSessions(ctx, c.sdk, sandboxes.ListSessionsRequest{
+		Project:   stringPtr(c.scope.ProjectID),
+		Name:      optionalString(options.Name),
+		Limit:     floatPtr(float64(options.Limit)),
+		Cursor:    optionalString(options.Cursor),
+		SortOrder: optionalString(options.SortOrder),
+		TeamId:    stringPtr(c.scope.TeamID),
+	})
+	if err != nil {
+		return nil, model.Pagination{}, err
+	}
+	return decodeResourceList[model.Session](*response, "sessions")
+}
+
+func (c *Client) ListSnapshots(ctx context.Context, options ResourceListOptions) ([]model.Snapshot, model.Pagination, error) {
+	response, err := sandboxes.ListSessionSnapshots(ctx, c.sdk, sandboxes.ListSessionSnapshotsRequest{
+		Project:   stringPtr(c.scope.ProjectID),
+		Name:      optionalString(options.Name),
+		Limit:     floatPtr(float64(options.Limit)),
+		Cursor:    optionalString(options.Cursor),
+		SortOrder: optionalString(options.SortOrder),
+		TeamId:    stringPtr(c.scope.TeamID),
+	})
+	if err != nil {
+		return nil, model.Pagination{}, err
+	}
+	return decodeResourceList[model.Snapshot](*response, "snapshots")
+}
+
+func (c *Client) GetSnapshot(ctx context.Context, id string) (model.Snapshot, error) {
+	response, err := sandboxes.GetSessionSnapshot(ctx, c.sdk, sandboxes.GetSessionSnapshotRequest{SnapshotId: id, TeamId: stringPtr(c.scope.TeamID)})
+	if err != nil {
+		return model.Snapshot{}, err
+	}
+	decoded, err := model.DecodeMap[struct {
+		Snapshot model.Snapshot `json:"snapshot"`
+	}](*response)
+	return decoded.Snapshot, err
+}
+
+func (c *Client) DeleteSnapshot(ctx context.Context, id string) error {
+	_, err := sandboxes.DeleteSessionSnapshot(ctx, c.sdk, sandboxes.DeleteSessionSnapshotRequest{SnapshotId: id, TeamId: stringPtr(c.scope.TeamID)})
+	return err
+}
+
+func (c *Client) ListDrives(ctx context.Context, options ListOptions) ([]model.Drive, model.Pagination, error) {
+	response, err := sandboxes.ListDrives(ctx, c.sdk, sandboxes.ListDrivesRequest{
+		ProjectId: stringPtr(c.scope.ProjectID), Limit: floatPtr(float64(options.Limit)), Cursor: optionalString(options.Cursor),
+		SortBy: optionalString(options.SortBy), NamePrefix: optionalString(options.NamePrefix), SortOrder: optionalString(options.SortOrder), TeamId: stringPtr(c.scope.TeamID),
+	})
+	if err != nil {
+		return nil, model.Pagination{}, err
+	}
+	return decodeResourceList[model.Drive](*response, "drives")
+}
+
+func (c *Client) GetOrCreateDrive(ctx context.Context, name string, body map[string]any) (model.Drive, error) {
+	body["projectId"] = c.scope.ProjectID
+	response, err := sandboxes.GetOrCreateDrive(ctx, c.sdk, sandboxes.GetOrCreateDriveRequest{Name: name, TeamId: stringPtr(c.scope.TeamID), Body: body})
+	if err != nil {
+		return model.Drive{}, err
+	}
+	decoded, err := model.DecodeMap[struct {
+		Drive model.Drive `json:"drive"`
+	}](*response)
+	return decoded.Drive, err
+}
+
+func (c *Client) DeleteDrive(ctx context.Context, name string) error {
+	_, err := sandboxes.DeleteDrive(ctx, c.sdk, sandboxes.DeleteDriveRequest{Name: name, ProjectId: stringPtr(c.scope.ProjectID), TeamId: stringPtr(c.scope.TeamID)})
+	return err
+}
+
+func (c *Client) Update(ctx context.Context, name string, body map[string]any) (model.SandboxResponse, error) {
+	response, err := sandboxes.UpdateSandbox(ctx, c.sdk, sandboxes.UpdateSandboxRequest{Name: name, ProjectId: stringPtr(c.scope.ProjectID), TeamId: stringPtr(c.scope.TeamID), Body: body})
+	if err != nil {
+		return model.SandboxResponse{}, err
+	}
+	data, err := json.Marshal(response)
+	if err != nil {
+		return model.SandboxResponse{}, err
+	}
+	var output model.SandboxResponse
+	if err := json.Unmarshal(data, &output); err != nil {
+		return output, err
+	}
+	return output, nil
+}
+
+func decodeResourceList[T any](value any, field string) ([]T, model.Pagination, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, model.Pagination{}, err
+	}
+	var envelope struct {
+		Sessions   []T              `json:"sessions"`
+		Snapshots  []T              `json:"snapshots"`
+		Drives     []T              `json:"drives"`
+		Pagination model.Pagination `json:"pagination"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return nil, model.Pagination{}, err
+	}
+	switch field {
+	case "sessions":
+		return envelope.Sessions, envelope.Pagination, nil
+	case "snapshots":
+		return envelope.Snapshots, envelope.Pagination, nil
+	case "drives":
+		return envelope.Drives, envelope.Pagination, nil
+	default:
+		return nil, model.Pagination{}, fmt.Errorf("unknown resource list %q", field)
+	}
 }
 
 func (c *Client) Stop(ctx context.Context, sessionID string) (map[string]any, error) {
