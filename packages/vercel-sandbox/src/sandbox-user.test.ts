@@ -92,6 +92,31 @@ describe("validateName (unit)", () => {
       SandboxUserAlreadyExistsError,
     );
   });
+
+  it.each([false, true])(
+    "forwards stdin when running as a user (sudo: %s)",
+    async (sudo) => {
+      const sandbox = new Sandbox({
+        client: {} as any,
+        routes: [],
+        sandbox: { id: "test" } as any,
+      });
+      const runCommand = vi
+        .spyOn(sandbox, "runCommand")
+        .mockResolvedValue({} as any);
+
+      await sandbox.asUser("alice").runCommand({
+        cmd: "cat",
+        stdin: true,
+        detached: true,
+        sudo,
+      });
+
+      expect(runCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ stdin: true, detached: true }),
+      );
+    },
+  );
 });
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(

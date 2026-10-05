@@ -1,7 +1,7 @@
 import { expect, it, vi, beforeEach, afterEach, describe } from "vitest";
 import ms from "ms";
 import { Sandbox } from "./sandbox.js";
-import { Command } from "./command.js";
+import { Command, CommandFinished } from "./command.js";
 import { Session } from "./session.js";
 import { APIClient, type SessionMetaData } from "./api-client/index.js";
 import { APIError } from "./api-client/api-error.js";
@@ -252,6 +252,86 @@ describe("Command stdin", () => {
     await expect(
       session.runCommand({ cmd: "cat", stdin: true }),
     ).rejects.toBeInstanceOf(TypeError);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("disables workflow step retries so bytes are not resent", () => {
+    for (const method of [
+      Command.prototype.writeStdin,
+      Command.prototype.closeStdin,
+    ]) {
+      expect((method as { maxRetries?: number }).maxRetries).toBe(0);
+    }
+  });
+
+  it("rejects later writes after a chunked write fails partway", async () => {
+    mockFetch
+      .mockImplementationOnce(async () => ok())
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { code: "internal" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+    await expect(
+      cmd.writeStdin(new Uint8Array(512 * 1024 + 1)),
+    ).rejects.toBeInstanceOf(APIError);
+    await expect(cmd.writeStdin("next")).rejects.toThrow(
+      "unknown state after an earlier write failed",
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    await cmd.closeStdin();
+    expect(bodies()[2]).toEqual({ close: true });
+  });
+
+  it("rejects later writes after a network error", async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    await expect(cmd.writeStdin("a")).rejects.toThrow("fetch failed");
+    await expect(cmd.writeStdin("b")).rejects.toThrow("unknown state");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a write that is still waiting for its turn", async () => {
+    let release!: () => void;
+    mockFetch.mockImplementationOnce(
+      () => new Promise((resolve) => (release = () => resolve(ok()))),
+    );
+
+    const first = cmd.writeStdin("a");
+    const controller = new AbortController();
+    const second = cmd.writeStdin("b", { abortSignal: controller.signal });
+    const third = cmd.writeStdin("c");
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+
+    controller.abort();
+    await expect(second).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    release();
+    await Promise.all([first, third]);
+    expect(bodies()).toEqual([
+      { data: Buffer.from("a").toString("base64") },
+      { data: Buffer.from("c").toString("base64") },
+    ]);
+  });
+
+  it("rejects stdin calls on a finished command", async () => {
+    const finished = new CommandFinished({
+      client: new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      }),
+      sessionId: "sbx_123",
+      cmd: { ...cmdData, exitCode: 0 },
+      exitCode: 0,
+    });
+
+    await expect(finished.writeStdin("a")).rejects.toThrow("already finished");
+    await expect(finished.closeStdin()).rejects.toThrow("already finished");
     expect(mockFetch).not.toHaveBeenCalled();
   });
 

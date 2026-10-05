@@ -1830,6 +1830,56 @@ describe("APIClient", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
+    const rateLimited = (retryAfter: string) =>
+      new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
+        status: 429,
+        headers: {
+          "content-type": "application/json",
+          "Retry-After": retryAfter,
+        },
+      });
+
+    it("retries rate limited writes", async () => {
+      mockFetch.mockResolvedValueOnce(rateLimited("0")).mockResolvedValueOnce(
+        new Response(JSON.stringify({ command }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.writeCommandStdin({
+        sessionId: "sbx_123",
+        commandId: "cmd_123",
+        data: new Uint8Array([1]),
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives up after repeated rate limiting", async () => {
+      mockFetch.mockImplementation(async () => rateLimited("0"));
+
+      await expect(
+        client.writeCommandStdin({
+          sessionId: "sbx_123",
+          commandId: "cmd_123",
+          data: new Uint8Array([1]),
+        }),
+      ).rejects.toBeInstanceOf(APIError);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not wait out a long Retry-After", async () => {
+      mockFetch.mockResolvedValueOnce(rateLimited("60"));
+
+      await expect(
+        client.writeCommandStdin({
+          sessionId: "sbx_123",
+          commandId: "cmd_123",
+          data: new Uint8Array([1]),
+        }),
+      ).rejects.toBeInstanceOf(APIError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
     it("does not retry network errors", async () => {
       mockFetch.mockRejectedValue(new TypeError("fetch failed"));
 

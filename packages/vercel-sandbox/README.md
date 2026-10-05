@@ -320,8 +320,19 @@ console.log(await result.stdout()); // "hello\n"
 
 Writes are delivered in the order they are called. `writeStdin` resolves once
 the process has accepted the data, so writing to a process that isn't reading
-stdin waits until it does. This is enough to drive stdio based protocols such
-as MCP servers running in the sandbox.
+stdin waits until it does, and fails after 30 seconds. This is enough to drive
+stdio based protocols such as MCP servers running in the sandbox.
+
+A few things to keep in mind:
+
+- Writes are never retried (except when rate limited), because a retry after a
+  lost response could deliver the same bytes twice. If a write fails in a way
+  that may have delivered part of the data, later writes are rejected; close
+  stdin or kill the command to recover.
+- Each write is one API request and counts against your rate limit, so batch
+  small writes where you can.
+- In a workflow, `writeStdin` and `closeStdin` run as steps without retries.
+  Await each one before starting the next to keep them in order.
 
 ## Multi-user
 

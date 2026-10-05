@@ -35,6 +35,7 @@ import { z } from "zod";
 import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
+import { setTimeout as delay } from "timers/promises";
 import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
@@ -43,6 +44,8 @@ import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
 import type { SandboxMetaData } from "./validators.js";
+
+const STDIN_RATE_LIMIT_RETRIES = 2;
 
 interface Claims {
   owner_id: string;
@@ -812,24 +815,42 @@ export class APIClient extends BaseClient {
     close?: boolean;
     abortSignal?: AbortSignal;
   }) {
-    return parseOrThrow(
-      CommandResponse,
-      await this.request(
+    const body = JSON.stringify({
+      data: params.data?.length
+        ? Buffer.from(params.data).toString("base64")
+        : undefined,
+      close: params.close || undefined,
+    });
+
+    // Only 429s are retried: the request was rejected before it was applied.
+    // Retrying anything else after a lost response could write the bytes twice.
+    for (let attempt = 0; ; attempt++) {
+      const response = await this.request(
         `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.commandId}/stdin`,
         {
           method: "POST",
-          body: JSON.stringify({
-            data: params.data?.length
-              ? Buffer.from(params.data).toString("base64")
-              : undefined,
-            close: params.close || undefined,
-          }),
+          body,
           signal: params.abortSignal,
-          // A retry after a lost response could deliver the same bytes twice.
           retry: { retries: 0 },
         },
-      ),
-    );
+      );
+
+      const retryAfter = Number(response.headers.get("Retry-After"));
+      if (
+        response.status !== 429 ||
+        attempt >= STDIN_RATE_LIMIT_RETRIES ||
+        retryAfter > 20
+      ) {
+        return parseOrThrow(CommandResponse, response);
+      }
+
+      await response.body?.cancel();
+      await delay(
+        retryAfter > 0 ? retryAfter * 1000 : 400 * 2 ** attempt,
+        undefined,
+        { signal: params.abortSignal },
+      );
+    }
   }
 
   getLogs(params: {

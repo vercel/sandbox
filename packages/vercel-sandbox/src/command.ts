@@ -1,5 +1,6 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { APIClient, type CommandData } from "./api-client/index.js";
+import { APIError } from "./api-client/api-error.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
 
@@ -102,6 +103,12 @@ export class Command {
    * call order.
    */
   private stdinQueue: Promise<void> = Promise.resolve();
+
+  /**
+   * Set when a write failed after possibly delivering some bytes. Later
+   * writes are rejected so they can't be appended to a partial message.
+   */
+  private stdinError: unknown = null;
 
   /**
    * ID of the command execution.
@@ -376,7 +383,12 @@ export class Command {
    *
    * Writes are delivered in the order they are called. Resolves once the
    * process has accepted the data, so writing to a process that is not
-   * reading from stdin waits until it does.
+   * reading from stdin waits until it does (up to a server-side timeout).
+   *
+   * Writes are never retried, so a failure may leave part of the data
+   * written. After such a failure, further writes are rejected; close stdin or
+   * kill the command instead. In a workflow, await each write before starting
+   * the next one.
    *
    * ```
    * const cmd = await sandbox.runCommand({ cmd: "cat", stdin: true, detached: true });
@@ -386,7 +398,8 @@ export class Command {
    *
    * @param data - The data to write. Strings are encoded as UTF-8.
    * @param opts - Optional parameters.
-   * @param opts.abortSignal - An AbortSignal to cancel the write.
+   * @param opts.abortSignal - An AbortSignal to cancel the write. Aborting a
+   * write that has started may leave part of the data written.
    * @returns Promise<void>.
    */
   async writeStdin(
@@ -398,15 +411,30 @@ export class Command {
       typeof data === "string" ? new TextEncoder().encode(data) : data;
     if (bytes.length === 0) return;
     await this.enqueueStdin(async (client) => {
-      for (let i = 0; i < bytes.length; i += STDIN_CHUNK_BYTES) {
-        await client.writeCommandStdin({
-          sessionId: this.sessionId,
-          commandId: this.cmd.id,
-          data: bytes.subarray(i, i + STDIN_CHUNK_BYTES),
-          abortSignal: opts?.abortSignal,
-        });
+      if (this.stdinError) {
+        throw new Error(
+          "Stdin is in an unknown state after an earlier write failed. Close stdin or kill the command.",
+          { cause: this.stdinError },
+        );
       }
-    });
+      let sentChunks = 0;
+      try {
+        for (let i = 0; i < bytes.length; i += STDIN_CHUNK_BYTES) {
+          await client.writeCommandStdin({
+            sessionId: this.sessionId,
+            commandId: this.cmd.id,
+            data: bytes.subarray(i, i + STDIN_CHUNK_BYTES),
+            abortSignal: opts?.abortSignal,
+          });
+          sentChunks++;
+        }
+      } catch (err) {
+        if (sentChunks > 0 || !isRejectedBeforeWrite(err)) {
+          this.stdinError = err;
+        }
+        throw err;
+      }
+    }, opts?.abortSignal);
   }
 
   /**
@@ -426,16 +454,49 @@ export class Command {
         close: true,
         abortSignal: opts?.abortSignal,
       });
-    });
+    }, opts?.abortSignal);
   }
 
   private enqueueStdin(
     fn: (client: APIClient) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<void> {
-    const run = this.stdinQueue.then(async () => fn(await this.ensureClient()));
-    this.stdinQueue = run.catch(() => {});
+    const previous = this.stdinQueue;
+    const run = (async () => {
+      await waitForTurn(previous, signal);
+      return fn(await this.ensureClient());
+    })();
+    this.stdinQueue = Promise.allSettled([previous, run]).then(() => {});
     return run;
   }
+}
+
+(Command.prototype.writeStdin as { maxRetries?: number }).maxRetries = 0;
+(Command.prototype.closeStdin as { maxRetries?: number }).maxRetries = 0;
+
+/**
+ * Whether a stdin write failed in a way that guarantees none of it reached
+ * the process: the API rejected it with a client error before applying it.
+ */
+function isRejectedBeforeWrite(err: unknown) {
+  return (
+    err instanceof APIError &&
+    err.response.status >= 400 &&
+    err.response.status < 500
+  );
+}
+
+function waitForTurn(previous: Promise<void>, signal?: AbortSignal) {
+  if (!signal) return previous;
+  signal.throwIfAborted();
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    previous.then(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    });
+  });
 }
 
 /**
@@ -528,5 +589,26 @@ export class CommandFinished extends Command {
    */
   async wait(): Promise<CommandFinished> {
     return this;
+  }
+
+  /**
+   * Not available: the command has already exited.
+   *
+   * @throws Always.
+   */
+  async writeStdin(
+    _data: string | Uint8Array,
+    _opts?: { abortSignal?: AbortSignal },
+  ): Promise<never> {
+    throw new Error("Cannot write to stdin: the command has already finished.");
+  }
+
+  /**
+   * Not available: the command has already exited.
+   *
+   * @throws Always.
+   */
+  async closeStdin(_opts?: { abortSignal?: AbortSignal }): Promise<never> {
+    throw new Error("Cannot close stdin: the command has already finished.");
   }
 }
