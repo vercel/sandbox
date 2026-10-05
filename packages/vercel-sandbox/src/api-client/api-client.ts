@@ -318,6 +318,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: false;
+    attachStdin?: boolean;
     timeout?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
@@ -329,6 +330,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: boolean;
+    attachStdin?: boolean;
     logs?: boolean;
     onLog?: (log: LogOutputLine) => void;
     timeout?: number;
@@ -436,6 +438,7 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
           env: params.env,
           sudo: params.sudo,
+          attachStdin: params.attachStdin || undefined,
           timeout: params.timeout,
         }),
         signal: params.signal,
@@ -797,6 +800,33 @@ export class APIClient extends BaseClient {
           method: "POST",
           body: JSON.stringify({ signal: params.signal }),
           signal: params.abortSignal,
+        },
+      ),
+    );
+  }
+
+  async writeCommandStdin(params: {
+    sessionId: string;
+    commandId: string;
+    data?: Uint8Array;
+    close?: boolean;
+    abortSignal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      CommandResponse,
+      await this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.commandId}/stdin`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: params.data?.length
+              ? Buffer.from(params.data).toString("base64")
+              : undefined,
+            close: params.close || undefined,
+          }),
+          signal: params.abortSignal,
+          // A retry after a lost response could deliver the same bytes twice.
+          retry: { retries: 0 },
         },
       ),
     );

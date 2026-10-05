@@ -1,10 +1,13 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import {
-  APIClient,
-  type CommandData,
-} from "./api-client/index.js";
+import { APIClient, type CommandData } from "./api-client/index.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
+
+/**
+ * Bytes sent per stdin request, keeping the base64 JSON body under the API's
+ * 1 MB request limit.
+ */
+const STDIN_CHUNK_BYTES = 512 * 1024;
 
 /**
  * Cached output from a command execution.
@@ -93,6 +96,12 @@ export class Command {
    * @internal
    */
   protected _resolvedOutput: CommandOutput | null = null;
+
+  /**
+   * Tail of pending stdin writes, so concurrent calls reach the process in
+   * call order.
+   */
+  private stdinQueue: Promise<void> = Promise.resolve();
 
   /**
    * ID of the command execution.
@@ -359,6 +368,73 @@ export class Command {
       signal: resolveSignal(signal ?? "SIGTERM"),
       abortSignal: opts?.abortSignal,
     });
+  }
+
+  /**
+   * Write data to the stdin of a running command. The command must have been
+   * started with `stdin: true` and `detached: true`.
+   *
+   * Writes are delivered in the order they are called. Resolves once the
+   * process has accepted the data, so writing to a process that is not
+   * reading from stdin waits until it does.
+   *
+   * ```
+   * const cmd = await sandbox.runCommand({ cmd: "cat", stdin: true, detached: true });
+   * await cmd.writeStdin("hello\n");
+   * await cmd.closeStdin();
+   * ```
+   *
+   * @param data - The data to write. Strings are encoded as UTF-8.
+   * @param opts - Optional parameters.
+   * @param opts.abortSignal - An AbortSignal to cancel the write.
+   * @returns Promise<void>.
+   */
+  async writeStdin(
+    data: string | Uint8Array,
+    opts?: { abortSignal?: AbortSignal },
+  ) {
+    "use step";
+    const bytes =
+      typeof data === "string" ? new TextEncoder().encode(data) : data;
+    if (bytes.length === 0) return;
+    await this.enqueueStdin(async (client) => {
+      for (let i = 0; i < bytes.length; i += STDIN_CHUNK_BYTES) {
+        await client.writeCommandStdin({
+          sessionId: this.sessionId,
+          commandId: this.cmd.id,
+          data: bytes.subarray(i, i + STDIN_CHUNK_BYTES),
+          abortSignal: opts?.abortSignal,
+        });
+      }
+    });
+  }
+
+  /**
+   * Close the stdin of a running command, so it reads EOF once it has
+   * consumed any pending data.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.abortSignal - An AbortSignal to cancel the operation.
+   * @returns Promise<void>.
+   */
+  async closeStdin(opts?: { abortSignal?: AbortSignal }) {
+    "use step";
+    await this.enqueueStdin(async (client) => {
+      await client.writeCommandStdin({
+        sessionId: this.sessionId,
+        commandId: this.cmd.id,
+        close: true,
+        abortSignal: opts?.abortSignal,
+      });
+    });
+  }
+
+  private enqueueStdin(
+    fn: (client: APIClient) => Promise<void>,
+  ): Promise<void> {
+    const run = this.stdinQueue.then(async () => fn(await this.ensureClient()));
+    this.stdinQueue = run.catch(() => {});
+    return run;
   }
 }
 

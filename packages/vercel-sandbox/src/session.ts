@@ -63,6 +63,13 @@ export interface RunCommandParams {
    */
   detached?: boolean;
   /**
+   * If true, keep the command's stdin open so it can be written to with
+   * {@link Command.writeStdin} and closed with {@link Command.closeStdin}.
+   * Requires `detached: true`. When false, the command reads from an empty
+   * stdin.
+   */
+  stdin?: boolean;
+  /**
    * A `Writable` stream where `stdout` from the command will be piped
    */
   stdout?: Writable;
@@ -423,6 +430,12 @@ export class Session implements ExecutionContext {
     const wait = params.detached ? false : true;
     const shouldPipeLogs = Boolean(params.stdout || params.stderr);
 
+    if (params.stdin && wait) {
+      throw new TypeError(
+        "`stdin: true` requires `detached: true`, otherwise the command would wait for input that can never be written",
+      );
+    }
+
     if (wait) {
       let stdout = "",
         stderr = "";
@@ -467,6 +480,7 @@ export class Session implements ExecutionContext {
       cwd: params.cwd,
       env: params.env ?? {},
       sudo: params.sudo ?? false,
+      attachStdin: params.stdin,
       timeout: params.timeoutMs,
       signal: params.signal,
     });

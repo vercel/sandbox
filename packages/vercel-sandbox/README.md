@@ -299,6 +299,30 @@ Sandbox runs sudo in the following configuration:
 - `PATH` is left unchanged – sudo won't change the value of PATH, so local or
   project-specific binaries will still be found.
 
+## Writing to stdin
+
+Commands read from an empty stdin by default. Pass `stdin: true` to a detached
+command to keep its stdin open, then write to it while it runs:
+
+```typescript
+const cmd = await sandbox.runCommand({
+  cmd: "cat",
+  stdin: true,
+  detached: true,
+});
+
+await cmd.writeStdin("hello\n");
+await cmd.closeStdin();
+
+const result = await cmd.wait();
+console.log(await result.stdout()); // "hello\n"
+```
+
+Writes are delivered in the order they are called. `writeStdin` resolves once
+the process has accepted the data, so writing to a process that isn't reading
+stdin waits until it does. This is enough to drive stdio based protocols such
+as MCP servers running in the sandbox.
+
 ## Multi-user
 
 Sandboxes support creating isolated Linux users with their own home directories,

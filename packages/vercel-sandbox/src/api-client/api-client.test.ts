@@ -313,6 +313,38 @@ describe("APIClient", () => {
       ]);
     });
 
+    it("sends attachStdin for detached commands", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            command: {
+              id: "cmd_123",
+              name: "cat",
+              args: [],
+              cwd: "/",
+              sessionId: "sbx_123",
+              exitCode: null,
+              startedAt: 1,
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+
+      await client.runCommand({
+        sessionId: "sbx_123",
+        command: "cat",
+        args: [],
+        env: {},
+        sudo: false,
+        attachStdin: true,
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+        attachStdin: true,
+      });
+    });
+
     it("throws APIError when response status is not ok", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ error: "gone" }), {
@@ -1716,6 +1748,99 @@ describe("APIClient", () => {
         path: "/probe.txt",
       });
       expect(stream).toBeNull();
+    });
+  });
+
+  describe("writeCommandStdin", () => {
+    let client: APIClient;
+    let mockFetch: ReturnType<typeof vi.fn>;
+    const command = {
+      id: "cmd_123",
+      name: "cat",
+      args: [],
+      cwd: "/",
+      sessionId: "sbx_123",
+      exitCode: null,
+      startedAt: 1,
+    };
+
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    it("sends data as base64", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ command }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.writeCommandStdin({
+        sessionId: "sbx_123",
+        commandId: "cmd_123",
+        data: new TextEncoder().encode("hello\n"),
+      });
+
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).toContain("/v2/sandboxes/sessions/sbx_123/cmd/cmd_123/stdin");
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(init.body)).toEqual({
+        data: Buffer.from("hello\n").toString("base64"),
+      });
+    });
+
+    it("sends close without data", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ command }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.writeCommandStdin({
+        sessionId: "sbx_123",
+        commandId: "cmd_123",
+        close: true,
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
+        close: true,
+      });
+    });
+
+    it("does not retry server errors", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ error: { code: "internal" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(
+        client.writeCommandStdin({
+          sessionId: "sbx_123",
+          commandId: "cmd_123",
+          data: new Uint8Array([1]),
+        }),
+      ).rejects.toBeInstanceOf(APIError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not retry network errors", async () => {
+      mockFetch.mockRejectedValue(new TypeError("fetch failed"));
+
+      await expect(
+        client.writeCommandStdin({
+          sessionId: "sbx_123",
+          commandId: "cmd_123",
+          data: new Uint8Array([1]),
+        }),
+      ).rejects.toThrow("fetch failed");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 });
