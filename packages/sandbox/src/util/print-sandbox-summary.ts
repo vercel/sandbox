@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { Sandbox } from "@vercel/sandbox";
+import { getAppName } from "./app-name";
 
 interface Scope {
   team: string;
@@ -82,7 +83,7 @@ export function printSandboxSummary(opts: {
     process.stderr.write(
       chalk.dim("   ╰ ") +
         "connect with: " +
-        chalk.cyan(`sandbox ssh ${sandbox.name}`) +
+        chalk.cyan(`${getAppName()} ssh ${sandbox.name}`) +
         "\n",
     );
   }
