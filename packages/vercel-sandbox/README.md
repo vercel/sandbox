@@ -332,7 +332,9 @@ A few things to keep in mind:
 - Each write is one API request and counts against your rate limit, so batch
   small writes where you can.
 - In a workflow, `writeStdin` and `closeStdin` run as steps without retries.
-  Await each one before starting the next to keep them in order.
+  Each step gets a fresh `Command`, so ordering and the rejection after a
+  failed write only apply within a step. Await each one before starting the
+  next, and stop writing after a failure.
 
 ## Multi-user
 

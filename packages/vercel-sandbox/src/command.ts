@@ -387,8 +387,9 @@ export class Command {
    *
    * Writes are never retried, so a failure may leave part of the data
    * written. After such a failure, further writes are rejected; close stdin or
-   * kill the command instead. In a workflow, await each write before starting
-   * the next one.
+   * kill the command instead. In a workflow, each step gets a fresh `Command`,
+   * so ordering and this rejection only apply within a step: await each write
+   * before starting the next one, and stop writing after a failure.
    *
    * ```
    * const cmd = await sandbox.runCommand({ cmd: "cat", stdin: true, detached: true });
