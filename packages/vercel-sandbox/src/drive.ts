@@ -12,6 +12,18 @@ export interface SerializedDrive {
 }
 
 /** @inline */
+interface GetDriveParams {
+  /**
+   * The name of the drive.
+   */
+  name: string;
+  /**
+   * An AbortSignal to cancel the operation.
+   */
+  signal?: AbortSignal;
+}
+
+/** @inline */
 interface GetOrCreateDriveParams {
   /**
    * The name of the drive to get or create. Must be unique within the project.
@@ -36,7 +48,7 @@ interface GetOrCreateDriveParams {
  * A Drive is a persistent, bottomless storage that can be attached and detached to Sandboxes.
  * Drives can be mounted as read-write or as read-only snapshots, at a configurable path with `Sandbox.create()`.
  *
- * Use {@link Drive.getOrCreate} to construct.
+ * Use {@link Drive.get} or {@link Drive.getOrCreate} to construct.
  * @hideconstructor
  */
 export class Drive {
@@ -225,7 +237,41 @@ export class Drive {
   }
 
   /**
+   * Retrieve an existing drive by its name. Use {@link Drive.getOrCreate}
+   * to create new drives.
+   *
+   * @param params - Get parameters and optional credentials.
+   * @returns A promise resolving to the {@link Drive} if it exists.
+   */
+  static async get(
+    params: (GetDriveParams | (GetDriveParams & Credentials)) &
+      WithFetchOptions,
+  ): Promise<Drive> {
+    "use step";
+    const credentials = await getCredentials(params);
+    const client = new APIClient({
+      teamId: credentials.teamId,
+      token: credentials.token,
+      fetch: params.fetch,
+    });
+
+    const response = await client.getDrive({
+      projectId: credentials.projectId,
+      name: params.name,
+      signal: params.signal,
+    });
+
+    return new Drive({
+      client,
+      drive: response.json.drive,
+      projectId: credentials.projectId,
+    });
+  }
+
+  /**
    * Retrieve an existing drive, or create a new one if it doesn't exists.
+   * Use {@link Drive.get} to get a drive without trying to create it if
+   * it doesn't exit.
    *
    * @param params - Get/create parameters and optional credentials.
    * @returns A promise resolving to the {@link Drive}.

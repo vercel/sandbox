@@ -203,6 +203,15 @@ export class MockServer {
       );
     }
 
+    if (method === "GET") {
+      const projectId = url.searchParams.get("projectId");
+      const drive = this.#drives.get(name);
+      if (!drive || drive.projectId !== projectId) {
+        return apiError(404, "not_found", "Drive not found.");
+      }
+      return json({ drive: drivePayload(drive) });
+    }
+
     if (method === "POST") {
       const existingDrive = this.#drives.get(name);
       if (existingDrive) return json({ drive: drivePayload(existingDrive) });

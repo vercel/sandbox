@@ -681,6 +681,24 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async getDrive(params: {
+    projectId: string;
+    name: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
+        {
+          method: "GET",
+          query: { projectId: params.projectId },
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async getOrCreateDrive(params: {
     projectId: string;
     name: string;
