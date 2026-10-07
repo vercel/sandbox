@@ -31,6 +31,57 @@ describe("Drive", () => {
     );
   });
 
+  test("gets a drive by name without changing it", async () => {
+    const original = await Drive.getOrCreate({
+      name: "cache",
+      region: "sfo1",
+      maxSize: 1024,
+    });
+    const drive = await Drive.get({
+      name: original.name,
+    });
+
+    expect(drive.driveId).toBe(original.driveId);
+    expect(drive.name).toBe(original.name);
+    expect(drive.region).toBe(original.region);
+    expect(drive.maxSize).toBe(original.maxSize);
+    expect(drive.updatedAt).toEqual(original.updatedAt);
+    expect((await Drive.list()).drives).toHaveLength(1);
+  });
+
+  test.each(["missing", "drive_missing"])(
+    "does not create a missing drive: %s",
+    async (name) => {
+      await expect(Drive.get({ name })).rejects.toMatchObject({
+        response: { status: 404 },
+        json: { error: { code: "not_found" } },
+      });
+      expect((await Drive.list()).drives).toHaveLength(0);
+    },
+  );
+
+  test("does not get a deleted drive by name", async () => {
+    const drive = await Drive.getOrCreate({ name: "cache" });
+    await drive.delete();
+
+    await expect(
+      Drive.get({
+        name: drive.name,
+      }),
+    ).rejects.toMatchObject({ response: { status: 404 } });
+  });
+
+  test("does not get a drive from another project by name", async () => {
+    const drive = await Drive.getOrCreate({ name: "cache" });
+
+    await expect(
+      Drive.get({
+        name: drive.name,
+        projectId: "prj_other",
+      }),
+    ).rejects.toMatchObject({ response: { status: 404 } });
+  });
+
   test("uses the default region", async () => {
     const drive = await Drive.getOrCreate({ name: "cache" });
 
