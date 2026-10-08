@@ -318,13 +318,11 @@ const result = await cmd.wait();
 console.log(await result.stdout()); // "hello\n"
 ```
 
-Writes are delivered in the order they are called. `writeStdin` resolves once
-the process has accepted the data, so writing to a process that isn't reading
-stdin waits until it does, and fails after 30 seconds. This is enough to drive
-stdio based protocols such as MCP servers running in the sandbox.
+Writes are delivered in call order. `writeStdin` resolves once the process has
+accepted the data, and fails after 30 seconds if the process isn't reading.
 
-You can also pass a `Readable` stream, with or without `detached`. The SDK
-writes the stream to the command's stdin and closes stdin when the stream ends:
+You can also pass a `Readable`, with or without `detached`. It's written in
+order with backpressure, and stdin closes when it ends:
 
 ```typescript
 await sandbox.runCommand({
@@ -336,33 +334,18 @@ await sandbox.runCommand({
 });
 ```
 
-Data read while a write is in flight is sent together as soon as that write
-resolves, and reading pauses while a write is slow, so a slow process slows
-down the stream. The stream is never ended or destroyed. If a write fails,
-reading stops and `runCommand` rejects and kills the command. When detached,
-the next `cmd.wait()` rejects instead and the command keeps running; later
-calls wait for it to exit. If the stream errors or is destroyed before it
-ends, stdin is closed and this rejects the same way. If the
-command exits or stops reading stdin first, reading stops. The command sees a
-pipe, not a TTY. A stream can't be passed between workflow steps, so use
-`stdin: true` with `writeStdin` in workflows.
+The stream is never destroyed. If piping fails or the stream errors,
+`runCommand` rejects and kills the command; when detached, the next
+`cmd.wait()` rejects instead. If the command exits first, piping just stops.
 
-A few things to keep in mind:
-
-- Each request carries the position in stdin it starts at, so a request that
-  fails because of a dropped connection or a restarting server is resent
-  without delivering the same bytes twice. If a write still fails after
-  retries, part of the data may have been delivered, so later writes are
-  rejected; `closeStdin` still works, or kill the command.
-- Write to a command from one place at a time. Positions are tracked per
-  command, so concurrent writers would have their bytes skipped as already
-  written.
-- Each write is one API request and counts against your rate limit, so batch
-  small writes where you can.
-- In a workflow, `writeStdin` and `closeStdin` run as steps without step
-  retries. Each step gets a fresh `Command`, so ordering and the rejection
-  after a failed write only apply within a step. Await each one before starting
-  the next, and stop writing after a failure.
+- Retries never deliver bytes twice. If a write still fails, later writes are
+  rejected; `closeStdin` still works.
+- Write to a command from one place at a time, or bytes can be skipped as
+  already written.
+- Each write is one API request against your rate limit, so batch small
+  writes.
+- In workflows, use `stdin: true` (a stream can't cross steps), and await each
+  write. Ordering only holds within a step.
 
 ## Multi-user
 
