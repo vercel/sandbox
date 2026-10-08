@@ -3,6 +3,7 @@ import { APIClient, type CommandData } from "./api-client/index.js";
 import { APIError } from "./api-client/api-error.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
+import { waitWithStdinPipe, type StdinPipe } from "./utils/pipe-stdin.js";
 
 /**
  * Bytes sent per stdin request, keeping the base64 JSON body under the API's
@@ -123,6 +124,12 @@ export class Command {
    * stdin offsets and a request can't be safely resent.
    */
   private stdinOffsetsUnsupported = false;
+
+  /**
+   * Set when the command was started with a `Readable` for stdin.
+   * @internal
+   */
+  stdinPipe: StdinPipe | null = null;
 
   /**
    * ID of the command execution.
@@ -265,12 +272,15 @@ export class Command {
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
-    const command = await client.getCommand({
-      sessionId: this.sessionId,
-      cmdId: this.cmd.id,
-      wait: true,
-      signal: params?.signal,
-    });
+    const command = await waitWithStdinPipe(
+      client.getCommand({
+        sessionId: this.sessionId,
+        cmdId: this.cmd.id,
+        wait: true,
+        signal: params?.signal,
+      }),
+      this.stdinPipe,
+    );
 
     return new CommandFinished({
       client,

@@ -1,0 +1,160 @@
+import type { Readable } from "stream";
+import { APIError } from "../api-client/api-error.js";
+
+/**
+ * Reading pauses once this much is buffered behind an in-flight write.
+ */
+const MAX_BUFFERED_BYTES = 512 * 1024;
+
+export interface StdinTarget {
+  writeStdin(data: Uint8Array): Promise<void>;
+  closeStdin(): Promise<void>;
+}
+
+export interface StdinPipe {
+  /**
+   * Resolves once the stream has ended and stdin is closed, or once the
+   * command stops accepting input. Rejects if a write fails or the stream
+   * errors.
+   */
+  done: Promise<void>;
+  /**
+   * Stops reading the stream, for when the command has exited.
+   */
+  stop(): void;
+}
+
+/**
+ * Writes a stream to a command's stdin in order, and closes stdin when the
+ * stream ends. Data read while a write is in flight is sent together as soon
+ * as that write resolves. The stream is never ended or destroyed, and all
+ * listeners are removed once piping stops so the stream can't keep the
+ * process alive.
+ */
+export function pipeStdin(
+  target: StdinTarget,
+  stream: Readable,
+  signal?: AbortSignal,
+): StdinPipe {
+  let buffered: Buffer[] = [];
+  let bufferedBytes = 0;
+  let writing = false;
+  let ended = false;
+  let stopped = false;
+  let settled = false;
+  let resolveDone!: () => void;
+  let rejectDone!: (error: unknown) => void;
+
+  const done = new Promise<void>((resolve, reject) => {
+    resolveDone = resolve;
+    rejectDone = reject;
+  });
+  done.catch(() => {});
+
+  const settle = (error?: unknown) => {
+    if (settled) return;
+    settled = true;
+    stopped = true;
+    detach();
+    if (error === undefined) resolveDone();
+    else rejectDone(error);
+  };
+
+  const flush = async () => {
+    if (writing || stopped) return;
+    writing = true;
+    try {
+      while (bufferedBytes > 0 && !stopped) {
+        const data = Buffer.concat(buffered);
+        buffered = [];
+        bufferedBytes = 0;
+        if (!ended) stream.resume();
+        await target.writeStdin(data);
+      }
+      if (ended && !stopped) {
+        await target.closeStdin();
+        settle();
+      }
+    } catch (error) {
+      settle(isInputNoLongerAccepted(error) ? undefined : error);
+    } finally {
+      writing = false;
+    }
+  };
+
+  const onData = (chunk: Buffer | string) => {
+    const data = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    buffered.push(data);
+    bufferedBytes += data.length;
+    if (bufferedBytes >= MAX_BUFFERED_BYTES) stream.pause();
+    void flush();
+  };
+
+  const onEnd = () => {
+    ended = true;
+    void flush();
+  };
+
+  const onError = (error: unknown) => {
+    if (stopped) return;
+    stopped = true;
+    detach();
+    target
+      .closeStdin()
+      .catch(() => {})
+      .finally(() => settle(error));
+  };
+
+  const onAbort = () => settle();
+
+  function detach() {
+    stream.off("data", onData);
+    stream.off("end", onEnd);
+    stream.off("error", onError);
+    signal?.removeEventListener("abort", onAbort);
+    stream.pause();
+  }
+
+  if (signal?.aborted) {
+    settle();
+  } else {
+    signal?.addEventListener("abort", onAbort, { once: true });
+    stream.on("data", onData);
+    stream.on("end", onEnd);
+    stream.on("error", onError);
+    if (stream.readableEnded) onEnd();
+  }
+
+  return { done, stop: () => settle() };
+}
+
+/**
+ * Waits for a command to finish, rejecting early if piping stdin fails, and
+ * stops piping once the command has exited.
+ */
+export async function waitWithStdinPipe<T>(
+  finished: Promise<T>,
+  pipe: StdinPipe | null,
+): Promise<T> {
+  if (!pipe) return finished;
+  finished.catch(() => {});
+  try {
+    return await Promise.race([finished, pipe.done.then(() => finished)]);
+  } finally {
+    pipe.stop();
+  }
+}
+
+/**
+ * Whether a write failed because the command exited or stopped reading
+ * stdin, which ends piping the same way a closed pipe does in a shell.
+ */
+function isInputNoLongerAccepted(error: unknown) {
+  if (!(error instanceof APIError)) return false;
+  const code = (error.json as { error?: { code?: string } } | undefined)?.error
+    ?.code;
+  return (
+    error.response.status === 404 ||
+    (error.response.status === 400 && code === "command_stdin_unavailable")
+  );
+}

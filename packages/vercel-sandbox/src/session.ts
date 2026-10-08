@@ -6,7 +6,7 @@ import {
   type SnapshotMetadata,
   APIClient,
 } from "./api-client/index.js";
-import type { Writable } from "stream";
+import type { Readable, Writable } from "stream";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
 import { mkdir } from "fs/promises";
@@ -14,6 +14,7 @@ import { dirname, resolve } from "path";
 import { Command, CommandFinished } from "./command.js";
 import { Snapshot } from "./snapshot.js";
 import { consumeReadable } from "./utils/consume-readable.js";
+import { pipeStdin, waitWithStdinPipe } from "./utils/pipe-stdin.js";
 import type {
   NetworkPolicy,
   NetworkPolicyRule,
@@ -65,10 +66,17 @@ export interface RunCommandParams {
   /**
    * If true, keep the command's stdin open so it can be written to with
    * {@link Command.writeStdin} and closed with {@link Command.closeStdin}.
-   * Requires `detached: true`. When false, the command reads from an empty
-   * stdin.
+   * Requires `detached: true`.
+   *
+   * A `Readable` stream is written to the command's stdin, and stdin is
+   * closed when the stream ends. The stream is never ended or destroyed. If a
+   * write fails, reading stops and the command result rejects
+   * ({@link Command.wait} when detached). If the command exits first, reading
+   * stops.
+   *
+   * When unset or false, the command reads from an empty stdin.
    */
-  stdin?: boolean;
+  stdin?: boolean | Readable;
   /**
    * A `Writable` stream where `stdout` from the command will be piped
    */
@@ -430,7 +438,13 @@ export class Session implements ExecutionContext {
     const wait = params.detached ? false : true;
     const shouldPipeLogs = Boolean(params.stdout || params.stderr);
 
-    if (params.stdin && wait) {
+    const stdinStream =
+      typeof params.stdin === "object" && params.stdin !== null
+        ? params.stdin
+        : null;
+    const attachStdin = Boolean(params.stdin) || undefined;
+
+    if (params.stdin === true && wait) {
       throw new TypeError(
         "`stdin: true` requires `detached: true`, otherwise the command would wait for input that can never be written",
       );
@@ -447,6 +461,7 @@ export class Session implements ExecutionContext {
         env: params.env ?? {},
         sudo: params.sudo ?? false,
         wait: true,
+        attachStdin,
         logs: true,
         onLog: (log) => {
           if (log.stream === "stdout") {
@@ -461,7 +476,19 @@ export class Session implements ExecutionContext {
         signal: params.signal,
       });
 
-      const finished = await commandStream.finished;
+      const finished = await waitWithStdinPipe(
+        commandStream.finished,
+        stdinStream &&
+          pipeStdin(
+            new Command({
+              client,
+              sessionId: this.session.id,
+              cmd: commandStream.command,
+            }),
+            stdinStream,
+            params.signal,
+          ),
+      );
 
       return new CommandFinished({
         client,
@@ -480,7 +507,7 @@ export class Session implements ExecutionContext {
       cwd: params.cwd,
       env: params.env ?? {},
       sudo: params.sudo ?? false,
-      attachStdin: params.stdin,
+      attachStdin,
       timeout: params.timeoutMs,
       signal: params.signal,
     });
@@ -490,6 +517,10 @@ export class Session implements ExecutionContext {
       sessionId: this.session.id,
       cmd: commandResponse.json.command,
     });
+
+    if (stdinStream) {
+      command.stdinPipe = pipeStdin(command, stdinStream, params.signal);
+    }
 
     if (shouldPipeLogs) {
       (async () => {

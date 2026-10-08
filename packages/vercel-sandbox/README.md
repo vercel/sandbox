@@ -323,6 +323,27 @@ the process has accepted the data, so writing to a process that isn't reading
 stdin waits until it does, and fails after 30 seconds. This is enough to drive
 stdio based protocols such as MCP servers running in the sandbox.
 
+You can also pass a `Readable` stream, with or without `detached`. The SDK
+writes the stream to the command's stdin and closes stdin when the stream ends:
+
+```typescript
+await sandbox.runCommand({
+  cmd: "agent-browser",
+  args: ["mcp"],
+  stdin: process.stdin,
+  stdout: process.stdout,
+  stderr: process.stderr,
+});
+```
+
+Data read while a write is in flight is sent together as soon as that write
+resolves, and reading pauses while a write is slow, so a slow process slows
+down the stream. The stream is never ended or destroyed. If a write fails,
+reading stops and `runCommand` rejects (`cmd.wait()` when detached). If the
+command exits or stops reading stdin first, reading stops. The command sees a
+pipe, not a TTY. A stream can't be passed between workflow steps, so use
+`stdin: true` with `writeStdin` in workflows.
+
 A few things to keep in mind:
 
 - Each request carries the position in stdin it starts at, so a request that

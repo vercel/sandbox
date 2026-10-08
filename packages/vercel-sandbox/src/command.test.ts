@@ -1,5 +1,6 @@
 import { expect, it, vi, beforeEach, afterEach, describe } from "vitest";
 import ms from "ms";
+import { PassThrough } from "stream";
 import { Sandbox } from "./sandbox.js";
 import { Command, CommandFinished } from "./command.js";
 import { Session } from "./session.js";
@@ -498,5 +499,114 @@ describe("Command stdin", () => {
     await expect(cmd.writeStdin("b")).rejects.toBeInstanceOf(APIError);
     await cmd.writeStdin("c");
     expect(dataBodies().at(-1)).toEqual({ data: b64("c"), offset: 1 });
+  });
+
+  describe("with a Readable", () => {
+    const finishedData = { ...cmdData, exitCode: 0 };
+    let runBodies: Record<string, unknown>[];
+    let finishCommand: () => void;
+
+    function createSession() {
+      return new Session({
+        client: new APIClient({
+          teamId: "team_123",
+          token: "1234",
+          fetch: mockFetch,
+        }),
+        routes: [],
+        session: { id: "sbx_123" } as SessionMetaData,
+      });
+    }
+
+    beforeEach(() => {
+      runBodies = [];
+      let finished!: () => void;
+      const commandFinished = new Promise<void>((resolve) => (finished = resolve));
+      finishCommand = finished;
+      server.closed = false;
+      mockFetch = vi.fn(async (url: string, init: RequestInit) => {
+        const path = new URL(url).pathname;
+        if (path.endsWith("/stdin")) {
+          const response = await server.handler(url, init);
+          if (server.closed) finishCommand();
+          return response;
+        }
+        if (path.endsWith("/cmd")) {
+          const body = JSON.parse(init.body as string);
+          runBodies.push(body);
+          if (!body.wait) return json({ command: cmdData });
+          const encoder = new TextEncoder();
+          return new Response(
+            new ReadableStream({
+              async start(controller) {
+                controller.enqueue(
+                  encoder.encode(`${JSON.stringify({ command: cmdData })}\n`),
+                );
+                await commandFinished;
+                controller.enqueue(
+                  encoder.encode(
+                    `${JSON.stringify({ command: finishedData })}\n`,
+                  ),
+                );
+                controller.close();
+              },
+            }),
+            { headers: { "content-type": "application/x-ndjson" } },
+          );
+        }
+        await commandFinished;
+        return json({ command: finishedData });
+      });
+    });
+
+    it("pipes the stream and waits for the command", async () => {
+      const stream = new PassThrough({ autoDestroy: false });
+      stream.end("hello\n");
+
+      const result = await createSession().runCommand({
+        cmd: "cat",
+        stdin: stream,
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(runBodies[0]).toMatchObject({ attachStdin: true, wait: true });
+      expect(server.data.toString()).toBe("hello\n");
+      expect(server.closed).toBe(true);
+      expect(stream.destroyed).toBe(false);
+    });
+
+    it("pipes the stream to a detached command", async () => {
+      const stream = new PassThrough();
+
+      const command = await createSession().runCommand({
+        cmd: "cat",
+        stdin: stream,
+        detached: true,
+      });
+      stream.end("hi");
+      const result = await command.wait();
+
+      expect(result.exitCode).toBe(0);
+      expect(runBodies[0]).toMatchObject({ attachStdin: true });
+      expect(server.data.toString()).toBe("hi");
+    });
+
+    it("rejects wait when writing the stream fails", async () => {
+      const stream = new PassThrough();
+      const command = await createSession().runCommand({
+        cmd: "cat",
+        stdin: stream,
+        detached: true,
+      });
+      mockFetch.mockImplementation(async (url: string) =>
+        new URL(url).pathname.endsWith("/stdin")
+          ? failure(500)
+          : new Promise<Response>(() => {}),
+      );
+
+      stream.write("a");
+
+      await expect(command.wait()).rejects.toBeInstanceOf(APIError);
+    });
   });
 });

@@ -345,6 +345,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait: true;
+    attachStdin?: boolean;
     logs?: boolean;
     onLog?: (log: LogOutputLine) => void;
     timeout?: number;
@@ -397,6 +398,7 @@ export class APIClient extends BaseClient {
             env: params.env,
             sudo: params.sudo,
             wait: true,
+            attachStdin: params.attachStdin || undefined,
             logs: params.logs || undefined,
             timeout: params.timeout,
           }),
