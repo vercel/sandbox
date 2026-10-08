@@ -20,6 +20,7 @@ pnpm i -g sandbox
 sandbox login # If you are not already logged in with the Vercel CLI
 sandbox create --connect # Create a new sandbox and open an interactive shell
 sandbox create opencode # Create a new sandbox and open OpenCode
+sandbox create codex # Create a new sandbox and open Codex
 sandbox create claude # Create a new sandbox and open Claude Code
 sandbox ls # List your sandboxes
 sandbox --help # View all commands
@@ -80,3 +81,34 @@ Sandbox persistence settings apply. `--non-persistent` disables automatic
 filesystem restoration. The shortcut cannot be combined with `--image`,
 `--runtime`, or `--snapshot`. Environment variables are passed only when supplied
 with `--env`; Claude's permission checks remain enabled.
+
+### Codex
+
+Run `sandbox create codex` in an interactive terminal to open the preinstalled
+Codex CLI in a fresh `vercel/sandbox/universal` sandbox. You do not need Codex
+installed locally. Local project files, configuration, and saved credentials
+are not copied into the sandbox.
+
+Vercel login is required, and Sandbox compute and storage charges apply. Codex
+requires its own authentication. For ChatGPT sign-in from the remote terminal,
+choose **Sign in with Device Code**, then open the displayed link locally. Device
+login must be enabled in your account's security settings or allowed by your
+workspace administrator. See [Codex authentication](https://developers.openai.com/codex/auth)
+for supported sign-in methods and account restrictions. Configure any API provider
+inside the sandbox and pass environment variables explicitly with `--env`.
+Codex's permission checks remain enabled. If authentication uses an environment
+variable, the reconnect hint includes its name but never its value. Export the
+same value in your local shell before running that command.
+
+Exiting Codex leaves the sandbox running. The CLI prints scoped reconnect and
+stop commands. Each connection runs a separate Codex process. Reconnect runs
+`codex resume --last --no-daemon`, which selects the most recent
+interactive conversation in the same working directory. To select a specific
+conversation, replace `--last` with its session ID. If you exited before creating
+a conversation, remove `resume --last` to start one. Reconnect starts a new Codex
+process; it does not restore an interrupted process.
+
+Stop the sandbox when finished. The timeout extends while connected, and normal
+Sandbox persistence settings apply. `--non-persistent` disables automatic
+filesystem restoration. The shortcut cannot be combined with `--image`,
+`--runtime`, or `--snapshot`.

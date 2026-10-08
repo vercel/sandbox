@@ -96,6 +96,10 @@ export const create = cmd.command({
   },
   examples: [
     {
+      description: "Create a sandbox and open Codex",
+      command: "sandbox create codex",
+    },
+    {
       description: "Create a sandbox and open Claude Code",
       command: "sandbox create claude",
     },

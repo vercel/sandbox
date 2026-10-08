@@ -190,9 +190,13 @@ Auth & Scope:
 
 Arguments:
 
-    [agent]  Open a coding agent in a new sandbox (opencode, claude) [optional]
+    [agent]  Open a coding agent in a new sandbox (opencode, claude, codex) [optional]
 
 Examples:
+
+– Create a sandbox and open Codex
+
+  $ sandbox create codex
 
 – Create a sandbox and open Claude Code
 
