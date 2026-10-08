@@ -21,6 +21,7 @@ sandbox login # If you are not already logged in with the Vercel CLI
 sandbox create --connect # Create a new sandbox and open an interactive shell
 sandbox create opencode # Create a new sandbox and open OpenCode
 sandbox create claude # Create a new sandbox and open Claude Code
+sandbox create pi # Create a new sandbox and open Pi
 sandbox ls # List your sandboxes
 sandbox --help # View all commands
 ```
@@ -80,3 +81,31 @@ Sandbox persistence settings apply. `--non-persistent` disables automatic
 filesystem restoration. The shortcut cannot be combined with `--image`,
 `--runtime`, or `--snapshot`. Environment variables are passed only when supplied
 with `--env`; Claude's permission checks remain enabled.
+
+### Pi
+
+Run `sandbox create pi` in an interactive terminal to open the preinstalled Pi
+coding agent in a fresh `vercel/sandbox/universal` sandbox. You do not need Pi
+installed locally. Local project files, configuration, extensions, and saved
+credentials are not copied into the sandbox.
+
+Vercel login is required, and Sandbox compute and storage charges apply. Pi
+requires separate model authentication. Run `/login` inside Pi to select an
+account or API-key provider, or pass credentials explicitly with `--env KEY=value`.
+For example, Pi supports `--env AI_GATEWAY_API_KEY=...` for Vercel AI Gateway.
+Vercel does not supply model credentials. See [Pi authentication](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
+for supported providers and remote login instructions.
+
+Exiting Pi leaves the sandbox running. The CLI prints scoped reconnect and stop
+commands. Reconnect launches `pi --continue`, which opens the most recent session
+for the same working directory; it does not restore an interrupted process.
+Pi stores sessions inside the sandbox under `~/.pi/agent/sessions/` by default.
+If you supplied `--env` options, export those same variables and values in your
+local shell before reconnecting. The printed command forwards their names without
+displaying their values.
+
+Stop the sandbox when finished. The timeout extends while connected, and normal
+Sandbox persistence settings apply. `--non-persistent` disables automatic
+filesystem restoration. The shortcut cannot be combined with `--image`,
+`--runtime`, or `--snapshot`. Environment variables are passed only when supplied
+with `--env`.

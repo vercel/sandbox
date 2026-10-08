@@ -1,4 +1,4 @@
-export const agentNames = ["opencode", "claude"] as const;
+export const agentNames = ["opencode", "claude", "pi"] as const;
 
 type Agent = {
   displayName: string;
@@ -21,6 +21,14 @@ export const agents: Record<(typeof agentNames)[number], Agent> = {
   claude: {
     displayName: "Claude Code",
     command: "claude",
+    args: [],
+    env: {},
+    reconnectArgs: ["--continue"],
+    reconnectEnv: "explicit",
+  },
+  pi: {
+    displayName: "Pi",
+    command: "pi",
     args: [],
     env: {},
     reconnectArgs: ["--continue"],
