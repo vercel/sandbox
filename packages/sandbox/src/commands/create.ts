@@ -100,10 +100,6 @@ export const create = cmd.command({
       command: "sandbox create pi",
     },
     {
-      description: "Create a sandbox and open Claude Code",
-      command: "sandbox create claude",
-    },
-    {
       description: "Create a sandbox and open OpenCode",
       command: "sandbox create opencode",
     },
