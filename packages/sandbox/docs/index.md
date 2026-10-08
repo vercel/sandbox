@@ -487,7 +487,7 @@ Commands:
 
     ls | list                        List drives for the specified account and project.
     get-or-create  <name>            Create a drive if it does not already exist, or retrieve it.
-    fork           <parent> <name>   Fork a drive with a new name, inheriting the max size and region.
+    fork           <parent> <name>   Fork a drive with a new name, inheriting the parent drive's data, max size and region.
     rm | delete    <name> [...name]  Delete one or more drives.
 ```
 
@@ -498,7 +498,7 @@ fork
 
 ▲ sandbox drives fork [options]
 
-Fork a drive with a new name, inheriting the max size and region.
+Fork a drive with a new name, inheriting the parent drive's data, max size and region.
 
 Arguments:
 

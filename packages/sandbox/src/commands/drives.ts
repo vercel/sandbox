@@ -120,7 +120,7 @@ const getOrCreate = cmd.command({
 const fork = cmd.command({
   name: "fork",
   description:
-    "Fork a drive with a new name, inheriting the max size and region.",
+    "Fork a drive with a new name, inheriting the parent drive's data, max size and region.",
   args: {
     parent: cmd.positional({
       displayName: "parent",
