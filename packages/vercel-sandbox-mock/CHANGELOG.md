@@ -1,5 +1,23 @@
 # @vercel/sandbox-mock
 
+## 3.6.1
+
+### Patch Changes
+
+- Updated dependencies [[`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb), [`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb)]:
+  - @vercel/sandbox@3.6.1
+
+## 3.6.0
+
+### Minor Changes
+
+- Add a new `Drive.get` method to retrieve an existing drive by name. ([#367](https://github.com/vercel/sandbox/pull/367))
+
+### Patch Changes
+
+- Updated dependencies [[`26a1162ec144138382d173416c635a270b692983`](https://github.com/vercel/sandbox/commit/26a1162ec144138382d173416c635a270b692983), [`bc2f85f6803a7562c4c4902e35833a8bb45dd071`](https://github.com/vercel/sandbox/commit/bc2f85f6803a7562c4c4902e35833a8bb45dd071)]:
+  - @vercel/sandbox@3.6.0
+
 ## 3.5.1
 
 ### Patch Changes
