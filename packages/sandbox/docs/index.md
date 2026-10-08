@@ -190,9 +190,13 @@ Auth & Scope:
 
 Arguments:
 
-    [agent]  Open a coding agent in a new sandbox (opencode, claude, pi) [optional]
+    [agent]  Open a coding agent in a new sandbox (opencode, claude, pi, codex) [optional]
 
 Examples:
+
+– Create a sandbox and open Codex
+
+  $ sandbox create codex
 
 – Create a sandbox and open Pi
 

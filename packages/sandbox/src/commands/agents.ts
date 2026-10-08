@@ -1,4 +1,4 @@
-export const agentNames = ["opencode", "claude", "pi"] as const;
+export const agentNames = ["opencode", "claude", "pi", "codex"] as const;
 
 type Agent = {
   displayName: string;
@@ -32,6 +32,14 @@ export const agents: Record<(typeof agentNames)[number], Agent> = {
     args: [],
     env: {},
     reconnectArgs: ["--continue"],
+    reconnectEnv: "explicit",
+  },
+  codex: {
+    displayName: "Codex",
+    command: "codex",
+    args: ["--no-daemon"],
+    env: {},
+    reconnectArgs: ["resume", "--last", "--no-daemon"],
     reconnectEnv: "explicit",
   },
 };
