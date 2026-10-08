@@ -502,7 +502,7 @@ export class APIClient extends BaseClient {
       });
       Object.defineProperty(buffered, "url", { value: response.url });
       return buffered;
-    })(path, { signal: params.signal });
+    })(path, { signal: params.signal, retry: { retries: 2 } });
     return params.wait
       ? parseOrThrow(CommandFinishedResponse, response)
       : parseOrThrow(CommandResponse, response);
