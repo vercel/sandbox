@@ -179,6 +179,14 @@ export const create = cmd.command({
       deleteEvictedSnapshots,
     });
 
+    const selectedImage = agent ? "vercel/sandbox/universal" : image;
+    const runtimeOptions =
+      selectedImage !== undefined
+        ? { image: selectedImage }
+        : runtime !== undefined
+          ? { runtime }
+          : {};
+
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
@@ -214,13 +222,7 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          ...(agent
-            ? { image: "vercel/sandbox/universal" }
-            : image !== undefined
-              ? { image }
-              : runtime !== undefined
-                ? { runtime }
-                : {}),
+          ...runtimeOptions,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -278,11 +280,23 @@ export const create = cmd.command({
       } finally {
         if (agent && !silent) {
           const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
-          console.error("\nExiting OpenCode does not stop the sandbox.");
-          console.error(
-            `Reconnect: sandbox exec ${scopeFlags} --interactive --env=OPENCODE_DISABLE_AUTOUPDATE=true ${sandbox.name} -- opencode --continue`,
+          process.stderr.write(
+            `\n${chalk.blue("ℹ")} Exiting OpenCode does not stop the sandbox.\n`,
           );
-          console.error(`Stop: sandbox stop ${scopeFlags} ${sandbox.name}`);
+          process.stderr.write(
+            chalk.dim("   │ ") +
+              "Reconnect: " +
+              chalk.cyan(
+                `sandbox exec ${scopeFlags} --interactive --env=OPENCODE_DISABLE_AUTOUPDATE=true ${sandbox.name} -- opencode --continue`,
+              ) +
+              "\n",
+          );
+          process.stderr.write(
+            chalk.dim("   ╰ ") +
+              "Stop: " +
+              chalk.cyan(`sandbox stop ${scopeFlags} ${sandbox.name}`) +
+              "\n",
+          );
         }
       }
     }

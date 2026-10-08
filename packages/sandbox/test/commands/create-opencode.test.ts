@@ -135,13 +135,18 @@ describe("create opencode", () => {
   });
 
   test("prints scoped reconnect and stop hints after disconnection", async () => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     const { create } = await import("../../src/commands/create");
     await cmd.runSafely(create, ["opencode", "--scope=team", "--project=proj"]);
     expect(mockSummary).toHaveBeenCalledWith(
       expect.objectContaining({ connectHint: false }),
     );
     const text = output.mock.calls.flat().join("\n");
+    expect(text).toContain("ℹ Exiting");
+    expect(text).toContain("   │ Reconnect: ");
+    expect(text).toContain("   ╰ Stop: ");
     expect(text).toContain(
       "sandbox exec --scope=team --project=proj --interactive --env=OPENCODE_DISABLE_AUTOUPDATE=true agent-sandbox -- opencode --continue",
     );
@@ -151,12 +156,12 @@ describe("create opencode", () => {
     expect(text).toContain("Exiting OpenCode does not stop the sandbox");
     const reconnect = text
       .split("\n")
-      .find((line) => line.startsWith("Reconnect: "))!;
+      .find((line) => line.includes("Reconnect: "))!;
     const { exec } = await import("../../src/commands/exec");
     expect(
       await cmd.parse(
         exec,
-        reconnect.replace("Reconnect: sandbox exec ", "").split(" "),
+        reconnect.split("Reconnect: sandbox exec ")[1].split(" "),
       ),
     ).toMatchObject({
       _tag: "ok",
@@ -165,7 +170,9 @@ describe("create opencode", () => {
   });
 
   test("prints lifecycle hints on connection failure without stopping or deleting", async () => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     mockExec.mockRejectedValue(new Error("connection failed"));
     const { create } = await import("../../src/commands/create");
     await expect(
@@ -183,7 +190,9 @@ describe("create opencode", () => {
   });
 
   test("silent suppresses lifecycle hints, not the interactive session", async () => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     await createWith(["opencode"]);
     expect(mockExec).toHaveBeenCalledOnce();
     expect(output).not.toHaveBeenCalled();
