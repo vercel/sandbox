@@ -325,16 +325,20 @@ stdio based protocols such as MCP servers running in the sandbox.
 
 A few things to keep in mind:
 
-- Writes are never retried (except when rate limited), because a retry after a
-  lost response could deliver the same bytes twice. If a write fails in a way
-  that may have delivered part of the data, later writes are rejected; close
-  stdin or kill the command to recover.
+- Each request carries the position in stdin it starts at, so a request that
+  fails because of a dropped connection or a restarting server is resent
+  without delivering the same bytes twice. If a write still fails after
+  retries, part of the data may have been delivered, so later writes are
+  rejected; close stdin or kill the command to recover.
+- Write to a command from one place at a time. Positions are tracked per
+  command, so concurrent writers would have their bytes skipped as already
+  written.
 - Each write is one API request and counts against your rate limit, so batch
   small writes where you can.
-- In a workflow, `writeStdin` and `closeStdin` run as steps without retries.
-  Each step gets a fresh `Command`, so ordering and the rejection after a
-  failed write only apply within a step. Await each one before starting the
-  next, and stop writing after a failure.
+- In a workflow, `writeStdin` and `closeStdin` run as steps without step
+  retries. Each step gets a fresh `Command`, so ordering and the rejection
+  after a failed write only apply within a step. Await each one before starting
+  the next, and stop writing after a failure.
 
 ## Multi-user
 

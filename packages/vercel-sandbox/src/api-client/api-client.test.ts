@@ -1855,16 +1855,23 @@ describe("APIClient", () => {
     });
 
     it("gives up after repeated rate limiting", async () => {
-      mockFetch.mockImplementation(async () => rateLimited("0"));
+      vi.useFakeTimers();
+      try {
+        mockFetch.mockImplementation(async () => rateLimited("0"));
 
-      await expect(
-        client.writeCommandStdin({
-          sessionId: "sbx_123",
-          commandId: "cmd_123",
-          data: new Uint8Array([1]),
-        }),
-      ).rejects.toBeInstanceOf(APIError);
-      expect(mockFetch).toHaveBeenCalledTimes(3);
+        const result = expect(
+          client.writeCommandStdin({
+            sessionId: "sbx_123",
+            commandId: "cmd_123",
+            data: new Uint8Array([1]),
+          }),
+        ).rejects.toBeInstanceOf(APIError);
+        await vi.runAllTimersAsync();
+        await result;
+        expect(mockFetch).toHaveBeenCalledTimes(6);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("does not wait out a long Retry-After", async () => {
@@ -1891,6 +1898,221 @@ describe("APIClient", () => {
         }),
       ).rejects.toThrow("fetch failed");
       expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    describe("with an offset", () => {
+      const written = (bytesWritten: number) =>
+        new Response(JSON.stringify({ command, bytesWritten }), {
+          headers: { "content-type": "application/json" },
+        });
+      const failure = (status: number) =>
+        new Response(JSON.stringify({ error: { code: "failed" } }), {
+          status,
+          headers: { "content-type": "application/json" },
+        });
+      const bodies = () =>
+        mockFetch.mock.calls.map(([, init]) => JSON.parse(init.body));
+      const write = (params: { data?: Uint8Array; close?: boolean } = {}) =>
+        client.writeCommandStdin({
+          sessionId: "sbx_123",
+          commandId: "cmd_123",
+          offset: 4,
+          data: new Uint8Array([1, 2]),
+          ...params,
+        });
+
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => vi.useRealTimers());
+
+      async function settle<T>(promise: Promise<T>) {
+        const result = promise.then(
+          (value) => ({ value }),
+          (error) => ({ error }),
+        );
+        await vi.runAllTimersAsync();
+        return result;
+      }
+
+      it("sends the offset and returns bytesWritten", async () => {
+        mockFetch.mockResolvedValue(written(6));
+
+        const result = await settle(write());
+
+        expect(result).toEqual({ value: { bytesWritten: 6 } });
+        expect(bodies()).toEqual([
+          { data: Buffer.from([1, 2]).toString("base64"), offset: 4 },
+        ]);
+      });
+
+      it.each([502, 503])("resends the same request after a %i", async (status) => {
+        mockFetch
+          .mockResolvedValueOnce(failure(status))
+          .mockResolvedValueOnce(written(6));
+
+        const result = await settle(write());
+
+        expect(result).toEqual({ value: { bytesWritten: 6 } });
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(bodies()[1]).toEqual(bodies()[0]);
+      });
+
+      it("resends the same request after a network error", async () => {
+        mockFetch
+          .mockRejectedValueOnce(new TypeError("fetch failed"))
+          .mockResolvedValueOnce(written(6));
+
+        const result = await settle(write());
+
+        expect(result).toEqual({ value: { bytesWritten: 6 } });
+        expect(bodies()[1]).toEqual(bodies()[0]);
+      });
+
+      it("does not resend after an abort", async () => {
+        const controller = new AbortController();
+        mockFetch.mockImplementationOnce(async () => {
+          controller.abort();
+          throw new DOMException("aborted", "AbortError");
+        });
+
+        const result = await settle(
+          client.writeCommandStdin({
+            sessionId: "sbx_123",
+            commandId: "cmd_123",
+            offset: 4,
+            data: new Uint8Array([1]),
+            abortSignal: controller.signal,
+          }),
+        );
+
+        expect(result).toHaveProperty("error");
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+
+      it("gives up after repeated failures", async () => {
+        mockFetch.mockImplementation(async () => failure(503));
+
+        const result = await settle(write());
+
+        expect(result).toHaveProperty("error");
+        expect(mockFetch).toHaveBeenCalledTimes(6);
+      });
+
+      it("does not resend a plain 500", async () => {
+        mockFetch.mockResolvedValue(failure(500));
+
+        const result = await settle(write());
+
+        expect(result).toHaveProperty("error");
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+
+      it("does not resend an offset mismatch", async () => {
+        mockFetch.mockResolvedValue(failure(409));
+
+        const result = await settle(write());
+
+        expect(result).toHaveProperty("error");
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+
+      it("resends after a timeout while the process keeps reading", async () => {
+        mockFetch
+          .mockResolvedValueOnce(failure(504))
+          .mockResolvedValueOnce(written(5))
+          .mockResolvedValueOnce(failure(504))
+          .mockResolvedValueOnce(written(7))
+          .mockResolvedValueOnce(failure(504))
+          .mockResolvedValueOnce(written(9))
+          .mockResolvedValueOnce(written(10));
+
+        const result = await settle(write({ data: new Uint8Array(6) }));
+
+        expect(result).toEqual({ value: { bytesWritten: 10 } });
+        expect(bodies().map((b) => b.data !== undefined)).toEqual([
+          true,
+          false,
+          true,
+          false,
+          true,
+          false,
+          true,
+        ]);
+      });
+
+      it("gives up on timeouts when the process stops reading", async () => {
+        mockFetch
+          .mockResolvedValueOnce(failure(504))
+          .mockResolvedValueOnce(written(4))
+          .mockResolvedValueOnce(failure(504))
+          .mockResolvedValueOnce(written(4));
+
+        const result = await settle(write());
+
+        expect(result).toHaveProperty("error");
+        expect(
+          (result as { error: APIError<unknown> }).error.response.status,
+        ).toBe(504);
+        expect(mockFetch).toHaveBeenCalledTimes(4);
+      });
+
+      it("treats a resent close that finds the command gone as closed", async () => {
+        mockFetch
+          .mockRejectedValueOnce(new TypeError("fetch failed"))
+          .mockResolvedValueOnce(failure(404));
+
+        const result = await settle(write({ data: undefined, close: true }));
+
+        expect(result).toEqual({ value: {} });
+      });
+
+      it("fails a first close that finds the command gone", async () => {
+        mockFetch.mockResolvedValueOnce(failure(404));
+
+        const result = await settle(write({ data: undefined, close: true }));
+
+        expect(result).toHaveProperty("error");
+      });
+
+      it("fails a resent write that finds the command gone", async () => {
+        mockFetch
+          .mockRejectedValueOnce(new TypeError("fetch failed"))
+          .mockResolvedValueOnce(failure(404));
+
+        const result = await settle(write());
+
+        expect(result).toHaveProperty("error");
+      });
+
+      it("shares one retry budget between rate limits and failures", async () => {
+        mockFetch
+          .mockResolvedValueOnce(rateLimited("0"))
+          .mockResolvedValueOnce(failure(503))
+          .mockResolvedValueOnce(rateLimited("0"))
+          .mockResolvedValueOnce(failure(503))
+          .mockResolvedValueOnce(rateLimited("0"))
+          .mockResolvedValueOnce(failure(503));
+
+        const result = await settle(write());
+
+        expect(result).toHaveProperty("error");
+        expect(mockFetch).toHaveBeenCalledTimes(6);
+      });
+
+      it("treats an empty request as a retryable probe", async () => {
+        mockFetch
+          .mockResolvedValueOnce(failure(503))
+          .mockResolvedValueOnce(written(3));
+
+        const result = await settle(
+          client.writeCommandStdin({
+            sessionId: "sbx_123",
+            commandId: "cmd_123",
+          }),
+        );
+
+        expect(result).toEqual({ value: { bytesWritten: 3 } });
+        expect(bodies()).toEqual([{}, {}]);
+      });
     });
   });
 });

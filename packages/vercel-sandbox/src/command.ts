@@ -111,6 +111,20 @@ export class Command {
   private stdinError: unknown = null;
 
   /**
+   * Bytes the API has confirmed written to stdin, sent with each request so
+   * the API can skip bytes it already has when a request is resent. Unknown
+   * until the first stdin call, because a deserialized `Command` can't know
+   * what an earlier instance wrote.
+   */
+  private stdinOffset: number | null = null;
+
+  /**
+   * Set once a response lacks `bytesWritten`, meaning the sandbox predates
+   * stdin offsets and a request can't be safely resent.
+   */
+  private stdinOffsetsUnsupported = false;
+
+  /**
    * ID of the command execution.
    */
   get cmdId() {
@@ -385,11 +399,17 @@ export class Command {
    * process has accepted the data, so writing to a process that is not
    * reading from stdin waits until it does (up to a server-side timeout).
    *
-   * Writes are never retried, so a failure may leave part of the data
-   * written. After such a failure, further writes are rejected; close stdin or
-   * kill the command instead. In a workflow, each step gets a fresh `Command`,
-   * so ordering and this rejection only apply within a step: await each write
-   * before starting the next one, and stop writing after a failure.
+   * Each request carries the stdin position it starts at, so a request that
+   * fails because of a dropped connection or a restarting server is resent
+   * without writing the same bytes twice. Don't write to the same command from
+   * more than one place: the position is tracked per command, and concurrent
+   * writers would have their bytes skipped as already written.
+   *
+   * If a write still fails after retries, part of the data may be written.
+   * Further writes are then rejected; close stdin or kill the command instead.
+   * In a workflow, each step gets a fresh `Command`, so ordering and this
+   * rejection only apply within a step: await each write before starting the
+   * next one, and stop writing after a failure.
    *
    * ```
    * const cmd = await sandbox.runCommand({ cmd: "cat", stdin: true, detached: true });
@@ -418,15 +438,19 @@ export class Command {
           { cause: this.stdinError },
         );
       }
+      await this.resolveStdinOffset(client, opts?.abortSignal);
       let sentChunks = 0;
       try {
         for (let i = 0; i < bytes.length; i += STDIN_CHUNK_BYTES) {
-          await client.writeCommandStdin({
+          const data = bytes.subarray(i, i + STDIN_CHUNK_BYTES);
+          const { bytesWritten } = await client.writeCommandStdin({
             sessionId: this.sessionId,
             commandId: this.cmd.id,
-            data: bytes.subarray(i, i + STDIN_CHUNK_BYTES),
+            data,
+            offset: this.requestOffset(),
             abortSignal: opts?.abortSignal,
           });
+          this.confirmStdin(bytesWritten, data.length);
           sentChunks++;
         }
       } catch (err) {
@@ -449,13 +473,39 @@ export class Command {
   async closeStdin(opts?: { abortSignal?: AbortSignal }) {
     "use step";
     await this.enqueueStdin(async (client) => {
+      await this.resolveStdinOffset(client, opts?.abortSignal);
       await client.writeCommandStdin({
         sessionId: this.sessionId,
         commandId: this.cmd.id,
+        offset: this.requestOffset(),
         close: true,
         abortSignal: opts?.abortSignal,
       });
     }, opts?.abortSignal);
+  }
+
+  private async resolveStdinOffset(client: APIClient, abortSignal?: AbortSignal) {
+    if (this.stdinOffset !== null) return;
+    const { bytesWritten } = await client.writeCommandStdin({
+      sessionId: this.sessionId,
+      commandId: this.cmd.id,
+      abortSignal,
+    });
+    this.stdinOffsetsUnsupported = bytesWritten === undefined;
+    this.stdinOffset = bytesWritten ?? 0;
+  }
+
+  private requestOffset() {
+    return this.stdinOffsetsUnsupported ? undefined : (this.stdinOffset ?? 0);
+  }
+
+  private confirmStdin(bytesWritten: number | undefined, length: number) {
+    if (bytesWritten === undefined) {
+      this.stdinOffsetsUnsupported = true;
+      this.stdinOffset = (this.stdinOffset ?? 0) + length;
+    } else {
+      this.stdinOffset = bytesWritten;
+    }
   }
 
   private enqueueStdin(
@@ -595,6 +645,7 @@ export class CommandFinished extends Command {
   /**
    * Not available: the command has already exited.
    *
+   * @deprecated Always throws on a finished command.
    * @throws Always.
    */
   async writeStdin(
@@ -607,6 +658,7 @@ export class CommandFinished extends Command {
   /**
    * Not available: the command has already exited.
    *
+   * @deprecated Always throws on a finished command.
    * @throws Always.
    */
   async closeStdin(_opts?: { abortSignal?: AbortSignal }): Promise<never> {

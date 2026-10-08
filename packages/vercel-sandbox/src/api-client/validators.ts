@@ -244,6 +244,10 @@ export const CommandResponse = z.object({
   command: Command,
 });
 
+export const CommandStdinResponse = CommandResponse.extend({
+  bytesWritten: z.number().int().nonnegative().optional(),
+});
+
 export type CommandFinishedData = z.infer<
   typeof CommandFinishedResponse
 >["command"];

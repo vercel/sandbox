@@ -176,17 +176,55 @@ describe("Command stdin", () => {
   };
   let mockFetch: ReturnType<typeof vi.fn>;
   let cmd: Command;
+  let server: ReturnType<typeof createStdinServer>;
 
-  const ok = () =>
-    new Response(JSON.stringify({ command: cmdData }), {
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
       headers: { "content-type": "application/json" },
     });
+  const failure = (status: number) =>
+    json({ error: { code: "failed" } }, status);
+
+  /**
+   * Stands in for the API: applies offsets the way the real one does, and
+   * omits `bytesWritten` like a sandbox that predates offsets when `legacy`.
+   */
+  function createStdinServer(options: { legacy?: boolean } = {}) {
+    const state = { data: Buffer.alloc(0), closed: false };
+    const handler = async (_url: unknown, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      const chunk = body.data
+        ? Buffer.from(body.data, "base64")
+        : Buffer.alloc(0);
+      if (state.closed && (chunk.length > 0 || body.close)) {
+        return failure(400);
+      }
+      if (options.legacy || body.offset === undefined) {
+        state.data = Buffer.concat([state.data, chunk]);
+      } else if (body.offset > state.data.length) {
+        return failure(409);
+      } else {
+        const skip = state.data.length - body.offset;
+        state.data = Buffer.concat([state.data, chunk.subarray(skip)]);
+      }
+      if (body.close) state.closed = true;
+      return json({
+        command: cmdData,
+        ...(!options.legacy && { bytesWritten: state.data.length }),
+      });
+    };
+    return Object.assign(state, { handler });
+  }
+
   const bodies = () =>
     mockFetch.mock.calls.map(([, init]) => JSON.parse(init.body));
+  const dataBodies = () =>
+    bodies().filter((b) => b.data !== undefined || b.close);
+  const b64 = (text: string) => Buffer.from(text).toString("base64");
 
-  beforeEach(() => {
-    mockFetch = vi.fn(async () => ok());
-    cmd = new Command({
+  function createCommand() {
+    return new Command({
       client: new APIClient({
         teamId: "team_123",
         token: "1234",
@@ -195,13 +233,30 @@ describe("Command stdin", () => {
       sessionId: "sbx_123",
       cmd: cmdData,
     });
+  }
+
+  async function settle<T>(promise: Promise<T>) {
+    const result = promise.then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    );
+    await vi.runAllTimersAsync();
+    return result;
+  }
+
+  beforeEach(() => {
+    server = createStdinServer();
+    mockFetch = vi.fn(server.handler);
+    cmd = createCommand();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("encodes strings as UTF-8", async () => {
     await cmd.writeStdin("héllo");
-    expect(bodies()).toEqual([
-      { data: Buffer.from("héllo").toString("base64") },
-    ]);
+    expect(dataBodies()).toEqual([{ data: b64("héllo"), offset: 0 }]);
   });
 
   it("skips empty writes", async () => {
@@ -213,15 +268,24 @@ describe("Command stdin", () => {
     const data = new Uint8Array(512 * 1024 * 2 + 1).map((_, i) => i % 251);
     await cmd.writeStdin(data);
 
-    const sent = bodies().map((b) => Buffer.from(b.data, "base64"));
+    const sent = dataBodies().map((b) => Buffer.from(b.data, "base64"));
     expect(sent.map((b) => b.length)).toEqual([512 * 1024, 512 * 1024, 1]);
+    expect(dataBodies().map((b) => b.offset)).toEqual([
+      0,
+      512 * 1024,
+      512 * 1024 * 2,
+    ]);
     expect(Buffer.concat(sent).equals(Buffer.from(data))).toBe(true);
   });
 
   it("delivers concurrent writes in call order", async () => {
     let release!: () => void;
     mockFetch.mockImplementationOnce(
-      () => new Promise((resolve) => (release = () => resolve(ok()))),
+      () =>
+        new Promise((resolve) => {
+          release = async () =>
+            resolve(await server.handler(null, { body: "{}" }));
+        }),
     );
 
     const first = cmd.writeStdin("a");
@@ -231,11 +295,24 @@ describe("Command stdin", () => {
     release();
     await Promise.all([first, second, close]);
 
-    expect(bodies()).toEqual([
-      { data: Buffer.from("a").toString("base64") },
-      { data: Buffer.from("b").toString("base64") },
-      { close: true },
+    expect(dataBodies()).toEqual([
+      { data: b64("a"), offset: 0 },
+      { data: b64("b"), offset: 1 },
+      { close: true, offset: 2 },
     ]);
+  });
+
+  it("continues from the position the API reports", async () => {
+    server.data = Buffer.from("earlier");
+
+    await cmd.writeStdin("a");
+    await cmd.closeStdin();
+
+    expect(dataBodies()).toEqual([
+      { data: b64("a"), offset: 7 },
+      { close: true, offset: 8 },
+    ]);
+    expect(server.data.toString()).toBe("earliera");
   });
 
   it("requires detached when stdin is attached", async () => {
@@ -264,15 +341,57 @@ describe("Command stdin", () => {
     }
   });
 
+  describe("when a request is lost", () => {
+    beforeEach(() => vi.useFakeTimers());
+
+    it("resends without writing the bytes twice", async () => {
+      await cmd.writeStdin("a");
+      mockFetch.mockImplementationOnce(async (url, init) => {
+        await server.handler(url, init);
+        throw new TypeError("fetch failed");
+      });
+
+      const result = await settle(cmd.writeStdin("bc"));
+      await cmd.writeStdin("d");
+
+      expect(result).not.toHaveProperty("error");
+      expect(server.data.toString()).toBe("abcd");
+    });
+
+    it("resends a close and resolves when the process already exited", async () => {
+      await cmd.writeStdin("a");
+      mockFetch
+        .mockImplementationOnce(async (url, init) => {
+          await server.handler(url, init);
+          throw new TypeError("fetch failed");
+        })
+        .mockResolvedValueOnce(failure(404));
+
+      const result = await settle(cmd.closeStdin());
+
+      expect(result).not.toHaveProperty("error");
+      expect(server.closed).toBe(true);
+    });
+
+    it("rejects later writes once retries run out", async () => {
+      await cmd.writeStdin("a");
+      mockFetch.mockImplementation(async () => failure(503));
+
+      const result = await settle(cmd.writeStdin("b"));
+      mockFetch.mockClear();
+
+      expect(result).toHaveProperty("error");
+      await expect(cmd.writeStdin("c")).rejects.toThrow("unknown state");
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
   it("rejects later writes after a chunked write fails partway", async () => {
+    await cmd.writeStdin("");
     mockFetch
-      .mockImplementationOnce(async () => ok())
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: { code: "internal" } }), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        }),
-      );
+      .mockImplementationOnce(server.handler)
+      .mockImplementationOnce(server.handler)
+      .mockResolvedValueOnce(failure(500));
 
     await expect(
       cmd.writeStdin(new Uint8Array(512 * 1024 + 1)),
@@ -280,24 +399,61 @@ describe("Command stdin", () => {
     await expect(cmd.writeStdin("next")).rejects.toThrow(
       "unknown state after an earlier write failed",
     );
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
 
     await cmd.closeStdin();
-    expect(bodies()[2]).toEqual({ close: true });
+    expect(bodies().at(-1)).toEqual({ close: true, offset: 512 * 1024 });
   });
 
-  it("rejects later writes after a network error", async () => {
-    mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+  it("fails without retrying when the API rejects the offset", async () => {
+    server.data = Buffer.from("x");
+    await cmd.writeStdin("a");
+    server.data = Buffer.alloc(0);
+    mockFetch.mockClear();
 
-    await expect(cmd.writeStdin("a")).rejects.toThrow("fetch failed");
-    await expect(cmd.writeStdin("b")).rejects.toThrow("unknown state");
+    await expect(cmd.writeStdin("b")).rejects.toMatchObject({
+      response: { status: 409 },
+    });
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  describe("on a sandbox without stdin offsets", () => {
+    beforeEach(() => {
+      server = createStdinServer({ legacy: true });
+      mockFetch = vi.fn(server.handler);
+      cmd = createCommand();
+    });
+
+    it("writes without an offset", async () => {
+      await cmd.writeStdin("a");
+      await cmd.writeStdin("b");
+      await cmd.closeStdin();
+
+      expect(dataBodies()).toEqual([
+        { data: b64("a") },
+        { data: b64("b") },
+        { close: true },
+      ]);
+    });
+
+    it("does not resend, and rejects later writes after a network error", async () => {
+      await cmd.writeStdin("a");
+      mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+      await expect(cmd.writeStdin("b")).rejects.toThrow("fetch failed");
+      await expect(cmd.writeStdin("c")).rejects.toThrow("unknown state");
+      expect(server.data.toString()).toBe("a");
+    });
   });
 
   it("aborts a write that is still waiting for its turn", async () => {
     let release!: () => void;
     mockFetch.mockImplementationOnce(
-      () => new Promise((resolve) => (release = () => resolve(ok()))),
+      () =>
+        new Promise((resolve) => {
+          release = async () =>
+            resolve(await server.handler(null, { body: "{}" }));
+        }),
     );
 
     const first = cmd.writeStdin("a");
@@ -312,9 +468,9 @@ describe("Command stdin", () => {
 
     release();
     await Promise.all([first, third]);
-    expect(bodies()).toEqual([
-      { data: Buffer.from("a").toString("base64") },
-      { data: Buffer.from("c").toString("base64") },
+    expect(dataBodies()).toEqual([
+      { data: b64("a"), offset: 0 },
+      { data: b64("c"), offset: 1 },
     ]);
   });
 
@@ -336,15 +492,11 @@ describe("Command stdin", () => {
   });
 
   it("keeps processing writes after one fails", async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: "bad_request" } }), {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+    await cmd.writeStdin("a");
+    mockFetch.mockResolvedValueOnce(failure(400));
 
-    await expect(cmd.writeStdin("a")).rejects.toBeInstanceOf(APIError);
-    await cmd.writeStdin("b");
-    expect(bodies()[1]).toEqual({ data: Buffer.from("b").toString("base64") });
+    await expect(cmd.writeStdin("b")).rejects.toBeInstanceOf(APIError);
+    await cmd.writeStdin("c");
+    expect(dataBodies().at(-1)).toEqual({ data: b64("c"), offset: 1 });
   });
 });

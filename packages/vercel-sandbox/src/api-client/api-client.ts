@@ -12,6 +12,7 @@ import {
   StopSessionResponse,
   SessionsResponse,
   CommandResponse,
+  CommandStdinResponse,
   CommandFinishedResponse,
   EmptyResponse,
   LogLine,
@@ -35,7 +36,6 @@ import { z } from "zod";
 import jsonlines from "jsonlines";
 import os from "os";
 import { Readable } from "stream";
-import { setTimeout as delay } from "timers/promises";
 import { normalizePath } from "../utils/normalizePath.js";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { NetworkPolicy } from "../network-policy.js";
@@ -45,7 +45,47 @@ import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
 import type { SandboxMetaData } from "./validators.js";
 
-const STDIN_RATE_LIMIT_RETRIES = 2;
+const STDIN_MAX_RETRIES = 5;
+const STDIN_MAX_STALLED_TIMEOUTS = 2;
+
+function stdinBackoff(attempt: number) {
+  return 400 * 2 ** attempt;
+}
+
+function delay(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal!.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function parseStdinResponse(response: Response) {
+  const parsed = await parseOrThrow(CommandStdinResponse, response);
+  return { bytesWritten: parsed.json.bytesWritten };
+}
+
+async function probeStdinBytesWritten(
+  send: (body: Record<string, unknown>) => Promise<Response>,
+) {
+  try {
+    const response = await send({});
+    if (!response.ok) {
+      await response.body?.cancel();
+      return undefined;
+    }
+    return (await parseStdinResponse(response)).bytesWritten;
+  } catch {
+    return undefined;
+  }
+}
 
 interface Claims {
   owner_id: string;
@@ -808,48 +848,108 @@ export class APIClient extends BaseClient {
     );
   }
 
+  /**
+   * Writes to a command's stdin. With `offset`, the request is safe to resend
+   * (the server skips bytes it already has), so it is retried across
+   * connection failures. Without it, only rate limited requests are retried,
+   * since any other failure may have written the bytes already.
+   */
   async writeCommandStdin(params: {
     sessionId: string;
     commandId: string;
     data?: Uint8Array;
+    offset?: number;
     close?: boolean;
     abortSignal?: AbortSignal;
-  }) {
-    const body = JSON.stringify({
-      data: params.data?.length
-        ? Buffer.from(params.data).toString("base64")
-        : undefined,
-      close: params.close || undefined,
-    });
-
-    // Only 429s are retried: the request was rejected before it was applied.
-    // Retrying anything else after a lost response could write the bytes twice.
-    for (let attempt = 0; ; attempt++) {
-      const response = await this.request(
+  }): Promise<{ bytesWritten?: number }> {
+    const send = (body: Record<string, unknown>) =>
+      this.request(
         `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.commandId}/stdin`,
         {
           method: "POST",
-          body,
+          body: JSON.stringify(body),
           signal: params.abortSignal,
           retry: { retries: 0 },
         },
       );
+    const body = {
+      data: params.data?.length
+        ? Buffer.from(params.data).toString("base64")
+        : undefined,
+      offset: params.offset,
+      close: params.close || undefined,
+    };
+    const resendable =
+      params.offset !== undefined || (!params.data?.length && !params.close);
 
-      const retryAfter = Number(response.headers.get("Retry-After"));
-      if (
-        response.status !== 429 ||
-        attempt >= STDIN_RATE_LIMIT_RETRIES ||
-        retryAfter > 20
-      ) {
-        return parseOrThrow(CommandResponse, response);
+    let maybeApplied = false;
+    let stalledTimeouts = 0;
+    let lastWritten = params.offset ?? 0;
+    for (let attempt = 0; ; attempt++) {
+      const canRetry = attempt < STDIN_MAX_RETRIES;
+      let response: Response;
+      try {
+        response = await send(body);
+      } catch (error) {
+        if (
+          !resendable ||
+          !canRetry ||
+          params.abortSignal?.aborted ||
+          (error as Error)?.name === "AbortError"
+        ) {
+          throw error;
+        }
+        maybeApplied = true;
+        await delay(stdinBackoff(attempt), params.abortSignal);
+        continue;
       }
 
-      await response.body?.cancel();
-      await delay(
-        retryAfter > 0 ? retryAfter * 1000 : 400 * 2 ** attempt,
-        undefined,
-        { signal: params.abortSignal },
-      );
+      const status = response.status;
+
+      if (
+        status === 404 &&
+        maybeApplied &&
+        params.close &&
+        !params.data?.length
+      ) {
+        // The process exited after applying the close whose response was lost.
+        await response.body?.cancel();
+        return {};
+      }
+
+      if (status === 429 && canRetry) {
+        const retryAfter = Number(response.headers.get("Retry-After"));
+        if (!(retryAfter > 20)) {
+          await response.body?.cancel();
+          await delay(
+            retryAfter > 0 ? retryAfter * 1000 : stdinBackoff(attempt),
+            params.abortSignal,
+          );
+          continue;
+        }
+      }
+
+      if (resendable && canRetry && (status === 502 || status === 503)) {
+        maybeApplied = true;
+        await response.body?.cancel();
+        await delay(stdinBackoff(attempt), params.abortSignal);
+        continue;
+      }
+
+      if (resendable && canRetry && status === 504) {
+        maybeApplied = true;
+        const written = await probeStdinBytesWritten(send);
+        if (written !== undefined && written > lastWritten) {
+          lastWritten = written;
+          stalledTimeouts = 0;
+        } else if (++stalledTimeouts >= STDIN_MAX_STALLED_TIMEOUTS) {
+          return parseStdinResponse(response);
+        }
+        await response.body?.cancel();
+        continue;
+      }
+
+      return parseStdinResponse(response);
     }
   }
 
