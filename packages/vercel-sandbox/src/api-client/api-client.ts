@@ -44,6 +44,9 @@ import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
 import type { SandboxMetaData } from "./validators.js";
+import { withRetry } from "./with-retry.js";
+import { setTimeout as delay } from "node:timers/promises";
+import { StringDecoder } from "node:string_decoder";
 
 const STDIN_MAX_RETRIES = 5;
 const STDIN_MAX_STALLED_TIMEOUTS = 2;
@@ -403,6 +406,7 @@ export class APIClient extends BaseClient {
             timeout: params.timeout,
           }),
           signal: params.signal,
+          retry: { retries: 0 },
         },
       );
 
@@ -424,49 +428,72 @@ export class APIClient extends BaseClient {
         });
       }
 
-      const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream, { signal: params.signal }).catch(
-        (err) => {
-          console.error("Error piping command stream:", err);
-        },
-      );
-
-      const iterator = jsonlinesStream[Symbol.asyncIterator]();
-      const commandChunk = await iterator.next();
-      if (commandChunk.done) {
-        throw new StreamError(
-          "stream_ended_early",
-          "Stream ended before command data was received",
-          params.sessionId,
-        );
+      const iterator = readJsonLines(response.body, params.signal);
+      let command: CommandData;
+      try {
+        const commandChunk = await iterator.next();
+        if (commandChunk.done) {
+          throw new StreamError(
+            "stream_ended_early",
+            "Stream ended before command data was received",
+            params.sessionId,
+          );
+        }
+        command = CommandResponse.parse(commandChunk.value).command;
+      } catch (error) {
+        await iterator.return();
+        throw error;
       }
-      const { command } = CommandResponse.parse(commandChunk.value);
 
+      const delivered = { stdout: 0, stderr: 0 };
       const finished = (async () => {
-        while (true) {
-          const chunk = await iterator.next();
-          if (chunk.done) {
-            throw new StreamError(
-              "stream_ended_early",
-              "Stream ended before command finished",
-              params.sessionId,
-            );
-          }
+        try {
+          while (true) {
+            const chunk = await iterator.next();
+            if (chunk.done) {
+              throw new ConnectionError("Stream ended before command finished");
+            }
 
-          if (chunk.value?.command) {
-            const { command } = CommandFinishedResponse.parse(chunk.value);
-            return command;
-          }
+            if (chunk.value?.command) {
+              return CommandFinishedResponse.parse(chunk.value).command;
+            }
 
-          const parsed = LogLine.parse(chunk.value);
-          if (parsed.stream === "error") {
-            throw new StreamError(
-              parsed.data.code,
-              parsed.data.message,
-              params.sessionId,
-            );
+            const parsed = LogLine.parse(chunk.value);
+            if (parsed.stream === "error") {
+              throw new StreamError(
+                parsed.data.code,
+                parsed.data.message,
+                params.sessionId,
+              );
+            }
+            params.onLog?.(parsed);
+            delivered[parsed.stream] += parsed.data.length;
           }
-          params.onLog?.(parsed);
+        } catch (error) {
+          if (params.signal?.aborted || !(error instanceof ConnectionError)) {
+            throw error;
+          }
+          if (params.logs) {
+            for await (const log of this.getLogsStream(
+              {
+                sessionId: params.sessionId,
+                cmdId: command.id,
+                signal: params.signal,
+              },
+              delivered,
+            )) {
+              params.onLog?.(log);
+            }
+          }
+          const result = await this.getCommand({
+            sessionId: params.sessionId,
+            cmdId: command.id,
+            wait: true,
+            signal: params.signal,
+          });
+          return result.json.command;
+        } finally {
+          await iterator.return();
         }
       })();
 
@@ -509,21 +536,20 @@ export class APIClient extends BaseClient {
     wait?: boolean;
     signal?: AbortSignal;
   }) {
+    const path = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`;
+    let responseText: string | undefined;
+    const response = await withRetry(async () => {
+      const response = await this.request(path, {
+        signal: params.signal,
+        query: params.wait ? { wait: "true" } : undefined,
+        retry: { retries: 0 },
+      });
+      responseText = response.ok ? await response.text() : undefined;
+      return response;
+    })(path, { signal: params.signal, retry: { retries: 2 } });
     return params.wait
-      ? parseOrThrow(
-          CommandFinishedResponse,
-          await this.request(
-            `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`,
-            { signal: params.signal, query: { wait: "true" } },
-          ),
-        )
-      : parseOrThrow(
-          CommandResponse,
-          await this.request(
-            `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`,
-            { signal: params.signal },
-          ),
-        );
+      ? parseOrThrow(CommandFinishedResponse, response, responseText)
+      : parseOrThrow(CommandResponse, response, responseText);
   }
 
   async openInteractive(params: {
@@ -729,6 +755,24 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async getDrive(params: {
+    projectId: string;
+    name: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
+        {
+          method: "GET",
+          query: { projectId: params.projectId },
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async getOrCreateDrive(params: {
     projectId: string;
     name: string;
@@ -747,6 +791,26 @@ export class APIClient extends BaseClient {
             region: params.region,
             maxSizeBytes: params.maxSizeBytes,
           }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
+  async forkDrive(params: {
+    projectId: string;
+    name: string;
+    forkName: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}/fork`,
+        {
+          method: "POST",
+          query: { projectId: params.projectId },
+          body: JSON.stringify({ name: params.forkName }),
           signal: params.signal,
         },
       ),
@@ -961,54 +1025,12 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }): AsyncGenerator<LogOutputLine, void, void> &
     Disposable & { close(): void } {
-    const self = this;
     const disposer = new AbortController();
     const signal = !params.signal
       ? disposer.signal
       : mergeSignals(params.signal, disposer.signal);
 
-    const generator = (async function* () {
-      const url = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}/logs`;
-      const response = await self.request(url, {
-        method: "GET",
-        signal,
-      });
-
-      if (!response.ok) {
-        await parseOrThrow(z.any(), response);
-      }
-
-      if (response.headers.get("content-type") !== "application/x-ndjson") {
-        throw new APIError(response, {
-          message: "Expected a stream of logs",
-          sessionId: params.sessionId,
-        });
-      }
-
-      if (response.body === null) {
-        throw new APIError(response, {
-          message: "No response body",
-          sessionId: params.sessionId,
-        });
-      }
-
-      const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream, { signal }).catch((err) => {
-        console.error("Error piping logs:", err);
-      });
-
-      for await (const chunk of jsonlinesStream) {
-        const parsed = LogLine.parse(chunk);
-        if (parsed.stream === "error") {
-          throw new StreamError(
-            parsed.data.code,
-            parsed.data.message,
-            params.sessionId,
-          );
-        }
-        yield parsed;
-      }
-    })();
+    const generator = this.getLogsStream({ ...params, signal });
 
     return Object.assign(generator, {
       [Symbol.dispose]() {
@@ -1016,6 +1038,59 @@ export class APIClient extends BaseClient {
       },
       close: () => disposer.abort("Disposed"),
     });
+  }
+
+  private async *getLogsStream(
+    params: { sessionId: string; cmdId: string; signal?: AbortSignal },
+    delivered = { stdout: 0, stderr: 0 },
+  ): AsyncGenerator<LogOutputLine, void, void> {
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}/logs`;
+    for (let attempt = 0; ; attempt++) {
+      const response = await this.request(url, { signal: params.signal });
+      if (!response.ok) await parseOrThrow(z.any(), response);
+      if (response.headers.get("content-type") !== "application/x-ndjson") {
+        throw new APIError(response, {
+          message: "Expected a stream of logs",
+          sessionId: params.sessionId,
+        });
+      }
+      if (response.body === null) {
+        throw new APIError(response, {
+          message: "No response body",
+          sessionId: params.sessionId,
+        });
+      }
+      const skip = { ...delivered };
+      try {
+        for await (const chunk of readJsonLines(response.body, params.signal)) {
+          const parsed = LogLine.parse(chunk);
+          if (parsed.stream === "error") {
+            throw new StreamError(
+              parsed.data.code,
+              parsed.data.message,
+              params.sessionId,
+            );
+          }
+          const skipped = Math.min(skip[parsed.stream], parsed.data.length);
+          skip[parsed.stream] -= skipped;
+          const data = parsed.data.slice(skipped);
+          if (data.length > 0 || parsed.data.length === 0) {
+            delivered[parsed.stream] += data.length;
+            yield { ...parsed, data };
+          }
+        }
+        return;
+      } catch (error) {
+        if (
+          params.signal?.aborted ||
+          !(error instanceof ConnectionError) ||
+          attempt >= 2
+        ) {
+          throw error;
+        }
+        await delay(200 * 2 ** attempt, undefined, { signal: params.signal });
+      }
+    }
   }
 
   async stopSession(params: {
@@ -1252,12 +1327,48 @@ export class APIClient extends BaseClient {
   }
 }
 
+class ConnectionError extends Error {}
+
+async function* readJsonLines(
+  body: ReadableStream<Uint8Array>,
+  signal?: AbortSignal,
+) {
+  const controller = new AbortController();
+  let ended = false;
+  const stream = jsonlines.parse({ emitInvalidLines: true });
+  stream.on("invalid-line", (error) => {
+    stream.destroy(
+      ended
+        ? new ConnectionError("Stream ended with an incomplete JSON record", {
+            cause: error,
+          })
+        : error,
+    );
+  });
+  const combined = signal
+    ? mergeSignals(signal, controller.signal)
+    : controller.signal;
+  const piping = pipe(body, stream, {
+    signal: combined,
+    onEnd: () => {
+      ended = true;
+    },
+  });
+  try {
+    for await (const chunk of stream) yield chunk;
+  } finally {
+    controller.abort();
+    await piping;
+  }
+}
+
 async function pipe(
   readable: ReadableStream<Uint8Array>,
   output: NodeJS.WritableStream,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; onEnd?: () => void },
 ) {
   const reader = readable.getReader();
+  const decoder = new StringDecoder("utf8");
   let aborted = false;
 
   const signal = options?.signal;
@@ -1291,19 +1402,30 @@ async function pipe(
     while (true) {
       const read = await reader.read();
       if (read.value) {
-        output.write(Buffer.from(read.value));
+        output.write(decoder.write(Buffer.from(read.value)));
       }
       if (read.done) {
+        if (!aborted) output.write(decoder.end());
         break;
       }
     }
   } catch (err) {
     if (!aborted) {
-      output.emit("error", err);
+      if ("destroy" in output && typeof output.destroy === "function") {
+        output.destroy(
+          new ConnectionError("Stream connection was interrupted", {
+            cause: err,
+          }),
+        );
+      } else {
+        output.emit("error", err);
+      }
     }
   } finally {
     signal?.removeEventListener("abort", onAbort);
+    reader.releaseLock();
     if (!aborted) {
+      options?.onEnd?.();
       output.end();
     }
   }

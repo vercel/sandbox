@@ -312,6 +312,8 @@ export const SnapshotResponse = z.object({
 
 export const Drive = z.object({
   id: z.string(),
+  parentDriveId: z.string().optional(),
+  rootDriveId: z.string().optional(),
   name: z.string(),
   projectId: z.string(),
   region: z.string(),

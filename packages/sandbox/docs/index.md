@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.6.0
+sandbox 4.7.1
 
 ▲ sandbox [options] <command>
 
@@ -10,7 +10,7 @@ For command help, run `sandbox <command> --help`
 Commands:
 
     ls | list                                  List all sandboxes for the specified account and project.
-    create                                     Create a sandbox in the specified account and project.
+    create         [agent]                     Create a sandbox in the specified account and project.
     sh                                         Create a sandbox and start an interactive shell
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
@@ -188,7 +188,15 @@ Auth & Scope:
     --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 
+Arguments:
+
+    [agent]  Open a coding agent in a new sandbox (opencode, claude, pi, codex) [optional]
+
 Examples:
+
+– Create a sandbox and open OpenCode
+
+  $ sandbox create opencode
 
 – Create a sandbox on a Secure Compute network (requires an Enterprise plan)
 
@@ -487,7 +495,33 @@ Commands:
 
     ls | list                        List drives for the specified account and project.
     get-or-create  <name>            Create a drive if it does not already exist, or retrieve it.
+    fork           <parent> <name>   Fork a drive with a new name, inheriting the parent drive's data, max size and region.
     rm | delete    <name> [...name]  Delete one or more drives.
+```
+
+## `sandbox drives fork`
+
+```
+fork
+
+▲ sandbox drives fork [options]
+
+Fork a drive with a new name, inheriting the parent drive's data, max size and region.
+
+Arguments:
+
+    <parent>  Parent drive name
+    <name>    Forked drive name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox config`

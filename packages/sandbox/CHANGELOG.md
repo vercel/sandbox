@@ -1,5 +1,29 @@
 # sandbox
 
+## 4.7.1
+
+### Patch Changes
+
+- Updated dependencies [[`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb), [`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb)]:
+  - @vercel/sandbox@3.6.1
+
+## 4.7.0
+
+### Minor Changes
+
+- Add a new `sandbox drives fork <parent> <new-name>` subcommand to allow forking a drive into a new one, inheriting the parent drive's data, max size and region. ([#369](https://github.com/vercel/sandbox/pull/369))
+
+### Patch Changes
+
+- Updated dependencies [[`26a1162ec144138382d173416c635a270b692983`](https://github.com/vercel/sandbox/commit/26a1162ec144138382d173416c635a270b692983), [`bc2f85f6803a7562c4c4902e35833a8bb45dd071`](https://github.com/vercel/sandbox/commit/bc2f85f6803a7562c4c4902e35833a8bb45dd071)]:
+  - @vercel/sandbox@3.6.0
+
+## 4.6.1
+
+### Patch Changes
+
+- Use the sandbox's SHELL for interactive sessions, falling back to sh when it is unset or empty. ([#353](https://github.com/vercel/sandbox/pull/353))
+
 ## 4.6.0
 
 ### Minor Changes

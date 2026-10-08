@@ -131,11 +131,13 @@ function extractServerMessage(json: unknown): string | undefined {
  * type. If the response is not ok or cannot be parsed it will return error.
  *
  * @param response Response to parse.
+ * @param responseText Previously read response body, if available.
  * @returns Parsed response or error.
  */
 export async function parse<Data, ErrorData>(
   validator: ZodType<Data>,
   response: Response,
+  responseText?: string,
 ): Promise<Parsed<Data> | APIError<ErrorData>> {
   const sessionId = extractSessionId(response.url);
   let sandboxName: string | undefined;
@@ -143,13 +145,15 @@ export async function parse<Data, ErrorData>(
     sandboxName = extractSandboxName(response.url);
   }
 
-  const text = await response.text().catch((err) => {
-    return new APIError<ErrorData>(response, {
-      message: `Can't read response text: ${String(err)}`,
-      sessionId,
-      sandboxName
-    });
-  });
+  const text =
+    responseText ??
+    (await response.text().catch((err) => {
+      return new APIError<ErrorData>(response, {
+        message: `Can't read response text: ${String(err)}`,
+        sessionId,
+        sandboxName
+      });
+    }));
 
   if (typeof text !== "string") {
     return text;
@@ -202,8 +206,9 @@ export async function parse<Data, ErrorData>(
 export async function parseOrThrow<Data, ErrorData>(
   validator: ZodType<Data>,
   response: Response,
+  responseText?: string,
 ): Promise<Parsed<Data>> {
-  const result = await parse<Data, ErrorData>(validator, response);
+  const result = await parse<Data, ErrorData>(validator, response, responseText);
   if (result instanceof APIError) {
     throw result;
   }

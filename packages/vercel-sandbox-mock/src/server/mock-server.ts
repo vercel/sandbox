@@ -203,6 +203,47 @@ export class MockServer {
       );
     }
 
+    if (method === "GET") {
+      const projectId = url.searchParams.get("projectId");
+      const drive = this.#drives.get(name);
+      if (!drive || drive.projectId !== projectId) {
+        return apiError(404, "not_found", "Drive not found.");
+      }
+      return json({ drive: drivePayload(drive) });
+    }
+
+    if (parts[1] === "fork" && method === "POST") {
+      const projectId = url.searchParams.get("projectId");
+      const parentDrive = this.#drives.get(name);
+      if (!parentDrive || parentDrive.projectId !== projectId) {
+        return apiError(404, "not_found", "Drive not found.");
+      }
+
+      const body = readJson<{ name: string }>(init);
+      if (this.#drives.has(body.name)) {
+        return apiError(
+          409,
+          "conflict",
+          `Drive "${body.name}" already exists.`,
+        );
+      }
+
+      const now = Date.now();
+      const drive: DriveRecord = {
+        id: newId("drive"),
+        name: body.name,
+        projectId: parentDrive.projectId,
+        region: parentDrive.region,
+        maxSizeBytes: parentDrive.maxSizeBytes,
+        parentDriveId: parentDrive.id,
+        rootDriveId: parentDrive.rootDriveId ?? parentDrive.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.#drives.set(drive.name, drive);
+      return json({ drive: drivePayload(drive) });
+    }
+
     if (method === "POST") {
       const existingDrive = this.#drives.get(name);
       if (existingDrive) return json({ drive: drivePayload(existingDrive) });

@@ -117,6 +117,8 @@ export interface DriveRecord {
   maxSizeBytes: number;
   currentSessionId?: string;
   currentSandboxName?: string;
+  parentDriveId?: string;
+  rootDriveId?: string;
   createdAt: number;
   updatedAt: number;
 }

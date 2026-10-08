@@ -113,21 +113,47 @@ const getOrCreate = cmd.command({
     })();
 
     process.stderr.write("✅ Drive " + chalk.cyan(drive.name) + " ready.\n");
+    printDriveSummary(drive);
+  },
+});
+
+const fork = cmd.command({
+  name: "fork",
+  description:
+    "Fork a drive with a new name, inheriting the parent drive's data, max size and region.",
+  args: {
+    parent: cmd.positional({
+      displayName: "parent",
+      type: driveName,
+      description: "Parent drive name",
+    }),
+    name: cmd.positional({
+      type: driveName,
+      description: "Forked drive name",
+    }),
+    scope,
+  },
+  async handler({ scope: { token, team, project }, parent, name }) {
+    const forkedDrive = await (async () => {
+      using _spinner = acquireRelease(
+        () => ora("Forking drive...").start(),
+        (spinner) => spinner.stop(),
+      );
+
+      const drive = await driveClient.get({
+        token,
+        teamId: team,
+        projectId: project,
+        name: parent,
+      });
+
+      return driveClient.fork(drive, { name });
+    })();
+
     process.stderr.write(
-      chalk.dim("   │ ") + "region: " + chalk.cyan(drive.region) + "\n",
+      "✅ Drive " + chalk.cyan(forkedDrive.name) + " created.\n",
     );
-    process.stderr.write(
-      chalk.dim("   │ ") +
-        "max size: " +
-        chalk.cyan(formatBytes(drive.maxSize)) +
-        "\n",
-    );
-    process.stderr.write(
-      chalk.dim("   ╰ ") +
-        "created: " +
-        chalk.cyan(timeAgo(drive.createdAt)) +
-        "\n",
-    );
+    printDriveSummary(forkedDrive, parent);
   },
 });
 
@@ -184,9 +210,33 @@ export const drives = subcommands({
   cmds: {
     list,
     "get-or-create": getOrCreate,
+    fork,
     delete: remove,
   },
 });
+
+function printDriveSummary(drive: Drive, parentDriveName?: string) {
+  if (parentDriveName) {
+    process.stderr.write(
+      chalk.dim("   │ ") + "forked from: " + chalk.cyan(parentDriveName) + "\n",
+    );
+  }
+  process.stderr.write(
+    chalk.dim("   │ ") + "region: " + chalk.cyan(drive.region) + "\n",
+  );
+  process.stderr.write(
+    chalk.dim("   │ ") +
+      "max size: " +
+      chalk.cyan(formatBytes(drive.maxSize)) +
+      "\n",
+  );
+  process.stderr.write(
+    chalk.dim("   ╰ ") +
+      "created: " +
+      chalk.cyan(timeAgo(drive.createdAt)) +
+      "\n",
+  );
+}
 
 function printDrives(drives: Drive[]) {
   console.log(

@@ -335,8 +335,8 @@ importers:
         specifier: 1.2.5
         version: 1.2.5
       '@vercel/oidc':
-        specifier: ^3.2.0
-        version: 3.2.0
+        specifier: ^4.0.0
+        version: 4.0.0
       chalk:
         specifier: ^5.6.0
         version: 5.6.0
@@ -380,8 +380,8 @@ importers:
         specifier: 1.2.5
         version: 1.2.5
       '@vercel/oidc':
-        specifier: 3.2.0
-        version: 3.2.0
+        specifier: 4.0.0
+        version: 4.0.0
       '@workflow/serde':
         specifier: 4.1.0-beta.2
         version: 4.1.0-beta.2
@@ -556,6 +556,7 @@ packages:
   '@ai-sdk/vercel@1.0.0-alpha.7':
     resolution: {integrity: sha512-OFR5LR4A4tZrvqdSRItNYw4q+uPWL6hQ8ghtv2uJCuXi6JR0xSgpbmIW88oeXP2U436y4iPBT/ssZPyQpDjmQQ==}
     engines: {node: '>=18'}
+    deprecated: 'The v0 Model API has been removed, and @ai-sdk/vercel no longer works. Use the v0 API instead: https://v0.app/docs/api'
     peerDependencies:
       zod: ^3.24.0
 
@@ -2277,6 +2278,7 @@ packages:
   '@svitejs/changesets-changelog-github-compact@0.1.1':
     resolution: {integrity: sha512-eBi211CfmKtkxB6tINicaDPBMbolswPbaAy7kCx+uUFL/LxztLm9cB+7jP54TgCrv+mMz8vSJWIs/baH63PjsA==}
     engines: {node: ^12.20 || ^14.13.1 || >= 16}
+    deprecated: unmaintained
 
   '@swc/cli@0.8.0':
     resolution: {integrity: sha512-vzUkYzlqLe9dC+B0ZIH62CzfSZOCTjIsmquYyyyi45JCm1xmRfLDKeEeMrEPPyTWnEEN84e4iVd49Tgqa+2GaA==}
@@ -2582,12 +2584,20 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@vercel/cli-auth@0.0.1':
     resolution: {integrity: sha512-CnqiuMlZ4pjs2LCPYiR6aLKPPd3Xb8SBI1Y7eotXKgpx6qgrGNY+E7EIyUt5ErGHJGIrCZyGG5WEo4bHtVmz2Q==}
 
   '@vercel/cli-config@0.2.4':
     resolution: {integrity: sha512-kZ5SojbrV06GHoU6QIWGwDXLov+s9rWZ7QqdqKfJfBGCNUieGfgaCjeeenNy8Y+QC0bwC0dZ2B4l5Hvdmrgpdw==}
+
+  '@vercel/cli-config@0.3.1':
+    resolution: {integrity: sha512-sISbygqlFXYb8qfPu/+2Cf/A8IjrlAuZePdag3EDQr2PRA455s7UZtl9Ro674CWsB/saBRmz3jEkw0YsQs8OoQ==}
+
+  '@vercel/cli-exec@1.0.1':
+    resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
+    engines: {node: '>= 18'}
 
   '@vercel/detect-agent@1.2.5':
     resolution: {integrity: sha512-0krENrjuitlW8s6TJu0MlqCevyCU7K7JK63jZAf7xZ6n17tx+vUEwzHT3sTxawtwZxaW21hu+oFUpoOrm49FsQ==}
@@ -2608,6 +2618,10 @@ packages:
 
   '@vercel/oidc@3.2.0':
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
+    engines: {node: '>= 20'}
+
+  '@vercel/oidc@4.0.0':
+    resolution: {integrity: sha512-ko6ATeRUlHZMB5hLFdC7+/Q1dI2f3NX3gZHxtpALdkxurwjD5HFHGWYF+4o+4SF0E47jg6KzcHknmRpHcKgJ5A==}
     engines: {node: '>= 20'}
 
   '@vercel/queue@0.1.4':
@@ -2668,6 +2682,7 @@ packages:
 
   '@workflow/core@4.2.0-beta.73':
     resolution: {integrity: sha512-F0DQrw11KO1tG5gIOk493Y+O3OwmI2K31z3/HehCD/HSh7LIgj7gQVwNR78dbkt5+4q3BL8RurRDN35hRqk1tg==}
+    deprecated: 'Deprecated: this Workflow 4.x beta release is no longer supported. Please upgrade to the latest supported Workflow release.'
     peerDependencies:
       '@opentelemetry/api': '1'
     peerDependenciesMeta:
@@ -2816,6 +2831,7 @@ packages:
 
   '@workflow/world-vercel@4.1.0-beta.45':
     resolution: {integrity: sha512-+2u8BtWnOWgdry22zJj9QSgh4s1WrTy9EvAJKx+sFnG24mrVBAW83IvqxpDIXAAd72PTFnEXyGHP4LUIO2KJag==}
+    deprecated: 'Deprecated: this Workflow 4.x beta release is no longer supported. Please upgrade to the latest supported Workflow release.'
     peerDependencies:
       '@opentelemetry/api': '1'
     peerDependenciesMeta:
@@ -4251,6 +4267,9 @@ packages:
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
+
+  jose@5.10.0:
+    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
 
   jose@6.2.3:
     resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
@@ -5724,6 +5743,7 @@ packages:
   tar@7.4.3:
     resolution: {integrity: sha512-5S7Va8hKfV7W5U6g3aYxXmlPoZVAwUMy9AOKyF2fVuZa2UD3qZjg578OrLRt8PcNN1PleVaL/5/yYATNL0ICUw==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   term-size@2.2.1:
     resolution: {integrity: sha512-wK0Ri4fOGjv/XPy8SBHZChl8CM7uMc5VML7SqiQ0zG7+J5Vr+RMQDoHa2CNT6KHUnTGIXH34UDMkPzAUyapBZg==}
@@ -6178,6 +6198,7 @@ packages:
 
   workflow@4.2.0-beta.73:
     resolution: {integrity: sha512-qojoyPIommGOVCj/LHOZEBRJqlSbijLOKDr5yzBokhc7qO2wJAXixVshPH6mOxHJc22KuYKFMlJu+ocqhDKT0A==}
+    deprecated: 'Deprecated: this Workflow 4.x beta release is no longer supported. Please upgrade to the latest supported Workflow release.'
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': '1'
@@ -8231,6 +8252,15 @@ snapshots:
       xdg-app-paths: 5.1.0
       zod: 4.1.11
 
+  '@vercel/cli-config@0.3.1':
+    dependencies:
+      xdg-app-paths: 5.1.0
+      zod: 4.1.11
+
+  '@vercel/cli-exec@1.0.1':
+    dependencies:
+      execa: 5.1.1
+
   '@vercel/detect-agent@1.2.5': {}
 
   '@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.13)':
@@ -8242,6 +8272,12 @@ snapshots:
   '@vercel/oidc@3.1.0': {}
 
   '@vercel/oidc@3.2.0': {}
+
+  '@vercel/oidc@4.0.0':
+    dependencies:
+      '@vercel/cli-config': 0.3.1
+      '@vercel/cli-exec': 1.0.1
+      jose: 5.10.0
 
   '@vercel/queue@0.1.4':
     dependencies:
@@ -10292,6 +10328,8 @@ snapshots:
   jiti@2.5.1: {}
 
   jiti@2.6.1: {}
+
+  jose@5.10.0: {}
 
   jose@6.2.3: {}
 

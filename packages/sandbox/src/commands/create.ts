@@ -1,4 +1,5 @@
 import * as cmd from "cmd-ts";
+import { isatty } from "node:tty";
 import ms from "ms";
 import { runtime } from "../args/runtime";
 import { timeout } from "../args/timeout";
@@ -21,6 +22,7 @@ import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
 import { defaultShell } from "../interactive-shell/default-shell";
+import { agentNames, agents } from "./agents";
 
 export const args = {
   name: cmd.option({
@@ -84,8 +86,19 @@ export const args = {
 export const create = cmd.command({
   name: "create",
   description: "Create a sandbox in the specified account and project.",
-  args,
+  args: {
+    ...args,
+    agent: cmd.positional({
+      displayName: "agent",
+      description: `Open a coding agent in a new sandbox (${agentNames.join(", ")})`,
+      type: cmd.optional(cmd.oneOf(agentNames)),
+    }),
+  },
   examples: [
+    {
+      description: "Create a sandbox and open OpenCode",
+      command: "sandbox create opencode",
+    },
     {
       description:
         "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
@@ -98,6 +111,7 @@ export const create = cmd.command({
   ],
   async handler(input) {
     const {
+      agent,
       name,
       nonPersistent,
       ports,
@@ -129,6 +143,23 @@ export const create = cmd.command({
     const { __printConnectHint = true } = input as {
       __printConnectHint?: boolean;
     };
+    const launcher = agent ? agents[agent] : undefined;
+    if (agent) {
+      if (
+        runtime !== undefined ||
+        image !== undefined ||
+        snapshot !== undefined
+      ) {
+        throw new Error(
+          `sandbox create ${agent} cannot be combined with --runtime, --image, or --snapshot.`,
+        );
+      }
+      if (!isatty(0) || !isatty(1)) {
+        throw new Error(
+          `sandbox create ${agent} requires a terminal (TTY). Run it in an interactive terminal.`,
+        );
+      }
+    }
     if (runtime !== undefined && image !== undefined) {
       throw new Error("--runtime and --image cannot be used together.");
     }
@@ -149,6 +180,14 @@ export const create = cmd.command({
       keepLastSnapshotsFor,
       deleteEvictedSnapshots,
     });
+
+    const selectedImage = agent ? "vercel/sandbox/universal" : image;
+    const runtimeOptions =
+      selectedImage !== undefined
+        ? { image: selectedImage }
+        : runtime !== undefined
+          ? { runtime }
+          : {};
 
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
@@ -185,11 +224,7 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          ...(image !== undefined
-            ? { image }
-            : runtime !== undefined
-              ? { runtime }
-              : {}),
+          ...runtimeOptions,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -223,24 +258,82 @@ export const create = cmd.command({
         sandbox,
         scope,
         action: "created",
-        connectHint: !connect && __printConnectHint,
+        connectHint: !agent && !connect && __printConnectHint,
       });
       versionCheck?.report();
     }
 
-    if (connect) {
-      await Exec.exec.handler({
-        ...defaultShell,
-        scope,
-        asSudo: false,
-        cwd: undefined,
-        skipExtendingTimeout: false,
-        envVars: {},
-        interactive: true,
-        tty: true,
-        sandbox,
-        timeout: undefined,
-      });
+    if (agent || connect) {
+      try {
+        if (launcher) {
+          try {
+            const check = await sandbox.runCommand({
+              cmd: launcher.command,
+              args: ["--version"],
+              env: { ...launcher.env, ...envVars },
+            });
+            if (check.exitCode !== 0) {
+              throw new Error(
+                `Version check exited with code ${check.exitCode}.`,
+              );
+            }
+          } catch (cause) {
+            throw new Error(
+              `Unable to start ${launcher.displayName} (${launcher.command}) in the sandbox.`,
+              { cause },
+            );
+          }
+        }
+        await Exec.exec.handler({
+          ...(launcher
+            ? { command: launcher.command, args: launcher.args }
+            : defaultShell),
+          scope,
+          asSudo: false,
+          cwd: undefined,
+          skipExtendingTimeout: false,
+          envVars: launcher ? { ...launcher.env, ...envVars } : {},
+          interactive: true,
+          tty: true,
+          sandbox,
+          timeout: undefined,
+        });
+      } finally {
+        if (launcher && !silent) {
+          const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
+          const envFlags =
+            launcher.reconnectEnv === "explicit"
+              ? Object.keys(envVars)
+                  .map((key) => ` --env='${key.replaceAll("'", "'\\''")}'`)
+                  .join("")
+              : Object.entries(launcher.env)
+                  .map(([key, value]) => ` --env=${key}=${value}`)
+                  .join("");
+          process.stderr.write(
+            `\n${chalk.blue("ℹ")} Exiting ${launcher.displayName} does not stop the sandbox.\n`,
+          );
+          if (launcher.reconnectEnv === "explicit" && envFlags) {
+            process.stderr.write(
+              chalk.dim("   │ ") +
+                "Before reconnecting, export the same --env values in your local shell. Values are not included in this hint.\n",
+            );
+          }
+          process.stderr.write(
+            chalk.dim("   │ ") +
+              "Reconnect: " +
+              chalk.cyan(
+                `sandbox exec ${scopeFlags} --interactive${envFlags} ${sandbox.name} -- ${[launcher.command, ...launcher.reconnectArgs].join(" ")}`,
+              ) +
+              "\n",
+          );
+          process.stderr.write(
+            chalk.dim("   ╰ ") +
+              "Stop: " +
+              chalk.cyan(`sandbox stop ${scopeFlags} ${sandbox.name}`) +
+              "\n",
+          );
+        }
+      }
     }
 
     return sandbox;
