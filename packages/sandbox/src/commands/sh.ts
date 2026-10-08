@@ -20,12 +20,14 @@ export const sh = cmd.command({
     if (!removeAfterUse) {
       return Create.create.handler({
         ...rest,
+        agent: undefined,
         connect: true,
       });
     }
 
     const sandbox = await Create.create.handler({
       ...rest,
+      agent: undefined,
       connect: false,
       nonPersistent: true,
       __printConnectHint: false,

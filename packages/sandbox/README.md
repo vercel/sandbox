@@ -24,3 +24,9 @@ sandbox --help # View all commands
 ```
 
 Learn more about the CLI in the [documentation](https://vercel.com/docs/vercel-sandbox/cli-reference).
+
+### Agents
+
+```bash
+sandbox create opencode # Create a new sandbox and open OpenCode
+```

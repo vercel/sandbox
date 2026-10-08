@@ -10,7 +10,7 @@ For command help, run `sandbox <command> --help`
 Commands:
 
     ls | list                                  List all sandboxes for the specified account and project.
-    create                                     Create a sandbox in the specified account and project.
+    create         [agent]                     Create a sandbox in the specified account and project.
     sh                                         Create a sandbox and start an interactive shell
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
@@ -188,7 +188,15 @@ Auth & Scope:
     --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
     --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 
+Arguments:
+
+    [agent]  Open a coding agent in a new sandbox (opencode) [optional]
+
 Examples:
+
+– Create a sandbox and open OpenCode
+
+  $ sandbox create opencode
 
 – Create a sandbox on a Secure Compute network (requires an Enterprise plan)
 
