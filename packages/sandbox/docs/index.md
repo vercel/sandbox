@@ -194,18 +194,6 @@ Arguments:
 
 Examples:
 
-– Create a sandbox and open Codex
-
-  $ sandbox create codex
-
-– Create a sandbox and open Pi
-
-  $ sandbox create pi
-
-– Create a sandbox and open Claude Code
-
-  $ sandbox create claude
-
 – Create a sandbox and open OpenCode
 
   $ sandbox create opencode
