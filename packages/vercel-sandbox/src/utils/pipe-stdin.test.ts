@@ -29,7 +29,8 @@ function apiError(status: number, code: string) {
 const listenerCount = (stream: PassThrough) =>
   stream.listenerCount("data") +
   stream.listenerCount("end") +
-  stream.listenerCount("error");
+  stream.listenerCount("error") +
+  stream.listenerCount("close");
 
 describe("pipeStdin", () => {
   it("writes the stream in order and closes stdin when it ends", async () => {
@@ -132,6 +133,31 @@ describe("pipeStdin", () => {
     expect(target.closeStdin).toHaveBeenCalledTimes(1);
   });
 
+  it("closes stdin and rejects when the stream is destroyed before it ends", async () => {
+    const target = createTarget();
+    const stream = new PassThrough();
+
+    const pipe = pipeStdin(target, stream);
+    stream.write("a");
+    await vi.waitFor(() => expect(target.writes).toEqual(["a"]));
+    stream.destroy();
+
+    await expect(pipe.done).rejects.toThrow("closed before it ended");
+    expect(target.calls).toEqual(["write", "close"]);
+    expect(listenerCount(stream)).toBe(0);
+  });
+
+  it("reads a stream the caller paused", async () => {
+    const target = createTarget();
+    const stream = new PassThrough();
+    stream.pause();
+    stream.end("a");
+
+    await pipeStdin(target, stream).done;
+
+    expect(target.calls).toEqual(["write", "close"]);
+  });
+
   it("closes stdin right away for a stream that already ended", async () => {
     const target = createTarget();
     const stream = new PassThrough();
@@ -177,8 +203,32 @@ describe("waitWithStdinPipe", () => {
     const pipe = pipeStdin(target, stream);
     stream.write("a");
 
+    const onPipeError = vi.fn();
     await expect(
-      waitWithStdinPipe(new Promise<number>(() => {}), pipe),
+      waitWithStdinPipe(new Promise<number>(() => {}), pipe, { onPipeError }),
     ).rejects.toBe(error);
+    expect(onPipeError).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps piping when waiting is aborted", async () => {
+    const target = createTarget();
+    const stream = new PassThrough();
+    const pipe = pipeStdin(target, stream);
+    const controller = new AbortController();
+    const finished = new Promise<number>((_, reject) =>
+      controller.signal.addEventListener("abort", () =>
+        reject(controller.signal.reason),
+      ),
+    );
+
+    const waiting = waitWithStdinPipe(finished, pipe, {
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(waiting).rejects.toBeDefined();
+    stream.write("a");
+
+    await vi.waitFor(() => expect(target.writes).toEqual(["a"]));
+    pipe.stop();
   });
 });

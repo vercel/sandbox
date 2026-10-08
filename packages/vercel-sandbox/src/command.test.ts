@@ -208,6 +208,9 @@ describe("Command stdin", () => {
       } else {
         const skip = state.data.length - body.offset;
         state.data = Buffer.concat([state.data, chunk.subarray(skip)]);
+        if (body.close && body.offset + chunk.length !== state.data.length) {
+          return failure(409);
+        }
       }
       if (body.close) state.closed = true;
       return json({
@@ -384,6 +387,42 @@ describe("Command stdin", () => {
       expect(result).toHaveProperty("error");
       await expect(cmd.writeStdin("c")).rejects.toThrow("unknown state");
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("closes at the position the API reports after a write fails partway", async () => {
+      await cmd.writeStdin("a");
+      mockFetch.mockImplementation(async (url, init) => {
+        await server.handler(url, init);
+        return failure(503);
+      });
+
+      const result = await settle(cmd.writeStdin("bc"));
+      mockFetch.mockImplementation(server.handler);
+      await cmd.closeStdin();
+
+      expect(result).toHaveProperty("error");
+      expect(server.data.toString()).toBe("abc");
+      expect(server.closed).toBe(true);
+    });
+
+    it("rejects later writes when a client error follows a resent request", async () => {
+      await cmd.writeStdin("a");
+      mockFetch
+        .mockImplementationOnce(async (url, init) => {
+          await server.handler(url, init);
+          return failure(503);
+        })
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
+            status: 429,
+            headers: { "Retry-After": "60" },
+          }),
+        );
+
+      const result = await settle(cmd.writeStdin("bc"));
+
+      expect(result).toMatchObject({ error: { response: { status: 429 } } });
+      await expect(cmd.writeStdin("d")).rejects.toThrow("unknown state");
     });
   });
 
@@ -633,6 +672,26 @@ describe("Command stdin", () => {
       stream.write("a");
 
       await expect(command.wait()).rejects.toBeInstanceOf(APIError);
+    });
+
+    it("reports a stream failure to only one wait", async () => {
+      const stream = new PassThrough();
+      const command = await createSession().runCommand({
+        cmd: "cat",
+        stdin: stream,
+        detached: true,
+      });
+      const fallback = mockFetch.getMockImplementation()!;
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        new URL(url).pathname.endsWith("/stdin")
+          ? failure(500)
+          : fallback(url, init),
+      );
+      stream.write("a");
+
+      await expect(command.wait()).rejects.toBeInstanceOf(APIError);
+      finishCommand();
+      await expect(command.wait()).resolves.toMatchObject({ exitCode: 0 });
     });
   });
 });

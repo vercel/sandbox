@@ -2492,6 +2492,28 @@ describe("APIClient", () => {
         expect(mockFetch).toHaveBeenCalledTimes(4);
       });
 
+      it("uses the bytes written a timeout reports instead of asking for them", async () => {
+        const timeout = (bytesWritten: number) =>
+          new Response(
+            JSON.stringify({
+              error: { code: "command_stdin_timeout", bytesWritten },
+            }),
+            { status: 504, headers: { "content-type": "application/json" } },
+          );
+        mockFetch
+          .mockResolvedValueOnce(timeout(5))
+          .mockResolvedValueOnce(timeout(5))
+          .mockResolvedValueOnce(timeout(5));
+
+        const result = await settle(write());
+
+        expect(result).toMatchObject({
+          error: { response: { status: 504 } },
+        });
+        expect(bodies().every((b) => b.data !== undefined)).toBe(true);
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+      });
+
       it("treats a resent close that finds the command gone as closed", async () => {
         mockFetch
           .mockRejectedValueOnce(new TypeError("fetch failed"))

@@ -70,9 +70,43 @@ function waitBeforeStdinRetry(ms: number, signal?: AbortSignal) {
   });
 }
 
-async function parseStdinResponse(response: Response) {
-  const parsed = await parseOrThrow(CommandStdinResponse, response);
-  return { bytesWritten: parsed.json.bytesWritten };
+const stdinMaybeWrittenErrors = new WeakSet<object>();
+
+/**
+ * Whether a failed stdin write may have delivered some of its data, because an
+ * earlier attempt of the same request may have been applied before it failed.
+ */
+export function stdinMayHaveBeenWritten(error: unknown) {
+  return typeof error === "object" && error !== null && stdinMaybeWrittenErrors.has(error);
+}
+
+async function parseStdinResponse(response: Response, maybeApplied = false) {
+  try {
+    const parsed = await parseOrThrow(CommandStdinResponse, response);
+    return { bytesWritten: parsed.json.bytesWritten };
+  } catch (error) {
+    if (maybeApplied && typeof error === "object" && error !== null) {
+      stdinMaybeWrittenErrors.add(error);
+    }
+    throw error;
+  }
+}
+
+async function readStdinTimeout(response: Response) {
+  const text = await response.text();
+  let bytesWritten: number | undefined;
+  try {
+    const value = JSON.parse(text)?.error?.bytesWritten;
+    if (Number.isSafeInteger(value) && value >= 0) bytesWritten = value;
+  } catch {}
+  return {
+    bytesWritten,
+    response: new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    }),
+  };
 }
 
 async function probeStdinBytesWritten(
@@ -1004,18 +1038,19 @@ export class APIClient extends BaseClient {
 
       if (resendable && canRetry && status === 504) {
         maybeApplied = true;
-        const written = await probeStdinBytesWritten(send);
+        const timeout = await readStdinTimeout(response);
+        const written =
+          timeout.bytesWritten ?? (await probeStdinBytesWritten(send));
         if (written !== undefined && written > lastWritten) {
           lastWritten = written;
           stalledTimeouts = 0;
         } else if (++stalledTimeouts >= STDIN_MAX_STALLED_TIMEOUTS) {
-          return parseStdinResponse(response);
+          return parseStdinResponse(timeout.response, maybeApplied);
         }
-        await response.body?.cancel();
         continue;
       }
 
-      return parseStdinResponse(response);
+      return parseStdinResponse(response, maybeApplied);
     }
   }
 

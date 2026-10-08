@@ -105,12 +105,17 @@ export function pipeStdin(
       .finally(() => settle(error));
   };
 
+  const onClose = () => {
+    if (!ended) onError(new Error("The stdin stream closed before it ended"));
+  };
+
   const onAbort = () => settle();
 
   function detach() {
     stream.off("data", onData);
     stream.off("end", onEnd);
     stream.off("error", onError);
+    stream.off("close", onClose);
     signal?.removeEventListener("abort", onAbort);
     stream.pause();
   }
@@ -122,7 +127,10 @@ export function pipeStdin(
     stream.on("data", onData);
     stream.on("end", onEnd);
     stream.on("error", onError);
+    stream.on("close", onClose);
     if (stream.readableEnded) onEnd();
+    else if (stream.destroyed) onClose();
+    else stream.resume();
   }
 
   return { done, stop: () => settle() };
@@ -130,19 +138,32 @@ export function pipeStdin(
 
 /**
  * Waits for a command to finish, rejecting early if piping stdin fails, and
- * stops piping once the command has exited.
+ * stops piping once the command has exited. Aborting `signal` stops waiting
+ * but leaves the pipe running. `onPipeError` is called when the rejection
+ * comes from the pipe.
  */
 export async function waitWithStdinPipe<T>(
   finished: Promise<T>,
   pipe: StdinPipe | null,
+  opts?: { signal?: AbortSignal; onPipeError?: () => void },
 ): Promise<T> {
   if (!pipe) return finished;
-  finished.catch(() => {});
-  try {
-    return await Promise.race([finished, pipe.done.then(() => finished)]);
-  } finally {
-    pipe.stop();
-  }
+  finished.then(
+    () => pipe.stop(),
+    () => {
+      if (!opts?.signal?.aborted) pipe.stop();
+    },
+  );
+  return Promise.race([
+    finished,
+    pipe.done.then(
+      () => finished,
+      (error) => {
+        opts?.onPipeError?.();
+        throw error;
+      },
+    ),
+  ]);
 }
 
 /**

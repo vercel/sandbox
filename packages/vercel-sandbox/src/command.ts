@@ -1,5 +1,6 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { APIClient, type CommandData } from "./api-client/index.js";
+import { stdinMayHaveBeenWritten } from "./api-client/api-client.js";
 import { APIError } from "./api-client/api-error.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
@@ -272,6 +273,7 @@ export class Command {
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
+    const pipe = this.stdinPipe;
     const command = await waitWithStdinPipe(
       client.getCommand({
         sessionId: this.sessionId,
@@ -279,7 +281,13 @@ export class Command {
         wait: true,
         signal: params?.signal,
       }),
-      this.stdinPipe,
+      pipe,
+      {
+        signal: params?.signal,
+        onPipeError: () => {
+          if (this.stdinPipe === pipe) this.stdinPipe = null;
+        },
+      },
     );
 
     return new CommandFinished({
@@ -466,6 +474,7 @@ export class Command {
       } catch (err) {
         if (sentChunks > 0 || !isRejectedBeforeWrite(err)) {
           this.stdinError = err;
+          this.stdinOffset = null;
         }
         throw err;
       }
@@ -537,13 +546,15 @@ export class Command {
 
 /**
  * Whether a stdin write failed in a way that guarantees none of it reached
- * the process: the API rejected it with a client error before applying it.
+ * the process: the API rejected it with a client error before applying it,
+ * and no earlier attempt of the request may have been applied.
  */
 function isRejectedBeforeWrite(err: unknown) {
   return (
     err instanceof APIError &&
     err.response.status >= 400 &&
-    err.response.status < 500
+    err.response.status < 500 &&
+    !stdinMayHaveBeenWritten(err)
   );
 }
 
