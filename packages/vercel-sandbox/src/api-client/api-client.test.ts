@@ -429,7 +429,7 @@ describe("APIClient", () => {
       await expect(result.finished).rejects.not.toBeInstanceOf(z.ZodError);
     }, 10000);
 
-    it("throws StreamError when stream closes before finished chunk arrives", async () => {
+    it("recovers when stream closes before finished chunk arrives", async () => {
       const commandData = {
         command: {
           id: "cmd_123",
@@ -452,11 +452,23 @@ describe("APIClient", () => {
         },
       });
 
-      mockFetch.mockResolvedValue(
-        new Response(stream, {
-          headers: { "content-type": "application/x-ndjson" },
-        }),
-      );
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(stream, {
+            headers: { "content-type": "application/x-ndjson" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              command: {
+                ...commandData.command,
+                exitCode: 0,
+                durationMs: 1234,
+              },
+            }),
+          ),
+        );
 
       const result = await client.runCommand({
         sessionId: "sbx_123",
@@ -469,10 +481,11 @@ describe("APIClient", () => {
 
       expect(result.command.id).toBe("cmd_123");
 
-      await expect(result.finished).rejects.toThrow(
-        "Stream ended before command finished",
-      );
-      await expect(result.finished).rejects.toBeInstanceOf(StreamError);
+      await expect(result.finished).resolves.toMatchObject({ exitCode: 0 });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch.mock.calls[1][0]).toContain("/cmd/cmd_123?");
+      expect(mockFetch.mock.calls[1][0]).toContain("wait=true");
+      expect(mockFetch.mock.calls[1][1].method).toBe("GET");
     });
 
     it("rejects when signal is already aborted before stream starts", async () => {
@@ -501,6 +514,227 @@ describe("APIClient", () => {
           signal: controller.signal,
         }),
       ).rejects.toThrow();
+    });
+  });
+
+  describe("connection recovery", () => {
+    const command = {
+      id: "cmd_123",
+      name: "echo",
+      args: ["hello"],
+      cwd: "/",
+      sessionId: "sbx_123",
+      exitCode: null,
+      startedAt: 1,
+    };
+    const finished = { ...command, exitCode: 0, durationMs: 1234 };
+    const params = {
+      sessionId: "sbx_123",
+      command: "echo",
+      args: ["hello"],
+      env: {},
+      sudo: false,
+      wait: true as const,
+    };
+    let mockFetch: ReturnType<typeof vi.fn>;
+    let client: APIClient;
+    beforeEach(() => {
+      mockFetch = vi.fn();
+      client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+    });
+
+    function response(lines: object[], broken = false) {
+      let sent = false;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            if (!sent) {
+              sent = true;
+              controller.enqueue(
+                new TextEncoder().encode(
+                  lines.map((line) => JSON.stringify(line) + "\n").join(""),
+                ),
+              );
+            } else if (broken) {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+              controller.error(new TypeError("terminated"));
+            } else {
+              controller.close();
+            }
+          },
+        }),
+        { headers: { "content-type": "application/x-ndjson" } },
+      );
+    }
+
+    it("resumes a broken command stream without executing it again", async () => {
+      mockFetch
+        .mockResolvedValueOnce(response([{ command }], true))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ command: finished })),
+        );
+      const result = await client.runCommand(params);
+      await expect(result.finished).resolves.toEqual(finished);
+      expect(mockFetch.mock.calls.map((call) => call[1].method)).toEqual([
+        "POST",
+        "GET",
+      ]);
+      expect(mockFetch.mock.calls[1][0]).toContain("wait=true");
+    });
+
+    it("replays command logs without duplicating stdout or stderr across different chunks", async () => {
+      const onLog = vi.fn();
+      mockFetch
+        .mockResolvedValueOnce(
+          response(
+            [
+              { command },
+              { stream: "stdout", data: "hé😀" },
+              { stream: "stderr", data: "warn" },
+            ],
+            true,
+          ),
+        )
+        .mockResolvedValueOnce(
+          response([
+            { stream: "stdout", data: "hé" },
+            { stream: "stderr", data: "warning" },
+            { stream: "stdout", data: "😀 world" },
+          ]),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ command: finished })),
+        );
+      const result = await client.runCommand({ ...params, logs: true, onLog });
+      await expect(result.finished).resolves.toEqual(finished);
+      expect(onLog.mock.calls.map(([log]) => log)).toEqual([
+        { stream: "stdout", data: "hé😀" },
+        { stream: "stderr", data: "warn" },
+        { stream: "stderr", data: "ing" },
+        { stream: "stdout", data: " world" },
+      ]);
+      expect(
+        mockFetch.mock.calls.filter((call) => call[1].method === "POST"),
+      ).toHaveLength(1);
+    });
+
+    it("reconnects log streams and skips all output already delivered", async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          response([{ stream: "stdout", data: "one" }], true),
+        )
+        .mockResolvedValueOnce(
+          response([{ stream: "stdout", data: "one two" }], true),
+        )
+        .mockResolvedValueOnce(
+          response([{ stream: "stdout", data: "one two three" }]),
+        );
+      const output = [];
+      for await (const log of client.getLogs({
+        sessionId: "sbx_123",
+        cmdId: "cmd_123",
+      }))
+        output.push(log.data);
+      expect(output.join("")).toBe("one two three");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("bounds retries when log connections keep breaking", async () => {
+      mockFetch.mockImplementation(() => Promise.resolve(response([], true)));
+      const logs = client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_123" });
+      await expect(logs.next()).rejects.toThrow(
+        "Stream connection was interrupted",
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("cancels recovery during the log retry delay", async () => {
+      mockFetch.mockResolvedValueOnce(
+        response([{ stream: "stdout", data: "one" }], true),
+      );
+      const controller = new AbortController();
+      const logs = client.getLogs({
+        sessionId: "sbx_123",
+        cmdId: "cmd_123",
+        signal: controller.signal,
+      });
+      await logs.next();
+      const next = logs.next();
+      setTimeout(() => controller.abort(), 30);
+      await expect(next).rejects.toMatchObject({ name: "AbortError" });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not reconnect after a terminal command stream error", async () => {
+      mockFetch.mockResolvedValueOnce(
+        response([
+          { command },
+          {
+            stream: "error",
+            data: { code: "sandbox_stopped", message: "Sandbox stopped" },
+          },
+        ]),
+      );
+      const result = await client.runCommand(params);
+      await expect(result.finished).rejects.toMatchObject({
+        code: "sandbox_stopped",
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not retry log validation failures", async () => {
+      mockFetch.mockResolvedValueOnce(
+        response([{ stream: "stdout", data: 42 }]),
+      );
+      await expect(
+        client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_123" }).next(),
+      ).rejects.toBeInstanceOf(z.ZodError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not rerun a command when the connection fails before its ID is received", async () => {
+      mockFetch.mockRejectedValue(new TypeError("fetch failed"));
+      await expect(client.runCommand(params)).rejects.toThrow("fetch failed");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries wait responses when the response body connection breaks", async () => {
+      mockFetch
+        .mockResolvedValueOnce(response([], true))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ command: finished })),
+        );
+      await expect(
+        client.getCommand({
+          sessionId: "sbx_123",
+          cmdId: "cmd_123",
+          wait: true,
+        }),
+      ).resolves.toMatchObject({ json: { command: finished } });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(
+        mockFetch.mock.calls.every((call) => call[1].method === "GET"),
+      ).toBe(true);
+    });
+
+    it("retries 502s while waiting for an existing command", async () => {
+      mockFetch
+        .mockResolvedValueOnce(new Response("Bad Gateway", { status: 502 }))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ command: finished })),
+        );
+      await expect(
+        client.getCommand({
+          sessionId: "sbx_123",
+          cmdId: "cmd_123",
+          wait: true,
+        }),
+      ).resolves.toMatchObject({ json: { command: finished } });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
