@@ -22,6 +22,7 @@ import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
 import { defaultShell } from "../interactive-shell/default-shell";
+import { agentNames, agents } from "./agents";
 
 export const args = {
   name: cmd.option({
@@ -89,8 +90,8 @@ export const create = cmd.command({
     ...args,
     agent: cmd.positional({
       displayName: "agent",
-      description: "Open a coding agent in a new sandbox (opencode)",
-      type: cmd.optional(cmd.oneOf(["opencode"] as const)),
+      description: `Open a coding agent in a new sandbox (${agentNames.join(", ")})`,
+      type: cmd.optional(cmd.oneOf(agentNames)),
     }),
   },
   examples: [
@@ -142,6 +143,7 @@ export const create = cmd.command({
     const { __printConnectHint = true } = input as {
       __printConnectHint?: boolean;
     };
+    const launcher = agent ? agents[agent] : undefined;
     if (agent) {
       if (
         runtime !== undefined ||
@@ -149,12 +151,12 @@ export const create = cmd.command({
         snapshot !== undefined
       ) {
         throw new Error(
-          "sandbox create opencode cannot be combined with --runtime, --image, or --snapshot.",
+          `sandbox create ${agent} cannot be combined with --runtime, --image, or --snapshot.`,
         );
       }
       if (!isatty(0) || !isatty(1)) {
         throw new Error(
-          "sandbox create opencode requires a terminal (TTY). Run it in an interactive terminal.",
+          `sandbox create ${agent} requires a terminal (TTY). Run it in an interactive terminal.`,
         );
       }
     }
@@ -263,31 +265,64 @@ export const create = cmd.command({
 
     if (agent || connect) {
       try {
+        if (launcher) {
+          try {
+            const check = await sandbox.runCommand({
+              cmd: launcher.command,
+              args: ["--version"],
+              env: { ...launcher.env, ...envVars },
+            });
+            if (check.exitCode !== 0) {
+              throw new Error(
+                `Version check exited with code ${check.exitCode}.`,
+              );
+            }
+          } catch (cause) {
+            throw new Error(
+              `Unable to start ${launcher.displayName} (${launcher.command}) in the sandbox.`,
+              { cause },
+            );
+          }
+        }
         await Exec.exec.handler({
-          ...(agent ? { command: "opencode", args: [] } : defaultShell),
+          ...(launcher
+            ? { command: launcher.command, args: launcher.args }
+            : defaultShell),
           scope,
           asSudo: false,
           cwd: undefined,
           skipExtendingTimeout: false,
-          envVars: agent
-            ? { OPENCODE_DISABLE_AUTOUPDATE: "true", ...envVars }
-            : {},
+          envVars: launcher ? { ...launcher.env, ...envVars } : {},
           interactive: true,
           tty: true,
           sandbox,
           timeout: undefined,
         });
       } finally {
-        if (agent && !silent) {
+        if (launcher && !silent) {
           const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
+          const envFlags =
+            launcher.reconnectEnv === "explicit"
+              ? Object.keys(envVars)
+                  .map((key) => ` --env='${key.replaceAll("'", "'\\''")}'`)
+                  .join("")
+              : Object.entries(launcher.env)
+                  .map(([key, value]) => ` --env=${key}=${value}`)
+                  .join("");
           process.stderr.write(
-            `\n${chalk.blue("ℹ")} Exiting OpenCode does not stop the sandbox.\n`,
+            `\n${chalk.blue("ℹ")} Exiting ${launcher.displayName} does not stop the sandbox.\n`,
           );
+          if (launcher.reconnectEnv === "explicit" && envFlags) {
+            process.stderr.write(
+              chalk.dim("   │ ") +
+                "Before reconnecting, export the same --env values in your local shell. Values are not included in this hint.\n",
+            );
+          }
           process.stderr.write(
             chalk.dim("   │ ") +
               "Reconnect: " +
               chalk.cyan(
-                `sandbox exec ${scopeFlags} --interactive --env=OPENCODE_DISABLE_AUTOUPDATE=true ${sandbox.name} -- opencode --continue`,
+                `sandbox exec ${scopeFlags} --interactive${envFlags} ${sandbox.name} -- ${[launcher.command, ...launcher.reconnectArgs].join(" ")}`,
               ) +
               "\n",
           );

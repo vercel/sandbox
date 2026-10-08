@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
-import { defaultShell } from "../../src/interactive-shell/default-shell";
 
 const { mockCreate, mockExec, mockIsatty, mockSummary } = vi.hoisted(() => ({
   mockCreate: vi.fn(),
@@ -46,7 +45,7 @@ async function createWith(args: string[]) {
   return cmd.runSafely(create, [...args, ...scopeArgs]);
 }
 
-describe("create opencode", () => {
+describe("create pi", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sandbox.runCommand.mockResolvedValue({ exitCode: 0 });
@@ -61,8 +60,8 @@ describe("create opencode", () => {
     vi.restoreAllMocks();
   });
 
-  test("creates the universal image and opens OpenCode exactly once", async () => {
-    const result = await createWith(["opencode", "--connect", "--timeout=10m"]);
+  test("creates the universal image and opens Pi exactly once", async () => {
+    const result = await createWith(["pi", "--connect", "--timeout=10m"]);
     expect(result).toMatchObject({ _tag: "ok", value: sandbox });
     expect(mockCreate).toHaveBeenCalledOnce();
     expect(mockCreate).toHaveBeenCalledWith(
@@ -74,14 +73,19 @@ describe("create opencode", () => {
         __interactive: true,
       }),
     );
+    expect(sandbox.runCommand).toHaveBeenCalledExactlyOnceWith({
+      cmd: "pi",
+      args: ["--version"],
+      env: {},
+    });
     expect(mockExec).toHaveBeenCalledExactlyOnceWith({
-      command: "opencode",
+      command: "pi",
       args: [],
       cwd: undefined,
       scope: { token: "test-token", team: "team", project: "proj" },
       asSudo: false,
       skipExtendingTimeout: false,
-      envVars: { OPENCODE_DISABLE_AUTOUPDATE: "true" },
+      envVars: {},
       interactive: true,
       tty: true,
       sandbox,
@@ -95,7 +99,7 @@ describe("create opencode", () => {
     "rejects non-terminal fd %s before allocating a sandbox",
     async (fd) => {
       mockIsatty.mockImplementation((descriptor) => descriptor !== fd);
-      await expect(createWith(["opencode"])).rejects.toThrow(
+      await expect(createWith(["pi"])).rejects.toThrow(
         "requires a terminal (TTY)",
       );
       expect(mockCreate).not.toHaveBeenCalled();
@@ -105,7 +109,7 @@ describe("create opencode", () => {
   test.each(["--runtime=node24", "--image=custom", "--snapshot=snap_123"])(
     "rejects conflicting %s before allocating a sandbox",
     async (flag) => {
-      await expect(createWith(["opencode", flag])).rejects.toThrow(
+      await expect(createWith(["pi", flag])).rejects.toThrow(
         "cannot be combined with --runtime, --image, or --snapshot",
       );
       expect(mockCreate).not.toHaveBeenCalled();
@@ -114,26 +118,44 @@ describe("create opencode", () => {
 
   test("rejects unknown agents and extra positionals", async () => {
     expect(await createWith(["unknown"])).toMatchObject({ _tag: "error" });
-    expect(await createWith(["opencode", "extra"])).toMatchObject({
+    expect(await createWith(["pi", "extra"])).toMatchObject({
       _tag: "error",
     });
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  test("passes only explicit environment and permits an explicit update override", async () => {
-    vi.stubEnv("ANTHROPIC_API_KEY", "host-only");
-    vi.stubEnv("OPENAI_API_KEY", "host-only");
-    await createWith([
-      "opencode",
-      "--env=EXPLICIT=value",
-      "--env=OPENCODE_DISABLE_AUTOUPDATE=false",
+  test("passes only explicit environment without agent defaults or host credentials", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "host-only");
+    vi.stubEnv("PI_CODING_AGENT_DIR", "/host/pi-config");
+    vi.stubEnv("PI_CODING_AGENT_SESSION_DIR", "/host/pi-sessions");
+    vi.stubEnv("AI_GATEWAY_API_KEY", "host-only");
+    vi.stubEnv("OPENCODE_DISABLE_AUTOUPDATE", "host-only");
+    await createWith(["pi", "--env=EXPLICIT=value"]);
+    expect(mockCreate.mock.calls[0][0].env).toEqual({ EXPLICIT: "value" });
+    expect(mockExec.mock.calls[0][0].envVars).toEqual({ EXPLICIT: "value" });
+  });
+
+  test("accepts an explicitly supplied API key without printing it in hints", async () => {
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const { create } = await import("../../src/commands/create");
+    await cmd.runSafely(create, [
+      "pi",
+      "--scope=team",
+      "--project=proj",
+      "--env=GEMINI_API_KEY=test-only",
     ]);
-    const explicit = {
-      EXPLICIT: "value",
-      OPENCODE_DISABLE_AUTOUPDATE: "false",
-    };
-    expect(mockCreate.mock.calls[0][0].env).toEqual(explicit);
-    expect(mockExec.mock.calls[0][0].envVars).toEqual(explicit);
+    expect(mockCreate.mock.calls[0][0].env).toEqual({
+      GEMINI_API_KEY: "test-only",
+    });
+    expect(mockExec.mock.calls[0][0].envVars).toEqual({
+      GEMINI_API_KEY: "test-only",
+    });
+    const text = output.mock.calls.flat().join("\n");
+    expect(text).not.toContain("test-only");
+    expect(text).toContain("--env='GEMINI_API_KEY'");
+    expect(text).toContain("export the same --env values in your local shell");
   });
 
   test("prints scoped reconnect and stop hints after disconnection", async () => {
@@ -141,7 +163,7 @@ describe("create opencode", () => {
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
     const { create } = await import("../../src/commands/create");
-    await cmd.runSafely(create, ["opencode", "--scope=team", "--project=proj"]);
+    await cmd.runSafely(create, ["pi", "--scope=team", "--project=proj"]);
     expect(mockSummary).toHaveBeenCalledWith(
       expect.objectContaining({ connectHint: false }),
     );
@@ -150,12 +172,12 @@ describe("create opencode", () => {
     expect(text).toContain("   │ Reconnect: ");
     expect(text).toContain("   ╰ Stop: ");
     expect(text).toContain(
-      "sandbox exec --scope=team --project=proj --interactive --env=OPENCODE_DISABLE_AUTOUPDATE=true agent-sandbox -- opencode --continue",
+      "sandbox exec --scope=team --project=proj --interactive agent-sandbox -- pi --continue",
     );
     expect(text).toContain(
       "sandbox stop --scope=team --project=proj agent-sandbox",
     );
-    expect(text).toContain("Exiting OpenCode does not stop the sandbox");
+    expect(text).toContain("Exiting Pi does not stop the sandbox");
     const reconnect = text
       .split("\n")
       .find((line) => line.includes("Reconnect: "))!;
@@ -167,19 +189,23 @@ describe("create opencode", () => {
       ),
     ).toMatchObject({
       _tag: "ok",
-      value: { command: "opencode", args: ["--continue"], interactive: true },
+      value: { command: "pi", args: ["--continue"], interactive: true },
     });
   });
 
-  test("prints lifecycle hints on connection failure without stopping or deleting", async () => {
+  test.each([
+    "connection failed",
+    "pi: command not found",
+    "Pi startup failed",
+  ])("retains hints when attach rejects: %s", async (message) => {
     const output = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
-    mockExec.mockRejectedValue(new Error("connection failed"));
+    mockExec.mockRejectedValue(new Error(message));
     const { create } = await import("../../src/commands/create");
     await expect(
-      cmd.runSafely(create, ["opencode", "--scope=team", "--project=proj"]),
-    ).rejects.toThrow("connection failed");
+      cmd.runSafely(create, ["pi", "--scope=team", "--project=proj"]),
+    ).rejects.toThrow(message);
     expect(output.mock.calls.flat().join("\n")).toContain("sandbox stop");
     expect(sandbox.stop).not.toHaveBeenCalled();
     expect(sandbox.delete).not.toHaveBeenCalled();
@@ -187,7 +213,7 @@ describe("create opencode", () => {
 
   test("does not attach after creation fails", async () => {
     mockCreate.mockRejectedValue(new Error("create failed"));
-    await expect(createWith(["opencode"])).rejects.toThrow("create failed");
+    await expect(createWith(["pi"])).rejects.toThrow("create failed");
     expect(mockExec).not.toHaveBeenCalled();
   });
 
@@ -195,46 +221,54 @@ describe("create opencode", () => {
     const output = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
-    await createWith(["opencode"]);
+    await createWith(["pi"]);
     expect(mockExec).toHaveBeenCalledOnce();
     expect(output).not.toHaveBeenCalled();
     expect(mockSummary).not.toHaveBeenCalled();
   });
 
-  test("plain create still works without a terminal and does not select an image", async () => {
-    mockIsatty.mockReturnValue(false);
-    expect(await createWith([])).toMatchObject({ _tag: "ok", value: sandbox });
-    expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("image");
-    expect(mockExec).not.toHaveBeenCalled();
-  });
+  test.each(["missing", "broken"])(
+    "reports a %s binary before attaching and retains the stop hint",
+    async (mode) => {
+      if (mode === "missing")
+        sandbox.runCommand.mockRejectedValue(new Error("ENOENT"));
+      else sandbox.runCommand.mockResolvedValue({ exitCode: 1 });
+      const output = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(() => true);
+      const { create } = await import("../../src/commands/create");
+      await expect(
+        cmd.runSafely(create, ["pi", "--scope=team", "--project=proj"]),
+      ).rejects.toThrow("Unable to start Pi (pi) in the sandbox.");
+      expect(mockExec).not.toHaveBeenCalled();
+      expect(output.mock.calls.flat().join("\n")).toContain(
+        "sandbox stop --scope=team --project=proj agent-sandbox",
+      );
+      expect(sandbox.stop).not.toHaveBeenCalled();
+    },
+  );
 
-  test("plain create --connect still opens the default shell", async () => {
-    await createWith(["--connect"]);
-    expect(mockExec).toHaveBeenCalledWith(
-      expect.objectContaining({ ...defaultShell, envVars: {} }),
-    );
-  });
-
-  test("plain create still accepts custom images, runtimes and snapshots", async () => {
-    await createWith(["--image=custom"]);
-    expect(mockCreate.mock.lastCall?.[0]).toHaveProperty("image", "custom");
-    await createWith(["--runtime=node24"]);
-    expect(mockCreate.mock.lastCall?.[0]).toHaveProperty("runtime", "node24");
-    await createWith(["--snapshot=snap_123"]);
-    expect(mockCreate.mock.lastCall?.[0]).toHaveProperty("source", {
-      type: "snapshot",
-      snapshotId: "snap_123",
-    });
-  });
-
-  test("run still parses its executable rather than consuming an agent positional", async () => {
-    const { run } = await import("../../src/commands/run");
-    expect(
-      await cmd.runSafely(run, [...scopeArgs, "--", "node", "--version"]),
-    ).toMatchObject({ _tag: "ok" });
-    expect(mockExec).toHaveBeenCalledWith(
-      expect.objectContaining({ command: "node", args: ["--version"] }),
-    );
-    expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("image");
-  });
+  test.each([1, 127])(
+    "retains remote exit code %s and stop hint",
+    async (code) => {
+      const previousExitCode = process.exitCode;
+      const output = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(() => true);
+      mockExec.mockImplementation(async () => {
+        process.exitCode = code;
+      });
+      try {
+        const { create } = await import("../../src/commands/create");
+        await cmd.runSafely(create, ["pi", "--scope=team", "--project=proj"]);
+        expect(process.exitCode).toBe(code);
+        expect(output.mock.calls.flat().join("\n")).toContain(
+          "sandbox stop --scope=team --project=proj agent-sandbox",
+        );
+        expect(sandbox.stop).not.toHaveBeenCalled();
+      } finally {
+        process.exitCode = previousExitCode;
+      }
+    },
+  );
 });
