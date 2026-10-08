@@ -31,4 +31,5 @@ Learn more about the CLI in the [documentation](https://vercel.com/docs/vercel-s
 sandbox create opencode # Create a new sandbox and open OpenCode
 sandbox create pi # Create a new sandbox and open Pi
 sandbox create claude # Create a new sandbox and open Claude Code
+sandbox create codex # Create a new sandbox and open Codex
 ```
