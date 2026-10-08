@@ -45,6 +45,7 @@ import type { RUNTIMES, SandboxRegion } from "../constants.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
+import { StringDecoder } from "node:string_decoder";
 
 interface Claims {
   owner_id: string;
@@ -1214,6 +1215,7 @@ async function pipe(
   options?: { signal?: AbortSignal; onEnd?: () => void },
 ) {
   const reader = readable.getReader();
+  const decoder = new StringDecoder("utf8");
   let aborted = false;
 
   const signal = options?.signal;
@@ -1247,9 +1249,10 @@ async function pipe(
     while (true) {
       const read = await reader.read();
       if (read.value) {
-        output.write(Buffer.from(read.value));
+        output.write(decoder.write(Buffer.from(read.value)));
       }
       if (read.done) {
+        if (!aborted) output.write(decoder.end());
         break;
       }
     }

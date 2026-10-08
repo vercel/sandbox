@@ -594,6 +594,77 @@ describe("APIClient", () => {
       );
     }
 
+    function bytewiseResponse(lines: object[], broken = false) {
+      const bytes = new TextEncoder().encode(
+        lines.map((line) => JSON.stringify(line) + "\n").join(""),
+      );
+      let offset = 0;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            if (offset < bytes.length) {
+              controller.enqueue(bytes.subarray(offset, offset + 1));
+              offset++;
+            } else if (broken) {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+              controller.error(new TypeError("terminated"));
+            } else {
+              controller.close();
+            }
+          },
+        }),
+        { headers: { "content-type": "application/x-ndjson" } },
+      );
+    }
+
+    it("preserves split UTF-8 characters and replay offsets in command streams", async () => {
+      const onLog = vi.fn();
+      mockFetch
+        .mockResolvedValueOnce(
+          bytewiseResponse(
+            [
+              { command },
+              { stream: "stdout", data: "é😀" },
+              { stream: "stderr", data: "中文" },
+            ],
+            true,
+          ),
+        )
+        .mockResolvedValueOnce(
+          response([
+            { stream: "stdout", data: "é😀Z" },
+            { stream: "stderr", data: "中文!" },
+          ]),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ command: finished })),
+        );
+      const result = await client.runCommand({ ...params, logs: true, onLog });
+      await expect(result.finished).resolves.toEqual(finished);
+      expect(onLog.mock.calls.map(([log]) => log)).toEqual([
+        { stream: "stdout", data: "é😀" },
+        { stream: "stderr", data: "中文" },
+        { stream: "stdout", data: "Z" },
+        { stream: "stderr", data: "!" },
+      ]);
+    });
+
+    it("preserves split UTF-8 characters and replay offsets in log streams", async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          bytewiseResponse([{ stream: "stdout", data: "é😀" }], true),
+        )
+        .mockResolvedValueOnce(response([{ stream: "stdout", data: "é😀Z" }]));
+      const output = [];
+      for await (const log of client.getLogs({
+        sessionId: "sbx_123",
+        cmdId: "cmd_123",
+      }))
+        output.push(log.data);
+      expect(output).toEqual(["é😀", "Z"]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
     it("recovers when a command stream ends halfway through a record", async () => {
       const onLog = vi.fn();
       mockFetch
