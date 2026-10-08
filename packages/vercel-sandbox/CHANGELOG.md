@@ -1,5 +1,13 @@
 # @vercel/sandbox
 
+## 3.6.0
+
+### Minor Changes
+
+- Add a new `Drive.get` method to retrieve an existing drive by name. ([#367](https://github.com/vercel/sandbox/pull/367))
+
+- Add a new `drive.fork({ name })` API that forks and returns a new `Drive`, inheriting the parent drive's data, max size and region. ([#369](https://github.com/vercel/sandbox/pull/369))
+
 ## 3.5.1
 
 ### Patch Changes
