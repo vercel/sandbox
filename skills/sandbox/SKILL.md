@@ -987,6 +987,12 @@ sandbox create --region <region>             # Defaults to iad1; any Vercel regi
 sandbox create --failover-regions <region>,<region>  # Comma-separated
 sandbox create --failover-regions none               # No failover, overrides the project default
 
+# Start a coding agent (interactive terminal required)
+sandbox create opencode
+sandbox create pi
+sandbox create claude
+sandbox create codex
+
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
 sandbox fork <source> --name my-fork --vcpus 4 --env FOO=1
@@ -1046,6 +1052,13 @@ sandbox config current-snapshot <name> <snapshot-id>
 sandbox config network-policy <name> --network-policy deny-all
 sandbox config tags <name> --tag env=prod
 ```
+
+Agent shortcuts use the universal image and require an interactive terminal.
+Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
+authentication for the agent separately from `sandbox login`.
+
+Exiting the agent leaves the sandbox running. Use the printed reconnect or stop
+command and follow any environment-variable reminder printed with it.
 
 ## Common Patterns
 
