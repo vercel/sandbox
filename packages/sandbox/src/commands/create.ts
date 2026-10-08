@@ -1,4 +1,5 @@
 import * as cmd from "cmd-ts";
+import { isatty } from "node:tty";
 import ms from "ms";
 import { runtime } from "../args/runtime";
 import { timeout } from "../args/timeout";
@@ -84,8 +85,19 @@ export const args = {
 export const create = cmd.command({
   name: "create",
   description: "Create a sandbox in the specified account and project.",
-  args,
+  args: {
+    ...args,
+    agent: cmd.positional({
+      displayName: "agent",
+      description: "Open a coding agent in a new sandbox (opencode)",
+      type: cmd.optional(cmd.oneOf(["opencode"] as const)),
+    }),
+  },
   examples: [
+    {
+      description: "Create a sandbox and open OpenCode",
+      command: "sandbox create opencode",
+    },
     {
       description:
         "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
@@ -98,6 +110,7 @@ export const create = cmd.command({
   ],
   async handler(input) {
     const {
+      agent,
       name,
       nonPersistent,
       ports,
@@ -129,6 +142,22 @@ export const create = cmd.command({
     const { __printConnectHint = true } = input as {
       __printConnectHint?: boolean;
     };
+    if (agent) {
+      if (
+        runtime !== undefined ||
+        image !== undefined ||
+        snapshot !== undefined
+      ) {
+        throw new Error(
+          "sandbox create opencode cannot be combined with --runtime, --image, or --snapshot.",
+        );
+      }
+      if (!isatty(0) || !isatty(1)) {
+        throw new Error(
+          "sandbox create opencode requires a terminal (TTY). Run it in an interactive terminal.",
+        );
+      }
+    }
     if (runtime !== undefined && image !== undefined) {
       throw new Error("--runtime and --image cannot be used together.");
     }
@@ -185,11 +214,13 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          ...(image !== undefined
-            ? { image }
-            : runtime !== undefined
-              ? { runtime }
-              : {}),
+          ...(agent
+            ? { image: "vercel/sandbox/universal" }
+            : image !== undefined
+              ? { image }
+              : runtime !== undefined
+                ? { runtime }
+                : {}),
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -223,24 +254,37 @@ export const create = cmd.command({
         sandbox,
         scope,
         action: "created",
-        connectHint: !connect && __printConnectHint,
+        connectHint: !agent && !connect && __printConnectHint,
       });
       versionCheck?.report();
     }
 
-    if (connect) {
-      await Exec.exec.handler({
-        ...defaultShell,
-        scope,
-        asSudo: false,
-        cwd: undefined,
-        skipExtendingTimeout: false,
-        envVars: {},
-        interactive: true,
-        tty: true,
-        sandbox,
-        timeout: undefined,
-      });
+    if (agent || connect) {
+      try {
+        await Exec.exec.handler({
+          ...(agent ? { command: "opencode", args: [] } : defaultShell),
+          scope,
+          asSudo: false,
+          cwd: undefined,
+          skipExtendingTimeout: false,
+          envVars: agent
+            ? { OPENCODE_DISABLE_AUTOUPDATE: "true", ...envVars }
+            : {},
+          interactive: true,
+          tty: true,
+          sandbox,
+          timeout: undefined,
+        });
+      } finally {
+        if (agent && !silent) {
+          const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
+          console.error("\nExiting OpenCode does not stop the sandbox.");
+          console.error(
+            `Reconnect: sandbox exec ${scopeFlags} --interactive --env=OPENCODE_DISABLE_AUTOUPDATE=true ${sandbox.name} -- opencode --continue`,
+          );
+          console.error(`Stop: sandbox stop ${scopeFlags} ${sandbox.name}`);
+        }
+      }
     }
 
     return sandbox;

@@ -54,6 +54,7 @@ export const run = cmd.command({
         ) {
           sandbox = await Create.create.handler({
             ...rest,
+            agent: undefined,
             nonPersistent: rest.nonPersistent || removeAfterUse,
             __printConnectHint: false,
           } as Parameters<typeof Create.create.handler>[0]);
@@ -64,6 +65,7 @@ export const run = cmd.command({
     } else {
       sandbox = await Create.create.handler({
         ...rest,
+        agent: undefined,
         nonPersistent: rest.nonPersistent || removeAfterUse,
         __printConnectHint: false,
       } as Parameters<typeof Create.create.handler>[0]);
