@@ -14,7 +14,11 @@ import { dirname, resolve } from "path";
 import { Command, CommandFinished } from "./command.js";
 import { Snapshot } from "./snapshot.js";
 import { consumeReadable } from "./utils/consume-readable.js";
-import { pipeStdin, waitWithStdinPipe } from "./utils/pipe-stdin.js";
+import {
+  pipeStdin,
+  waitWithStdinPipe,
+  type StdinPipe,
+} from "./utils/pipe-stdin.js";
 import type {
   NetworkPolicy,
   NetworkPolicyRule,
@@ -71,8 +75,9 @@ export interface RunCommandParams {
    * A `Readable` stream is written to the command's stdin, and stdin is
    * closed when the stream ends. The stream is never ended or destroyed. If a
    * write fails, reading stops and the command result rejects
-   * ({@link Command.wait} when detached). If the command exits first, reading
-   * stops.
+   * ({@link Command.wait} when detached). Without `detached`, the command is
+   * also killed, since there is no handle to stop it. If the command exits
+   * first, reading stops.
    *
    * When unset or false, the command reads from an empty stdin.
    */
@@ -95,6 +100,24 @@ export interface RunCommandParams {
    * whether or not the command is awaited (including `detached: true`).
    */
   timeoutMs?: number;
+}
+
+/**
+ * Pipes stdin for a command the caller is waiting on, killing the command if
+ * piping fails, since the caller has no handle to stop it otherwise.
+ */
+function pipeStdinOrKill(
+  command: Command,
+  stream: Readable,
+  signal?: AbortSignal,
+): StdinPipe {
+  const pipe = pipeStdin(command, stream, signal);
+  const done = pipe.done.catch((error) => {
+    command.kill().catch(() => {});
+    throw error;
+  });
+  done.catch(() => {});
+  return { done, stop: pipe.stop };
 }
 
 /**
@@ -479,7 +502,7 @@ export class Session implements ExecutionContext {
       const finished = await waitWithStdinPipe(
         commandStream.finished,
         stdinStream &&
-          pipeStdin(
+          pipeStdinOrKill(
             new Command({
               client,
               sessionId: this.session.id,

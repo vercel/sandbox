@@ -591,6 +591,32 @@ describe("Command stdin", () => {
       expect(server.data.toString()).toBe("hi");
     });
 
+    it("kills a command it waits on when writing the stream fails", async () => {
+      const stream = new PassThrough();
+      const fallback = mockFetch.getMockImplementation()!;
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
+        const path = new URL(url).pathname;
+        if (path.endsWith("/stdin")) return failure(500);
+        if (path.endsWith("/kill")) {
+          finishCommand();
+          return json({ command: cmdData });
+        }
+        return fallback(url, init);
+      });
+      stream.write("a");
+
+      await expect(
+        createSession().runCommand({ cmd: "cat", stdin: stream }),
+      ).rejects.toBeInstanceOf(APIError);
+      await vi.waitFor(() =>
+        expect(
+          mockFetch.mock.calls.some(([url]) =>
+            new URL(url).pathname.endsWith("/kill"),
+          ),
+        ).toBe(true),
+      );
+    });
+
     it("rejects wait when writing the stream fails", async () => {
       const stream = new PassThrough();
       const command = await createSession().runCommand({

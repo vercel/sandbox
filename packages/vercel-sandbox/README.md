@@ -339,7 +339,8 @@ await sandbox.runCommand({
 Data read while a write is in flight is sent together as soon as that write
 resolves, and reading pauses while a write is slow, so a slow process slows
 down the stream. The stream is never ended or destroyed. If a write fails,
-reading stops and `runCommand` rejects (`cmd.wait()` when detached). If the
+reading stops and `runCommand` rejects and kills the command. When detached,
+`cmd.wait()` rejects instead and the command keeps running. If the
 command exits or stops reading stdin first, reading stops. The command sees a
 pipe, not a TTY. A stream can't be passed between workflow steps, so use
 `stdin: true` with `writeStdin` in workflows.
