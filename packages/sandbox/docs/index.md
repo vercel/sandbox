@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.6.1
+sandbox 4.7.1
 
 ▲ sandbox [options] <command>
 
@@ -495,7 +495,33 @@ Commands:
 
     ls | list                        List drives for the specified account and project.
     get-or-create  <name>            Create a drive if it does not already exist, or retrieve it.
+    fork           <parent> <name>   Fork a drive with a new name, inheriting the parent drive's data, max size and region.
     rm | delete    <name> [...name]  Delete one or more drives.
+```
+
+## `sandbox drives fork`
+
+```
+fork
+
+▲ sandbox drives fork [options]
+
+Fork a drive with a new name, inheriting the parent drive's data, max size and region.
+
+Arguments:
+
+    <parent>  Parent drive name
+    <name>    Forked drive name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
 ```
 
 ## `sandbox config`

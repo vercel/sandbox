@@ -79,6 +79,20 @@ export class Drive {
   }
 
   /**
+   * The ID of the source drive, if this drive is a fork.
+   */
+  public get parentDriveId(): string | undefined {
+    return this.drive.parentDriveId;
+  }
+
+  /**
+   * The ID of the original drive at the root of this fork.
+   */
+  public get rootDriveId(): string | undefined {
+    return this.drive.rootDriveId;
+  }
+
+  /**
    * The name of the drive.
    */
   public get name(): string {
@@ -134,7 +148,7 @@ export class Drive {
     return new Date(this.drive.updatedAt);
   }
 
-  /** 
+  /**
    * Mount this drive as a read-only snapshot.
    */
   public snapshot() {
@@ -300,6 +314,30 @@ export class Drive {
       client,
       drive: response.json.drive,
       projectId: credentials.projectId,
+    });
+  }
+
+  /**
+   * Create a fork of this drive, with a new name. Forks inherit their parent
+   * drive's data, max size and region.
+   *
+   * @param params - Name of the forked drive and optional abort signal.
+   * @returns A promise resolving to the forked {@link Drive}.
+   */
+  async fork(params: { name: string; signal?: AbortSignal }): Promise<Drive> {
+    "use step";
+    const client = await this.ensureClient();
+    const response = await client.forkDrive({
+      projectId: this._projectId,
+      name: this.drive.name,
+      forkName: params.name,
+      signal: params.signal,
+    });
+
+    return new Drive({
+      client,
+      drive: response.json.drive,
+      projectId: this._projectId,
     });
   }
 
