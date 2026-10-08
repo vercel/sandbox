@@ -1057,8 +1057,9 @@ Agent shortcuts use the universal image and require an interactive terminal.
 Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
 authentication for the agent separately from `sandbox login`.
 
-Exiting the agent leaves the sandbox running. Use the printed reconnect or stop
-command and follow any environment-variable reminder printed with it.
+Exiting the agent leaves the sandbox running. Unless you pass `--silent`, the CLI
+prints reconnect and stop commands. Follow any environment-variable reminder
+printed with the reconnect command.
 
 ## Common Patterns
 
