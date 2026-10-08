@@ -55,7 +55,7 @@ function stdinBackoff(attempt: number) {
   return 400 * 2 ** attempt;
 }
 
-function delay(ms: number, signal?: AbortSignal) {
+function waitBeforeStdinRetry(ms: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason);
     const onAbort = () => {
@@ -966,7 +966,7 @@ export class APIClient extends BaseClient {
           throw error;
         }
         maybeApplied = true;
-        await delay(stdinBackoff(attempt), params.abortSignal);
+        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
         continue;
       }
 
@@ -987,7 +987,7 @@ export class APIClient extends BaseClient {
         const retryAfter = Number(response.headers.get("Retry-After"));
         if (!(retryAfter > 20)) {
           await response.body?.cancel();
-          await delay(
+          await waitBeforeStdinRetry(
             retryAfter > 0 ? retryAfter * 1000 : stdinBackoff(attempt),
             params.abortSignal,
           );
@@ -998,7 +998,7 @@ export class APIClient extends BaseClient {
       if (resendable && canRetry && (status === 502 || status === 503)) {
         maybeApplied = true;
         await response.body?.cancel();
-        await delay(stdinBackoff(attempt), params.abortSignal);
+        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
         continue;
       }
 
