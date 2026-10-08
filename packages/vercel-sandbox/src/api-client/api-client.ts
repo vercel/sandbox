@@ -488,24 +488,19 @@ export class APIClient extends BaseClient {
     signal?: AbortSignal;
   }) {
     const path = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`;
+    let responseText: string | undefined;
     const response = await withRetry(async () => {
       const response = await this.request(path, {
         signal: params.signal,
         query: params.wait ? { wait: "true" } : undefined,
         retry: { retries: 0 },
       });
-      if (!response.ok) return response;
-      const buffered = new Response(await response.text(), {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-      });
-      Object.defineProperty(buffered, "url", { value: response.url });
-      return buffered;
+      responseText = response.ok ? await response.text() : undefined;
+      return response;
     })(path, { signal: params.signal, retry: { retries: 2 } });
     return params.wait
-      ? parseOrThrow(CommandFinishedResponse, response)
-      : parseOrThrow(CommandResponse, response);
+      ? parseOrThrow(CommandFinishedResponse, response, responseText)
+      : parseOrThrow(CommandResponse, response, responseText);
   }
 
   async openInteractive(params: {

@@ -795,6 +795,45 @@ describe("APIClient", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
+    it("preserves the original wait response after reading its body", async () => {
+      const text = JSON.stringify({ command: finished });
+      const original = new Response(text);
+      const readText = vi.spyOn(original, "text");
+      mockFetch.mockResolvedValueOnce(original);
+
+      const result = await client.getCommand({
+        sessionId: "sbx_123",
+        cmdId: "cmd_123",
+        wait: true,
+      });
+
+      expect(result.response).toBe(original);
+      expect(result.text).toBe(text);
+      expect(result.json.command).toEqual(finished);
+      expect(readText).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["invalid JSON", "{", "Can't parse JSON"],
+      ["invalid command data", '{"command":{}}', "Response JSON is not valid"],
+      ["empty body", "", "Response JSON is not valid"],
+    ])("does not retry a wait response with %s", async (_, text, message) => {
+      const original = new Response(text);
+      mockFetch.mockResolvedValueOnce(original);
+
+      await expect(
+        client.getCommand({
+          sessionId: "sbx_123",
+          cmdId: "cmd_123",
+          wait: true,
+        }),
+      ).rejects.toMatchObject({
+        response: original,
+        message: expect.stringContaining(message),
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
     it("retries wait responses when the response body connection breaks", async () => {
       mockFetch
         .mockResolvedValueOnce(response([], true))
