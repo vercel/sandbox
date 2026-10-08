@@ -1,5 +1,13 @@
 # @vercel/sandbox
 
+## 3.6.1
+
+### Patch Changes
+
+- Preserve UTF-8 characters split across command and log stream chunks so recovery does not skip new output. ([#374](https://github.com/vercel/sandbox/pull/374))
+
+- Recover from interrupted command wait and log connections, including streams ending with incomplete JSON records, without rerunning commands or duplicating output. ([#374](https://github.com/vercel/sandbox/pull/374))
+
 ## 3.6.0
 
 ### Minor Changes
