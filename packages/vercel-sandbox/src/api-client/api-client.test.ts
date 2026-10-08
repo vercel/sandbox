@@ -571,6 +571,99 @@ describe("APIClient", () => {
       );
     }
 
+    function truncatedResponse(lines: object[]) {
+      let sent = false;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            if (!sent) {
+              sent = true;
+              controller.enqueue(
+                new TextEncoder().encode(
+                  lines.map((line) => JSON.stringify(line) + "\n").join("") +
+                    '{"stream":"stdout","data":"unfinished',
+                ),
+              );
+            } else {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+              controller.close();
+            }
+          },
+        }),
+        { headers: { "content-type": "application/x-ndjson" } },
+      );
+    }
+
+    it("recovers when a command stream ends halfway through a record", async () => {
+      const onLog = vi.fn();
+      mockFetch
+        .mockResolvedValueOnce(
+          truncatedResponse([{ command }, { stream: "stdout", data: "one" }]),
+        )
+        .mockResolvedValueOnce(
+          response([{ stream: "stdout", data: "one two" }]),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ command: finished })),
+        );
+      const result = await client.runCommand({ ...params, logs: true, onLog });
+      await expect(result.finished).resolves.toEqual(finished);
+      expect(onLog.mock.calls.map(([log]) => log.data).join("")).toBe(
+        "one two",
+      );
+      expect(mockFetch.mock.calls.map((call) => call[1].method)).toEqual([
+        "POST",
+        "GET",
+        "GET",
+      ]);
+    });
+
+    it("reconnects when a log stream ends halfway through a record", async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          truncatedResponse([{ stream: "stdout", data: "one" }]),
+        )
+        .mockResolvedValueOnce(
+          response([{ stream: "stdout", data: "one two" }]),
+        );
+      const output = [];
+      for await (const log of client.getLogs({
+        sessionId: "sbx_123",
+        cmdId: "cmd_123",
+      }))
+        output.push(log.data);
+      expect(output.join("")).toBe("one two");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry malformed newline-terminated records", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('{"stream":"stdout","data":}\n', {
+          headers: { "content-type": "application/x-ndjson" },
+        }),
+      );
+      await expect(
+        client.getLogs({ sessionId: "sbx_123", cmdId: "cmd_123" }).next(),
+      ).rejects.toBeInstanceOf(SyntaxError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts a complete final record without a newline", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ stream: "stdout", data: "one" }), {
+          headers: { "content-type": "application/x-ndjson" },
+        }),
+      );
+      const output = [];
+      for await (const log of client.getLogs({
+        sessionId: "sbx_123",
+        cmdId: "cmd_123",
+      }))
+        output.push(log.data);
+      expect(output).toEqual(["one"]);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
     it("resumes a broken command stream without executing it again", async () => {
       mockFetch
         .mockResolvedValueOnce(response([{ command }], true))

@@ -1185,11 +1185,26 @@ async function* readJsonLines(
   signal?: AbortSignal,
 ) {
   const controller = new AbortController();
-  const stream = jsonlines.parse();
+  let ended = false;
+  const stream = jsonlines.parse({ emitInvalidLines: true });
+  stream.on("invalid-line", (error) => {
+    stream.destroy(
+      ended
+        ? new ConnectionError("Stream ended with an incomplete JSON record", {
+            cause: error,
+          })
+        : error,
+    );
+  });
   const combined = signal
     ? mergeSignals(signal, controller.signal)
     : controller.signal;
-  const piping = pipe(body, stream, { signal: combined });
+  const piping = pipe(body, stream, {
+    signal: combined,
+    onEnd: () => {
+      ended = true;
+    },
+  });
   try {
     for await (const chunk of stream) yield chunk;
   } finally {
@@ -1201,7 +1216,7 @@ async function* readJsonLines(
 async function pipe(
   readable: ReadableStream<Uint8Array>,
   output: NodeJS.WritableStream,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; onEnd?: () => void },
 ) {
   const reader = readable.getReader();
   let aborted = false;
@@ -1259,6 +1274,7 @@ async function pipe(
     signal?.removeEventListener("abort", onAbort);
     reader.releaseLock();
     if (!aborted) {
+      options?.onEnd?.();
       output.end();
     }
   }
