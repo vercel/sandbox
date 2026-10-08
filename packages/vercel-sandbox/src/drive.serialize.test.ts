@@ -47,6 +47,7 @@ describe("Drive serialization", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe("WORKFLOW_SERIALIZE", () => {
@@ -73,6 +74,64 @@ describe("Drive serialization", () => {
   });
 
   describe("WORKFLOW_DESERIALIZE", () => {
+    it("forks a deserialized drive with new credentials and its saved project", async () => {
+      vi.resetModules();
+      const { Drive: FreshDrive } = await import("./drive");
+      const credentials = await import("./utils/get-credentials");
+      vi.spyOn(credentials, "getCredentials").mockResolvedValue({
+        token: "fresh-token",
+        teamId: "team_test",
+        projectId: "proj_other",
+      });
+      const mockFetch = vi.fn<typeof fetch>(
+        async () =>
+          new Response(
+            JSON.stringify({
+              drive: {
+                ...mockDriveMetadata,
+                id: "drive_fork",
+                name: "workspace-fork",
+                parentDriveId: "drive_test123",
+                rootDriveId: "drive_test123",
+              },
+            }),
+            { status: 201, headers: { "content-type": "application/json" } },
+          ),
+      );
+      vi.stubGlobal("fetch", mockFetch);
+      const drive = FreshDrive[WORKFLOW_DESERIALIZE]({
+        drive: mockDriveMetadata,
+        projectId: "proj_test",
+      });
+
+      const forkedDrive = await drive.fork({ name: "workspace-fork" });
+
+      expect(forkedDrive.name).toBe("workspace-fork");
+      expect(forkedDrive.parentDriveId).toBe("drive_test123");
+      expect(forkedDrive.rootDriveId).toBe("drive_test123");
+      expect(forkedDrive.projectId).toBe("proj_test");
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(new URL(String(url)).searchParams.get("projectId")).toBe(
+        "proj_test",
+      );
+      expect(new Headers(init?.headers).get("authorization")).toBe(
+        "Bearer fresh-token",
+      );
+    });
+
+    it("preserves fork lineage through serialization", () => {
+      const drive = createMockDrive({
+        ...mockDriveMetadata,
+        parentDriveId: "drive_parent",
+        rootDriveId: "drive_root",
+      });
+
+      const result = deserializeDrive(serializeDrive(drive));
+
+      expect(result.parentDriveId).toBe("drive_parent");
+      expect(result.rootDriveId).toBe("drive_root");
+    });
+
     it("returns synchronously", () => {
       const drive = createMockDrive();
       const serialized = serializeDrive(drive);
