@@ -96,14 +96,6 @@ export const create = cmd.command({
   },
   examples: [
     {
-      description: "Create a sandbox and open Pi",
-      command: "sandbox create pi",
-    },
-    {
-      description: "Create a sandbox and open Claude Code",
-      command: "sandbox create claude",
-    },
-    {
       description: "Create a sandbox and open OpenCode",
       command: "sandbox create opencode",
     },
@@ -189,6 +181,14 @@ export const create = cmd.command({
       deleteEvictedSnapshots,
     });
 
+    const selectedImage = agent ? "vercel/sandbox/universal" : image;
+    const runtimeOptions =
+      selectedImage !== undefined
+        ? { image: selectedImage }
+        : runtime !== undefined
+          ? { runtime }
+          : {};
+
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
@@ -224,13 +224,7 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          ...(agent
-            ? { image: "vercel/sandbox/universal" }
-            : image !== undefined
-              ? { image }
-              : runtime !== undefined
-                ? { runtime }
-                : {}),
+          ...runtimeOptions,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -315,18 +309,29 @@ export const create = cmd.command({
               : Object.entries(launcher.env)
                   .map(([key, value]) => ` --env=${key}=${value}`)
                   .join("");
-          console.error(
-            `\nExiting ${launcher.displayName} does not stop the sandbox.`,
+          process.stderr.write(
+            `\n${chalk.blue("ℹ")} Exiting ${launcher.displayName} does not stop the sandbox.\n`,
           );
           if (launcher.reconnectEnv === "explicit" && envFlags) {
-            console.error(
-              "Before reconnecting, export the same --env values in your local shell. Values are not included in this hint.",
+            process.stderr.write(
+              chalk.dim("   │ ") +
+                "Before reconnecting, export the same --env values in your local shell. Values are not included in this hint.\n",
             );
           }
-          console.error(
-            `Reconnect: sandbox exec ${scopeFlags} --interactive${envFlags} ${sandbox.name} -- ${[launcher.command, ...launcher.reconnectArgs].join(" ")}`,
+          process.stderr.write(
+            chalk.dim("   │ ") +
+              "Reconnect: " +
+              chalk.cyan(
+                `sandbox exec ${scopeFlags} --interactive${envFlags} ${sandbox.name} -- ${[launcher.command, ...launcher.reconnectArgs].join(" ")}`,
+              ) +
+              "\n",
           );
-          console.error(`Stop: sandbox stop ${scopeFlags} ${sandbox.name}`);
+          process.stderr.write(
+            chalk.dim("   ╰ ") +
+              "Stop: " +
+              chalk.cyan(`sandbox stop ${scopeFlags} ${sandbox.name}`) +
+              "\n",
+          );
         }
       }
     }

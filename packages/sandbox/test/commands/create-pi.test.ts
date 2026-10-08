@@ -136,7 +136,9 @@ describe("create pi", () => {
   });
 
   test("accepts an explicitly supplied API key without printing it in hints", async () => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     const { create } = await import("../../src/commands/create");
     await cmd.runSafely(create, [
       "pi",
@@ -157,13 +159,18 @@ describe("create pi", () => {
   });
 
   test("prints scoped reconnect and stop hints after disconnection", async () => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     const { create } = await import("../../src/commands/create");
     await cmd.runSafely(create, ["pi", "--scope=team", "--project=proj"]);
     expect(mockSummary).toHaveBeenCalledWith(
       expect.objectContaining({ connectHint: false }),
     );
     const text = output.mock.calls.flat().join("\n");
+    expect(text).toContain("ℹ Exiting");
+    expect(text).toContain("   │ Reconnect: ");
+    expect(text).toContain("   ╰ Stop: ");
     expect(text).toContain(
       "sandbox exec --scope=team --project=proj --interactive agent-sandbox -- pi --continue",
     );
@@ -173,12 +180,12 @@ describe("create pi", () => {
     expect(text).toContain("Exiting Pi does not stop the sandbox");
     const reconnect = text
       .split("\n")
-      .find((line) => line.startsWith("Reconnect: "))!;
+      .find((line) => line.includes("Reconnect: "))!;
     const { exec } = await import("../../src/commands/exec");
     expect(
       await cmd.parse(
         exec,
-        reconnect.replace("Reconnect: sandbox exec ", "").split(" "),
+        reconnect.split("Reconnect: sandbox exec ")[1].split(" "),
       ),
     ).toMatchObject({
       _tag: "ok",
@@ -191,7 +198,9 @@ describe("create pi", () => {
     "pi: command not found",
     "Pi startup failed",
   ])("retains hints when attach rejects: %s", async (message) => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     mockExec.mockRejectedValue(new Error(message));
     const { create } = await import("../../src/commands/create");
     await expect(
@@ -209,7 +218,9 @@ describe("create pi", () => {
   });
 
   test("silent suppresses lifecycle hints, not the interactive session", async () => {
-    const output = vi.spyOn(console, "error").mockImplementation(() => {});
+    const output = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     await createWith(["pi"]);
     expect(mockExec).toHaveBeenCalledOnce();
     expect(output).not.toHaveBeenCalled();
@@ -222,7 +233,9 @@ describe("create pi", () => {
       if (mode === "missing")
         sandbox.runCommand.mockRejectedValue(new Error("ENOENT"));
       else sandbox.runCommand.mockResolvedValue({ exitCode: 1 });
-      const output = vi.spyOn(console, "error").mockImplementation(() => {});
+      const output = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(() => true);
       const { create } = await import("../../src/commands/create");
       await expect(
         cmd.runSafely(create, ["pi", "--scope=team", "--project=proj"]),
@@ -239,7 +252,9 @@ describe("create pi", () => {
     "retains remote exit code %s and stop hint",
     async (code) => {
       const previousExitCode = process.exitCode;
-      const output = vi.spyOn(console, "error").mockImplementation(() => {});
+      const output = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(() => true);
       mockExec.mockImplementation(async () => {
         process.exitCode = code;
       });
