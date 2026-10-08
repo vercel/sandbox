@@ -939,7 +939,7 @@ export class APIClient extends BaseClient {
         ) {
           throw error;
         }
-        await delay(400 * 2 ** attempt, undefined, { signal: params.signal });
+        await delay(200 * 2 ** attempt, undefined, { signal: params.signal });
       }
     }
   }
