@@ -723,6 +723,26 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async forkDrive(params: {
+    projectId: string;
+    name: string;
+    forkName: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}/fork`,
+        {
+          method: "POST",
+          query: { projectId: params.projectId },
+          body: JSON.stringify({ name: params.forkName }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async writeFiles(params: {
     sessionId: string;
     cwd: string;
