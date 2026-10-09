@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 3.7.0
+
+### Minor Changes
+
+- Add opt-in stdin for commands. Pass `stdin: true` to a detached `runCommand`, then use `command.writeStdin(data)` and `command.closeStdin()` while it runs, or pass a `Readable` such as `process.stdin` to have it piped to the command. ([#365](https://github.com/vercel/sandbox/pull/365))
+
+### Patch Changes
+
+- Update `@vercel/oidc` to v4. ([#375](https://github.com/vercel/sandbox/pull/375))
+
 ## 3.6.1
 
 ### Patch Changes
