@@ -191,6 +191,7 @@ export class SandboxUser implements ExecutionContext {
       // Don't pass sudo: true — the default user already has sudo privileges
       // env is already baked into the wrapped command via `env KEY=VAL`
       detached: params.detached,
+      stdin: params.stdin,
       stdout: params.stdout,
       stderr: params.stderr,
       signal: params.signal,

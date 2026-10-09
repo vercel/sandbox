@@ -1,10 +1,16 @@
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import {
-  APIClient,
-  type CommandData,
-} from "./api-client/index.js";
+import { APIClient, type CommandData } from "./api-client/index.js";
+import { stdinMayHaveBeenWritten } from "./api-client/api-client.js";
+import { APIError } from "./api-client/api-error.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import { resolveSignal, type Signal } from "./utils/resolveSignal.js";
+import { waitWithStdinPipe, type StdinPipe } from "./utils/pipe-stdin.js";
+
+/**
+ * Bytes sent per stdin request, keeping the base64 JSON body under the API's
+ * 1 MB request limit.
+ */
+const STDIN_CHUNK_BYTES = 512 * 1024;
 
 /**
  * Cached output from a command execution.
@@ -93,6 +99,38 @@ export class Command {
    * @internal
    */
   protected _resolvedOutput: CommandOutput | null = null;
+
+  /**
+   * Tail of pending stdin writes, so concurrent calls reach the process in
+   * call order.
+   */
+  private stdinQueue: Promise<void> = Promise.resolve();
+
+  /**
+   * Set when a write failed after possibly delivering some bytes. Later
+   * writes are rejected so they can't be appended to a partial message.
+   */
+  private stdinError: unknown = null;
+
+  /**
+   * Bytes the API has confirmed written to stdin, sent with each request so
+   * the API can skip bytes it already has when a request is resent. Unknown
+   * until the first stdin call, because a deserialized `Command` can't know
+   * what an earlier instance wrote.
+   */
+  private stdinOffset: number | null = null;
+
+  /**
+   * Set once a response lacks `bytesWritten`, meaning the sandbox predates
+   * stdin offsets and a request can't be safely resent.
+   */
+  private stdinOffsetsUnsupported = false;
+
+  /**
+   * Set when the command was started with a `Readable` for stdin.
+   * @internal
+   */
+  stdinPipe: StdinPipe | null = null;
 
   /**
    * ID of the command execution.
@@ -235,12 +273,22 @@ export class Command {
     const client = await this.ensureClient();
     params?.signal?.throwIfAborted();
 
-    const command = await client.getCommand({
-      sessionId: this.sessionId,
-      cmdId: this.cmd.id,
-      wait: true,
-      signal: params?.signal,
-    });
+    const pipe = this.stdinPipe;
+    const command = await waitWithStdinPipe(
+      client.getCommand({
+        sessionId: this.sessionId,
+        cmdId: this.cmd.id,
+        wait: true,
+        signal: params?.signal,
+      }),
+      pipe,
+      {
+        signal: params?.signal,
+        onPipeError: () => {
+          if (this.stdinPipe === pipe) this.stdinPipe = null;
+        },
+      },
+    );
 
     return new CommandFinished({
       client,
@@ -360,6 +408,158 @@ export class Command {
       abortSignal: opts?.abortSignal,
     });
   }
+
+  /**
+   * Write data to the stdin of a running command. The command must have been
+   * started with `stdin: true` and `detached: true`.
+   *
+   * Writes are delivered in the order they are called, and resolve once the
+   * process has accepted the data. Don't write to the same command from more
+   * than one place. If a write fails, part of it may have been written and
+   * further writes are rejected.
+   *
+   * ```
+   * const cmd = await sandbox.runCommand({ cmd: "cat", stdin: true, detached: true });
+   * await cmd.writeStdin("hello\n");
+   * await cmd.closeStdin();
+   * ```
+   *
+   * @param data - The data to write. Strings are encoded as UTF-8.
+   * @param opts - Optional parameters.
+   * @param opts.abortSignal - An AbortSignal to cancel the write. Aborting a
+   * write that has started may leave part of the data written.
+   * @returns Promise<void>.
+   */
+  async writeStdin(
+    data: string | Uint8Array,
+    opts?: { abortSignal?: AbortSignal },
+  ) {
+    "use step";
+    const bytes =
+      typeof data === "string" ? new TextEncoder().encode(data) : data;
+    if (bytes.length === 0) return;
+    await this.enqueueStdin(async (client) => {
+      if (this.stdinError) {
+        throw new Error(
+          "Stdin is in an unknown state after an earlier write failed. Close stdin or kill the command.",
+          { cause: this.stdinError },
+        );
+      }
+      await this.resolveStdinOffset(client, opts?.abortSignal);
+      let sentChunks = 0;
+      try {
+        for (let i = 0; i < bytes.length; i += STDIN_CHUNK_BYTES) {
+          const data = bytes.subarray(i, i + STDIN_CHUNK_BYTES);
+          const { bytesWritten } = await client.writeCommandStdin({
+            sessionId: this.sessionId,
+            commandId: this.cmd.id,
+            data,
+            offset: this.requestOffset(),
+            abortSignal: opts?.abortSignal,
+          });
+          this.confirmStdin(bytesWritten, data.length);
+          sentChunks++;
+        }
+      } catch (err) {
+        if (sentChunks > 0 || !isRejectedBeforeWrite(err)) {
+          this.stdinError = err;
+          this.stdinOffset = null;
+        }
+        throw err;
+      }
+    }, opts?.abortSignal);
+  }
+
+  /**
+   * Close the stdin of a running command, so it reads EOF once it has
+   * consumed any pending data.
+   *
+   * @param opts - Optional parameters.
+   * @param opts.abortSignal - An AbortSignal to cancel the operation.
+   * @returns Promise<void>.
+   */
+  async closeStdin(opts?: { abortSignal?: AbortSignal }) {
+    "use step";
+    await this.enqueueStdin(async (client) => {
+      await this.resolveStdinOffset(client, opts?.abortSignal);
+      await client.writeCommandStdin({
+        sessionId: this.sessionId,
+        commandId: this.cmd.id,
+        offset: this.requestOffset(),
+        close: true,
+        abortSignal: opts?.abortSignal,
+      });
+    }, opts?.abortSignal);
+  }
+
+  private async resolveStdinOffset(client: APIClient, abortSignal?: AbortSignal) {
+    if (this.stdinOffset !== null) return;
+    const { bytesWritten } = await client.writeCommandStdin({
+      sessionId: this.sessionId,
+      commandId: this.cmd.id,
+      abortSignal,
+    });
+    this.stdinOffsetsUnsupported = bytesWritten === undefined;
+    this.stdinOffset = bytesWritten ?? 0;
+  }
+
+  private requestOffset() {
+    return this.stdinOffsetsUnsupported ? undefined : (this.stdinOffset ?? 0);
+  }
+
+  private confirmStdin(bytesWritten: number | undefined, length: number) {
+    if (bytesWritten === undefined) {
+      this.stdinOffsetsUnsupported = true;
+      this.stdinOffset = (this.stdinOffset ?? 0) + length;
+    } else {
+      this.stdinOffset = bytesWritten;
+    }
+  }
+
+  private enqueueStdin(
+    fn: (client: APIClient) => Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const previous = this.stdinQueue;
+    const run = (async () => {
+      await waitForTurn(previous, signal);
+      return fn(await this.ensureClient());
+    })();
+    this.stdinQueue = Promise.allSettled([previous, run]).then(() => {});
+    return run;
+  }
+}
+
+// A retried workflow step gets a fresh Command that doesn't know where the
+// failed write started, so it would resend bytes that were already written.
+(Command.prototype.writeStdin as { maxRetries?: number }).maxRetries = 0;
+(Command.prototype.closeStdin as { maxRetries?: number }).maxRetries = 0;
+
+/**
+ * Whether a stdin write failed in a way that guarantees none of it reached
+ * the process: the API rejected it with a client error before applying it,
+ * and no earlier attempt of the request may have been applied.
+ */
+function isRejectedBeforeWrite(err: unknown) {
+  return (
+    err instanceof APIError &&
+    err.response.status >= 400 &&
+    err.response.status < 500 &&
+    !stdinMayHaveBeenWritten(err)
+  );
+}
+
+function waitForTurn(previous: Promise<void>, signal?: AbortSignal) {
+  if (!signal) return previous;
+  signal.throwIfAborted();
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    previous.then(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    });
+  });
 }
 
 /**
@@ -452,5 +652,28 @@ export class CommandFinished extends Command {
    */
   async wait(): Promise<CommandFinished> {
     return this;
+  }
+
+  /**
+   * Not available: the command has already exited.
+   *
+   * @deprecated Always throws on a finished command.
+   * @throws Always.
+   */
+  async writeStdin(
+    _data: string | Uint8Array,
+    _opts?: { abortSignal?: AbortSignal },
+  ): Promise<never> {
+    throw new Error("Cannot write to stdin: the command has already finished.");
+  }
+
+  /**
+   * Not available: the command has already exited.
+   *
+   * @deprecated Always throws on a finished command.
+   * @throws Always.
+   */
+  async closeStdin(_opts?: { abortSignal?: AbortSignal }): Promise<never> {
+    throw new Error("Cannot close stdin: the command has already finished.");
   }
 }

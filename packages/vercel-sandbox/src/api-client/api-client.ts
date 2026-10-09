@@ -12,6 +12,7 @@ import {
   StopSessionResponse,
   SessionsResponse,
   CommandResponse,
+  CommandStdinResponse,
   CommandFinishedResponse,
   EmptyResponse,
   LogLine,
@@ -46,6 +47,82 @@ import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { StringDecoder } from "node:string_decoder";
+
+const STDIN_MAX_RETRIES = 5;
+const STDIN_MAX_STALLED_TIMEOUTS = 2;
+
+function stdinBackoff(attempt: number) {
+  return 400 * 2 ** attempt;
+}
+
+function waitBeforeStdinRetry(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal!.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+const stdinMaybeWrittenErrors = new WeakSet<object>();
+
+/**
+ * Whether a failed stdin write may have delivered some of its data, because an
+ * earlier attempt of the same request may have been applied before it failed.
+ */
+export function stdinMayHaveBeenWritten(error: unknown) {
+  return typeof error === "object" && error !== null && stdinMaybeWrittenErrors.has(error);
+}
+
+async function parseStdinResponse(response: Response, maybeApplied = false) {
+  try {
+    const parsed = await parseOrThrow(CommandStdinResponse, response);
+    return { bytesWritten: parsed.json.bytesWritten };
+  } catch (error) {
+    if (maybeApplied && typeof error === "object" && error !== null) {
+      stdinMaybeWrittenErrors.add(error);
+    }
+    throw error;
+  }
+}
+
+async function readStdinTimeout(response: Response) {
+  const text = await response.text();
+  let bytesWritten: number | undefined;
+  try {
+    const value = JSON.parse(text)?.error?.bytesWritten;
+    if (Number.isSafeInteger(value) && value >= 0) bytesWritten = value;
+  } catch {}
+  return {
+    bytesWritten,
+    response: new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    }),
+  };
+}
+
+async function probeStdinBytesWritten(
+  send: (body: Record<string, unknown>) => Promise<Response>,
+) {
+  try {
+    const response = await send({});
+    if (!response.ok) {
+      await response.body?.cancel();
+      return undefined;
+    }
+    return (await parseStdinResponse(response)).bytesWritten;
+  } catch {
+    return undefined;
+  }
+}
 
 interface Claims {
   owner_id: string;
@@ -305,6 +382,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait: true;
+    attachStdin?: boolean;
     logs?: boolean;
     onLog?: (log: LogOutputLine) => void;
     timeout?: number;
@@ -321,6 +399,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: false;
+    attachStdin?: boolean;
     timeout?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
@@ -332,6 +411,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: boolean;
+    attachStdin?: boolean;
     logs?: boolean;
     onLog?: (log: LogOutputLine) => void;
     timeout?: number;
@@ -355,6 +435,7 @@ export class APIClient extends BaseClient {
             env: params.env,
             sudo: params.sudo,
             wait: true,
+            attachStdin: params.attachStdin || undefined,
             logs: params.logs || undefined,
             timeout: params.timeout,
           }),
@@ -463,6 +544,7 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
           env: params.env,
           sudo: params.sudo,
+          attachStdin: params.attachStdin || undefined,
           timeout: params.timeout,
         }),
         signal: params.signal,
@@ -864,6 +946,112 @@ export class APIClient extends BaseClient {
         },
       ),
     );
+  }
+
+  /**
+   * Writes to a command's stdin. With `offset`, the request is safe to resend
+   * (the server skips bytes it already has), so it is retried across
+   * connection failures. Without it, only rate limited requests are retried,
+   * since any other failure may have written the bytes already.
+   */
+  async writeCommandStdin(params: {
+    sessionId: string;
+    commandId: string;
+    data?: Uint8Array;
+    offset?: number;
+    close?: boolean;
+    abortSignal?: AbortSignal;
+  }): Promise<{ bytesWritten?: number }> {
+    const send = (body: Record<string, unknown>) =>
+      this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.commandId}/stdin`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+          signal: params.abortSignal,
+          retry: { retries: 0 },
+        },
+      );
+    const body = {
+      data: params.data?.length
+        ? Buffer.from(params.data).toString("base64")
+        : undefined,
+      offset: params.offset,
+      close: params.close || undefined,
+    };
+    const resendable =
+      params.offset !== undefined || (!params.data?.length && !params.close);
+
+    let maybeApplied = false;
+    let stalledTimeouts = 0;
+    let lastWritten = params.offset ?? 0;
+    for (let attempt = 0; ; attempt++) {
+      const canRetry = attempt < STDIN_MAX_RETRIES;
+      let response: Response;
+      try {
+        response = await send(body);
+      } catch (error) {
+        if (
+          !resendable ||
+          !canRetry ||
+          params.abortSignal?.aborted ||
+          (error as Error)?.name === "AbortError"
+        ) {
+          throw error;
+        }
+        maybeApplied = true;
+        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
+        continue;
+      }
+
+      const status = response.status;
+
+      if (
+        status === 404 &&
+        maybeApplied &&
+        params.close &&
+        !params.data?.length
+      ) {
+        // The process exited after applying the close whose response was lost.
+        await response.body?.cancel();
+        return {};
+      }
+
+      if (status === 429 && canRetry) {
+        const retryAfter = Number(response.headers.get("Retry-After"));
+        if (!(retryAfter > 20)) {
+          await response.body?.cancel();
+          await waitBeforeStdinRetry(
+            retryAfter > 0 ? retryAfter * 1000 : stdinBackoff(attempt),
+            params.abortSignal,
+          );
+          continue;
+        }
+      }
+
+      if (resendable && canRetry && (status === 502 || status === 503)) {
+        maybeApplied = true;
+        await response.body?.cancel();
+        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
+        continue;
+      }
+
+      if (resendable && canRetry && status === 504) {
+        maybeApplied = true;
+        const timeout = await readStdinTimeout(response);
+        const written =
+          timeout.bytesWritten ?? (await probeStdinBytesWritten(send));
+        if (written !== undefined && written > lastWritten) {
+          lastWritten = written;
+          stalledTimeouts = 0;
+        } else if (++stalledTimeouts >= STDIN_MAX_STALLED_TIMEOUTS) {
+          return parseStdinResponse(timeout.response, maybeApplied);
+        }
+        continue;
+      }
+
+      return parseStdinResponse(response, maybeApplied);
+    }
   }
 
   getLogs(params: {

@@ -299,6 +299,54 @@ Sandbox runs sudo in the following configuration:
 - `PATH` is left unchanged – sudo won't change the value of PATH, so local or
   project-specific binaries will still be found.
 
+## Writing to stdin
+
+Commands read from an empty stdin by default. Pass `stdin: true` to a detached
+command to keep its stdin open, then write to it while it runs:
+
+```typescript
+const cmd = await sandbox.runCommand({
+  cmd: "cat",
+  stdin: true,
+  detached: true,
+});
+
+await cmd.writeStdin("hello\n");
+await cmd.closeStdin();
+
+const result = await cmd.wait();
+console.log(await result.stdout()); // "hello\n"
+```
+
+Writes are delivered in call order. `writeStdin` resolves once the process has
+accepted the data, and fails after 30 seconds if the process isn't reading.
+
+You can also pass a `Readable`, with or without `detached`. It's written in
+order with backpressure, and stdin closes when it ends:
+
+```typescript
+await sandbox.runCommand({
+  cmd: "agent-browser",
+  args: ["mcp"],
+  stdin: process.stdin,
+  stdout: process.stdout,
+  stderr: process.stderr,
+});
+```
+
+The stream is never destroyed. If piping fails or the stream errors,
+`runCommand` rejects and kills the command; when detached, the next
+`cmd.wait()` rejects instead. If the command exits first, piping just stops.
+
+- Retries never deliver bytes twice. If a write still fails, later writes are
+  rejected; `closeStdin` still works.
+- Write to a command from one place at a time, or bytes can be skipped as
+  already written.
+- Each write is one API request against your rate limit, so batch small
+  writes.
+- In workflows, use `stdin: true` (a stream can't cross steps), and await each
+  write. Ordering only holds within a step.
+
 ## Multi-user
 
 Sandboxes support creating isolated Linux users with their own home directories,
