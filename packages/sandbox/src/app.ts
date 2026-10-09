@@ -49,6 +49,10 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
     },
     examples: [
       {
+        description: "Start a coding agent in a sandbox",
+        command: `${appName} create opencode`,
+      },
+      {
         description:
           "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
         command: `${appName} create --network-id your_network_id_here`,
