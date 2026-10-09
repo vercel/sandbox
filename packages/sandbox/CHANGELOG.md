@@ -1,5 +1,26 @@
 # sandbox
 
+## 4.8.0
+
+### Minor Changes
+
+- Add `sandbox create claude` to open Claude Code in a new Vercel Sandbox. ([#371](https://github.com/vercel/sandbox/pull/371))
+
+- Add `sandbox create codex` to open Codex in a new Vercel Sandbox. ([#373](https://github.com/vercel/sandbox/pull/373))
+
+- Add `sandbox create opencode` to create a sandbox with the universal image and open OpenCode directly in the terminal. ([#370](https://github.com/vercel/sandbox/pull/370))
+
+- Add `sandbox create pi` to open Pi in a Sandbox with scoped reconnect and stop commands. ([#372](https://github.com/vercel/sandbox/pull/372))
+
+### Patch Changes
+
+- Show a coding agent launch example first in the top-level CLI help. ([#378](https://github.com/vercel/sandbox/pull/378))
+
+- Update `@vercel/oidc` to v4. ([#375](https://github.com/vercel/sandbox/pull/375))
+
+- Updated dependencies [[`515f60b261fd7fa2ae9e5ae58fb8d950e4378089`](https://github.com/vercel/sandbox/commit/515f60b261fd7fa2ae9e5ae58fb8d950e4378089), [`31244aa3280dc3fdca0680933f85971570d73d2d`](https://github.com/vercel/sandbox/commit/31244aa3280dc3fdca0680933f85971570d73d2d)]:
+  - @vercel/sandbox@3.7.0
+
 ## 4.7.1
 
 ### Patch Changes
