@@ -30,6 +30,10 @@ Commands:
 
 Examples:
 
+– Start a coding agent in a sandbox
+
+  $ sandbox create opencode
+
 – Create a sandbox on a Secure Compute network (requires an Enterprise plan)
 
   $ sandbox create --network-id your_network_id_here
