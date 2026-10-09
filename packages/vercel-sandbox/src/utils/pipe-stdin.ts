@@ -1,4 +1,4 @@
-import type { Readable } from "stream";
+import { Writable, type Readable } from "stream";
 import { APIError } from "../api-client/api-error.js";
 
 /**
@@ -36,12 +36,7 @@ export function pipeStdin(
   stream: Readable,
   signal?: AbortSignal,
 ): StdinPipe {
-  let buffered: Buffer[] = [];
-  let bufferedBytes = 0;
-  let writing = false;
-  let ended = false;
   let stopped = false;
-  let settled = false;
   let resolveDone!: () => void;
   let rejectDone!: (error: unknown) => void;
 
@@ -51,86 +46,65 @@ export function pipeStdin(
   });
   done.catch(() => {});
 
-  const settle = (error?: unknown) => {
-    if (settled) return;
-    settled = true;
+  const writable = new Writable({
+    highWaterMark: MAX_BUFFERED_BYTES,
+    writev(chunks, callback) {
+      target
+        .writeStdin(Buffer.concat(chunks.map(({ chunk }) => chunk)))
+        .then(() => callback(), callback);
+    },
+    final(callback) {
+      target.closeStdin().then(() => callback(), callback);
+    },
+  });
+
+  const stop = () => {
+    if (stopped) return false;
     stopped = true;
-    detach();
-    if (error === undefined) resolveDone();
-    else rejectDone(error);
-  };
-
-  const flush = async () => {
-    if (writing || stopped) return;
-    writing = true;
-    try {
-      while (bufferedBytes > 0 && !stopped) {
-        const data = Buffer.concat(buffered);
-        buffered = [];
-        bufferedBytes = 0;
-        if (!ended) stream.resume();
-        await target.writeStdin(data);
-      }
-      if (ended && !stopped) {
-        await target.closeStdin();
-        settle();
-      }
-    } catch (error) {
-      settle(isInputNoLongerAccepted(error) ? undefined : error);
-    } finally {
-      writing = false;
-    }
-  };
-
-  const onData = (chunk: Buffer | string) => {
-    const data = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
-    buffered.push(data);
-    bufferedBytes += data.length;
-    if (bufferedBytes >= MAX_BUFFERED_BYTES) stream.pause();
-    void flush();
-  };
-
-  const onEnd = () => {
-    ended = true;
-    void flush();
-  };
-
-  const onError = (error: unknown) => {
-    if (stopped) return;
-    stopped = true;
-    detach();
-    target
-      .closeStdin()
-      .catch(() => {})
-      .finally(() => settle(error));
-  };
-
-  const onClose = () => {
-    if (!ended) onError(new Error("The stdin stream closed before it ended"));
-  };
-
-  const onAbort = () => settle();
-
-  function detach() {
-    stream.off("data", onData);
-    stream.off("end", onEnd);
+    stream.unpipe(writable);
     stream.off("error", onError);
     stream.off("close", onClose);
     signal?.removeEventListener("abort", onAbort);
     stream.pause();
-  }
+    writable.destroy();
+    return true;
+  };
+
+  const settle = (error?: unknown) => {
+    if (!stop()) return;
+    if (error === undefined) resolveDone();
+    else rejectDone(error);
+  };
+
+  const onError = (error: unknown) => {
+    if (!stop()) return;
+    target
+      .closeStdin()
+      .catch(() => {})
+      .finally(() => rejectDone(error));
+  };
+
+  const onClose = () => {
+    if (!stream.readableEnded) {
+      onError(new Error("The stdin stream closed before it ended"));
+    }
+  };
+
+  const onAbort = () => settle();
+
+  writable.on("finish", () => settle());
+  writable.on("error", (error) =>
+    settle(isInputNoLongerAccepted(error) ? undefined : error),
+  );
 
   if (signal?.aborted) {
     settle();
   } else {
     signal?.addEventListener("abort", onAbort, { once: true });
-    stream.on("data", onData);
-    stream.on("end", onEnd);
     stream.on("error", onError);
     stream.on("close", onClose);
-    if (stream.readableEnded) onEnd();
-    else if (stream.destroyed) onClose();
-    else stream.resume();
+    if (stream.destroyed && !stream.readableEnded) onClose();
+    else stream.pipe(writable);
   }
 
   return { done, stop: () => settle() };

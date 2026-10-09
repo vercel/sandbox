@@ -413,21 +413,10 @@ export class Command {
    * Write data to the stdin of a running command. The command must have been
    * started with `stdin: true` and `detached: true`.
    *
-   * Writes are delivered in the order they are called. Resolves once the
-   * process has accepted the data, so writing to a process that is not
-   * reading from stdin waits until it does (up to a server-side timeout).
-   *
-   * Each request carries the stdin position it starts at, so a request that
-   * fails because of a dropped connection or a restarting server is resent
-   * without writing the same bytes twice. Don't write to the same command from
-   * more than one place: the position is tracked per command, and concurrent
-   * writers would have their bytes skipped as already written.
-   *
-   * If a write still fails after retries, part of the data may be written.
-   * Further writes are then rejected; close stdin or kill the command instead.
-   * In a workflow, each step gets a fresh `Command`, so ordering and this
-   * rejection only apply within a step: await each write before starting the
-   * next one, and stop writing after a failure.
+   * Writes are delivered in the order they are called, and resolve once the
+   * process has accepted the data. Don't write to the same command from more
+   * than one place. If a write fails, part of it may have been written and
+   * further writes are rejected.
    *
    * ```
    * const cmd = await sandbox.runCommand({ cmd: "cat", stdin: true, detached: true });
@@ -541,6 +530,8 @@ export class Command {
   }
 }
 
+// A retried workflow step gets a fresh Command that doesn't know where the
+// failed write started, so it would resend bytes that were already written.
 (Command.prototype.writeStdin as { maxRetries?: number }).maxRetries = 0;
 (Command.prototype.closeStdin as { maxRetries?: number }).maxRetries = 0;
 
