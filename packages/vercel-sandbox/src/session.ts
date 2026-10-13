@@ -41,8 +41,7 @@ export interface SerializedSession {
   routes: SandboxRouteData[];
 }
 
-/** @inline */
-export interface RunCommandParams {
+interface RunCommandParamsBase {
   /**
    * The command to execute
    */
@@ -67,12 +66,6 @@ export interface RunCommandParams {
    * If true, the command will return without waiting for `exitCode`
    */
   detached?: boolean;
-  /**
-   * The onStart hook is called as soon as the command is started, before it exits.
-   * This hook is awaited before `runCommand` resolves and is useful when not using
-   * `detached: true` to be notified as soon as a command is started.
-   */
-  onStart?: (command: Command) => void | Promise<void>;
   /**
    * If true, keep the command's stdin open so it can be written to with
    * {@link Command.writeStdin} and closed with {@link Command.closeStdin}.
@@ -107,6 +100,21 @@ export interface RunCommandParams {
    */
   timeoutMs?: number;
 }
+
+/** @inline */
+export type RunCommandParams = RunCommandParamsBase &
+  (
+    | { onStart?: never }
+    | {
+        detached?: false;
+        /**
+         * The onStart hook is called as soon as the command is started, before it exits.
+         * This hook is awaited before `runCommand` resolves and is useful to be notified
+         * as soon as a command is started.
+         */
+        onStart?: (command: Command) => void | Promise<void>;
+      }
+  );
 
 /**
  * Pipes stdin for a command the caller is waiting on, killing the command if
@@ -571,8 +579,6 @@ export class Session implements ExecutionContext {
         }
       })();
     }
-
-    await params.onStart?.(command);
 
     return command;
   }
