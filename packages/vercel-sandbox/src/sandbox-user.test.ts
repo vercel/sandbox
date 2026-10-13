@@ -94,6 +94,27 @@ describe("validateName (unit)", () => {
   });
 
   it.each([false, true])(
+    "forwards onStart when running as a user (sudo: %s)",
+    async (sudo) => {
+      const sandbox = new Sandbox({
+        client: {} as any,
+        routes: [],
+        sandbox: { id: "test" } as any,
+      });
+      const runCommand = vi
+        .spyOn(sandbox, "runCommand")
+        .mockResolvedValue({} as any);
+      const onStart = vi.fn();
+
+      await sandbox.asUser("alice").runCommand({ cmd: "echo", onStart, sudo });
+
+      expect(runCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ onStart }),
+      );
+    },
+  );
+
+  it.each([false, true])(
     "forwards stdin when running as a user (sudo: %s)",
     async (sudo) => {
       const sandbox = new Sandbox({

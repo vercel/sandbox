@@ -68,6 +68,12 @@ export interface RunCommandParams {
    */
   detached?: boolean;
   /**
+   * The onStart hook is called as soon as the command is started, before it exits.
+   * This hook is awaited before `runCommand` resolves and is useful when not using
+   * `detached: true` to be notified as soon as a command is started.
+   */
+  onStart?: (command: Command) => void | Promise<void>;
+  /**
    * If true, keep the command's stdin open so it can be written to with
    * {@link Command.writeStdin} and closed with {@link Command.closeStdin}.
    * Requires `detached: true`.
@@ -499,19 +505,21 @@ export class Session implements ExecutionContext {
         signal: params.signal,
       });
 
-      const finished = await waitWithStdinPipe(
+      const command = new Command({
+        client,
+        sessionId: this.session.id,
+        cmd: commandStream.command,
+      });
+      const commandFinished = waitWithStdinPipe(
         commandStream.finished,
-        stdinStream &&
-          pipeStdinOrKill(
-            new Command({
-              client,
-              sessionId: this.session.id,
-              cmd: commandStream.command,
-            }),
-            stdinStream,
-            params.signal,
-          ),
+        stdinStream && pipeStdinOrKill(command, stdinStream, params.signal),
       );
+      if (params.onStart) {
+        // The command can fail while the callback is pending or after it throws.
+        commandFinished.catch(() => {});
+        await params.onStart(command);
+      }
+      const finished = await commandFinished;
 
       return new CommandFinished({
         client,
@@ -563,6 +571,8 @@ export class Session implements ExecutionContext {
         }
       })();
     }
+
+    await params.onStart?.(command);
 
     return command;
   }
