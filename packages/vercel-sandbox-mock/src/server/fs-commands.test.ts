@@ -64,6 +64,23 @@ describe("tryFsCommand", () => {
       expect(lines).toEqual(["file.txt|f", "link|l", "sub|d"]);
     });
 
+    test("expands format tokens but not filename characters, with -H", async () => {
+      const fs = await makeFs();
+      const name = " \nreport|%y%f\\n\\0 ";
+      await fs.writeFile(`/dir/sub/${name}`, "content");
+      const result = await tryFsCommand(fs, "/", "find", [
+        "-H",
+        "/dir/sub",
+        "-maxdepth",
+        "1",
+        "-mindepth",
+        "1",
+        "-printf",
+        "%y|%f\\0",
+      ]);
+      expect(result).toEqual({ stdout: `f|${name}\0`, stderr: "", exitCode: 0 });
+    });
+
     test("empty directories produce empty stdout", async () => {
       const fs = await makeFs();
       const result = await tryFsCommand(fs, "/", "find", ["/dir/sub", "-printf", "%f|%y\\n"]);
