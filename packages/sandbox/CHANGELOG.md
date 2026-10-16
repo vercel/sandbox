@@ -1,5 +1,11 @@
 # sandbox
 
+## 4.9.0
+
+### Minor Changes
+
+- Add `sandbox extend` to increase a running session's timeout without changing future session defaults, and clarify `sandbox config timeout` help. ([#389](https://github.com/vercel/sandbox/pull/389))
+
 ## 4.8.1
 
 ### Patch Changes
