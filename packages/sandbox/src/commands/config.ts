@@ -68,7 +68,7 @@ const vcpusCommand = cmd.command({
 const timeoutCommand = cmd.command({
   name: "timeout",
   description:
-    "Update the timeout of a sandbox (will be applied to all new sessions)",
+    "Set the timeout for new sessions; a higher value extends a running session",
   args: {
     sandbox: cmd.positional({
       type: sandboxName,

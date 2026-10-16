@@ -1040,7 +1040,7 @@ sandbox snapshots tree <name> --cursor <snapshot-id> --sort-order asc
 # Config (view + update any sandbox parameter)
 sandbox config list <name>
 sandbox config vcpus <name> <count>
-sandbox config timeout <name> <duration>
+sandbox config timeout <name> <duration>  # Total runtime; a higher value also extends the running session
 sandbox config persistent <name> <true|false>
 sandbox config region <name> <region>
 sandbox config failover-regions <name> <region,...|none>

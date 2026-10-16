@@ -541,7 +541,7 @@ Commands:
 
     list                      <name>                    Display the current configuration of a sandbox
     vcpus                     <name> <COUNT>            Update the vCPU count of a sandbox
-    timeout                   <name> <num UNIT>         Update the timeout of a sandbox (will be applied to all new sessions)
+    timeout                   <name> <num UNIT>         Set the timeout for new sessions; a higher value extends a running session
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
