@@ -18,6 +18,7 @@ Commands:
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
     stop           <name> [...name]            Stop the current session of one or more sandboxes
+    extend         <name> <num UNIT>           Add time to a running session without changing its default timeout
     rm | remove    <name> [...name]            Permanently remove one or more sandboxes
     run            <command> [...args]         Create and run a command in a sandbox
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
@@ -380,6 +381,37 @@ Auth & Scope:
 Flags:
 
     --help, -h  show help [optional]
+```
+
+## `sandbox extend`
+
+```
+extend
+
+▲ sandbox extend [options]
+
+Add time to a running session without changing its default timeout
+
+Arguments:
+
+    <name>      Sandbox name with a running session
+    <num UNIT>  Time to add, for example 5m or 1h
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+
+Examples:
+
+– Add 30 minutes
+
+  $ sandbox extend my-sandbox 30m
 ```
 
 ## `sandbox copy`

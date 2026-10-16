@@ -1,5 +1,5 @@
 ---
-"sandbox": patch
+"sandbox": minor
 ---
 
-Clarify that increasing `sandbox config timeout` also extends the current running session.
+Add `sandbox extend` to increase a running session's timeout without changing future session defaults, and clarify `sandbox config timeout` help.

@@ -7,6 +7,7 @@ import { list } from "./commands/list";
 import { exec } from "./commands/exec";
 import { connect } from "./commands/connect";
 import { stop } from "./commands/stop";
+import { extend } from "./commands/extend";
 import { remove } from "./commands/remove";
 import { cp } from "./commands/cp";
 import { login } from "./commands/login";
@@ -35,6 +36,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       exec,
       connect,
       stop,
+      extend,
       remove,
       run,
       snapshot,

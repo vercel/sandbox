@@ -13,6 +13,7 @@ const docs = {
   "sandbox fork": "fork --help",
   "sandbox exec": "exec --help",
   "sandbox stop": "stop --help",
+  "sandbox extend": "extend --help",
   "sandbox copy": "copy --help",
   "sandbox connect": "connect --help",
   "sandbox snapshot": "snapshot --help",

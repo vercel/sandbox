@@ -1019,6 +1019,9 @@ sandbox connect <name>
 # Copy files
 sandbox cp local-file.txt <name>:/vercel/sandbox/
 
+# Add time to the current running session without changing future defaults
+sandbox extend <name> <duration>
+
 # Stop sandbox (synchronous; reports snapshot + usage)
 sandbox stop <name>
 
