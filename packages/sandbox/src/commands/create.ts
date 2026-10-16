@@ -294,6 +294,7 @@ export const create = cmd.command({
           skipExtendingTimeout: false,
           envVars: launcher ? { ...launcher.env, ...envVars } : {},
           interactive: true,
+          detached: false,
           tty: true,
           sandbox,
           timeout: undefined,

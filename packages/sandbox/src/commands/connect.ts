@@ -7,12 +7,22 @@ export const connect = cmd.command({
   name: "connect",
   aliases: ["ssh", "shell"],
   description: "Start an interactive shell in an existing sandbox",
-  args: omit(Exec.args, "command", "args", "interactive", "tty"),
+  args: omit(
+    Exec.args,
+    "command",
+    "args",
+    "interactive",
+    "tty",
+    "detached",
+    "timeout",
+  ),
   async handler(args) {
     return Exec.exec.handler({
       ...defaultShell,
       interactive: true,
+      detached: false,
       tty: true,
+      timeout: undefined,
       ...args,
     });
   },
