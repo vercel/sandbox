@@ -136,7 +136,11 @@ export const exec = cmd.command({
         : (agentNames.find((name) => name === command) ?? configuredAgent));
     if (selectedAgent) {
       checkGatewayEnv(envVars, selectedAgent);
-      await validateGatewayCredentials(sandbox);
+      await validateGatewayCredentials(
+        sandbox,
+        { token, team, project },
+        interactive && !skipExtendingTimeout ? undefined : sandbox.timeout,
+      );
       envVars = { ...envVars, ...gatewayEnv(selectedAgent) };
     }
     if (typeof sandboxName === "string") {

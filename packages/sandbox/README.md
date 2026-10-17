@@ -74,9 +74,33 @@ key. Managed Gateway requires the corresponding backend rollout.
 creation fails without switching to a personal key. After setup succeeds, the CLI
 prints the credential mode to stderr unless you pass `--silent`.
 
+To use your own reusable key, opt in explicitly:
+
+```sh
+sandbox gateway setup
+sandbox create --ai --use-gateway-key codex
+```
+
+Setup lets you create or save a key in your OS credential store. With
+`--use-gateway-key`, a host `AI_GATEWAY_API_KEY` takes precedence over the saved key.
+If neither exists, creation fails with setup instructions. The CLI does not
+search your project's keys. Reusable keys keep their own billing and expiry
+settings and are not revoked when a sandbox stops. Never pass a key with `--env`
+or as a flag value.
+
+Sandboxes created with a supplied or saved key remain bound to that key.
+Reconnect from another computer requires the original key. Changing the saved
+key affects new sandboxes; earlier keys remain available for existing ones.
+
 The default `--ai` policy permits outbound traffic, with credential injection
 limited to TLS requests for AI Gateway. Connections without a detectable domain
 pass through unmodified. To restrict egress, use a domain allowlist without `*`
 and include `ai-gateway.vercel.sh`. Automatic
 setup rejects deny-all, allowed CIDRs, and conflicting request rules instead of
 changing their meaning. One sandbox tag is reserved for automatic reconnect.
+
+Secure storage requires an available OS credential store (Secret Service on
+Linux). If secure storage is unavailable, use managed Gateway or a host environment
+key with `--ai --use-gateway-key`. Keys are never saved as plaintext. Saved CLI-created keys must remain valid for the session duration plus one hour
+(25 hours when interactive sessions automatically extend their timeout). Imported keys may have a separately managed expiry. Budget exhaustion
+or revocation can interrupt any session.

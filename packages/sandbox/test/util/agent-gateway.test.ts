@@ -6,6 +6,7 @@ import {
   gatewayEnv,
   checkGatewayEnv,
   gatewayHost,
+  gatewayKeyFingerprint,
 } from "../../src/util/agent-gateway/policy";
 import {
   configureFile,
@@ -79,14 +80,18 @@ describe("Gateway preparation", () => {
     expect(() => gatewayPolicy(policy, "new")).toThrow(/custom/);
   });
   test("preserves tag capacity and rejects unsupported marker versions", () => {
-    expect(gatewayAgent(gatewayTags({ user: "value" }, "codex"))).toBe("codex");
-    expect(() => gatewayTags({ "sandbox-ai": "user" }, "pi")).toThrow();
+    expect(gatewayAgent(gatewayTags({ user: "value" }, "codex", secret))).toBe(
+      "codex",
+    );
+    expect(() => gatewayTags({ "sandbox-ai": "user" }, "pi", secret)).toThrow();
     expect(() =>
-      gatewayTags({ a: "1", b: "2", c: "3", d: "4", e: "5" }, "pi"),
+      gatewayTags({ a: "1", b: "2", c: "3", d: "4", e: "5" }, "pi", secret),
     ).toThrow();
     expect(() => gatewayAgent({ "sandbox-ai": "v2:codex" })).toThrow();
-    expect(gatewayTags({}, "pi")["sandbox-ai"]).toBe("v3:pi:managed");
-    expect(JSON.stringify(gatewayTags({}, "pi"))).not.toContain(secret);
+    expect(gatewayTags({}, "pi", secret)["sandbox-ai"]).toBe(
+      `v2:pi:${gatewayKeyFingerprint(secret)}`,
+    );
+    expect(JSON.stringify(gatewayTags({}, "pi", secret))).not.toContain(secret);
   });
   test("rejects user auth and configuration overrides before they can enter the VM", () => {
     expect(() => checkGatewayEnv({ AI_GATEWAY_API_KEY: secret })).toThrow();

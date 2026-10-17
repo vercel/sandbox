@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
+import { gatewayKeyFingerprint } from "../../src/util/agent-gateway/policy";
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  key: vi.fn(),
   prepare: vi.fn(),
   exec: vi.fn(),
   tty: vi.fn(),
@@ -15,6 +17,9 @@ vi.mock("@vercel/oidc", () => ({
   getVercelToken: vi.fn(),
 }));
 vi.mock("../../src/commands/login", () => ({ login: { handler: vi.fn() } }));
+vi.mock("../../src/util/agent-gateway/credentials", () => ({
+  resolveGatewayKey: mocks.key,
+}));
 vi.mock("../../src/util/agent-gateway/config", () => ({
   prepareAgent: mocks.prepare,
 }));
@@ -39,6 +44,7 @@ describe("create --ai", () => {
     vi.clearAllMocks();
     vi.stubEnv("VERCEL_AUTH_TOKEN", "host-vercel-token");
     mocks.tty.mockReturnValue(true);
+    mocks.key.mockResolvedValue("host-gateway-secret");
     mocks.create.mockImplementation(async (args) => ({
       name: "test",
       interactivePort: 8443,
@@ -56,6 +62,7 @@ describe("create --ai", () => {
     "configures %s after create and before launching, with external auth",
     async (agent) => {
       expect((await create(["--ai", agent]))._tag).toBe("ok");
+      expect(mocks.key).not.toHaveBeenCalled();
       const input = mocks.create.mock.calls[0][0];
       expect(input.image).toBe("vercel/sandbox/universal");
       expect(input.tags["sandbox-ai"]).toBe(`v3:${agent}:managed`);
@@ -75,6 +82,7 @@ describe("create --ai", () => {
     expect((await create(["codex", "--ai"]))._tag).toBe("ok");
   });
   test("custom images get managed Gateway access without agent configuration", async () => {
+    mocks.key.mockResolvedValue(undefined);
     expect(
       (
         await create([
@@ -97,6 +105,22 @@ describe("create --ai", () => {
     );
     expect(mocks.prepare).not.toHaveBeenCalled();
     expect(mocks.exec).not.toHaveBeenCalled();
+  });
+  test("custom images keep their selected image with caller-owned firewall credentials", async () => {
+    await create(["--ai", "--use-gateway-key", "--image=my-team/my-app"]);
+    const request = mocks.create.mock.calls[0][0];
+    expect(request.image).toBe("my-team/my-app");
+    expect(request.enableAiGateway).toBeUndefined();
+    expect(request.tags["sandbox-ai"]).toBe(
+      `v2:none:${gatewayKeyFingerprint("host-gateway-secret")}`,
+    );
+    expect(JSON.stringify(request.networkPolicy)).toContain(
+      "host-gateway-secret",
+    );
+    expect(request.env).toEqual({
+      AI_GATEWAY_API_KEY: "sandbox-firewall-credential",
+    });
+    expect(mocks.prepare).not.toHaveBeenCalled();
   });
   test.each([
     "vercel/sandbox/universal",
@@ -132,6 +156,7 @@ describe("create --ai", () => {
     "rejects incompatible custom setup before allocation: %j",
     async (...args) => {
       await expect(create(args as string[])).rejects.toThrow();
+      expect(mocks.key).not.toHaveBeenCalled();
       expect(mocks.create).not.toHaveBeenCalled();
     },
   );
@@ -145,14 +170,17 @@ describe("create --ai", () => {
       const args = values as unknown as string[];
       await expect(create(args)).rejects.toThrow();
       expect(mocks.create).not.toHaveBeenCalled();
+      expect(mocks.key).not.toHaveBeenCalled();
     },
   );
   test("keeps ordinary launcher authentication unchanged", async () => {
     expect((await create(["codex"]))._tag).toBe("ok");
+    expect(mocks.key).not.toHaveBeenCalled();
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
   test("bare --ai prepares every harness without requiring a terminal or launching one", async () => {
     mocks.tty.mockReturnValue(false);
+    mocks.key.mockResolvedValue(undefined);
     expect((await create(["--ai"]))._tag).toBe("ok");
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -166,6 +194,7 @@ describe("create --ai", () => {
     expect(mocks.exec).not.toHaveBeenCalled();
   });
   test("requests a managed key for the selected agent", async () => {
+    mocks.key.mockResolvedValue(undefined);
     await create(["--ai", "codex"]);
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -185,7 +214,9 @@ describe("create --ai", () => {
   });
   test("ignores host and saved keys in managed mode", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "local-secret");
+    mocks.key.mockResolvedValue("saved-secret");
     await create(["--ai"]);
+    expect(mocks.key).not.toHaveBeenCalled();
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({ enableAiGateway: true }),
     );
@@ -193,11 +224,59 @@ describe("create --ai", () => {
       /local-secret|saved-secret/,
     );
   });
+  test("explicit reuse resolves a key without prompting and leaves it outside the VM", async () => {
+    await create(["--ai", "--use-gateway-key", "codex"]);
+    expect(mocks.key).toHaveBeenCalledWith(expect.anything(), {
+      durationMs: 24 * 60 * 60 * 1000,
+      optional: true,
+    });
+    const input = mocks.create.mock.calls[0][0];
+    expect(input.enableAiGateway).toBeUndefined();
+    expect(JSON.stringify(input.networkPolicy)).toContain(
+      "host-gateway-secret",
+    );
+    expect(JSON.stringify(input.env)).not.toContain("host-gateway-secret");
+    expect(input.tags["sandbox-ai"]).toBe(
+      `v2:codex:${gatewayKeyFingerprint("host-gateway-secret")}`,
+    );
+  });
+  test("explicit reuse without a configured key fails before allocation", async () => {
+    mocks.key.mockResolvedValueOnce(undefined);
+    await expect(create(["--ai", "--use-gateway-key"])).rejects.toThrow(
+      /sandbox gateway setup/,
+    );
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  test("explicit reuse requires --ai", async () => {
+    await expect(create(["--use-gateway-key"])).rejects.toThrow(
+      /requires --ai/,
+    );
+    expect(mocks.key).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  test("a rejected personal key never falls back to managed issuance", async () => {
+    mocks.key.mockRejectedValueOnce(new Error("Gateway rejected the key"));
+    await expect(create(["--ai", "--use-gateway-key"])).rejects.toThrow(
+      /Gateway rejected/,
+    );
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  test("explicit reuse rejects a secret passed through --env", async () => {
+    await expect(
+      create([
+        "--ai",
+        "--use-gateway-key",
+        "--env=MY_SECRET=host-gateway-secret",
+      ]),
+    ).rejects.toThrow(/Do not pass the Gateway key/);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
   test("managed failure preserves the API error without falling back or reporting success", async () => {
     const error = new Error("Managed AI Gateway is not enabled for this team");
     mocks.create.mockRejectedValueOnce(error);
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     await expect(create(["--ai"], false)).rejects.toBe(error);
+    expect(mocks.key).not.toHaveBeenCalled();
     expect(mocks.create).toHaveBeenCalledOnce();
     expect(mocks.prepare).not.toHaveBeenCalled();
     expect(stderr.mock.calls.map(([text]) => text).join("")).not.toContain(
@@ -208,6 +287,10 @@ describe("create --ai", () => {
     [
       [],
       "AI Gateway enabled with a managed session key. Cleanup will revoke it when this session ends.",
+    ],
+    [
+      ["--use-gateway-key"],
+      "AI Gateway enabled with your own key. Stopping this sandbox will not revoke it.",
     ],
   ])(
     "reports credential mode on stderr after setup: %j",

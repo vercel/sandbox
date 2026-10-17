@@ -22,6 +22,7 @@ export const sh = cmd.command({
         ...rest,
         agent: undefined,
         ai: false,
+        useGatewayKey: false,
         connect: true,
       });
     }
@@ -30,6 +31,7 @@ export const sh = cmd.command({
       ...rest,
       agent: undefined,
       ai: false,
+      useGatewayKey: false,
       connect: false,
       nonPersistent: true,
       __printConnectHint: false,

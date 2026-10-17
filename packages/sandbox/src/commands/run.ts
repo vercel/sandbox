@@ -56,6 +56,7 @@ export const run = cmd.command({
             ...rest,
             agent: undefined,
             ai: false,
+            useGatewayKey: false,
             nonPersistent: rest.nonPersistent || removeAfterUse,
             __printConnectHint: false,
           } as Parameters<typeof Create.create.handler>[0]);
@@ -68,6 +69,7 @@ export const run = cmd.command({
         ...rest,
         agent: undefined,
         ai: false,
+        useGatewayKey: false,
         nonPersistent: rest.nonPersistent || removeAfterUse,
         __printConnectHint: false,
       } as Parameters<typeof Create.create.handler>[0]);

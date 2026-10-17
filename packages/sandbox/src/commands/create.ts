@@ -30,6 +30,7 @@ import {
   gatewayTags,
   type GatewaySelection,
 } from "../util/agent-gateway/policy";
+import { resolveGatewayKey } from "../util/agent-gateway/credentials";
 import { prepareAgent } from "../util/agent-gateway/config";
 import { rememberGatewaySetup } from "../util/agent-gateway/runtime";
 
@@ -102,6 +103,11 @@ export const create = cmd.command({
       description:
         "Request a managed AI Gateway session key; also configure coding agents on the universal image",
     }),
+    useGatewayKey: cmd.flag({
+      long: "use-gateway-key",
+      description:
+        "Use host AI_GATEWAY_API_KEY or a key saved by sandbox gateway setup (requires --ai)",
+    }),
     agent: cmd.positional({
       displayName: "agent",
       description: `Open a coding agent in a new sandbox (${agentNames.join(", ")})`,
@@ -127,6 +133,7 @@ export const create = cmd.command({
     const {
       agent,
       ai,
+      useGatewayKey,
       name,
       nonPersistent,
       ports,
@@ -158,6 +165,9 @@ export const create = cmd.command({
     const { __printConnectHint = true } = input as {
       __printConnectHint?: boolean;
     };
+    if (useGatewayKey && !ai) {
+      throw new Error("--use-gateway-key requires --ai.");
+    }
     const launcher = agent ? agents[agent] : undefined;
     const selectedImage =
       image ?? (agent || ai ? "vercel/sandbox/universal" : undefined);
@@ -198,7 +208,7 @@ export const create = cmd.command({
     // in flight, so stale installs learn they're behind at no latency cost.
     const versionCheck = silent ? undefined : startLatestVersionCheck();
 
-    const networkPolicy = buildNetworkPolicy({
+    let networkPolicy = buildNetworkPolicy({
       networkPolicy: networkPolicyMode,
       allowedDomains,
       allowedCIDRs,
@@ -220,13 +230,33 @@ export const create = cmd.command({
 
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
-    const tagsObj = ai
+    let tagsObj = ai
       ? gatewayTags(tags, gatewaySelection)
       : Object.keys(tags).length > 0
         ? tags
         : undefined;
-    const enableAiGateway = ai ? true : undefined;
-    if (ai) gatewayPolicy(networkPolicy, "validation-only");
+    let enableAiGateway: boolean | undefined;
+    if (ai) {
+      gatewayPolicy(networkPolicy, "validation-only");
+      const key = useGatewayKey
+        ? await resolveGatewayKey(scope, {
+            durationMs: Math.max(ms(timeout), ms("24h")),
+            optional: true,
+          })
+        : undefined;
+      if (useGatewayKey && !key) {
+        throw new Error(
+          "No reusable Gateway key is configured. Run sandbox gateway setup or set AI_GATEWAY_API_KEY in your local environment, then retry with --ai --use-gateway-key. Omit --use-gateway-key to request a managed session key.",
+        );
+      }
+      if (key && Object.values(envVars).some((value) => value.includes(key)))
+        throw new Error(
+          "Do not pass the Gateway key through --env. --ai injects it outside the sandbox.",
+        );
+      if (key) networkPolicy = gatewayPolicy(networkPolicy, key);
+      else enableAiGateway = true;
+      tagsObj = gatewayTags(tags, gatewaySelection, key);
+    }
     const sandboxEnv = ai
       ? { ...envVars, ...gatewayEnv(gatewaySelection) }
       : envVars;
@@ -314,7 +344,9 @@ export const create = cmd.command({
       });
       if (ai) {
         process.stderr.write(
-          "AI Gateway enabled with a managed session key. Cleanup will revoke it when this session ends.\n",
+          useGatewayKey
+            ? "AI Gateway enabled with your own key. Stopping this sandbox will not revoke it.\n"
+            : "AI Gateway enabled with a managed session key. Cleanup will revoke it when this session ends.\n",
         );
       }
       versionCheck?.report();

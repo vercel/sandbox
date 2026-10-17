@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { NetworkPolicy, NetworkPolicyRule } from "@vercel/sandbox";
 import { agentNames } from "../../commands/agents";
 
@@ -15,7 +16,9 @@ export function gatewayAgent(
   if (value === undefined) return;
   const [version, selected, fingerprint, extra] = value.split(":");
   const agent =
-    version === "v3" && fingerprint === "managed" && !extra
+    ((version === "v2" && /^[a-f0-9]{64}$/.test(fingerprint ?? "")) ||
+      (version === "v3" && fingerprint === "managed")) &&
+    !extra
       ? selected === "all" || selected === "none"
         ? selected
         : agentNames.find((name) => name === selected)
@@ -27,9 +30,14 @@ export function gatewayAgent(
   return agent;
 }
 
+export function gatewayKeyFingerprint(key: string) {
+  return createHash("sha256").update(key).digest("hex");
+}
+
 export function gatewayTags(
   tags: Record<string, string>,
   agent: GatewaySelection,
+  key?: string,
 ) {
   if (gatewayTag in tags || Object.keys(tags).length >= 5) {
     throw new Error(
@@ -38,7 +46,9 @@ export function gatewayTags(
   }
   return {
     ...tags,
-    [gatewayTag]: `v3:${agent}:managed`,
+    [gatewayTag]: key
+      ? `v2:${agent}:${gatewayKeyFingerprint(key)}`
+      : `v3:${agent}:managed`,
   };
 }
 
