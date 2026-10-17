@@ -15,6 +15,8 @@ Commands:
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
+    cat | read     <name:path>                 Print a file from a sandbox to stdout. Raw bytes, nothing else, so the output can be piped.
+    write          <name:path>                 Write stdin to a file in a sandbox, replacing it if it exists.
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
     stop           <name> [...name]            Stop the current session of one or more sandboxes
@@ -50,6 +52,10 @@ Examples:
 – Execute command in an existing sandbox
 
   $ sandbox exec <name> -- npm test
+
+– Read and write files in an existing sandbox
+
+  $ sandbox read <name>:/vercel/sandbox/package.json
 ```
 
 ## `sandbox list`
@@ -428,6 +434,31 @@ Arguments:
     <src>  The source file to copy from local file system, or a sandbox_name:path from a remote sandbox
     <dst>  The destination file to copy to local file system, or a sandbox_name:path to a remote sandbox
 
+Flags:
+
+    --recursive, -r  Copy a directory and everything in it. The contents of src end up inside dst. [optional]
+    --help, -h       show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+```
+
+## `sandbox read`
+
+```
+read
+
+▲ sandbox read [options]
+
+Print a file from a sandbox to stdout. Raw bytes, nothing else, so the output can be piped.
+
+Arguments:
+
+    <name:path>  The file to read, as SANDBOX_NAME:PATH
+
 Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
@@ -437,6 +468,46 @@ Auth & Scope:
 Flags:
 
     --help, -h  show help [optional]
+```
+
+## `sandbox write`
+
+```
+write
+
+▲ sandbox write [options]
+
+Write stdin to a file in a sandbox, replacing it if it exists.
+
+Arguments:
+
+    <name:path>  The file to write, as SANDBOX_NAME:PATH
+
+Options:
+
+    --mode, -m <mode>  Octal file permissions, e.g. 755 for an executable script [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+
+Examples:
+
+– Write a file from a heredoc
+
+  $ sandbox write my-sandbox:/vercel/sandbox/hello.js <<'EOF'
+console.log("hello");
+EOF
+
+– Upload a local file
+
+  $ sandbox write my-sandbox:/vercel/sandbox/app.js < ./app.js
 ```
 
 ## `sandbox connect`

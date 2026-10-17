@@ -10,6 +10,8 @@ import { stop } from "./commands/stop";
 import { extend } from "./commands/extend";
 import { remove } from "./commands/remove";
 import { cp } from "./commands/cp";
+import { read } from "./commands/read";
+import { write } from "./commands/write";
 import { login } from "./commands/login";
 import { logout } from "./commands/logout";
 import { version } from "./pkg";
@@ -33,6 +35,8 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       fork,
       config,
       copy: cp,
+      read,
+      write,
       exec,
       connect,
       stop,
@@ -70,6 +74,10 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       {
         description: "Execute command in an existing sandbox",
         command: `${appName} exec <name> -- npm test`,
+      },
+      {
+        description: "Read and write files in an existing sandbox",
+        command: `${appName} read <name>:/vercel/sandbox/package.json`,
       },
     ],
   });
