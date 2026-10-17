@@ -496,6 +496,35 @@ describe("sandbox compat", () => {
     },
   );
 
+  testBoth(
+    "fs.readdir returns exact names containing newlines and pipes",
+    async (sandbox) => {
+      const root = `/tmp/compat-readdir-${randomUUID().slice(0, 8)}`;
+      // Sorted, which is the order readdir returns them in.
+      const names = [
+        " \t ",
+        ".hidden",
+        "benign.txt\n..",
+        "report|f",
+        "x|f\n..|d",
+      ];
+      await sandbox.fs.mkdir(`${root}/dir`, { recursive: true });
+      await sandbox.writeFiles(
+        names.map((name) => ({ path: `${root}/dir/${name}`, content: name })),
+      );
+      await sandbox.fs.symlink(`${root}/dir`, `${root}/alias`);
+
+      for (const dir of [`${root}/dir`, `${root}/alias`]) {
+        expect(await sandbox.fs.readdir(dir)).toEqual(names);
+        const entries = await sandbox.fs.readdir(dir, { withFileTypes: true });
+        expect(entries.map((entry) => entry.name)).toEqual(names);
+        expect(entries.every((entry) => entry.isFile())).toBe(true);
+      }
+
+      await sandbox.fs.rm(root, { recursive: true });
+    },
+  );
+
   testStaticBoth(
     "getOrCreate initializes a named sandbox once",
     async (Sandbox) => {
