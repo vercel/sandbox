@@ -14,16 +14,19 @@ export type NetworkTransformer = {
 /**
  * Defines how a request value is matched.
  */
-export type NetworkPolicyMatcher = {
-  /** Match the value exactly. */
-  exact?: string;
-} | {
-  /** Match values that start with the provided prefix. */
-  startsWith?: string;
-} | {
-  /** Match values against an RE2 regular expression. */
-  regex?: string;
-};
+export type NetworkPolicyMatcher =
+  | {
+      /** Match the value exactly. */
+      exact?: string;
+    }
+  | {
+      /** Match values that start with the provided prefix. */
+      startsWith?: string;
+    }
+  | {
+      /** Match values against an RE2 regular expression. */
+      regex?: string;
+    };
 
 /**
  * Matcher for key/value request entries such as headers and query parameters.
@@ -79,6 +82,17 @@ export type NetworkPolicyRule = {
    */
   match?: NetworkPolicyMatch;
 } & (
+  | {
+      /**
+       * Pin the outgoing HTTP Host header on matching requests to the allowed
+       * domain to prevent domain fronting. Only supported for exact domains.
+       * Cannot be combined with another rule action.
+       */
+      httpOnly: true;
+      transform?: never;
+      forwardURL?: never;
+      response?: never;
+    }
   | {
       /**
        * Transforms to apply to matching requests.
@@ -153,6 +167,12 @@ export type NetworkPolicyRule = {
  *     "*.npmjs.org": [],
  *     "github.com": [],
  *   }
+ * }
+ *
+ * @example
+ * // Pin the HTTP Host header to the allowed domain
+ * {
+ *   allow: { "api.example.com": [{ httpOnly: true }] }
  * }
  *
  * @example
