@@ -43,7 +43,7 @@ export const run = cmd.command({
           projectId: rest.scope.project,
           teamId: rest.scope.team,
           token: rest.scope.token,
-          resume: true,
+          resume: false,
           __includeSystemRoutes: true,
         });
       } catch (error) {
@@ -55,6 +55,7 @@ export const run = cmd.command({
           sandbox = await Create.create.handler({
             ...rest,
             agent: undefined,
+            ai: false,
             nonPersistent: rest.nonPersistent || removeAfterUse,
             __printConnectHint: false,
           } as Parameters<typeof Create.create.handler>[0]);
@@ -66,6 +67,7 @@ export const run = cmd.command({
       sandbox = await Create.create.handler({
         ...rest,
         agent: undefined,
+        ai: false,
         nonPersistent: rest.nonPersistent || removeAfterUse,
         __printConnectHint: false,
       } as Parameters<typeof Create.create.handler>[0]);

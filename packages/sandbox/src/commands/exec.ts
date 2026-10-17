@@ -10,6 +10,16 @@ import { scope } from "../args/scope";
 import { Duration } from "../types/duration";
 import { sandboxClient } from "../client";
 import chalk from "chalk";
+import { agentNames } from "./agents";
+import {
+  checkGatewayEnv,
+  gatewayAgent,
+  gatewayEnv,
+} from "../util/agent-gateway/policy";
+import {
+  refreshGateway,
+  validateGatewayCredentials,
+} from "../util/agent-gateway/runtime";
 
 export const args = {
   sandbox: cmd.positional({
@@ -106,7 +116,7 @@ export const exec = cmd.command({
       );
     }
 
-    const sandbox =
+    let sandbox =
       typeof sandboxName !== "string"
         ? sandboxName
         : await sandboxClient.get({
@@ -114,11 +124,32 @@ export const exec = cmd.command({
             projectId: project,
             teamId: team,
             token,
-            // Resume up front so the sandbox is already running by the time the
-            // interactive-shell setup runs its parallel steps.
-            resume: true,
+            resume: false,
             __includeSystemRoutes: true,
           });
+
+    const configuredAgent = gatewayAgent(sandbox.tags);
+    const selectedAgent =
+      configuredAgent &&
+      (configuredAgent === "none"
+        ? "none"
+        : (agentNames.find((name) => name === command) ?? configuredAgent));
+    if (selectedAgent) {
+      checkGatewayEnv(envVars, selectedAgent);
+      await validateGatewayCredentials(sandbox);
+      envVars = { ...envVars, ...gatewayEnv(selectedAgent) };
+    }
+    if (typeof sandboxName === "string") {
+      sandbox = await sandboxClient.get({
+        name: sandboxName,
+        projectId: project,
+        teamId: team,
+        token,
+        resume: true,
+        __includeSystemRoutes: true,
+      });
+    }
+    if (selectedAgent) await refreshGateway(sandbox, selectedAgent);
 
     if (!interactive) {
       console.error(printCommand(command, args));

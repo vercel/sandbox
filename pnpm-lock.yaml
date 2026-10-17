@@ -306,6 +306,9 @@ importers:
       debug:
         specifier: ^4.4.1
         version: 4.4.3(supports-color@8.1.1)
+      smol-toml:
+        specifier: 1.4.2
+        version: 1.4.2
       ws:
         specifier: ^8.21.0
         version: 8.21.0
@@ -482,6 +485,13 @@ importers:
         version: 3.2.1(@types/debug@4.1.12)(@types/node@22.15.12)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.3)(yaml@2.9.0)
 
 packages:
+
+  smol-toml@1.4.2:
+    resolution:
+      {
+        integrity: sha512-rInDH6lCNiEyn3+hH8KVGFdbjc099j47+OSgbMrfDYX1CmXLfdKd7qi6IfcWj2wFxvSVkuI46M+wPGYfEOEj6g==,
+      }
+    engines: { node: ">= 18" }
 
   '@ai-sdk/gateway@1.0.0-beta.1':
     resolution: {integrity: sha512-X1kmMztEkEtjq6PqF5/oATw65KTLQ8Z/MTNFH45qDJuJ/ou38UaLOzmFGhtvXyhJ1WWHueXFyQy/adAkEi+TfQ==}
@@ -6309,6 +6319,8 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  smol-toml@1.4.2: {}
 
   '@ai-sdk/gateway@1.0.0-beta.1(zod@3.25.67)':
     dependencies:

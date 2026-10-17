@@ -185,6 +185,7 @@ Flags:
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
     --connect         Start an interactive shell session after creating the sandbox [optional]
+    --ai              Request a managed AI Gateway session key; also configure coding agents on the universal image [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:

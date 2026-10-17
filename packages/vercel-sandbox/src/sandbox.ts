@@ -42,6 +42,8 @@ export type {
 
 /** @inline */
 export interface BaseCreateSandboxParams {
+  /** Provision a session-specific AI Gateway credential in the egress firewall. Requires account access to managed Gateway. */
+  enableAiGateway?: boolean;
   /**
    * The name of the sandbox. If omitted, a random name will be generated.
    */
@@ -804,6 +806,7 @@ export class Sandbox implements ExecutionContext {
       runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
+      enableAiGateway: params?.enableAiGateway,
       networkId: params?.networkId,
       env: params?.env,
       tags: params?.tags,
@@ -876,6 +879,7 @@ export class Sandbox implements ExecutionContext {
       resources: params.resources,
       image: params.image,
       networkPolicy: params.networkPolicy,
+      enableAiGateway: params.enableAiGateway,
       networkId: params.networkId,
       env: params.env,
       mounts: toAPIMounts(params.mounts),
