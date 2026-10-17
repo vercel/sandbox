@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { isatty } from "node:tty";
 import ms from "ms";
@@ -11,7 +12,7 @@ import { snapshotId } from "../args/snapshot-id";
 import { publishPorts } from "../args/ports";
 import { snapshotRetentionArgs } from "../args/snapshot-retention";
 import ora from "ora";
-import * as Exec from "./exec";
+import { exec } from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -84,8 +85,7 @@ export const args = {
 } as const;
 
 export const create = cmd.command({
-  name: "create",
-  description: "Create a sandbox in the specified account and project.",
+  ...commandMetadata.create,
   args: {
     ...args,
     agent: cmd.positional({
@@ -284,7 +284,7 @@ export const create = cmd.command({
             );
           }
         }
-        await Exec.exec.handler({
+        await exec.handler({
           ...(launcher
             ? { command: launcher.command, args: launcher.args }
             : defaultShell),

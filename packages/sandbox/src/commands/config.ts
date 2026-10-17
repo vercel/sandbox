@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { APIError, type Sandbox } from "@vercel/sandbox";
 import { sandboxName } from "../args/sandbox-name";
@@ -952,8 +953,7 @@ function getPublishedRoutes(sandbox: Sandbox): Sandbox["routes"] | undefined {
 }
 
 export const config = cmd.subcommands({
-  name: "config",
-  description: "View and update sandbox configuration",
+  ...commandMetadata.config,
   cmds: {
     list: listCommand,
     vcpus: vcpusCommand,

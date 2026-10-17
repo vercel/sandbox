@@ -1,16 +1,17 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { APIError, type Sandbox } from "@vercel/sandbox";
-import * as Create from "./create";
-import * as Exec from "./exec";
+import { create, args as createArgs } from "./create";
+import { exec, args as execArgs } from "./exec";
 import { sandboxClient } from "../client";
 import { StyledError } from "../error";
 import { omit } from "../util/omit";
 
 const args = {
-  ...Create.args,
+  ...createArgs,
   // `timeout` is omitted because it collides with Create's `--timeout`
   // (sandbox lifetime).
-  ...omit(Exec.args, "sandbox", "timeout"),
+  ...omit(execArgs, "sandbox", "timeout"),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
@@ -22,8 +23,7 @@ const args = {
 } as const;
 
 export const run = cmd.command({
-  name: "run",
-  description: "Create and run a command in a sandbox",
+  ...commandMetadata.run,
   args,
   async handler({ removeAfterUse, stopAfterUse, ...rest }) {
     if (removeAfterUse && stopAfterUse) {
@@ -52,27 +52,27 @@ export const run = cmd.command({
           error.cause instanceof APIError &&
           error.cause.response.status === 404
         ) {
-          sandbox = await Create.create.handler({
+          sandbox = await create.handler({
             ...rest,
             agent: undefined,
             nonPersistent: rest.nonPersistent || removeAfterUse,
             __printConnectHint: false,
-          } as Parameters<typeof Create.create.handler>[0]);
+          } as Parameters<typeof create.handler>[0]);
         } else {
           throw error;
         }
       }
     } else {
-      sandbox = await Create.create.handler({
+      sandbox = await create.handler({
         ...rest,
         agent: undefined,
         nonPersistent: rest.nonPersistent || removeAfterUse,
         __printConnectHint: false,
-      } as Parameters<typeof Create.create.handler>[0]);
+      } as Parameters<typeof create.handler>[0]);
     }
 
     try {
-      await Exec.exec.handler({ ...rest, sandbox, timeout: undefined });
+      await exec.handler({ ...rest, sandbox, timeout: undefined });
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();

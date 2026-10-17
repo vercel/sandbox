@@ -141,14 +141,15 @@ describe("config command", () => {
     ["none", null],
   ])("config network command updates with %s", async (value, networkId) => {
     const { app } = await import("../../src/app.ts");
-    await cmd.run(app({ withoutAuth: true }), [
+    const args = [
       "config",
       "network",
       "my-sandbox",
       value,
       "--scope=team",
       "--project=proj",
-    ]);
+    ];
+    await cmd.run(await app(args, { withoutAuth: true }), args);
 
     expect(mockGet).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -162,15 +163,16 @@ describe("config command", () => {
 
   test("config network rejects an empty ID without updating", async () => {
     const { app } = await import("../../src/app.ts");
+    const args = [
+      "config",
+      "network",
+      "my-sandbox",
+      " ",
+      "--scope=team",
+      "--project=proj",
+    ];
     await expect(
-      cmd.run(app({ withoutAuth: true }), [
-        "config",
-        "network",
-        "my-sandbox",
-        " ",
-        "--scope=team",
-        "--project=proj",
-      ]),
+      cmd.run(await app(args, { withoutAuth: true }), args),
     ).rejects.toThrow();
     expect(mockUpdate).not.toHaveBeenCalled();
   });

@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { subcommands } from "cmd-ts";
 import { Listr } from "listr2";
@@ -205,8 +206,7 @@ const remove = cmd.command({
 });
 
 export const drives = subcommands({
-  name: "drives",
-  description: "Manage sandbox drives",
+  ...commandMetadata.drives,
   cmds: {
     list,
     "get-or-create": getOrCreate,

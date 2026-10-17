@@ -35,7 +35,10 @@ describe("fork command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFork.mockResolvedValue(fakeSandbox);
-    mockGet.mockResolvedValue({ status: "stopped", currentSnapshotId: "snap_1" });
+    mockGet.mockResolvedValue({
+      status: "stopped",
+      currentSnapshotId: "snap_1",
+    });
     process.env.VERCEL_AUTH_TOKEN = "tok";
   });
 
@@ -60,7 +63,10 @@ describe("fork command", () => {
   });
 
   test("warns on stderr when the source is running, and still forks", async () => {
-    mockGet.mockResolvedValue({ status: "running", currentSnapshotId: undefined });
+    mockGet.mockResolvedValue({
+      status: "running",
+      currentSnapshotId: undefined,
+    });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const { fork } = await import("../../src/commands/fork.ts");

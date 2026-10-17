@@ -1,5 +1,4 @@
 import * as cmd from "cmd-ts";
-import { login } from "../commands/login";
 import createDebugger from "debug";
 import chalk from "chalk";
 import {
@@ -75,6 +74,7 @@ export const token = cmd.option({
               `${chalk.bold("notice:")} Your session has expired. Please log in again.`,
             ),
           );
+          const { login } = await import("../commands/login");
           await login.handler({});
 
           // Try again after login

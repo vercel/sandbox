@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { subcommands } from "cmd-ts";
 import chalk, { type ChalkInstance } from "chalk";
@@ -131,8 +132,7 @@ const list = cmd.command({
 });
 
 export const sessions = subcommands({
-  name: "sessions",
-  description: "Manage sandbox sessions",
+  ...commandMetadata.sessions,
   cmds: {
     list,
   },

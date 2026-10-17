@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import {
   getAuth,
@@ -11,8 +12,7 @@ import createDebugger from "debug";
 const debug = createDebugger("sandbox:logout");
 
 export const logout = cmd.command({
-  name: "logout",
-  description: "Log out of the Sandbox CLI",
+  ...commandMetadata.logout,
   args: {},
   async handler() {
     const auth = getAuth();

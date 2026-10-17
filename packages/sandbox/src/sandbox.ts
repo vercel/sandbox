@@ -1,7 +1,6 @@
 import { run, setDefaultHelpFormatter } from "cmd-ts";
 import { app } from "./app";
 import dotenv from "dotenv-flow";
-import { printTopLevelError } from "./util/format-error";
 import { steerShCommand } from "./util/steer-sh";
 import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 import { telemetry } from "./telemetry";
@@ -18,12 +17,13 @@ async function main() {
 
   try {
     steerShCommand(argv);
-    await run(app(), argv);
+    await run(await app(argv), argv);
     telemetry.trackExitCode(0);
     await telemetry.flush();
   } catch (e) {
     telemetry.trackExitCode(1);
     await telemetry.flush();
+    const { printTopLevelError } = await import("./util/format-error");
     await printTopLevelError(e);
     process.exit(1);
   }

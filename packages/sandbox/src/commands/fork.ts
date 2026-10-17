@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import ms from "ms";
 import chalk from "chalk";
@@ -9,7 +10,7 @@ import { sandboxClient } from "../client";
 import { sandboxName } from "../args/sandbox-name";
 import { publishPorts } from "../args/ports";
 import { snapshotRetentionArgs } from "../args/snapshot-retention";
-import * as Exec from "./exec";
+import { exec } from "./exec";
 import { networkPolicyArgs } from "../args/network-policy";
 import { buildNetworkPolicy } from "../util/network-policy";
 import { ObjectFromKeyValue } from "../args/key-value-pair";
@@ -76,9 +77,7 @@ export const args = {
 } as const;
 
 export const fork = cmd.command({
-  name: "fork",
-  description:
-    "Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.",
+  ...commandMetadata.fork,
   args,
   examples: [
     {
@@ -208,7 +207,7 @@ export const fork = cmd.command({
     }
 
     if (connect) {
-      await Exec.exec.handler({
+      await exec.handler({
         ...defaultShell,
         scope,
         asSudo: false,
