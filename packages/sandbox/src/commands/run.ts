@@ -10,7 +10,7 @@ const args = {
   ...Create.args,
   // `timeout` is omitted because it collides with Create's `--timeout`
   // (sandbox lifetime).
-  ...omit(Exec.args, "sandbox", "timeout", "detached"),
+  ...omit(Exec.args, "sandbox", "timeout", "detached", "stdin"),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
@@ -72,7 +72,13 @@ export const run = cmd.command({
     }
 
     try {
-      await Exec.exec.handler({ ...rest, sandbox, timeout: undefined, detached: false });
+      await Exec.exec.handler({
+        ...rest,
+        sandbox,
+        timeout: undefined,
+        detached: false,
+        stdin: false,
+      });
     } finally {
       if (removeAfterUse) {
         await sandbox.delete();

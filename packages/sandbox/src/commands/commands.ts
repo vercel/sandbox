@@ -106,8 +106,52 @@ const kill = cmd.command({
   },
 });
 
+const write = cmd.command({
+  name: "write",
+  description: "Write piped bytes to a command started with --detach --stdin",
+  args,
+  async handler(input) {
+    if (process.stdin.isTTY) {
+      throw new Error(
+        "Pipe data to sandbox commands write, for example: printf 'hello\\n' | sandbox commands write <name> <command-id>.",
+      );
+    }
+    const command = await getCurrentCommand(input);
+    for await (const chunk of process.stdin) {
+      await command.writeStdin(chunk);
+    }
+  },
+});
+
+const closeStdin = cmd.command({
+  name: "close-stdin",
+  description: "Send EOF to a command started with --detach --stdin",
+  args,
+  async handler(input) {
+    const command = await getCurrentCommand(input);
+    await command.closeStdin();
+  },
+});
+
+const output = cmd.command({
+  name: "output",
+  description: "Print a command's output from stdout, stderr, or both",
+  args: {
+    ...args,
+    stream: cmd.option({
+      long: "stream",
+      description: "Output stream to print (default both)",
+      type: cmd.optional(cmd.oneOf(["stdout", "stderr", "both"] as const)),
+    }),
+  },
+  async handler({ stream, ...input }) {
+    const command = await getCurrentCommand(input);
+    process.stdout.write(await command.output(stream ?? "both"));
+  },
+});
+
 export const commands = cmd.subcommands({
   name: "commands",
   description: "Inspect and control commands in a running sandbox session",
-  cmds: { get, logs, wait, kill },
+  cmds: { get, logs, wait, kill, write, "close-stdin": closeStdin, output },
 });

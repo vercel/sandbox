@@ -1027,6 +1027,25 @@ sandbox commands logs <name> <command-id>
 sandbox commands wait <name> <command-id>
 sandbox commands kill <name> <command-id> --signal SIGTERM
 
+# Pipe local input into a command and stream its output in one invocation
+printf 'hello\n' | sandbox exec --stdin <name> -- cat
+
+# Keep stdin open when later processes need to write to a detached command
+command_id=$(sandbox exec --detach --stdin <name> -- cat)
+printf 'hello\n' | sandbox commands write <name> "$command_id"
+sandbox commands close-stdin <name> "$command_id"
+sandbox commands output <name> "$command_id" --stream stdout  # Also accepts stderr or both
+
+# Get the public URL for a published port in the running session
+sandbox domain <name> 3000
+
+# Create a Linux user and shared group, then run a command as that user
+sandbox users create <name> alice
+sandbox groups create <name> devs
+sandbox groups add-user <name> devs alice
+sandbox users exec <name> alice -- id
+sandbox groups remove-user <name> devs alice
+
 # Add time to the current running session without changing future defaults
 sandbox extend <name> <duration>
 

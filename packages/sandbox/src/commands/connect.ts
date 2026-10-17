@@ -14,6 +14,7 @@ export const connect = cmd.command({
     "interactive",
     "tty",
     "detached",
+    "stdin",
     "timeout",
   ),
   async handler(args) {
@@ -21,6 +22,7 @@ export const connect = cmd.command({
       ...defaultShell,
       interactive: true,
       detached: false,
+      stdin: false,
       tty: true,
       timeout: undefined,
       ...args,

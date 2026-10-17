@@ -88,6 +88,7 @@ describe("create opencode", () => {
       envVars: { OPENCODE_DISABLE_AUTOUPDATE: "true" },
       interactive: true,
       detached: false,
+      stdin: false,
       tty: true,
       sandbox,
       timeout: undefined,

@@ -9,6 +9,9 @@ import { connect } from "./commands/connect";
 import { stop } from "./commands/stop";
 import { extend } from "./commands/extend";
 import { commands } from "./commands/commands";
+import { domain } from "./commands/domain";
+import { users } from "./commands/users";
+import { groups } from "./commands/groups";
 import { remove } from "./commands/remove";
 import { cp } from "./commands/cp";
 import { login } from "./commands/login";
@@ -39,6 +42,9 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       stop,
       extend,
       commands,
+      domain,
+      users,
+      groups,
       remove,
       run,
       snapshot,

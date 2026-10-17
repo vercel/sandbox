@@ -56,6 +56,7 @@ describe("detached command lifecycle", () => {
         asSudo: false,
         interactive: false,
         detached: true,
+        stdin: false,
         skipExtendingTimeout: false,
         tty: false,
         cwd: undefined,

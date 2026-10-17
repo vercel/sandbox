@@ -58,6 +58,11 @@ export const args = {
     description:
       "Start the command and print its ID without waiting for it to finish.",
   }),
+  stdin: cmd.flag({
+    long: "stdin",
+    description:
+      "Forward local stdin, or keep detached stdin open for later writes.",
+  }),
   tty: cmd.flag({
     long: "tty",
     short: "t",
@@ -99,6 +104,7 @@ export const exec = cmd.command({
     scope: { token, team, project },
     interactive,
     detached,
+    stdin,
     envVars,
     skipExtendingTimeout,
     timeout,
@@ -139,6 +145,7 @@ export const exec = cmd.command({
           env: envVars,
           timeoutMs: timeout ? ms(timeout) : undefined,
           detached: true,
+          stdin: stdin ? true : undefined,
         });
         process.stdout.write(`${started.cmdId}\n`);
         return;
@@ -149,6 +156,7 @@ export const exec = cmd.command({
         args,
         stderr: process.stderr,
         stdout: process.stdout,
+        stdin: stdin ? process.stdin : undefined,
         sudo: asSudo,
         cwd,
         env: envVars,
