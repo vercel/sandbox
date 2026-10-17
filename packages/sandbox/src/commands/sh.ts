@@ -21,6 +21,8 @@ export const sh = cmd.command({
       return Create.create.handler({
         ...rest,
         agent: undefined,
+        ai: false,
+        useGatewayKey: false,
         connect: true,
       });
     }
@@ -28,6 +30,8 @@ export const sh = cmd.command({
     const sandbox = await Create.create.handler({
       ...rest,
       agent: undefined,
+      ai: false,
+      useGatewayKey: false,
       connect: false,
       nonPersistent: true,
       __printConnectHint: false,

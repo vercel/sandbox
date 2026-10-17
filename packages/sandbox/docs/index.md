@@ -25,6 +25,7 @@ Commands:
     snapshots                                  Manage sandbox snapshots
     sessions                                   Manage sandbox sessions
     drives                                     Manage sandbox drives
+    gateway                                    Set up a reusable key for create --ai --use-gateway-key
     telemetry                                  Manage telemetry collection status
     login                                      Log in to the Sandbox CLI
     logout                                     Log out of the Sandbox CLI
@@ -182,10 +183,12 @@ Options:
 
 Flags:
 
-    --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
-    --silent          Don't write sandbox name to stdout [optional]
-    --connect         Start an interactive shell session after creating the sandbox [optional]
-    --help, -h        show help [optional]
+    --non-persistent   Disable automatic restore of the filesystem between sessions. [optional]
+    --silent           Don't write sandbox name to stdout [optional]
+    --connect          Start an interactive shell session after creating the sandbox [optional]
+    --ai               Request a managed AI Gateway session key; also configure coding agents on the universal image [optional]
+    --use-gateway-key  Use host AI_GATEWAY_API_KEY or a key saved by sandbox gateway setup (requires --ai) [optional]
+    --help, -h         show help [optional]
 
 Auth & Scope:
 

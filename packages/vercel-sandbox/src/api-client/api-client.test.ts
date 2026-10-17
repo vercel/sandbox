@@ -1942,6 +1942,16 @@ describe("APIClient", () => {
         deleteEvicted: true,
       });
     });
+    it.each([true, false, undefined])(
+      "forwards managed Gateway opt-in %s without a key secret",
+      async (enableAiGateway) => {
+        mockFetch.mockResolvedValue(sandboxResponse());
+        await client.createSandbox({ projectId: "proj_123", enableAiGateway });
+        const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+        expect(body.enableAiGateway).toBe(enableAiGateway);
+        expect(body).not.toHaveProperty("apiKey");
+      },
+    );
 
     it("omits keepLastSnapshots when not provided", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
