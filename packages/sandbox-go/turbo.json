@@ -1,0 +1,16 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": ["go.mod", "go.sum", "cmd/**", "internal/**", "third_party/**"],
+      "outputs": ["dist/**"],
+      "cache": true
+    },
+    "typecheck": {
+      "inputs": ["go.mod", "go.sum", "cmd/**", "internal/**", "third_party/**"]
+    },
+    "test": {
+      "inputs": ["go.mod", "go.sum", "cmd/**", "internal/**", "third_party/**"]
+    }
+  }
+}

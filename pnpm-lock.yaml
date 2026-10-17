@@ -374,6 +374,8 @@ importers:
         specifier: 5.1.0
         version: 5.1.0
 
+  packages/sandbox-go: {}
+
   packages/vercel-sandbox:
     dependencies:
       '@vercel/detect-agent':

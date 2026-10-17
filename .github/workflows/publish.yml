@@ -36,6 +36,11 @@ jobs:
           node-version: "24.16.0"
           cache: "pnpm"
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/sandbox-go/go.mod
+          cache-dependency-path: packages/sandbox-go/go.sum
+
       - run: pnpm install
         shell: bash
 
