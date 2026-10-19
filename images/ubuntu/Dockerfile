@@ -20,5 +20,6 @@ RUN printf '%s\n' \
     chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel
+ENV SHELL=/bin/bash
 USER ubuntu
 WORKDIR /vercel

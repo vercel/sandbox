@@ -1,5 +1,98 @@
 # sandbox
 
+## 4.8.1
+
+### Patch Changes
+
+- Updated dependencies [[`20bcce60794e30341aefe4ab60a308fdae93a557`](https://github.com/vercel/sandbox/commit/20bcce60794e30341aefe4ab60a308fdae93a557)]:
+  - @vercel/sandbox@3.8.0
+
+## 4.8.0
+
+### Minor Changes
+
+- Add `sandbox create claude` to open Claude Code in a new Vercel Sandbox. ([#371](https://github.com/vercel/sandbox/pull/371))
+
+- Add `sandbox create codex` to open Codex in a new Vercel Sandbox. ([#373](https://github.com/vercel/sandbox/pull/373))
+
+- Add `sandbox create opencode` to create a sandbox with the universal image and open OpenCode directly in the terminal. ([#370](https://github.com/vercel/sandbox/pull/370))
+
+- Add `sandbox create pi` to open Pi in a Sandbox with scoped reconnect and stop commands. ([#372](https://github.com/vercel/sandbox/pull/372))
+
+### Patch Changes
+
+- Show a coding agent launch example first in the top-level CLI help. ([#378](https://github.com/vercel/sandbox/pull/378))
+
+- Update `@vercel/oidc` to v4. ([#375](https://github.com/vercel/sandbox/pull/375))
+
+- Updated dependencies [[`515f60b261fd7fa2ae9e5ae58fb8d950e4378089`](https://github.com/vercel/sandbox/commit/515f60b261fd7fa2ae9e5ae58fb8d950e4378089), [`31244aa3280dc3fdca0680933f85971570d73d2d`](https://github.com/vercel/sandbox/commit/31244aa3280dc3fdca0680933f85971570d73d2d)]:
+  - @vercel/sandbox@3.7.0
+
+## 4.7.1
+
+### Patch Changes
+
+- Updated dependencies [[`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb), [`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb)]:
+  - @vercel/sandbox@3.6.1
+
+## 4.7.0
+
+### Minor Changes
+
+- Add a new `sandbox drives fork <parent> <new-name>` subcommand to allow forking a drive into a new one, inheriting the parent drive's data, max size and region. ([#369](https://github.com/vercel/sandbox/pull/369))
+
+### Patch Changes
+
+- Updated dependencies [[`26a1162ec144138382d173416c635a270b692983`](https://github.com/vercel/sandbox/commit/26a1162ec144138382d173416c635a270b692983), [`bc2f85f6803a7562c4c4902e35833a8bb45dd071`](https://github.com/vercel/sandbox/commit/bc2f85f6803a7562c4c4902e35833a8bb45dd071)]:
+  - @vercel/sandbox@3.6.0
+
+## 4.6.1
+
+### Patch Changes
+
+- Use the sandbox's SHELL for interactive sessions, falling back to sh when it is unset or empty. ([#353](https://github.com/vercel/sandbox/pull/353))
+
+## 4.6.0
+
+### Minor Changes
+
+- Add sandbox config network to attach or detach a sandbox from Secure Compute, keeping sandbox config network-id available. Explain the Enterprise plan requirement in root help, network configuration help, and network examples. ([#351](https://github.com/vercel/sandbox/pull/351))
+
+### Patch Changes
+
+- Clarify the Enterprise requirement and network ID location in Secure Compute CLI help, and add a creation example. ([#351](https://github.com/vercel/sandbox/pull/351))
+
+- Updated dependencies [[`d5b845bbe1b21fffa79f77bf0cdccb183605703c`](https://github.com/vercel/sandbox/commit/d5b845bbe1b21fffa79f77bf0cdccb183605703c)]:
+  - @vercel/sandbox@3.5.1
+
+## 4.5.0
+
+### Minor Changes
+
+- Add support for attaching sandboxes to Secure Compute networks: ([#329](https://github.com/vercel/sandbox/pull/329))
+  - In the CLI, use `sandbox create --network-id ID` with your Secure Compute network id
+  - In the SDK, use `Sandbox.create({ networkId: 'ID' })` with your Secure Compute network id
+
+### Patch Changes
+
+- Updated dependencies [[`752436bc32174bb6a37068536b231cf7b2c1cded`](https://github.com/vercel/sandbox/commit/752436bc32174bb6a37068536b231cf7b2c1cded)]:
+  - @vercel/sandbox@3.5.0
+
+## 4.4.1
+
+### Patch Changes
+
+- Label sizes with binary units (KiB, MiB, GiB, TiB) instead of KB/MB/GB/TB. The CLI already divided by 1024, so a 1 TiB drive printed as `1 TB`; drive, snapshot and network-transfer sizes now match the units used in the docs. ([#341](https://github.com/vercel/sandbox/pull/341))
+
+- `sandbox fork` now looks up the source before forking and warns on stderr when it is running. A fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none), never from the live filesystem, so anything written in a running source since its last snapshot is left behind while the command still exits 0. The warning points at `sandbox snapshot --stop <source>` as the way to fork the current state, and `fork --help` now says the same. ([#340](https://github.com/vercel/sandbox/pull/340))
+
+- Tag API requests with the AI agent driving the process, when one is ([#320](https://github.com/vercel/sandbox/pull/320))
+  detected via `detect-agent`, as an `agent/<name>` phrase in the user-agent
+  header. No agent detected means no change to the header. The SDK sends no
+  telemetry events; this is request metadata only.
+- Updated dependencies [[`fdd6912470338b15e303eaf515a78c21b2b19473`](https://github.com/vercel/sandbox/commit/fdd6912470338b15e303eaf515a78c21b2b19473), [`27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708`](https://github.com/vercel/sandbox/commit/27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708), [`4e7ab569a7e6cd905d43a198f2e08a627457a8ea`](https://github.com/vercel/sandbox/commit/4e7ab569a7e6cd905d43a198f2e08a627457a8ea), [`9d0403de39a4e58a2d37bdc1a00ca810e109e57b`](https://github.com/vercel/sandbox/commit/9d0403de39a4e58a2d37bdc1a00ca810e109e57b)]:
+  - @vercel/sandbox@3.4.0
+
 ## 4.4.0
 
 ### Minor Changes

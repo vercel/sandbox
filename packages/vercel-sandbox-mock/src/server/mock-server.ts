@@ -70,6 +70,7 @@ interface CreateBody {
   image?: string;
   persistent?: boolean;
   networkPolicy?: unknown;
+  networkId?: string;
   env?: Record<string, string>;
   tags?: Record<string, string>;
   mounts?: SandboxRecord["mounts"];
@@ -202,6 +203,47 @@ export class MockServer {
       );
     }
 
+    if (method === "GET") {
+      const projectId = url.searchParams.get("projectId");
+      const drive = this.#drives.get(name);
+      if (!drive || drive.projectId !== projectId) {
+        return apiError(404, "not_found", "Drive not found.");
+      }
+      return json({ drive: drivePayload(drive) });
+    }
+
+    if (parts[1] === "fork" && method === "POST") {
+      const projectId = url.searchParams.get("projectId");
+      const parentDrive = this.#drives.get(name);
+      if (!parentDrive || parentDrive.projectId !== projectId) {
+        return apiError(404, "not_found", "Drive not found.");
+      }
+
+      const body = readJson<{ name: string }>(init);
+      if (this.#drives.has(body.name)) {
+        return apiError(
+          409,
+          "conflict",
+          `Drive "${body.name}" already exists.`,
+        );
+      }
+
+      const now = Date.now();
+      const drive: DriveRecord = {
+        id: newId("drive"),
+        name: body.name,
+        projectId: parentDrive.projectId,
+        region: parentDrive.region,
+        maxSizeBytes: parentDrive.maxSizeBytes,
+        parentDriveId: parentDrive.id,
+        rootDriveId: parentDrive.rootDriveId ?? parentDrive.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.#drives.set(drive.name, drive);
+      return json({ drive: drivePayload(drive) });
+    }
+
     if (method === "POST") {
       const existingDrive = this.#drives.get(name);
       if (existingDrive) return json({ drive: drivePayload(existingDrive) });
@@ -260,6 +302,7 @@ export class MockServer {
       tags: body.tags,
       mounts: normalizeMounts(body.mounts),
       networkPolicy: body.networkPolicy,
+      networkId: body.networkId,
       cwd: DEFAULT_CWD,
       env: body.env,
       ports,
@@ -331,6 +374,7 @@ export class MockServer {
       timeout: body.timeout ?? source.timeout,
       tags: body.tags ?? source.tags,
       networkPolicy: body.networkPolicy ?? source.networkPolicy,
+      networkId: body.networkId ?? source.networkId,
       cwd: source.cwd,
       env: body.env ?? source.env,
       ports: body.ports ?? source.ports,
@@ -423,7 +467,12 @@ export class MockServer {
     const record = this.#sandboxes.get(name);
     if (!record)
       return apiError(404, "not_found", `Sandbox not found: ${name}`);
-    const body = readJson<CreateBody & { currentSnapshotId?: string }>(init);
+    const body = readJson<
+      Omit<CreateBody, "networkId"> & {
+        currentSnapshotId?: string;
+        networkId?: string | null;
+      }
+    >(init);
     const session = this.#sessions.get(record.sessionId)!;
 
     // Each side can be updated on its own, so the resulting combination is
@@ -454,6 +503,9 @@ export class MockServer {
     if (body.networkPolicy !== undefined) {
       record.networkPolicy = body.networkPolicy;
       session.networkPolicy = body.networkPolicy;
+    }
+    if (body.networkId !== undefined) {
+      record.networkId = body.networkId ?? undefined;
     }
     if (body.tags !== undefined) record.tags = body.tags;
     if (body.mounts !== undefined) record.mounts = normalizeMounts(body.mounts);

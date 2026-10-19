@@ -53,9 +53,12 @@ export const snapshotClient: Pick<
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };
 
-export const driveClient: Pick<typeof Drive, "getOrCreate" | "list"> & {
+export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
+  fork(drive: Drive, params: Parameters<Drive["fork"]>[0]): Promise<Drive>;
   delete(drive: Drive): Promise<void>;
 } = {
+  get: (params) =>
+    withErrorHandling(() => Drive.get({ fetch: fetchWithUserAgent, ...params })),
   getOrCreate: (params) =>
     withErrorHandling(() =>
       Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
@@ -65,6 +68,7 @@ export const driveClient: Pick<typeof Drive, "getOrCreate" | "list"> & {
       Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
     ),
   delete: (drive) => withErrorHandling(() => drive.delete()),
+  fork: (drive, params) => withErrorHandling(() => drive.fork(params)),
 };
 
 function scopeField(params: unknown, field: string): string | undefined {

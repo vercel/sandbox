@@ -12,6 +12,7 @@ import {
   StopSessionResponse,
   SessionsResponse,
   CommandResponse,
+  CommandStdinResponse,
   CommandFinishedResponse,
   EmptyResponse,
   LogLine,
@@ -43,6 +44,85 @@ import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
 import type { SandboxMetaData } from "./validators.js";
+import { withRetry } from "./with-retry.js";
+import { setTimeout as delay } from "node:timers/promises";
+import { StringDecoder } from "node:string_decoder";
+
+const STDIN_MAX_RETRIES = 5;
+const STDIN_MAX_STALLED_TIMEOUTS = 2;
+
+function stdinBackoff(attempt: number) {
+  return 400 * 2 ** attempt;
+}
+
+function waitBeforeStdinRetry(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal!.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+const stdinMaybeWrittenErrors = new WeakSet<object>();
+
+/**
+ * Whether a failed stdin write may have delivered some of its data, because an
+ * earlier attempt of the same request may have been applied before it failed.
+ */
+export function stdinMayHaveBeenWritten(error: unknown) {
+  return typeof error === "object" && error !== null && stdinMaybeWrittenErrors.has(error);
+}
+
+async function parseStdinResponse(response: Response, maybeApplied = false) {
+  try {
+    const parsed = await parseOrThrow(CommandStdinResponse, response);
+    return { bytesWritten: parsed.json.bytesWritten };
+  } catch (error) {
+    if (maybeApplied && typeof error === "object" && error !== null) {
+      stdinMaybeWrittenErrors.add(error);
+    }
+    throw error;
+  }
+}
+
+async function readStdinTimeout(response: Response) {
+  const text = await response.text();
+  let bytesWritten: number | undefined;
+  try {
+    const value = JSON.parse(text)?.error?.bytesWritten;
+    if (Number.isSafeInteger(value) && value >= 0) bytesWritten = value;
+  } catch {}
+  return {
+    bytesWritten,
+    response: new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    }),
+  };
+}
+
+async function probeStdinBytesWritten(
+  send: (body: Record<string, unknown>) => Promise<Response>,
+) {
+  try {
+    const response = await send({});
+    if (!response.ok) {
+      await response.body?.cancel();
+      return undefined;
+    }
+    return (await parseStdinResponse(response)).bytesWritten;
+  } catch {
+    return undefined;
+  }
+}
 
 interface Claims {
   owner_id: string;
@@ -184,6 +264,7 @@ export class APIClient extends BaseClient {
       runtime?: RUNTIMES | (string & {});
       image?: string;
       networkPolicy?: NetworkPolicy;
+      networkId?: string;
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
@@ -218,6 +299,7 @@ export class APIClient extends BaseClient {
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
+          networkId: params.networkId,
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
@@ -243,7 +325,9 @@ export class APIClient extends BaseClient {
       persistent?: boolean;
       image?: string;
       networkPolicy?: NetworkPolicy;
+      networkId?: string;
       env?: Record<string, string>;
+      mounts?: SandboxMetaData["mounts"];
       tags?: Record<string, string>;
       snapshotExpiration?: number;
       keepLastSnapshots?: {
@@ -274,7 +358,9 @@ export class APIClient extends BaseClient {
             networkPolicy: params.networkPolicy
               ? toAPINetworkPolicy(params.networkPolicy)
               : undefined,
+            networkId: params.networkId,
             env: params.env,
+            mounts: params.mounts,
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
             keepLastSnapshots: params.keepLastSnapshots,
@@ -296,6 +382,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait: true;
+    attachStdin?: boolean;
     logs?: boolean;
     onLog?: (log: LogOutputLine) => void;
     timeout?: number;
@@ -312,6 +399,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: false;
+    attachStdin?: boolean;
     timeout?: number;
     signal?: AbortSignal;
   }): Promise<Parsed<z.infer<typeof CommandResponse>>>;
@@ -323,6 +411,7 @@ export class APIClient extends BaseClient {
     env: Record<string, string>;
     sudo: boolean;
     wait?: boolean;
+    attachStdin?: boolean;
     logs?: boolean;
     onLog?: (log: LogOutputLine) => void;
     timeout?: number;
@@ -346,10 +435,12 @@ export class APIClient extends BaseClient {
             env: params.env,
             sudo: params.sudo,
             wait: true,
+            attachStdin: params.attachStdin || undefined,
             logs: params.logs || undefined,
             timeout: params.timeout,
           }),
           signal: params.signal,
+          retry: { retries: 0 },
         },
       );
 
@@ -371,49 +462,72 @@ export class APIClient extends BaseClient {
         });
       }
 
-      const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream, { signal: params.signal }).catch(
-        (err) => {
-          console.error("Error piping command stream:", err);
-        },
-      );
-
-      const iterator = jsonlinesStream[Symbol.asyncIterator]();
-      const commandChunk = await iterator.next();
-      if (commandChunk.done) {
-        throw new StreamError(
-          "stream_ended_early",
-          "Stream ended before command data was received",
-          params.sessionId,
-        );
+      const iterator = readJsonLines(response.body, params.signal);
+      let command: CommandData;
+      try {
+        const commandChunk = await iterator.next();
+        if (commandChunk.done) {
+          throw new StreamError(
+            "stream_ended_early",
+            "Stream ended before command data was received",
+            params.sessionId,
+          );
+        }
+        command = CommandResponse.parse(commandChunk.value).command;
+      } catch (error) {
+        await iterator.return();
+        throw error;
       }
-      const { command } = CommandResponse.parse(commandChunk.value);
 
+      const delivered = { stdout: 0, stderr: 0 };
       const finished = (async () => {
-        while (true) {
-          const chunk = await iterator.next();
-          if (chunk.done) {
-            throw new StreamError(
-              "stream_ended_early",
-              "Stream ended before command finished",
-              params.sessionId,
-            );
-          }
+        try {
+          while (true) {
+            const chunk = await iterator.next();
+            if (chunk.done) {
+              throw new ConnectionError("Stream ended before command finished");
+            }
 
-          if (chunk.value?.command) {
-            const { command } = CommandFinishedResponse.parse(chunk.value);
-            return command;
-          }
+            if (chunk.value?.command) {
+              return CommandFinishedResponse.parse(chunk.value).command;
+            }
 
-          const parsed = LogLine.parse(chunk.value);
-          if (parsed.stream === "error") {
-            throw new StreamError(
-              parsed.data.code,
-              parsed.data.message,
-              params.sessionId,
-            );
+            const parsed = LogLine.parse(chunk.value);
+            if (parsed.stream === "error") {
+              throw new StreamError(
+                parsed.data.code,
+                parsed.data.message,
+                params.sessionId,
+              );
+            }
+            params.onLog?.(parsed);
+            delivered[parsed.stream] += parsed.data.length;
           }
-          params.onLog?.(parsed);
+        } catch (error) {
+          if (params.signal?.aborted || !(error instanceof ConnectionError)) {
+            throw error;
+          }
+          if (params.logs) {
+            for await (const log of this.getLogsStream(
+              {
+                sessionId: params.sessionId,
+                cmdId: command.id,
+                signal: params.signal,
+              },
+              delivered,
+            )) {
+              params.onLog?.(log);
+            }
+          }
+          const result = await this.getCommand({
+            sessionId: params.sessionId,
+            cmdId: command.id,
+            wait: true,
+            signal: params.signal,
+          });
+          return result.json.command;
+        } finally {
+          await iterator.return();
         }
       })();
 
@@ -430,6 +544,7 @@ export class APIClient extends BaseClient {
           cwd: params.cwd,
           env: params.env,
           sudo: params.sudo,
+          attachStdin: params.attachStdin || undefined,
           timeout: params.timeout,
         }),
         signal: params.signal,
@@ -455,21 +570,20 @@ export class APIClient extends BaseClient {
     wait?: boolean;
     signal?: AbortSignal;
   }) {
+    const path = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`;
+    let responseText: string | undefined;
+    const response = await withRetry(async () => {
+      const response = await this.request(path, {
+        signal: params.signal,
+        query: params.wait ? { wait: "true" } : undefined,
+        retry: { retries: 0 },
+      });
+      responseText = response.ok ? await response.text() : undefined;
+      return response;
+    })(path, { signal: params.signal, retry: { retries: 2 } });
     return params.wait
-      ? parseOrThrow(
-          CommandFinishedResponse,
-          await this.request(
-            `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`,
-            { signal: params.signal, query: { wait: "true" } },
-          ),
-        )
-      : parseOrThrow(
-          CommandResponse,
-          await this.request(
-            `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}`,
-            { signal: params.signal },
-          ),
-        );
+      ? parseOrThrow(CommandFinishedResponse, response, responseText)
+      : parseOrThrow(CommandResponse, response, responseText);
   }
 
   async openInteractive(params: {
@@ -675,6 +789,24 @@ export class APIClient extends BaseClient {
     );
   }
 
+  async getDrive(params: {
+    projectId: string;
+    name: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
+        {
+          method: "GET",
+          query: { projectId: params.projectId },
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
   async getOrCreateDrive(params: {
     projectId: string;
     name: string;
@@ -693,6 +825,26 @@ export class APIClient extends BaseClient {
             region: params.region,
             maxSizeBytes: params.maxSizeBytes,
           }),
+          signal: params.signal,
+        },
+      ),
+    );
+  }
+
+  async forkDrive(params: {
+    projectId: string;
+    name: string;
+    forkName: string;
+    signal?: AbortSignal;
+  }) {
+    return parseOrThrow(
+      DriveResponse,
+      await this.request(
+        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}/fork`,
+        {
+          method: "POST",
+          query: { projectId: params.projectId },
+          body: JSON.stringify({ name: params.forkName }),
           signal: params.signal,
         },
       ),
@@ -796,60 +948,124 @@ export class APIClient extends BaseClient {
     );
   }
 
+  /**
+   * Writes to a command's stdin. With `offset`, the request is safe to resend
+   * (the server skips bytes it already has), so it is retried across
+   * connection failures. Without it, only rate limited requests are retried,
+   * since any other failure may have written the bytes already.
+   */
+  async writeCommandStdin(params: {
+    sessionId: string;
+    commandId: string;
+    data?: Uint8Array;
+    offset?: number;
+    close?: boolean;
+    abortSignal?: AbortSignal;
+  }): Promise<{ bytesWritten?: number }> {
+    const send = (body: Record<string, unknown>) =>
+      this.request(
+        `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.commandId}/stdin`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+          signal: params.abortSignal,
+          retry: { retries: 0 },
+        },
+      );
+    const body = {
+      data: params.data?.length
+        ? Buffer.from(params.data).toString("base64")
+        : undefined,
+      offset: params.offset,
+      close: params.close || undefined,
+    };
+    const resendable =
+      params.offset !== undefined || (!params.data?.length && !params.close);
+
+    let maybeApplied = false;
+    let stalledTimeouts = 0;
+    let lastWritten = params.offset ?? 0;
+    for (let attempt = 0; ; attempt++) {
+      const canRetry = attempt < STDIN_MAX_RETRIES;
+      let response: Response;
+      try {
+        response = await send(body);
+      } catch (error) {
+        if (
+          !resendable ||
+          !canRetry ||
+          params.abortSignal?.aborted ||
+          (error as Error)?.name === "AbortError"
+        ) {
+          throw error;
+        }
+        maybeApplied = true;
+        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
+        continue;
+      }
+
+      const status = response.status;
+
+      if (
+        status === 404 &&
+        maybeApplied &&
+        params.close &&
+        !params.data?.length
+      ) {
+        // The process exited after applying the close whose response was lost.
+        await response.body?.cancel();
+        return {};
+      }
+
+      if (status === 429 && canRetry) {
+        const retryAfter = Number(response.headers.get("Retry-After"));
+        if (!(retryAfter > 20)) {
+          await response.body?.cancel();
+          await waitBeforeStdinRetry(
+            retryAfter > 0 ? retryAfter * 1000 : stdinBackoff(attempt),
+            params.abortSignal,
+          );
+          continue;
+        }
+      }
+
+      if (resendable && canRetry && (status === 502 || status === 503)) {
+        maybeApplied = true;
+        await response.body?.cancel();
+        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
+        continue;
+      }
+
+      if (resendable && canRetry && status === 504) {
+        maybeApplied = true;
+        const timeout = await readStdinTimeout(response);
+        const written =
+          timeout.bytesWritten ?? (await probeStdinBytesWritten(send));
+        if (written !== undefined && written > lastWritten) {
+          lastWritten = written;
+          stalledTimeouts = 0;
+        } else if (++stalledTimeouts >= STDIN_MAX_STALLED_TIMEOUTS) {
+          return parseStdinResponse(timeout.response, maybeApplied);
+        }
+        continue;
+      }
+
+      return parseStdinResponse(response, maybeApplied);
+    }
+  }
+
   getLogs(params: {
     sessionId: string;
     cmdId: string;
     signal?: AbortSignal;
   }): AsyncGenerator<LogOutputLine, void, void> &
     Disposable & { close(): void } {
-    const self = this;
     const disposer = new AbortController();
     const signal = !params.signal
       ? disposer.signal
       : mergeSignals(params.signal, disposer.signal);
 
-    const generator = (async function* () {
-      const url = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}/logs`;
-      const response = await self.request(url, {
-        method: "GET",
-        signal,
-      });
-
-      if (!response.ok) {
-        await parseOrThrow(z.any(), response);
-      }
-
-      if (response.headers.get("content-type") !== "application/x-ndjson") {
-        throw new APIError(response, {
-          message: "Expected a stream of logs",
-          sessionId: params.sessionId,
-        });
-      }
-
-      if (response.body === null) {
-        throw new APIError(response, {
-          message: "No response body",
-          sessionId: params.sessionId,
-        });
-      }
-
-      const jsonlinesStream = jsonlines.parse();
-      pipe(response.body, jsonlinesStream, { signal }).catch((err) => {
-        console.error("Error piping logs:", err);
-      });
-
-      for await (const chunk of jsonlinesStream) {
-        const parsed = LogLine.parse(chunk);
-        if (parsed.stream === "error") {
-          throw new StreamError(
-            parsed.data.code,
-            parsed.data.message,
-            params.sessionId,
-          );
-        }
-        yield parsed;
-      }
-    })();
+    const generator = this.getLogsStream({ ...params, signal });
 
     return Object.assign(generator, {
       [Symbol.dispose]() {
@@ -857,6 +1073,59 @@ export class APIClient extends BaseClient {
       },
       close: () => disposer.abort("Disposed"),
     });
+  }
+
+  private async *getLogsStream(
+    params: { sessionId: string; cmdId: string; signal?: AbortSignal },
+    delivered = { stdout: 0, stderr: 0 },
+  ): AsyncGenerator<LogOutputLine, void, void> {
+    const url = `/v2/sandboxes/sessions/${params.sessionId}/cmd/${params.cmdId}/logs`;
+    for (let attempt = 0; ; attempt++) {
+      const response = await this.request(url, { signal: params.signal });
+      if (!response.ok) await parseOrThrow(z.any(), response);
+      if (response.headers.get("content-type") !== "application/x-ndjson") {
+        throw new APIError(response, {
+          message: "Expected a stream of logs",
+          sessionId: params.sessionId,
+        });
+      }
+      if (response.body === null) {
+        throw new APIError(response, {
+          message: "No response body",
+          sessionId: params.sessionId,
+        });
+      }
+      const skip = { ...delivered };
+      try {
+        for await (const chunk of readJsonLines(response.body, params.signal)) {
+          const parsed = LogLine.parse(chunk);
+          if (parsed.stream === "error") {
+            throw new StreamError(
+              parsed.data.code,
+              parsed.data.message,
+              params.sessionId,
+            );
+          }
+          const skipped = Math.min(skip[parsed.stream], parsed.data.length);
+          skip[parsed.stream] -= skipped;
+          const data = parsed.data.slice(skipped);
+          if (data.length > 0 || parsed.data.length === 0) {
+            delivered[parsed.stream] += data.length;
+            yield { ...parsed, data };
+          }
+        }
+        return;
+      } catch (error) {
+        if (
+          params.signal?.aborted ||
+          !(error instanceof ConnectionError) ||
+          attempt >= 2
+        ) {
+          throw error;
+        }
+        await delay(200 * 2 ** attempt, undefined, { signal: params.signal });
+      }
+    }
   }
 
   async stopSession(params: {
@@ -1027,6 +1296,7 @@ export class APIClient extends BaseClient {
     resources?: { vcpus?: number; memory?: number };
     timeout?: number;
     networkPolicy?: NetworkPolicy;
+    networkId?: string | null;
     tags?: Record<string, string>;
     ports?: number[];
     snapshotExpiration?: number;
@@ -1055,6 +1325,7 @@ export class APIClient extends BaseClient {
           networkPolicy: params.networkPolicy
             ? toAPINetworkPolicy(params.networkPolicy)
             : undefined,
+          networkId: params.networkId,
           tags: params.tags,
           ports: params.ports,
           snapshotExpiration: params.snapshotExpiration,
@@ -1091,12 +1362,48 @@ export class APIClient extends BaseClient {
   }
 }
 
+class ConnectionError extends Error {}
+
+async function* readJsonLines(
+  body: ReadableStream<Uint8Array>,
+  signal?: AbortSignal,
+) {
+  const controller = new AbortController();
+  let ended = false;
+  const stream = jsonlines.parse({ emitInvalidLines: true });
+  stream.on("invalid-line", (error) => {
+    stream.destroy(
+      ended
+        ? new ConnectionError("Stream ended with an incomplete JSON record", {
+            cause: error,
+          })
+        : error,
+    );
+  });
+  const combined = signal
+    ? mergeSignals(signal, controller.signal)
+    : controller.signal;
+  const piping = pipe(body, stream, {
+    signal: combined,
+    onEnd: () => {
+      ended = true;
+    },
+  });
+  try {
+    for await (const chunk of stream) yield chunk;
+  } finally {
+    controller.abort();
+    await piping;
+  }
+}
+
 async function pipe(
   readable: ReadableStream<Uint8Array>,
   output: NodeJS.WritableStream,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; onEnd?: () => void },
 ) {
   const reader = readable.getReader();
+  const decoder = new StringDecoder("utf8");
   let aborted = false;
 
   const signal = options?.signal;
@@ -1130,19 +1437,30 @@ async function pipe(
     while (true) {
       const read = await reader.read();
       if (read.value) {
-        output.write(Buffer.from(read.value));
+        output.write(decoder.write(Buffer.from(read.value)));
       }
       if (read.done) {
+        if (!aborted) output.write(decoder.end());
         break;
       }
     }
   } catch (err) {
     if (!aborted) {
-      output.emit("error", err);
+      if ("destroy" in output && typeof output.destroy === "function") {
+        output.destroy(
+          new ConnectionError("Stream connection was interrupted", {
+            cause: err,
+          }),
+        );
+      } else {
+        output.emit("error", err);
+      }
     }
   } finally {
     signal?.removeEventListener("abort", onAbort);
+    reader.releaseLock();
     if (!aborted) {
+      options?.onEnd?.();
       output.end();
     }
   }

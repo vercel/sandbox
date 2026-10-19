@@ -1,5 +1,64 @@
 # @vercel/sandbox-mock
 
+## 3.8.0
+
+### Patch Changes
+
+- Updated dependencies [[`20bcce60794e30341aefe4ab60a308fdae93a557`](https://github.com/vercel/sandbox/commit/20bcce60794e30341aefe4ab60a308fdae93a557)]:
+  - @vercel/sandbox@3.8.0
+
+## 3.7.0
+
+### Patch Changes
+
+- Updated dependencies [[`515f60b261fd7fa2ae9e5ae58fb8d950e4378089`](https://github.com/vercel/sandbox/commit/515f60b261fd7fa2ae9e5ae58fb8d950e4378089), [`31244aa3280dc3fdca0680933f85971570d73d2d`](https://github.com/vercel/sandbox/commit/31244aa3280dc3fdca0680933f85971570d73d2d)]:
+  - @vercel/sandbox@3.7.0
+
+## 3.6.1
+
+### Patch Changes
+
+- Updated dependencies [[`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb), [`dd2ba29a2c54c8c12573fcb291ed874a6583a7cb`](https://github.com/vercel/sandbox/commit/dd2ba29a2c54c8c12573fcb291ed874a6583a7cb)]:
+  - @vercel/sandbox@3.6.1
+
+## 3.6.0
+
+### Minor Changes
+
+- Add a new `Drive.get` method to retrieve an existing drive by name. ([#367](https://github.com/vercel/sandbox/pull/367))
+
+### Patch Changes
+
+- Updated dependencies [[`26a1162ec144138382d173416c635a270b692983`](https://github.com/vercel/sandbox/commit/26a1162ec144138382d173416c635a270b692983), [`bc2f85f6803a7562c4c4902e35833a8bb45dd071`](https://github.com/vercel/sandbox/commit/bc2f85f6803a7562c4c4902e35833a8bb45dd071)]:
+  - @vercel/sandbox@3.6.0
+
+## 3.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`d5b845bbe1b21fffa79f77bf0cdccb183605703c`](https://github.com/vercel/sandbox/commit/d5b845bbe1b21fffa79f77bf0cdccb183605703c)]:
+  - @vercel/sandbox@3.5.1
+
+## 3.5.0
+
+### Minor Changes
+
+- Add support for attaching sandboxes to Secure Compute networks: ([#329](https://github.com/vercel/sandbox/pull/329))
+  - In the CLI, use `sandbox create --network-id ID` with your Secure Compute network id
+  - In the SDK, use `Sandbox.create({ networkId: 'ID' })` with your Secure Compute network id
+
+### Patch Changes
+
+- Updated dependencies [[`752436bc32174bb6a37068536b231cf7b2c1cded`](https://github.com/vercel/sandbox/commit/752436bc32174bb6a37068536b231cf7b2c1cded)]:
+  - @vercel/sandbox@3.5.0
+
+## 3.4.0
+
+### Patch Changes
+
+- Updated dependencies [[`fdd6912470338b15e303eaf515a78c21b2b19473`](https://github.com/vercel/sandbox/commit/fdd6912470338b15e303eaf515a78c21b2b19473), [`27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708`](https://github.com/vercel/sandbox/commit/27ad49a0ccc7aa81a96a3b3c2eaf7948140ce708), [`4e7ab569a7e6cd905d43a198f2e08a627457a8ea`](https://github.com/vercel/sandbox/commit/4e7ab569a7e6cd905d43a198f2e08a627457a8ea), [`9d0403de39a4e58a2d37bdc1a00ca810e109e57b`](https://github.com/vercel/sandbox/commit/9d0403de39a4e58a2d37bdc1a00ca810e109e57b)]:
+  - @vercel/sandbox@3.4.0
+
 ## 3.3.0
 
 ### Minor Changes

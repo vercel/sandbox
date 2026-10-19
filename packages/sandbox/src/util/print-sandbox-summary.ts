@@ -42,9 +42,18 @@ export function printSandboxSummary(opts: {
   process.stderr.write(
     chalk.dim("   │ ") + "region: " + chalk.cyan(sandbox.region) + "\n",
   );
+  if (sandbox.networkId) {
+    process.stderr.write(
+      chalk.dim("   │ ") +
+        "secure compute network: " +
+        chalk.cyan(sandbox.networkId) +
+        "\n",
+    );
+  }
 
   // With a connect hint, the hint becomes the closing "╰" line.
-  const close = (last: boolean) => chalk.dim(last && !connectHint ? "   ╰ " : "   │ ");
+  const close = (last: boolean) =>
+    chalk.dim(last && !connectHint ? "   ╰ " : "   │ ");
 
   if (hasPorts) {
     process.stderr.write(
@@ -55,7 +64,12 @@ export function printSandboxSummary(opts: {
       const route = routes[i];
       const isLast = i === routes.length - 1;
       process.stderr.write(
-        close(isLast) + "• " + route.port + " -> " + chalk.cyan(route.url) + "\n",
+        close(isLast) +
+          "• " +
+          route.port +
+          " -> " +
+          chalk.cyan(route.url) +
+          "\n",
       );
     }
   } else {

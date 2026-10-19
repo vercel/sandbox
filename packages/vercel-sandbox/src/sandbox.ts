@@ -28,7 +28,6 @@ import type {
 } from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
 import { attachPaginator } from "./utils/paginator.js";
-import { setTimeout } from "node:timers/promises";
 import { FileSystem } from "./filesystem.js";
 import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
@@ -93,6 +92,10 @@ export interface BaseCreateSandboxParams {
    * Defaults to full internet access if not specified.
    */
   networkPolicy?: NetworkPolicy;
+  /**
+   * Connect network ID for the target Secure Compute private network.
+   */
+  networkId?: string;
   /**
    * Default environment variables for the sandbox.
    * These are inherited by all commands unless overridden with
@@ -255,6 +258,8 @@ export type CreateSandboxParams =
  * image, persistence, snapshot settings, and environment variables. Any field
  * set here acts as an override of the copied value. When the source has no
  * snapshot, its base environment is copied.
+ *
+ * Drive mounts are not inherited: set `mounts` to attach drives to the fork.
  * @inline
  */
 export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
@@ -458,6 +463,13 @@ export class Sandbox implements ExecutionContext {
    */
   public get failoverRegions(): string[] {
     return this.sandbox.failoverRegions ?? [];
+  }
+
+  /**
+   * Connect network ID for the target Secure Compute private network.
+   */
+  public get networkId(): string | undefined {
+    return this.sandbox.networkId;
   }
 
   /**
@@ -792,6 +804,7 @@ export class Sandbox implements ExecutionContext {
       runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
+      networkId: params?.networkId,
       env: params?.env,
       tags: params?.tags,
       mounts: toAPIMounts(params?.mounts),
@@ -863,7 +876,9 @@ export class Sandbox implements ExecutionContext {
       resources: params.resources,
       image: params.image,
       networkPolicy: params.networkPolicy,
+      networkId: params.networkId,
       env: params.env,
+      mounts: toAPIMounts(params.mounts),
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
       keepLastSnapshots: params.keepLastSnapshots,
@@ -1103,31 +1118,6 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * Poll until the current session reaches a terminal state, then resume.
-   */
-  private async waitForStopAndResume(signal?: AbortSignal): Promise<void> {
-    "use step";
-    const client = await this.ensureClient();
-    const pollingInterval = 500;
-    let status = this.session!.status;
-
-    while (status === "stopping" || status === "snapshotting") {
-      await setTimeout(pollingInterval, undefined, { signal });
-      const poll = await client.getSession({
-        sessionId: this.session!.sessionId,
-        signal,
-      });
-      this.session = new Session({
-        client,
-        routes: poll.json.routes,
-        session: poll.json.session,
-      });
-      status = poll.json.session.status;
-    }
-    await this.resume(signal);
-  }
-
-  /**
    * Execute `fn`, and if the session is stopped/stopping/snapshotting, resume and retry.
    */
   private async withResume<T>(
@@ -1140,12 +1130,12 @@ export class Sandbox implements ExecutionContext {
     try {
       return await fn();
     } catch (err) {
-      if (isSandboxStoppedError(err)) {
+      if (
+        isSandboxStoppedError(err) ||
+        isSandboxStoppingError(err) ||
+        isSandboxSnapshottingError(err)
+      ) {
         await this.resume(signal);
-        return fn();
-      }
-      if (isSandboxStoppingError(err) || isSandboxSnapshottingError(err)) {
-        await this.waitForStopAndResume(signal);
         return fn();
       }
       throw err;
@@ -1778,6 +1768,8 @@ export class Sandbox implements ExecutionContext {
       resources?: { vcpus?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
+      /** Set to `null` to remove the sandbox from Secure Compute. */
+      networkId?: string | null;
       tags?: Record<string, string>;
       ports?: number[];
       snapshotExpiration?: number;
@@ -1811,6 +1803,7 @@ export class Sandbox implements ExecutionContext {
       resources,
       timeout: params.timeout,
       networkPolicy: params.networkPolicy,
+      networkId: params.networkId,
       tags: params.tags,
       ports: params.ports,
       snapshotExpiration: params.snapshotExpiration,

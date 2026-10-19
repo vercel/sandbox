@@ -44,7 +44,7 @@ export async function inferScope({
     return { owner: projectJson.orgId, project: projectJson.projectId };
   }
 
-  debug("trying to infer scope from API token", { token, team });
+  debug("trying to infer scope from API token", { team });
   const fromToken = await inferFromToken(token, team);
   debug("Using scope from API token", fromToken);
   return fromToken;

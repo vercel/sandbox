@@ -1,5 +1,68 @@
 # @vercel/sandbox
 
+## 3.8.0
+
+### Minor Changes
+
+- Add a new `onStart` hook on `sandbox.runCommand({ ... })` to be notified when a command is started when not using `detached: true` ([#384](https://github.com/vercel/sandbox/pull/384))
+
+## 3.7.0
+
+### Minor Changes
+
+- Add opt-in stdin for commands. Pass `stdin: true` to a detached `runCommand`, then use `command.writeStdin(data)` and `command.closeStdin()` while it runs, or pass a `Readable` such as `process.stdin` to have it piped to the command. ([#365](https://github.com/vercel/sandbox/pull/365))
+
+### Patch Changes
+
+- Update `@vercel/oidc` to v4. ([#375](https://github.com/vercel/sandbox/pull/375))
+
+## 3.6.1
+
+### Patch Changes
+
+- Preserve UTF-8 characters split across command and log stream chunks so recovery does not skip new output. ([#374](https://github.com/vercel/sandbox/pull/374))
+
+- Recover from interrupted command wait and log connections, including streams ending with incomplete JSON records, without rerunning commands or duplicating output. ([#374](https://github.com/vercel/sandbox/pull/374))
+
+## 3.6.0
+
+### Minor Changes
+
+- Add a new `Drive.get` method to retrieve an existing drive by name. ([#367](https://github.com/vercel/sandbox/pull/367))
+
+- Add a new `drive.fork({ name })` API that forks and returns a new `Drive`, inheriting the parent drive's data, max size and region. ([#369](https://github.com/vercel/sandbox/pull/369))
+
+## 3.5.1
+
+### Patch Changes
+
+- Forward Drive mounts when forking a sandbox. ([#348](https://github.com/vercel/sandbox/pull/348))
+
+## 3.5.0
+
+### Minor Changes
+
+- Add support for attaching sandboxes to Secure Compute networks: ([#329](https://github.com/vercel/sandbox/pull/329))
+  - In the CLI, use `sandbox create --network-id ID` with your Secure Compute network id
+  - In the SDK, use `Sandbox.create({ networkId: 'ID' })` with your Secure Compute network id
+
+## 3.4.0
+
+### Minor Changes
+
+- Add `response` to network policy rules, so a rule can be answered by the sandbox proxy instead of being sent to the destination. A trailing `response` rule with no `match` answers whatever the earlier rules did not claim, which restricts an allowed domain to specific paths without running your own proxy. ([#328](https://github.com/vercel/sandbox/pull/328))
+
+- Tag API requests with the AI agent driving the process, when one is ([#320](https://github.com/vercel/sandbox/pull/320))
+  detected via `detect-agent`, as an `agent/<name>` phrase in the user-agent
+  header. No agent detected means no change to the header. The SDK sends no
+  telemetry events; this is request metadata only.
+
+### Patch Changes
+
+- Resume sessions through the API when they are stopping or snapshotting instead of polling indefinitely for a terminal status. ([#344](https://github.com/vercel/sandbox/pull/344))
+
+- Stabilize sandbox integration tests by isolating sandbox-list queries and cleanup, and remove an obsolete sudo PATH assertion. ([#346](https://github.com/vercel/sandbox/pull/346))
+
 ## 3.3.0
 
 ### Minor Changes

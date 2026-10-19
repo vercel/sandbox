@@ -92,6 +92,52 @@ describe("validateName (unit)", () => {
       SandboxUserAlreadyExistsError,
     );
   });
+
+  it.each([false, true])(
+    "forwards onStart when running as a user (sudo: %s)",
+    async (sudo) => {
+      const sandbox = new Sandbox({
+        client: {} as any,
+        routes: [],
+        sandbox: { id: "test" } as any,
+      });
+      const runCommand = vi
+        .spyOn(sandbox, "runCommand")
+        .mockResolvedValue({} as any);
+      const onStart = vi.fn();
+
+      await sandbox.asUser("alice").runCommand({ cmd: "echo", onStart, sudo });
+
+      expect(runCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ onStart }),
+      );
+    },
+  );
+
+  it.each([false, true])(
+    "forwards stdin when running as a user (sudo: %s)",
+    async (sudo) => {
+      const sandbox = new Sandbox({
+        client: {} as any,
+        routes: [],
+        sandbox: { id: "test" } as any,
+      });
+      const runCommand = vi
+        .spyOn(sandbox, "runCommand")
+        .mockResolvedValue({} as any);
+
+      await sandbox.asUser("alice").runCommand({
+        cmd: "cat",
+        stdin: true,
+        detached: true,
+        sudo,
+      });
+
+      expect(runCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ stdin: true, detached: true }),
+      );
+    },
+  );
 });
 
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
@@ -100,12 +146,12 @@ describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
     let sandbox: Sandbox;
 
     beforeEach(async () => {
-      sandbox = await Sandbox.create();
+      sandbox = await Sandbox.create({ persistent: false });
     });
 
     afterEach(async () => {
-      await sandbox.stop();
-    });
+      await sandbox.delete();
+    }, 30_000);
 
     // The default user and primary group depend on the image, so resolve them
     // from the running sandbox rather than assuming fixed names.

@@ -987,6 +987,12 @@ sandbox create --region <region>             # Defaults to iad1; any Vercel regi
 sandbox create --failover-regions <region>,<region>  # Comma-separated
 sandbox create --failover-regions none               # No failover, overrides the project default
 
+# Start a coding agent (interactive terminal required)
+sandbox create opencode
+sandbox create pi
+sandbox create claude
+sandbox create codex
+
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
 sandbox fork <source> --name my-fork --vcpus 4 --env FOO=1
@@ -1013,6 +1019,9 @@ sandbox connect <name>
 # Copy files
 sandbox cp local-file.txt <name>:/vercel/sandbox/
 
+# Add time to the current running session without changing future defaults
+sandbox extend <name> <duration>
+
 # Stop sandbox (synchronous; reports snapshot + usage)
 sandbox stop <name>
 
@@ -1031,10 +1040,15 @@ sandbox snapshots remove <snapshot-id>
 sandbox snapshots tree <name>                # Walk the tree from the sandbox's current snapshot
 sandbox snapshots tree <name> --cursor <snapshot-id> --sort-order asc
 
+# Create or retrieve a drive; size is fixed at creation
+sandbox drives get-or-create workspace --max-size 200GiB
+sandbox drives get-or-create archive --max-size 2TiB
+sandbox drives get-or-create workspace --max-size 214748364800  # Raw bytes
+
 # Config (view + update any sandbox parameter)
 sandbox config list <name>
 sandbox config vcpus <name> <count>
-sandbox config timeout <name> <duration>
+sandbox config timeout <name> <duration>  # Total runtime; a higher value also extends the running session
 sandbox config persistent <name> <true|false>
 sandbox config region <name> <region>
 sandbox config failover-regions <name> <region,...|none>
@@ -1046,6 +1060,19 @@ sandbox config current-snapshot <name> <snapshot-id>
 sandbox config network-policy <name> --network-policy deny-all
 sandbox config tags <name> --tag env=prod
 ```
+
+Drive sizes accept bytes or units such as `GiB` and `TiB`. Unit names are
+case-insensitive; `GB` and `TB` are aliases for the binary units. Omitting
+`--max-size` retrieves the existing size or uses the plan default for a new
+drive. The output includes a reminder that size is fixed at creation.
+
+Agent shortcuts use the universal image and require an interactive terminal.
+Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
+authentication for the agent separately from `sandbox login`.
+
+Exiting the agent leaves the sandbox running. Unless you pass `--silent`, the CLI
+prints reconnect and stop commands. Follow any environment-variable reminder
+printed with the reconnect command.
 
 ## Common Patterns
 

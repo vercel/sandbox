@@ -7,6 +7,7 @@ import { list } from "./commands/list";
 import { exec } from "./commands/exec";
 import { connect } from "./commands/connect";
 import { stop } from "./commands/stop";
+import { extend } from "./commands/extend";
 import { remove } from "./commands/remove";
 import { cp } from "./commands/cp";
 import { login } from "./commands/login";
@@ -35,6 +36,7 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       exec,
       connect,
       stop,
+      extend,
       remove,
       run,
       snapshot,
@@ -48,6 +50,15 @@ export const app = (opts?: { withoutAuth?: boolean; appName?: string }) => {
       }),
     },
     examples: [
+      {
+        description: "Start a coding agent in a sandbox",
+        command: `${appName} create opencode`,
+      },
+      {
+        description:
+          "Create a sandbox on a Secure Compute network (requires an Enterprise plan)",
+        command: `${appName} create --network-id your_network_id_here`,
+      },
       {
         description: "Create a sandbox and start a shell",
         command: `${appName} sh`,

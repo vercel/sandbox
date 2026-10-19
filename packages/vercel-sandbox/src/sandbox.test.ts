@@ -10,6 +10,7 @@ import type {
   APIClient,
   CommandData,
   SandboxMetaData,
+  SessionMetaData,
 } from "./api-client/index.js";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
@@ -134,6 +135,35 @@ describe("source getters", () => {
     });
     expect(sandbox.region).toBe("sfo1");
     expect(sandbox.failoverRegions).toEqual(["iad1", "cle1"]);
+  });
+
+  it("exposes the Secure Compute network ID", () => {
+    const sandbox = makeSandbox({ networkId: "network_123" });
+    expect(sandbox.networkId).toBe("network_123");
+  });
+});
+
+describe("update networkId", () => {
+  it.each([
+    ["sets", "network_123"],
+    ["clears", null],
+  ])("%s the Secure Compute network", async (_action, networkId) => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ networkId });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ networkId }),
+    );
   });
 });
 
@@ -534,6 +564,96 @@ describe("_runCommand error handling", () => {
   });
 });
 
+describe("auto-resume", () => {
+  it.each([
+    ["stopping", "sandbox_stopping"],
+    ["snapshotting", "sandbox_snapshotting"],
+  ] as const)(
+    "resumes a session that remains in %s status",
+    async (status, errorCode) => {
+      const unavailableSession: SessionMetaData = {
+        id: "sbx_123",
+        memory: 2048,
+        vcpus: 1,
+        region: "iad1",
+        timeout: 300_000,
+        status,
+        requestedAt: 1,
+        requestedStopAt: status === "stopping" ? 2 : undefined,
+        snapshottedAt: status === "snapshotting" ? 2 : undefined,
+        createdAt: 1,
+        cwd: "/",
+        updatedAt: 2,
+      };
+      const resumedSession: SessionMetaData = {
+        ...unavailableSession,
+        id: "sbx_456",
+        status: "running",
+        requestedStopAt: undefined,
+        snapshottedAt: undefined,
+      };
+      const command = { ...makeCommand(), sessionId: resumedSession.id };
+      const runCommandMock = vi
+        .fn()
+        .mockRejectedValueOnce(
+          new APIError(new Response(null, { status: 422 }), {
+            json: { error: { code: errorCode } },
+          }),
+        )
+        .mockResolvedValueOnce({
+          command,
+          finished: Promise.resolve({ ...command, exitCode: 0 }),
+        });
+      const getSandboxMock = vi.fn(async () => ({
+        json: {
+          sandbox: {
+            ...makeSandboxMetadata(),
+            currentSessionId: resumedSession.id,
+            status: "running" as const,
+          },
+          session: resumedSession,
+          routes: [],
+          resumed: true,
+        },
+      }));
+      const getSessionMock = vi.fn(async () => {
+        throw new Error("unexpected session status poll");
+      });
+      const sandbox = new Sandbox({
+        client: {
+          getSandbox: getSandboxMock,
+          getSession: getSessionMock,
+          runCommand: runCommandMock,
+        } as unknown as APIClient,
+        routes: [],
+        sandbox: { ...makeSandboxMetadata(), status },
+        session: unavailableSession,
+        projectId: "test-project",
+      });
+
+      const result = await sandbox.runCommand("echo", ["hello"]);
+
+      expect(result.exitCode).toBe(0);
+      expect(getSandboxMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "test-name",
+          projectId: "test-project",
+          resume: true,
+        }),
+      );
+      expect(getSessionMock).not.toHaveBeenCalled();
+      expect(runCommandMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ sessionId: "sbx_123" }),
+      );
+      expect(runCommandMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ sessionId: "sbx_456" }),
+      );
+    },
+  );
+});
+
 describe("runCommand timeoutMs", () => {
   const makeRunningSandbox = (runCommandMock: ReturnType<typeof vi.fn>) =>
     new Sandbox({
@@ -801,6 +921,53 @@ describe("Sandbox.create mounts", () => {
         teamId: "team_123",
         projectId: "proj_123",
         name: "my-sandbox",
+        mounts: {
+          "/mnt/storage": mount,
+        },
+        fetch: mockFetch,
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(JSON.parse(String(init?.body)).mounts).toEqual({
+        "/mnt/storage": { drive: "my-drive", mode },
+      });
+    },
+  );
+});
+
+describe("Sandbox.fork mounts", () => {
+  it.each(mountCases)(
+    "sends $label mounts to the API",
+    async ({ mount, mode }) => {
+      const mockFetch = vi.fn<typeof fetch>(
+        async () =>
+          new Response(
+            JSON.stringify({
+              sandbox: makeSandboxMetadata(),
+              session: {
+                id: "sbx_123",
+                memory: 2048,
+                vcpus: 1,
+                region: "iad1",
+                runtime: "node24",
+                timeout: 300_000,
+                status: "running",
+                requestedAt: 1,
+                createdAt: 1,
+                cwd: "/",
+                updatedAt: 1,
+              },
+              routes: [],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+      );
+
+      await Sandbox.fork({
+        token: "test-token",
+        teamId: "team_123",
+        projectId: "proj_123",
+        sourceSandbox: "source-sandbox",
         mounts: {
           "/mnt/storage": mount,
         },
@@ -1249,7 +1416,11 @@ for (const port of ports) {
 
   it("appears in the sandbox list after creation", async () => {
     await sandbox.stop();
-    const { sandboxes } = await Sandbox.list({ limit: 1 });
+    const { sandboxes } = await Sandbox.list({
+      namePrefix: sandbox.name,
+      sortBy: "name",
+      limit: 1,
+    });
     expect(sandboxes).toHaveLength(1);
     expect(sandboxes[0].name).toBe(sandbox.name);
   });

@@ -244,6 +244,10 @@ export const CommandResponse = z.object({
   command: Command,
 });
 
+export const CommandStdinResponse = CommandResponse.extend({
+  bytesWritten: z.number().int().nonnegative().optional(),
+});
+
 export type CommandFinishedData = z.infer<
   typeof CommandFinishedResponse
 >["command"];
@@ -308,6 +312,8 @@ export const SnapshotResponse = z.object({
 
 export const Drive = z.object({
   id: z.string(),
+  parentDriveId: z.string().optional(),
+  rootDriveId: z.string().optional(),
   name: z.string(),
   projectId: z.string(),
   region: z.string(),
@@ -334,6 +340,7 @@ export const Sandbox = z.object({
   persistent: z.boolean(),
   region: z.string().optional(),
   failoverRegions: z.array(z.string()).optional(),
+  networkId: z.string().optional(),
   vcpus: z.number().optional(),
   memory: z.number().optional(),
   runtime: z.string().optional(),

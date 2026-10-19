@@ -2,10 +2,15 @@ import { Drive as RealDrive } from "@vercel/sandbox";
 import { withMockDefaults } from "./setup.js";
 
 type GetOrCreateParams = Parameters<typeof RealDrive.getOrCreate>[0];
+type GetParams = Parameters<typeof RealDrive.get>[0];
 type ListParams = Parameters<typeof RealDrive.list>[0];
 
 /** Drop-in replacement for `@vercel/sandbox`'s {@link RealDrive}. */
 export class Drive extends RealDrive {
+  static override get(params: GetParams): ReturnType<typeof RealDrive.get> {
+    return RealDrive.get(withMockDefaults(params));
+  }
+
   static override getOrCreate(
     params: GetOrCreateParams,
   ): ReturnType<typeof RealDrive.getOrCreate> {
