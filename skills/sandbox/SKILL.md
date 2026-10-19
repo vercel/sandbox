@@ -1017,7 +1017,17 @@ sandbox exec <name> --stop -- npm build
 sandbox connect <name>
 
 # Copy files
-sandbox cp local-file.txt <name>:/vercel/sandbox/
+sandbox cp local-file.txt <name>:/vercel/sandbox/local-file.txt
+sandbox cp -r ./my-app <name>:/vercel/sandbox/app    # Directory: contents of ./my-app land in /app
+sandbox cp -r <name>:/vercel/sandbox/dist ./dist     # And back
+
+# Read and write single files (handy for coding agents)
+sandbox read <name>:/vercel/sandbox/package.json     # Raw bytes to stdout
+sandbox write <name>:/vercel/sandbox/index.js < ./index.js
+sandbox write --mode 755 <name>:/vercel/sandbox/run.sh <<'EOF'
+#!/bin/sh
+npm test
+EOF
 
 # Add time to the current running session without changing future defaults
 sandbox extend <name> <duration>
