@@ -261,6 +261,45 @@ const fork = await Sandbox.fork({
 });
 ```
 
+### When to fork a sandbox or a drive
+
+Use `Sandbox.fork` when each worker needs its own sandbox environment, including
+installed tools and files from the source sandbox's snapshot. Use `drive.fork`
+when each worker needs an independent writable copy of persistent files. A
+sandbox fork does not replace a drive fork for separate writable workspaces.
+Mount a drive when files should persist across sandbox runs; use
+`drive.snapshot()` for concurrent read-only access to the same point in time.
+A drive allows one read-write mount at a time. The sandbox and drive must be in
+the same region.
+
+```typescript
+import { Drive, Sandbox } from "@vercel/sandbox";
+
+const baseDrive = await Drive.getOrCreate({ name: "agent-base-files" });
+const seed = await Sandbox.create({
+  region: baseDrive.region,
+  mounts: { "/workspace": baseDrive },
+});
+await seed.writeFiles([
+  { path: "/workspace/README.md", content: "starter" },
+]);
+await seed.stop();
+
+// A drive must have been mounted read-write and written to before forking.
+const workerDrive = await baseDrive.fork({ name: "agent-worker-1-files" });
+const worker = await Sandbox.create({
+  region: workerDrive.region,
+  mounts: { "/workspace": workerDrive },
+});
+await worker.writeFiles([
+  { path: "/workspace/result.txt", content: "worker" },
+]);
+await worker.stop();
+```
+
+The worker's writes stay on `workerDrive`; the base drive keeps the starter
+files. Fork the base drive again with a different name for another worker.
+
 ### Auto-Dispose Pattern
 
 Use `await using` for automatic cleanup:
