@@ -267,10 +267,12 @@ Use `Sandbox.fork` when each worker needs its own sandbox environment, including
 installed tools and files from the source sandbox's snapshot. Use `drive.fork`
 when each worker needs an independent writable copy of persistent files. A
 sandbox fork does not replace a drive fork for separate writable workspaces.
-Mount a drive when files should persist across sandbox runs; use
-`drive.snapshot()` for concurrent read-only access to the same point in time.
-A drive allows one read-write mount at a time. The sandbox and drive must be in
-the same region.
+Mount a drive when files should persist across sandbox runs. Many sandboxes
+can mount `drive.snapshot()` for read-only access; each mount captures the
+drive's files at mount time. Mount a new snapshot to see later writes. A drive
+allows one read-write mount at a time. The sandbox and drive must be in the
+same region. Write to a read-write mount once before forking a drive or
+mounting its snapshot.
 
 ```typescript
 import { Drive, Sandbox } from "@vercel/sandbox";
@@ -285,7 +287,7 @@ await seed.writeFiles([
 ]);
 await seed.stop();
 
-// A drive must have been mounted read-write and written to before forking.
+// The source drive has now been written to and can be forked.
 const workerDrive = await baseDrive.fork({ name: "agent-worker-1-files" });
 const worker = await Sandbox.create({
   region: workerDrive.region,
