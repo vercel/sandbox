@@ -49,6 +49,7 @@ import {
   Sandbox,
   Session,
   Snapshot,
+  Drive,
   Command,
   CommandFinished,
 } from "@vercel/sandbox";
@@ -265,8 +266,9 @@ const fork = await Sandbox.fork({
 
 Use `Sandbox.fork` when each worker needs its own sandbox environment, including
 installed tools and files from the source sandbox's snapshot. Use `drive.fork`
-when each worker needs an independent writable copy of persistent files. A
-sandbox fork does not replace a drive fork for separate writable workspaces.
+when each worker needs an independent writable copy of persistent files.
+`Sandbox.fork` does not inherit drive mounts; pass `mounts` if the fork needs a
+drive.
 Mount a drive when files should persist across sandbox runs. Many sandboxes
 can mount `drive.snapshot()` for read-only access; each mount captures the
 drive's files at mount time. Mount a new snapshot to see later writes. A drive
@@ -980,7 +982,7 @@ const result = await sandbox.runCommand({
 | Default timeout | 5 minutes                                                                       |
 | Base system     | Ubuntu 26.04                                                                    |
 | User context    | `ubuntu` user                                                                   |
-| Writable path   | `/vercel/sandbox`                                                               |
+| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                              |
 | Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
