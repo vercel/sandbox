@@ -21,6 +21,7 @@ export const sh = cmd.command({
       return create.handler({
         ...rest,
         agent: undefined,
+        ai: false,
         connect: true,
       });
     }
@@ -28,6 +29,7 @@ export const sh = cmd.command({
     const sandbox = await create.handler({
       ...rest,
       agent: undefined,
+      ai: false,
       connect: false,
       nonPersistent: true,
       __printConnectHint: false,

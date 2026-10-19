@@ -48,6 +48,7 @@ describe("sh command", () => {
 
     expect(mockCreate).toHaveBeenCalledWith({
       agent: undefined,
+      ai: false,
       nonPersistent: false,
       scope: args.scope,
       connect: true,
@@ -66,6 +67,7 @@ describe("sh command", () => {
 
     expect(mockCreate).toHaveBeenCalledWith({
       agent: undefined,
+      ai: false,
       nonPersistent: true,
       scope: args.scope,
       connect: false,

@@ -930,16 +930,16 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation      | Details                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
-| Max ports       | 15 exposed ports                                                                |
-| Max tags        | 5 key-value tags per sandbox                                                    |
-| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                   |
-| Default timeout | 5 minutes                                                                       |
-| Base system     | Ubuntu 26.04                                                                    |
-| User context    | `ubuntu` user                                                                   |
-| Writable path   | `/vercel/sandbox`                                                               |
+| Limitation      | Details                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU)                                                                                                                                                                                                                                                   |
+| Max ports       | 15 exposed ports                                                                                                                                                                                                                                                                                                                  |
+| Max tags        | 5 key-value tags per sandbox                                                                                                                                                                                                                                                                                                      |
+| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                                                                                                                                                                                                                                                                     |
+| Default timeout | 5 minutes                                                                                                                                                                                                                                                                                                                         |
+| Base system     | Ubuntu 26.04                                                                                                                                                                                                                                                                                                                      |
+| User context    | `ubuntu` user                                                                                                                                                                                                                                                                                                                     |
+| Writable path   | `/vercel/sandbox`                                                                                                                                                                                                                                                                                                                 |
 | Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
@@ -1067,8 +1067,36 @@ case-insensitive; `GB` and `TB` are aliases for the binary units. Omitting
 drive. The output includes a reminder that size is fixed at creation.
 
 Agent shortcuts use the universal image and require an interactive terminal.
-Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
-authentication for the agent separately from `sandbox login`.
+Without `--ai`, do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
+authentication for the agent separately from `sandbox login`, or use `--ai`:
+
+```bash
+sandbox create --ai # Prepare all four agents without launching one
+sandbox create --ai codex # Launch codex; also supports claude, opencode, and pi
+```
+
+`--ai` enables Gateway access through external firewall injection. Without an
+explicit image, it selects the standard universal image and writes nonsecret
+configuration for all four agents, or the selected agent, before launch.
+`sandbox create --image my-image --ai` preserves the custom image and its
+configuration on creation and reconnect. It supplies only a placeholder
+`AI_GATEWAY_API_KEY` in the VM; the application must use that value and a supported
+API path at `https://ai-gateway.vercel.sh`. It does not install or configure agents
+on custom images. Agent shortcuts require the universal image; `--ai` still
+rejects `--runtime` and `--snapshot`. `--ai` always requests a managed session key.
+With managed Gateway enabled
+for the team, the backend uses the caller's Vercel login to authorize one dedicated
+key per running session and injects it through the firewall. Reconnect uses the
+existing session; actual resume reauthorizes and creates a fresh key. Stop requests
+revocation. This mode requires the managed Gateway backend rollout.
+
+`--ai` ignores local and saved keys and fails if managed access is unavailable.
+Successful setup prints the credential mode to stderr unless `--silent` is set.
+
+Gateway mode permits outbound traffic by default; connections without a detectable
+domain pass through unmodified. Use a domain allowlist without `*` to restrict egress. Custom policies must allow `ai-gateway.vercel.sh`; deny-all,
+allowed CIDRs, and conflicting request rules are rejected. It reserves one tag
+for reconnect detection. Keep that marker when changing tags.
 
 Exiting the agent leaves the sandbox running. Unless you pass `--silent`, the CLI
 prints reconnect and stop commands. Follow any environment-variable reminder

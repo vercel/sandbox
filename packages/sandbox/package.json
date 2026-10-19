@@ -41,6 +41,7 @@
     "@vercel/sandbox": "workspace:*",
     "async-retry": "1.3.3",
     "debug": "^4.4.1",
+    "smol-toml": "1.4.2",
     "ws": "^8.21.0",
     "zod": "^4.1.1"
   },
