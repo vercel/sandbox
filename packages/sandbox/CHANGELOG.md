@@ -1,5 +1,13 @@
 # sandbox
 
+## 4.9.0
+
+### Minor Changes
+
+- Add `sandbox extend` to increase a running session's timeout without changing future session defaults, and clarify `sandbox config timeout` help. ([#389](https://github.com/vercel/sandbox/pull/389))
+
+- `sandbox drives get-or-create --max-size` now accepts sizes with units (`200GiB`, `2TiB`) as well as raw bytes, and rejects input it cannot parse instead of truncating it, so `2TiB` is no longer read as 2 bytes. When `--max-size` is omitted, the printed size says where it came from: `max size: 1 TiB (set with --max-size at creation, fixed afterwards)`. ([#342](https://github.com/vercel/sandbox/pull/342))
+
 ## 4.8.1
 
 ### Patch Changes
