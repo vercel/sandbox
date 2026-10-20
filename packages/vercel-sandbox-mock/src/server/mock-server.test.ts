@@ -317,6 +317,45 @@ describe("MockServer routing", () => {
       expect(finished.command.exitCode).toBe(143);
     });
 
+    test("kill and session stop end a command running after close", async () => {
+      const { server, call } = makeServer();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      server.setDefaultHandlers([
+        handler("slow", async () => {
+          await gate;
+          return { stdout: "late" };
+        }),
+      ]);
+      const killed = await startCat(call, "slow");
+      await killed.write({ close: true });
+      await call("POST", `${killed.base}/kill`, { body: { signal: 15 } });
+      expect(
+        (await j(await call("GET", `${killed.base}?wait=true`))).command
+          .exitCode,
+      ).toBe(143);
+
+      const stopped = await startCat(call, "slow");
+      await stopped.write({ close: true });
+      await call("POST", `/v2/sandboxes/sessions/${stopped.session.id}/stop`);
+      expect(
+        (await j(await call("GET", `${stopped.base}?wait=true`))).command
+          .exitCode,
+      ).toBe(137);
+
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect((await j(await call("GET", killed.base))).command.exitCode).toBe(
+        143,
+      );
+      expect((await j(await call("GET", stopped.base))).command.exitCode).toBe(
+        137,
+      );
+      expect(
+        await (await call("GET", `${killed.base}/logs`)).text(),
+      ).not.toContain("late");
+    });
+
     test("stopping the session ends a command waiting for stdin", async () => {
       const { call } = makeServer();
       const { session, base } = await startCat(call);

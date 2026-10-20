@@ -924,18 +924,19 @@ export class MockServer {
     command: CommandRecord,
     pending: PendingCommand,
   ): Promise<void> {
+    let result: Pick<CommandRecord, "stdout" | "stderr" | "exitCode">;
     try {
-      const result = await pending.executor.run({
+      result = await pending.executor.run({
         ...pending.run,
         stdin: Buffer.concat(pending.stdin),
       });
-      command.stdout = result.stdout;
-      command.stderr = result.stderr;
-      command.exitCode = result.exitCode;
     } catch (error) {
-      command.stderr = `${String(error)}\n`;
-      command.exitCode = 1;
+      result = { stdout: "", stderr: `${String(error)}\n`, exitCode: 1 };
     }
+    if (this.#pending.get(command.id) !== pending) return;
+    command.stdout = result.stdout;
+    command.stderr = result.stderr;
+    command.exitCode = result.exitCode;
     command.durationMs = Date.now() - command.startedAt;
     this.#pending.delete(command.id);
     pending.settle();
@@ -956,11 +957,14 @@ export class MockServer {
     });
   }
 
-  /** Ends a command still waiting for stdin, as if it got `signal`. */
+  /**
+   * Ends a stdin command as if it got `signal`. A handler that is already
+   * running can't be interrupted, so its result is discarded instead.
+   */
   #killPending(cmdId: string, signal: number): void {
     const pending = this.#pending.get(cmdId);
     const command = this.#commands.get(cmdId);
-    if (!pending || pending.closed || !command) return;
+    if (!pending || !command) return;
     command.exitCode = 128 + signal;
     command.durationMs = Date.now() - command.startedAt;
     this.#pending.delete(cmdId);
