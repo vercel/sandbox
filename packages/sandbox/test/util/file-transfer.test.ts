@@ -4,13 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import {
   batchBySize,
-  listLocalFiles,
+  listLocalEntries,
   mapWithConcurrency,
   parseFileMode,
-  parseFindOutput,
+  parseFindEntries,
 } from "../../src/util/file-transfer";
 
-describe("listLocalFiles", () => {
+describe("listLocalEntries", () => {
   let dir: string;
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), "sandbox-cp-"));
@@ -19,23 +19,44 @@ describe("listLocalFiles", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  test("lists nested files with posix relative paths and modes", async () => {
+  test("lists files, directories, and symlinks without following links", async () => {
     await fs.mkdir(path.join(dir, "src", "lib"), { recursive: true });
     await fs.mkdir(path.join(dir, "empty"));
     await fs.writeFile(path.join(dir, "README.md"), "hi");
     await fs.writeFile(path.join(dir, "src", "lib", "a.ts"), "export {}");
     await fs.writeFile(path.join(dir, "run.sh"), "#!/bin/sh", { mode: 0o755 });
+    await fs.symlink("../README.md", path.join(dir, "src", "readme-link"));
 
-    const files = await listLocalFiles(dir);
-    expect(files.map((f) => f.rel)).toEqual(["README.md", "run.sh", "src/lib/a.ts"]);
-    expect(files.find((f) => f.rel === "run.sh")?.mode).toBe(0o755);
-    expect(files.find((f) => f.rel === "README.md")?.size).toBe(2);
+    const entries = await listLocalEntries(dir);
+    expect(entries.map((entry) => [entry.rel, entry.type])).toEqual([
+      ["empty", "directory"],
+      ["README.md", "file"],
+      ["run.sh", "file"],
+      ["src", "directory"],
+      ["src/lib", "directory"],
+      ["src/lib/a.ts", "file"],
+      ["src/readme-link", "symlink"],
+    ]);
+    expect(entries.find((entry) => entry.rel === "run.sh")?.mode).toBe(0o755);
+    expect(entries.find((entry) => entry.rel === "README.md")?.size).toBe(2);
+    expect(
+      entries.find((entry) => entry.rel === "src/readme-link"),
+    ).toMatchObject({
+      type: "symlink",
+      target: "../README.md",
+    });
   });
 });
 
 describe("batchBySize", () => {
   test("splits files so each batch stays under the limit", () => {
-    const files = [{ size: 4 }, { size: 4 }, { size: 4 }, { size: 20 }, { size: 1 }];
+    const files = [
+      { size: 4 },
+      { size: 4 },
+      { size: 4 },
+      { size: 20 },
+      { size: 1 },
+    ];
     expect(batchBySize(files, 10)).toEqual([
       [{ size: 4 }, { size: 4 }],
       [{ size: 4 }],
@@ -49,17 +70,46 @@ describe("batchBySize", () => {
   });
 });
 
-describe("parseFindOutput", () => {
-  test("splits NUL-separated paths, including names with newlines", () => {
-    expect(parseFindOutput("a.txt\0dir/b\nc.txt\0")).toEqual(["a.txt", "dir/b\nc.txt"]);
+describe("parseFindEntries", () => {
+  test("parses NUL-separated tree metadata, including names with newlines", () => {
+    expect(
+      parseFindEntries(
+        [
+          "d",
+          "",
+          "755",
+          "",
+          "f",
+          "a.txt",
+          "644",
+          "",
+          "l",
+          "dir/b\nc.txt",
+          "777",
+          "../a.txt",
+          "",
+        ].join("\0"),
+      ),
+    ).toEqual([
+      { type: "directory", rel: "", mode: 0o755 },
+      { type: "file", rel: "a.txt", mode: 0o644 },
+      {
+        type: "symlink",
+        rel: "dir/b\nc.txt",
+        mode: 0o777,
+        target: "../a.txt",
+      },
+    ]);
   });
 
-  test("returns a single empty path when the source is a file", () => {
-    expect(parseFindOutput("\0")).toEqual([""]);
+  test("rejects incomplete metadata", () => {
+    expect(() =>
+      parseFindEntries(["f", "a.txt", "644", ""].join("\0")),
+    ).toThrow(/Invalid file listing/);
   });
 
-  test("returns nothing for an empty directory", () => {
-    expect(parseFindOutput("")).toEqual([]);
+  test("returns nothing for empty output", () => {
+    expect(parseFindEntries("")).toEqual([]);
   });
 });
 
@@ -76,18 +126,24 @@ describe("parseFileMode", () => {
 });
 
 describe("mapWithConcurrency", () => {
-  test("processes every item without exceeding the limit", async () => {
+  test("returns ordered results without exceeding the limit", async () => {
     let active = 0;
     let peak = 0;
     const seen: number[] = [];
-    await mapWithConcurrency([1, 2, 3, 4, 5, 6], 2, async (n) => {
-      active++;
-      peak = Math.max(peak, active);
-      await new Promise((r) => setTimeout(r, 5));
-      seen.push(n);
-      active--;
-    });
+    const results = await mapWithConcurrency(
+      [1, 2, 3, 4, 5, 6],
+      2,
+      async (n) => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((r) => setTimeout(r, 5));
+        seen.push(n);
+        active--;
+        return n * 2;
+      },
+    );
     expect(seen.sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(results).toEqual([2, 4, 6, 8, 10, 12]);
     expect(peak).toBe(2);
   });
 });

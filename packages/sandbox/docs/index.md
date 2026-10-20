@@ -15,7 +15,7 @@ Commands:
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
-    cat | read     <name:path>                 Print a file from a sandbox to stdout. Raw bytes, nothing else, so the output can be piped.
+    cat | read     <name:path>                 Print a file from a sandbox to stdout.
     write          <name:path>                 Write stdin to a file in a sandbox, replacing it if it exists.
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
@@ -421,7 +421,7 @@ read
 
 ▲ sandbox read [options]
 
-Print a file from a sandbox to stdout. Raw bytes, nothing else, so the output can be piped.
+Print a file from a sandbox to stdout.
 
 Arguments:
 

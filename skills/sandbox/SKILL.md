@@ -1020,6 +1020,7 @@ sandbox connect <name>
 sandbox cp local-file.txt <name>:/vercel/sandbox/local-file.txt
 sandbox cp -r ./my-app <name>:/vercel/sandbox/app    # Directory: contents of ./my-app land in /app
 sandbox cp -r <name>:/vercel/sandbox/dist ./dist     # And back
+# Recursive copies preserve empty directories, symlinks, and permissions.
 
 # Read and write single files (handy for coding agents)
 sandbox read <name>:/vercel/sandbox/package.json     # Raw bytes to stdout

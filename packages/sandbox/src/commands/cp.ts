@@ -2,6 +2,7 @@ import { sandboxClient } from "../client";
 import * as cmd from "cmd-ts";
 import { sandboxName } from "../args/sandbox-name";
 import fs from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import { scope } from "../args/scope";
 import consume from "node:stream/consumers";
@@ -9,13 +10,15 @@ import ora from "ora";
 import chalk from "chalk";
 import {
   batchBySize,
-  listLocalFiles,
+  listLocalEntries,
   mapWithConcurrency,
-  parseFindOutput,
+  parseFindEntries,
 } from "../util/file-transfer";
 
 /** Upload batches of at most this many bytes per request. */
 const UPLOAD_BATCH_BYTES = 32 * 1024 * 1024;
+/** Read at most this many local files at once. */
+const UPLOAD_READ_CONCURRENCY = 8;
 /** Download at most this many files at once. */
 const DOWNLOAD_CONCURRENCY = 8;
 
@@ -34,7 +37,11 @@ export const parseLocalOrRemotePath = async (input: string) => {
         ].join("\n"),
       );
     }
-    return { type: "remote", sandboxName: await sandboxName.from(id), path } as const;
+    return {
+      type: "remote",
+      sandboxName: await sandboxName.from(id),
+      path,
+    } as const;
   }
 
   return { type: "local", path: input } as const;
@@ -108,8 +115,12 @@ export const cp = cmd.command({
         projectId: scope.project,
       });
 
+    const localSourceStat =
+      source.type === "local"
+        ? await fs.lstat(source.path).catch(() => null)
+        : null;
     if (source.type === "local") {
-      const stat = await fs.stat(source.path).catch(() => null);
+      const stat = localSourceStat;
       if (stat?.isDirectory()) {
         if (!recursive) {
           process.exitCode = 1;
@@ -124,17 +135,32 @@ export const cp = cmd.command({
         if (dest.type !== "remote") {
           throw new Error("Copying between two local paths is not supported.");
         }
-        await uploadDirectory(source.path, dest, await getSandbox(dest.sandboxName));
+        await uploadDirectory(
+          source.path,
+          dest,
+          await getSandbox(dest.sandboxName),
+        );
+        return;
+      } else if (recursive && stat?.isSymbolicLink()) {
+        if (dest.type !== "remote") {
+          throw new Error("Copying between two local paths is not supported.");
+        }
+        await uploadSymlink(
+          source.path,
+          dest,
+          await getSandbox(dest.sandboxName),
+        );
         return;
       }
     } else if (recursive && dest.type === "local") {
       const sandbox = await getSandbox(source.sandboxName);
-      const copied = await downloadDirectory(source, dest.path, sandbox);
-      if (copied) return;
-      // The source is a single file: fall through to the regular copy.
+      await downloadRecursive(source, dest.path, sandbox);
+      return;
     }
 
-    const spinner = ora({ text: `Reading source file (${source.path})...` }).start();
+    const spinner = ora({
+      text: `Reading source file (${source.path})...`,
+    }).start();
     let sourceFile: Buffer<ArrayBufferLike> | null = null;
 
     if (source.type === "local") {
@@ -143,7 +169,7 @@ export const cp = cmd.command({
           return null;
         }
         throw err;
-      })
+      });
     } else {
       const sandbox = await sandboxClient.get({
         name: source.sandboxName,
@@ -185,7 +211,16 @@ export const cp = cmd.command({
         projectId: scope.project,
         token: scope.token,
       });
-      await sandbox.writeFiles([{ path: dest.path, content: sourceFile }]);
+      await sandbox.writeFiles([
+        {
+          path: dest.path,
+          content: sourceFile,
+          mode:
+            recursive && localSourceStat?.isFile()
+              ? localSourceStat.mode & 0o777
+              : undefined,
+        },
+      ]);
     }
 
     spinner.succeed(`Copied ${source.path} to ${dest.path} successfully!`);
@@ -200,48 +235,84 @@ async function uploadDirectory(
   sandbox: SandboxHandle,
 ) {
   const spinner = ora({ text: `Scanning ${localDir}...` }).start();
-  const files = await listLocalFiles(localDir);
-  if (files.length === 0) {
-    await sandbox.mkDir(dest.path).catch(() => {});
-    spinner.succeed(`${localDir} is empty, nothing to copy.`);
-    return;
+  const root = await fs.lstat(localDir);
+  const entries = await listLocalEntries(localDir);
+  const directories = entries.filter((entry) => entry.type === "directory");
+  const symlinks = entries.filter((entry) => entry.type === "symlink");
+  const files = entries.filter((entry) => entry.type === "file");
+
+  await sandbox.fs.mkdir(dest.path, { recursive: true });
+  for (const directory of directories) {
+    await sandbox.fs.mkdir(path.posix.join(dest.path, directory.rel), {
+      recursive: true,
+    });
   }
 
   let done = 0;
   for (const batch of batchBySize(files, UPLOAD_BATCH_BYTES)) {
-    spinner.text = `Uploading ${done}/${files.length} files to ${dest.sandboxName}:${dest.path}...`;
-    const contents = await Promise.all(
-      batch.map(async (file) => ({
+    spinner.text = `Uploading ${done}/${entries.length} entries to ${dest.sandboxName}:${dest.path}...`;
+    const contents = await mapWithConcurrency(
+      batch,
+      UPLOAD_READ_CONCURRENCY,
+      async (file) => ({
         path: path.posix.join(dest.path, file.rel),
         content: await fs.readFile(file.abs),
         mode: file.mode,
-      })),
+      }),
     );
     await sandbox.writeFiles(contents);
     done += batch.length;
   }
 
+  for (const symlink of symlinks) {
+    await sandbox.fs.symlink(
+      symlink.target,
+      path.posix.join(dest.path, symlink.rel),
+    );
+    done += 1;
+  }
+
+  // Apply directory modes after writing children so restrictive source modes
+  // do not prevent the transfer itself.
+  for (const directory of [...directories].sort(
+    (a, b) => b.rel.split("/").length - a.rel.split("/").length,
+  )) {
+    await sandbox.fs.chmod(
+      path.posix.join(dest.path, directory.rel),
+      directory.mode,
+    );
+  }
+  await sandbox.fs.chmod(dest.path, root.mode & 0o777);
+
   spinner.succeed(
-    `Copied ${files.length} files from ${localDir} to ${dest.sandboxName}:${dest.path}`,
+    `Copied ${entries.length} entries from ${localDir} to ${dest.sandboxName}:${dest.path}`,
   );
 }
 
-/**
- * Download every file under a sandbox directory into `localDir`.
- * Returns false when the source turns out to be a single file.
- */
-async function downloadDirectory(
+async function uploadSymlink(
+  localPath: string,
+  dest: RemotePath,
+  sandbox: SandboxHandle,
+) {
+  const target = await fs.readlink(localPath);
+  await sandbox.fs.mkdir(path.posix.dirname(dest.path), { recursive: true });
+  await sandbox.fs.symlink(target, dest.path);
+  ora().succeed(`Copied ${localPath} to ${dest.sandboxName}:${dest.path}`);
+}
+
+/** Download a remote file tree without dereferencing symbolic links. */
+async function downloadRecursive(
   source: RemotePath,
   localDir: string,
   sandbox: SandboxHandle,
-): Promise<boolean> {
-  const spinner = ora({ text: `Scanning ${source.sandboxName}:${source.path}...` }).start();
+): Promise<void> {
+  const spinner = ora({
+    text: `Scanning ${source.sandboxName}:${source.path}...`,
+  }).start();
   const result = await sandbox.runCommand("find", [
     source.path,
-    "-type",
-    "f",
     "-printf",
-    "%P\\0",
+    "%y\\0%P\\0%m\\0%l\\0",
   ]);
   if (result.exitCode !== 0) {
     process.exitCode = 1;
@@ -253,32 +324,170 @@ async function downloadDirectory(
         .filter(Boolean)
         .join("\n"),
     );
-    return true;
+    return;
   }
 
-  const files = parseFindOutput(await result.stdout());
-  if (files.length === 1 && files[0] === "") {
-    spinner.stop();
-    return false;
+  const entries = parseFindEntries(await result.stdout());
+  const root = entries.find((entry) => entry.rel === "");
+  if (!root) {
+    process.exitCode = 1;
+    spinner.fail(
+      `Could not inspect ${source.path} in sandbox ${source.sandboxName}.`,
+    );
+    return;
   }
 
-  await fs.mkdir(localDir, { recursive: true });
+  if (root.type === "file") {
+    const content = await sandbox.readFileToBuffer({ path: source.path });
+    if (content === null)
+      throw new Error(`File disappeared while copying: ${source.path}`);
+    await fs.mkdir(path.dirname(localDir), { recursive: true });
+    await writeLocalFile(localDir, content, root.mode);
+    spinner.succeed(`Copied ${source.path} to ${localDir}`);
+    return;
+  }
+  if (root.type === "symlink") {
+    await fs.mkdir(path.dirname(localDir), { recursive: true });
+    await fs.symlink(root.target, localDir);
+    spinner.succeed(`Copied ${source.path} to ${localDir}`);
+    return;
+  }
+
+  const children = entries.filter((entry) => entry.rel !== "");
+  const directories = children.filter((entry) => entry.type === "directory");
+  const symlinks = children.filter((entry) => entry.type === "symlink");
+  const files = children.filter((entry) => entry.type === "file");
+  await ensureLocalDirectory(localDir, "");
+  for (const directory of [...directories].sort(
+    (a, b) => a.rel.split("/").length - b.rel.split("/").length,
+  )) {
+    await ensureLocalDirectory(localDir, directory.rel);
+  }
+  for (const symlink of symlinks) {
+    const target = localTarget(localDir, symlink.rel);
+    await ensureLocalDirectory(localDir, parentRel(symlink.rel));
+    await fs.symlink(symlink.target, target);
+  }
+
   let done = 0;
-  await mapWithConcurrency(files, DOWNLOAD_CONCURRENCY, async (rel) => {
+  await mapWithConcurrency(files, DOWNLOAD_CONCURRENCY, async (file) => {
     const content = await sandbox.readFileToBuffer({
-      path: path.posix.join(source.path, rel),
+      path: path.posix.join(source.path, file.rel),
     });
-    if (content) {
-      const target = path.join(localDir, ...rel.split("/"));
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.writeFile(target, content);
+    if (content === null) {
+      throw new Error(
+        `File disappeared while copying: ${source.path}/${file.rel}`,
+      );
     }
+    const target = localTarget(localDir, file.rel);
+    await ensureLocalDirectory(localDir, parentRel(file.rel));
+    await writeLocalFile(target, content, file.mode);
     done += 1;
     spinner.text = `Downloading ${done}/${files.length} files...`;
   });
 
+  for (const directory of [...directories].sort(
+    (a, b) => b.rel.split("/").length - a.rel.split("/").length,
+  )) {
+    await chmodLocalDirectory(localDir, directory.rel, directory.mode);
+  }
+  await chmodLocalDirectory(localDir, "", root.mode);
+
   spinner.succeed(
-    `Copied ${files.length} files from ${source.sandboxName}:${source.path} to ${localDir}`,
+    `Copied ${children.length} entries from ${source.sandboxName}:${source.path} to ${localDir}`,
   );
-  return true;
+}
+
+function localTarget(root: string, rel: string): string {
+  const resolvedRoot = path.resolve(root);
+  const target = path.resolve(root, ...rel.split("/"));
+  if (
+    target !== resolvedRoot &&
+    !target.startsWith(`${resolvedRoot}${path.sep}`)
+  ) {
+    throw new Error(`Invalid relative path returned by sandbox: ${rel}`);
+  }
+  return target;
+}
+
+function parentRel(rel: string): string {
+  const parts = rel.split("/");
+  parts.pop();
+  return parts.join("/");
+}
+
+/** Create a destination directory while rejecting symlinks below the copy root. */
+async function ensureLocalDirectory(
+  root: string,
+  rel: string,
+): Promise<string> {
+  const resolvedRoot = path.resolve(root);
+  const target = localTarget(root, rel);
+  await fs.mkdir(path.dirname(resolvedRoot), { recursive: true });
+  const relative = path.relative(resolvedRoot, target);
+  const parts = relative === "" ? [] : relative.split(path.sep);
+  let current = resolvedRoot;
+  for (let index = -1; index < parts.length; index += 1) {
+    if (index >= 0) current = path.join(current, parts[index]!);
+    const stat = await fs.lstat(current).catch((error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (stat?.isSymbolicLink()) {
+      throw new Error(`Refusing to copy through symbolic link: ${current}`);
+    }
+    if (stat && !stat.isDirectory()) {
+      throw new Error(`Copy destination is not a directory: ${current}`);
+    }
+    if (!stat) {
+      await fs.mkdir(current).catch(async (error) => {
+        if (error.code !== "EEXIST") throw error;
+        const racedStat = await fs.lstat(current);
+        if (racedStat.isSymbolicLink()) {
+          throw new Error(`Refusing to copy through symbolic link: ${current}`);
+        }
+        if (!racedStat.isDirectory()) throw error;
+      });
+    }
+  }
+  return target;
+}
+
+/** Write through a file descriptor so the final path cannot be a symlink. */
+async function writeLocalFile(
+  target: string,
+  content: Uint8Array,
+  mode: number,
+): Promise<void> {
+  const handle = await fs.open(
+    target,
+    fsConstants.O_WRONLY |
+      fsConstants.O_CREAT |
+      fsConstants.O_TRUNC |
+      fsConstants.O_NOFOLLOW,
+    mode,
+  );
+  try {
+    await handle.writeFile(content);
+    await handle.chmod(mode);
+  } finally {
+    await handle.close();
+  }
+}
+
+async function chmodLocalDirectory(
+  root: string,
+  rel: string,
+  mode: number,
+): Promise<void> {
+  const target = await ensureLocalDirectory(root, rel);
+  const handle = await fs.open(
+    target,
+    fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    await handle.chmod(mode);
+  } finally {
+    await handle.close();
+  }
 }

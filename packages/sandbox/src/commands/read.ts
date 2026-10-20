@@ -9,8 +9,7 @@ import { output } from "../util/output";
 
 export const read = cmd.command({
   name: "read",
-  description:
-    "Print a file from a sandbox to stdout. Raw bytes, nothing else, so the output can be piped.",
+  description: "Print a file from a sandbox to stdout.",
   aliases: ["cat"],
   args: {
     file: cmd.positional({
