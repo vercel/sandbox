@@ -1819,6 +1819,7 @@ export class Sandbox implements ExecutionContext {
       params.networkPolicy !== undefined &&
       this.session &&
       this.session.status !== "stopped" &&
+      this.session.status !== "stopping" &&
       this.session.status !== "aborted" &&
       this.session.status !== "failed"
     ) {
