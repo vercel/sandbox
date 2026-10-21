@@ -289,6 +289,174 @@ describe("update timeout", () => {
   });
 });
 
+describe("update network policy and tags", () => {
+  const tags = { policyHash: "new" };
+  const networkPolicy = "deny-all" as const;
+
+  function setup(status: SessionMetaData["status"] | null = "running") {
+    const metadata = {
+      ...makeSandboxMetadata(),
+      tags: { policyHash: "old" },
+      networkPolicy: { mode: "allow-all" as const },
+    };
+    const session: SessionMetaData = {
+      id: "sbx_123",
+      memory: 2048,
+      vcpus: 1,
+      region: "iad1",
+      timeout: 300_000,
+      status: status ?? "running",
+      requestedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      cwd: "/",
+      networkPolicy: metadata.networkPolicy,
+    };
+    const updatedSession = {
+      ...session,
+      networkPolicy: { mode: networkPolicy },
+    };
+    const updateSandboxMock = vi.fn(async () => ({
+      json: {
+        sandbox: { ...metadata, tags, networkPolicy: { mode: networkPolicy } },
+      },
+    }));
+    const updateNetworkPolicyMock = vi.fn(async () => ({
+      json: { session: updatedSession },
+    }));
+    const extendTimeoutMock = vi.fn(async () => ({
+      json: { session: { ...session, timeout: 600_000 } },
+    }));
+    const sandbox = new Sandbox({
+      client: {
+        updateSandbox: updateSandboxMock,
+        updateNetworkPolicy: updateNetworkPolicyMock,
+        extendTimeout: extendTimeoutMock,
+      } as unknown as APIClient,
+      sandbox: metadata,
+      session: status === null ? undefined : session,
+      routes: [],
+      projectId: "test-project",
+    });
+    return {
+      sandbox,
+      updateSandboxMock,
+      updateNetworkPolicyMock,
+      extendTimeoutMock,
+      updatedSession,
+    };
+  }
+
+  it("applies the live policy before publishing the new tags", async () => {
+    const {
+      sandbox,
+      updateSandboxMock,
+      updateNetworkPolicyMock,
+      updatedSession,
+    } = setup();
+    updateNetworkPolicyMock.mockImplementationOnce(async () => {
+      expect(updateSandboxMock).not.toHaveBeenCalled();
+      expect(sandbox.tags).toEqual({ policyHash: "old" });
+      return { json: { session: updatedSession } };
+    });
+    const signal = new AbortController().signal;
+
+    await sandbox.update({ networkPolicy, tags }, { signal });
+
+    expect(updateNetworkPolicyMock).toHaveBeenCalledWith({
+      sessionId: "sbx_123",
+      networkPolicy,
+      signal,
+    });
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ networkPolicy, tags, signal }),
+    );
+    expect(sandbox.tags).toEqual(tags);
+    expect(sandbox.currentSession().networkPolicy).toBe(networkPolicy);
+  });
+
+  it.each([
+    new Error("Policy update failed"),
+    new APIError(new Response(null, { status: 410 })),
+    new APIError(new Response(null, { status: 422 }), {
+      json: { error: { code: "sandbox_stopping" } },
+    }),
+  ])(
+    "leaves tags unchanged when the live policy update fails (%s)",
+    async (error) => {
+      const { sandbox, updateSandboxMock, updateNetworkPolicyMock } = setup();
+      updateNetworkPolicyMock.mockRejectedValueOnce(error);
+
+      await expect(sandbox.update({ networkPolicy, tags })).rejects.toBe(error);
+
+      expect(updateSandboxMock).not.toHaveBeenCalled();
+      expect(sandbox.tags).toEqual({ policyHash: "old" });
+    },
+  );
+
+  it("extends the timeout before applying the policy and publishing tags", async () => {
+    const {
+      sandbox,
+      updateSandboxMock,
+      updateNetworkPolicyMock,
+      extendTimeoutMock,
+    } = setup();
+
+    await sandbox.update({ networkPolicy, tags, timeout: 600_000 });
+
+    expect(extendTimeoutMock.mock.invocationCallOrder[0]).toBeLessThan(
+      updateNetworkPolicyMock.mock.invocationCallOrder[0],
+    );
+    expect(updateNetworkPolicyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      updateSandboxMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not publish tags or apply the policy if extending the timeout fails", async () => {
+    const {
+      sandbox,
+      updateSandboxMock,
+      updateNetworkPolicyMock,
+      extendTimeoutMock,
+    } = setup();
+    const error = new Error("Timeout extension failed");
+    extendTimeoutMock.mockRejectedValueOnce(error);
+
+    await expect(
+      sandbox.update({ networkPolicy, tags, timeout: 600_000 }),
+    ).rejects.toBe(error);
+
+    expect(updateSandboxMock).not.toHaveBeenCalled();
+    expect(updateNetworkPolicyMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["stopped", "aborted", "failed"] as const)(
+    "updates saved configuration without resuming a %s session",
+    async (status) => {
+      const { sandbox, updateSandboxMock, updateNetworkPolicyMock } =
+        setup(status);
+
+      await sandbox.update({ networkPolicy, tags });
+
+      expect(updateNetworkPolicyMock).not.toHaveBeenCalled();
+      expect(updateSandboxMock).toHaveBeenCalledWith(
+        expect.objectContaining({ networkPolicy, tags }),
+      );
+    },
+  );
+
+  it("updates saved configuration when there is no session", async () => {
+    const { sandbox, updateSandboxMock, updateNetworkPolicyMock } = setup(null);
+
+    await sandbox.update({ networkPolicy, tags });
+
+    expect(updateNetworkPolicyMock).not.toHaveBeenCalled();
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ networkPolicy, tags }),
+    );
+  });
+});
+
 describe("expiresAt", () => {
   it("computes the deadline from startedAt + timeout for a running session", () => {
     const sandbox = new Sandbox({
