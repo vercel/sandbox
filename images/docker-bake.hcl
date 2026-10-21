@@ -44,15 +44,15 @@ target "node" {
     node = [
       {
         major   = "22"
-        version = "22.23.2"
+        version = "22.23.4"
       },
       {
         major   = "24"
-        version = "24.19.0"
+        version = "24.22.1"
       },
       {
         major   = "26"
-        version = "26.7.0"
+        version = "26.12.1"
       },
     ]
   }
@@ -98,7 +98,7 @@ target "universal" {
   }
 
   args = {
-    NODE_MAJOR     = "24"
+    NODE_VERSION   = "24.22.1"
     PYTHON_VERSION = "3.14"
   }
 }
@@ -132,15 +132,15 @@ target "al-node" {
     node = [
       {
         major   = "22"
-        version = "22.22.2"
+        version = "22.23.4"
       },
       {
         major   = "24"
-        version = "24.14.1"
+        version = "24.22.1"
       },
       {
         major   = "26"
-        version = "26.1.0"
+        version = "26.12.1"
       },
     ]
   }
