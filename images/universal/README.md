@@ -23,12 +23,13 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 - Claude Code (`claude`)
 - Codex (`codex`)
 - pi (`pi`)
+- fx (`fx`)
 
 ### Utilities
 
 - `curl`, `wget`
 - `git`, `git-lfs` (hooks pre-configured), `gh`
-- `jq`, `fx`, `ripgrep`, `fzf`, `tree`, `file`, `less`
+- `jq`, `ripgrep`, `fzf`, `tree`, `file`, `less`
 - `vim`, `nano`, `tmux`
 - `rsync`
 - `sqlite3`

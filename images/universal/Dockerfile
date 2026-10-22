@@ -78,12 +78,6 @@ RUN npm install -g pnpm@11 && \
 COPY --from=oven/bun:latest /usr/local/bin/bun /usr/local/bin/
 RUN ln -s bun /usr/local/bin/bunx
 
-# fx (JSON viewer).
-ARG FX_VERSION=40.0.0
-RUN curl -fsSL "https://github.com/antonmedv/fx/releases/download/${FX_VERSION}/fx_linux_amd64" \
-      -o /usr/local/bin/fx && \
-    chmod 0755 /usr/local/bin/fx
-
 # Coding agents.
 RUN npm install -g \
       opencode-ai \
@@ -105,6 +99,17 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.local/bin:/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
+# fx (https://github.com/vercel-labs/fx). Installed into ~/.local/bin, like the
+# upstream installer, so `fx upgrade` works without sudo.
+ARG FX_VERSION=0.0.14
+RUN mkdir -p ~/.local/bin && \
+    cd /tmp && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz" && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz.sha256" && \
+    sha256sum -c fx-linux-x86_64.tar.gz.sha256 && \
+    tar -xzf fx-linux-x86_64.tar.gz -C ~/.local/bin fx && \
+    rm fx-linux-x86_64.tar.gz fx-linux-x86_64.tar.gz.sha256
+
 RUN node --version && \
     bun --version && \
     python --version | grep -F "Python ${PYTHON_VERSION}." && \
@@ -112,9 +117,9 @@ RUN node --version && \
     uv --version && \
     git --version && \
     gh --version && \
-    fx --version && \
     sudo whoami && \
     opencode --version && \
     claude --version && \
     codex --version && \
-    pi --version
+    pi --version && \
+    fx --version

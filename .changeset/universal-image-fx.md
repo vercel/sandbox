@@ -2,4 +2,4 @@
 "sandbox-image-universal": patch
 ---
 
-Add `fx` to the universal image.
+Add the fx coding agent (vercel-labs/fx) to the universal image.
