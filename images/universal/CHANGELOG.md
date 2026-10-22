@@ -1,5 +1,11 @@
 # sandbox-image-universal
 
+## 0.1.1
+
+### Patch Changes
+
+- Update Node.js 22, 24, and 26 images to the latest security releases. Pin Node.js 24 in the universal image so builds use the patched release. ([#399](https://github.com/vercel/sandbox/pull/399))
+
 ## 0.1.0
 
 ### Minor Changes

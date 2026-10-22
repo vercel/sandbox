@@ -1,5 +1,16 @@
 # sandbox
 
+## 4.10.0
+
+### Minor Changes
+
+- Lazy-load commands for faster executions. ([#393](https://github.com/vercel/sandbox/pull/393))
+
+### Patch Changes
+
+- Updated dependencies [[`4495bafcf5269ab00abc8a8c855b5f86e2a57d12`](https://github.com/vercel/sandbox/commit/4495bafcf5269ab00abc8a8c855b5f86e2a57d12), [`4a08262beacd1a30c31edbe3dac85a235716c078`](https://github.com/vercel/sandbox/commit/4a08262beacd1a30c31edbe3dac85a235716c078)]:
+  - @vercel/sandbox@3.9.0
+
 ## 4.9.0
 
 ### Minor Changes

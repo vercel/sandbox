@@ -1,5 +1,15 @@
 # @vercel/sandbox
 
+## 3.9.0
+
+### Patch Changes
+
+- Apply network policy changes to active sessions before saving configuration and tags, and surface live policy failures so tags cannot incorrectly indicate that a failed policy update succeeded. ([#400](https://github.com/vercel/sandbox/pull/400))
+
+  Skip live network policy updates for sessions that are already stopping so configuration can still be saved for the next session.
+
+- Stdin writes now always send an offset, and a timed-out write that reports no progress is treated as stalled. ([#381](https://github.com/vercel/sandbox/pull/381))
+
 ## 3.8.0
 
 ### Minor Changes
