@@ -28,7 +28,7 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 - `curl`, `wget`
 - `git`, `git-lfs` (hooks pre-configured), `gh`
-- `jq`, `ripgrep`, `fzf`, `tree`, `file`, `less`
+- `jq`, `fx`, `ripgrep`, `fzf`, `tree`, `file`, `less`
 - `vim`, `nano`, `tmux`
 - `rsync`
 - `sqlite3`

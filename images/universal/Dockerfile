@@ -78,6 +78,12 @@ RUN npm install -g pnpm@11 && \
 COPY --from=oven/bun:latest /usr/local/bin/bun /usr/local/bin/
 RUN ln -s bun /usr/local/bin/bunx
 
+# fx (JSON viewer).
+ARG FX_VERSION=40.0.0
+RUN curl -fsSL "https://github.com/antonmedv/fx/releases/download/${FX_VERSION}/fx_linux_amd64" \
+      -o /usr/local/bin/fx && \
+    chmod 0755 /usr/local/bin/fx
+
 # Coding agents.
 RUN npm install -g \
       opencode-ai \
@@ -106,6 +112,7 @@ RUN node --version && \
     uv --version && \
     git --version && \
     gh --version && \
+    fx --version && \
     sudo whoami && \
     opencode --version && \
     claude --version && \
