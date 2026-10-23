@@ -86,6 +86,9 @@ RUN npm install -g \
     npm install -g --ignore-scripts @earendil-works/pi-coding-agent && \
     npm cache clean --force
 
+RUN curl -fsSL https://fx.sh/setup.sh | FX_INSTALL_DIR=/usr/local/bin bash && \
+    chown root:root /usr/local/bin/fx
+
 RUN chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel
@@ -110,4 +113,5 @@ RUN node --version && \
     opencode --version && \
     claude --version && \
     codex --version && \
-    pi --version
+    pi --version && \
+    fx --version
