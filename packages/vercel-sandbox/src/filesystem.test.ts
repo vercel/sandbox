@@ -153,39 +153,94 @@ describe("FileSystem", () => {
   });
 
   describe("readdir", () => {
-    it("returns list of filenames", async () => {
+    it("returns sorted filenames without splitting or trimming them", async () => {
+      const signal = new AbortController().signal;
       sandbox.runCommand.mockResolvedValue(
-        mockCommandResult("file1.txt\nfile2.txt\ndir1\n"),
+        mockCommandResult(" \t \0plain.txt\0file\n..|d\0"),
       );
-      const result = await fs.readdir("/mydir");
-      expect(result).toEqual(["file1.txt", "file2.txt", "dir1"]);
+      const result = await fs.readdir("/mydir", { signal });
+      expect(result).toEqual([" \t ", "file\n..|d", "plain.txt"]);
+      expect(sandbox.runCommand).toHaveBeenCalledWith(
+        "find",
+        [
+          "-H",
+          "/mydir",
+          "-maxdepth",
+          "1",
+          "-mindepth",
+          "1",
+          "-printf",
+          "%f\\0",
+        ],
+        { signal },
+      );
     });
 
-    it("returns Dirent objects with withFileTypes", async () => {
+    it("returns sorted Dirent objects with withFileTypes", async () => {
       sandbox.runCommand.mockResolvedValue(
-        mockCommandResult("file.txt|f\nsubdir|d\nlink|l\n"),
+        mockCommandResult("f| file|name \n\0d|subdir\n..|f\0l|link\0"),
       );
       const result = await fs.readdir("/mydir", { withFileTypes: true });
       expect(result).toHaveLength(3);
-      expect(result[0].name).toBe("file.txt");
+      expect(result[0].name).toBe(" file|name \n");
       expect(result[0].isFile()).toBe(true);
       expect(result[0].isDirectory()).toBe(false);
-      expect(result[1].name).toBe("subdir");
-      expect(result[1].isDirectory()).toBe(true);
-      expect(result[2].name).toBe("link");
-      expect(result[2].isSymbolicLink()).toBe(true);
+      expect(result[1].name).toBe("link");
+      expect(result[1].isSymbolicLink()).toBe(true);
+      expect(result[2].name).toBe("subdir\n..|f");
+      expect(result[2].isDirectory()).toBe(true);
+      expect(sandbox.runCommand).toHaveBeenCalledWith(
+        "find",
+        [
+          "-H",
+          "/mydir",
+          "-maxdepth",
+          "1",
+          "-mindepth",
+          "1",
+          "-printf",
+          "%y|%f\\0",
+        ],
+        { signal: undefined },
+      );
     });
+
+    it.each([false, true])(
+      "treats option-like directory names as paths (withFileTypes: %s)",
+      async (withFileTypes) => {
+        sandbox.runCommand.mockResolvedValue(mockCommandResult(""));
+
+        if (withFileTypes) {
+          await fs.readdir("-delete", { withFileTypes: true });
+        } else {
+          await fs.readdir("-delete");
+        }
+
+        expect(sandbox.runCommand).toHaveBeenCalledWith(
+          "find",
+          [
+            "-H",
+            "./-delete",
+            "-maxdepth",
+            "1",
+            "-mindepth",
+            "1",
+            "-printf",
+            expect.any(String),
+          ],
+          { signal: undefined },
+        );
+      },
+    );
 
     it("throws ENOENT for missing directory", async () => {
       sandbox.runCommand.mockResolvedValue(
-        mockCommandResult(
-          "",
-          2,
-          "ls: cannot access '/missing': No such file or directory",
-        ),
+        mockCommandResult("", 1, "find: '/missing': No such file or directory"),
       );
       await expect(fs.readdir("/missing")).rejects.toMatchObject({
         code: "ENOENT",
+        syscall: "scandir",
+        path: "/missing",
       });
     });
   });
