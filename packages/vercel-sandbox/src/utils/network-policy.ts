@@ -14,7 +14,40 @@ export function toAPINetworkPolicy(
   const apiPolicy =
     policy === "allow-all" || policy === "deny-all"
       ? { mode: policy }
-      : policy;
+      : {
+          ...policy,
+          ...(policy.allow && !Array.isArray(policy.allow)
+            ? {
+                allow: Object.fromEntries(
+                  Object.entries(policy.allow).map(([domain, rules]) => [
+                    domain,
+                    rules.map((rule) => {
+                      if (!("httpOnly" in rule)) return rule;
+                      if (rule.httpOnly !== true) {
+                        throw new Error("httpOnly must be true");
+                      }
+                      if (domain.includes("*")) {
+                        throw new Error("httpOnly requires an exact domain");
+                      }
+                      if (
+                        "transform" in rule ||
+                        "forwardURL" in rule ||
+                        "response" in rule
+                      ) {
+                        throw new Error(
+                          "httpOnly cannot be combined with another rule action",
+                        );
+                      }
+                      return {
+                        ...(rule.match ? { match: rule.match } : {}),
+                        transform: [{ headers: { Host: domain } }],
+                      };
+                    }),
+                  ]),
+                ),
+              }
+            : {}),
+        };
 
   NetworkPolicyRequestValidator.parse(apiPolicy);
   return apiPolicy;
@@ -70,7 +103,10 @@ export function fromAPINetworkPolicy(
       allow[domain] = rulesByDomain.get(domain) ?? [];
     }
     // Include L7 rules for domains not in allowedDomains
-    for (const rule of [...(api.injectionRules ?? []), ...(api.forwardRules ?? [])]) {
+    for (const rule of [
+      ...(api.injectionRules ?? []),
+      ...(api.forwardRules ?? []),
+    ]) {
       if (!(rule.domain in allow)) {
         allow[rule.domain] = rulesByDomain.get(rule.domain) ?? [];
       }
