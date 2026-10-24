@@ -101,7 +101,7 @@ ENV PATH="/vercel/.local/bin:/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${
 
 # fx (https://github.com/vercel-labs/fx). Installed into ~/.local/bin, like the
 # upstream installer, so `fx upgrade` works without sudo.
-ARG FX_VERSION=0.0.14
+ARG FX_VERSION
 RUN mkdir -p ~/.local/bin && \
     cd /tmp && \
     curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz" && \
