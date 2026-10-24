@@ -99,6 +99,17 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.local/bin:/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
+# fx (https://github.com/vercel-labs/fx). Installed into ~/.local/bin, like the
+# upstream installer, so `fx upgrade` works without sudo.
+ARG FX_VERSION
+RUN mkdir -p ~/.local/bin && \
+    cd /tmp && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz" && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz.sha256" && \
+    sha256sum -c fx-linux-x86_64.tar.gz.sha256 && \
+    tar -xzf fx-linux-x86_64.tar.gz -C ~/.local/bin fx && \
+    rm fx-linux-x86_64.tar.gz fx-linux-x86_64.tar.gz.sha256
+
 RUN node --version && \
     bun --version && \
     python --version | grep -F "Python ${PYTHON_VERSION}." && \
@@ -110,4 +121,5 @@ RUN node --version && \
     opencode --version && \
     claude --version && \
     codex --version && \
-    pi --version
+    pi --version && \
+    fx --version
