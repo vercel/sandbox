@@ -13,6 +13,7 @@ vi.mock("xdg-app-paths", () => ({
 }));
 
 import { sandboxClient } from "./client";
+import { setAuthHeadersProvider } from "./auth-headers";
 import { writeTelemetryConfig } from "./telemetry";
 
 describe("fetchWithUserAgent", () => {
@@ -66,5 +67,50 @@ describe("fetchWithUserAgent", () => {
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
     expect(userAgent).toContain("vercel/sandbox/");
     expect(userAgent).not.toContain(" agent/");
+  });
+});
+
+describe("getAuthHeaders from createApp", () => {
+  const fetchMock = vi.fn(
+    async (..._args: Parameters<typeof globalThis.fetch>) =>
+      new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+  );
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    setAuthHeadersProvider((method, url) => ({
+      authorization: "DPoP vca_token",
+      dpop: `proof ${method} ${new URL(url).pathname}`,
+    }));
+  });
+
+  afterEach(() => {
+    setAuthHeadersProvider(undefined);
+    vi.unstubAllGlobals();
+    fetchMock.mockClear();
+  });
+
+  it("authenticates requests with it when there's no token", async () => {
+    await sandboxClient
+      .list({ token: "", teamId: "team_fake", projectId: "prj_fake" })
+      .catch(() => undefined);
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("DPoP vca_token");
+    expect(headers.get("dpop")).toMatch(/^proof GET \/api\//);
+    expect(headers.get("user-agent")).toMatch(/^vercel\/sandbox-cli\//);
+  });
+
+  it("sends a given token as Bearer instead", async () => {
+    await sandboxClient
+      .list({ token: "fake", teamId: "team_fake", projectId: "prj_fake" })
+      .catch(() => undefined);
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer fake");
+    expect(headers.get("dpop")).toBeNull();
   });
 });

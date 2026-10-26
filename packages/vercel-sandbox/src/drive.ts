@@ -223,6 +223,7 @@ export class Drive {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params?.fetch,
+      getAuthHeaders: params?.getAuthHeaders,
     });
     const fetchPage = async (cursor?: string) => {
       const response = await client.listDrives({
@@ -267,6 +268,7 @@ export class Drive {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const response = await client.getDrive({
@@ -300,6 +302,7 @@ export class Drive {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const response = await client.getOrCreateDrive({

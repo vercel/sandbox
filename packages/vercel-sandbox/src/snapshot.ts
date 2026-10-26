@@ -175,6 +175,7 @@ export class Snapshot {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params?.fetch,
+      getAuthHeaders: params?.getAuthHeaders,
     });
     const fetchPage = async (cursor?: string) => {
       const response = await client.listSnapshots({
@@ -220,6 +221,7 @@ export class Snapshot {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
     const fetchPage = async (snapshotId: string) => {
       const response = await client.getSnapshotTree({
@@ -253,6 +255,7 @@ export class Snapshot {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const sandbox = await client.getSnapshot({

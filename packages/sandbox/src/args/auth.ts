@@ -8,6 +8,7 @@ import {
   RefreshAccessTokenFailedError,
 } from "@vercel/oidc";
 import { getAuth } from "@vercel/sandbox/dist/auth/index.js";
+import { hasAuthHeadersProvider } from "../auth-headers";
 
 const debug = createDebugger("sandbox:args:auth");
 
@@ -37,6 +38,11 @@ export const token = cmd.option({
     onMissing: async () => {
       if (process.env.VERCEL_AUTH_TOKEN) {
         return process.env.VERCEL_AUTH_TOKEN;
+      }
+
+      // Requests are authenticated with the provider's headers instead.
+      if (hasAuthHeadersProvider()) {
+        return "";
       }
 
       if (process.env.VERCEL_OIDC_TOKEN) {
