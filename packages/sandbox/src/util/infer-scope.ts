@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { readProjectConfiguration } from "./project-configuration";
 import createDebugger from "debug";
 import * as Auth from "@vercel/sandbox/dist/auth/index.js";
+import { fetchWithUserAgent } from "../client";
 
 const debug = createDebugger("sandbox:scope");
 
@@ -75,6 +76,7 @@ async function inferFromToken(token: string, requestedTeam?: string) {
   const { teamId, teamSlug, projectId, projectSlug } = await Auth.inferScope({
     token,
     teamId: requestedTeam,
+    fetch: fetchWithUserAgent,
   });
   return {
     owner: teamId,

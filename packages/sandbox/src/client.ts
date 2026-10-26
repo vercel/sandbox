@@ -48,7 +48,10 @@ export const snapshotClient: Pick<
     withErrorHandling(() =>
       Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
     ),
-  get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
+  get: (params) =>
+    withErrorHandling(() =>
+      Snapshot.get({ fetch: fetchWithUserAgent, ...params }),
+    ),
   tree: (params) =>
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };
@@ -92,7 +95,27 @@ function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {
   }
 }
 
-const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
+/**
+ * Returns the auth headers for one API request, sent in place of
+ * `Authorization: Bearer <token>`. A CLI that embeds this one sets it when its
+ * token needs more than a `Bearer` header, like a DPoP-bound token that needs a
+ * new proof for every request.
+ */
+export type GetAuthHeaders = (
+  method: string,
+  url: string,
+) => Promise<Record<string, string>>;
+
+let getAuthHeaders: GetAuthHeaders | undefined;
+
+export function setGetAuthHeaders(fn: GetAuthHeaders | undefined): void {
+  getAuthHeaders = fn;
+}
+
+export const fetchWithUserAgent: typeof globalThis.fetch = async (
+  input,
+  init,
+) => {
   const headers = new Headers(
     init?.headers ??
       (input && typeof input === "object" && "headers" in input
@@ -125,6 +148,22 @@ const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   }
 
   headers.set("user-agent", agent);
+
+  // Called for every attempt, since the SDK retries through this function and
+  // a proof is only valid for one request. Only requests that already carry
+  // the token get the headers.
+  if (getAuthHeaders && headers.has("authorization")) {
+    const request =
+      typeof input === "object" && "method" in input ? input : undefined;
+    const url = request ? request.url : String(input);
+    const method = init?.method ?? request?.method ?? "GET";
+    headers.delete("authorization");
+    for (const [name, value] of Object.entries(
+      await getAuthHeaders(method, url),
+    )) {
+      headers.set(name, value);
+    }
+  }
 
   return fetch(input, { ...init, headers });
 };

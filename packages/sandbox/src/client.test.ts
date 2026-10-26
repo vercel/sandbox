@@ -12,7 +12,7 @@ vi.mock("xdg-app-paths", () => ({
   }),
 }));
 
-import { sandboxClient } from "./client";
+import { sandboxClient, setGetAuthHeaders } from "./client";
 import { writeTelemetryConfig } from "./telemetry";
 
 describe("fetchWithUserAgent", () => {
@@ -66,5 +66,65 @@ describe("fetchWithUserAgent", () => {
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
     expect(userAgent).toContain("vercel/sandbox/");
     expect(userAgent).not.toContain(" agent/");
+  });
+});
+
+describe("getAuthHeaders", () => {
+  const fetchMock = vi.fn(
+    async (..._args: Parameters<typeof globalThis.fetch>) =>
+      new Response("{}", { status: 200 }),
+  );
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    setGetAuthHeaders(undefined);
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  const list = () =>
+    sandboxClient
+      .list({ token: "vca_fake", teamId: "team_fake", projectId: "prj_fake" })
+      .catch(() => undefined);
+
+  it("replaces the Bearer header with new headers for every attempt", async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response("{}", { status: 500 }))
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    let proof = 0;
+    const getAuthHeaders = vi.fn(async () => ({
+      authorization: "DPoP vca_fake",
+      dpop: `proof-${++proof}`,
+    }));
+    setGetAuthHeaders(getAuthHeaders);
+
+    await list();
+
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    const [first, second] = fetchMock.mock.calls.map(
+      (call) => new Headers(call[1]?.headers),
+    );
+    expect(first.get("authorization")).toBe("DPoP vca_fake");
+    expect(first.get("dpop")).toBe("proof-1");
+    expect(second.get("dpop")).toBe("proof-2");
+    const [method, url] = getAuthHeaders.mock.calls[0] as unknown as [
+      string,
+      string,
+    ];
+    expect(method).toBe("GET");
+    expect(url).toMatch(/^https:\/\/vercel\.com\/api\/v\d+\/sandboxes/);
+  });
+
+  it("sends Bearer without a getAuthHeaders", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
+
+    await list();
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer vca_fake");
+    expect(headers.has("dpop")).toBe(false);
   });
 });

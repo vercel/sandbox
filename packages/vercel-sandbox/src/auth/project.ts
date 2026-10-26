@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchApi } from "./api.js";
+import { fetchApi, type ApiAuth } from "./api.js";
 import { NotOk } from "./error.js";
 import { readLinkedProject } from "./linked-project.js";
 
@@ -59,6 +59,7 @@ function isSkippableTeamError(e: unknown): boolean {
  *
  * @param opts.token - Vercel API authentication token.
  * @param opts.teamId - Optional team slug. If omitted, candidate teams are resolved automatically.
+ * @param opts.fetch - Optional fetch implementation used for every API request.
  * @param opts.cwd - Optional directory to search for `.vercel/project.json`. Defaults to `process.cwd()`.
  * @returns The resolved scope with `projectId`, `teamId`, and whether the project was `created`.
  *
@@ -74,6 +75,8 @@ export async function inferScope(opts: {
   token: string;
   teamId?: string;
   cwd?: string;
+  /** Optional fetch implementation used for every API request. */
+  fetch?: typeof globalThis.fetch;
 }): Promise<{
   projectId: string;
   teamId: string;
@@ -81,10 +84,11 @@ export async function inferScope(opts: {
   teamSlug?: string;
   projectSlug?: string;
 }> {
+  const auth: ApiAuth = { token: opts.token, fetch: opts.fetch };
   const linkedProject = await readLinkedProject(opts.cwd ?? process.cwd());
   if (linkedProject) {
     const slugs = await resolveLinkedProjectSlugs(
-      opts.token,
+      auth,
       linkedProject.teamId,
       linkedProject.projectId,
     );
@@ -92,11 +96,11 @@ export async function inferScope(opts: {
   }
 
   if (opts.teamId) {
-    return tryTeam(opts.token, opts.teamId);
+    return tryTeam(auth, opts.teamId);
   }
 
   const userData = await fetchApi({
-    token: opts.token,
+    ...auth,
     endpoint: "/v2/user",
   }).then(UserSchema.parse);
   const { defaultTeamId, username } = userData.user;
@@ -104,11 +108,11 @@ export async function inferScope(opts: {
   // 1. Try defaultTeamId first
   if (defaultTeamId) {
     try {
-      const result = await tryTeam(opts.token, defaultTeamId);
+      const result = await tryTeam(auth, defaultTeamId);
       // Resolve team slug (best-effort)
       try {
         const team = await fetchApi({
-          token: opts.token,
+          ...auth,
           endpoint: `/v2/teams/${encodeURIComponent(defaultTeamId)}`,
         }).then(z.object({ slug: z.string() }).parse);
         return { ...result, teamSlug: team.slug };
@@ -127,7 +131,7 @@ export async function inferScope(opts: {
       next === null
         ? "/v2/teams?limit=20"
         : `/v2/teams?limit=20&until=${next}`;
-    const page = await fetchApi({ token: opts.token, endpoint }).then(
+    const page = await fetchApi({ ...auth, endpoint }).then(
       TeamsSchema.parse,
     );
 
@@ -146,7 +150,7 @@ export async function inferScope(opts: {
 
     if (bestHobbyTeam && bestHobbyTeam.id !== defaultTeamId) {
       try {
-        const result = await tryTeam(opts.token, bestHobbyTeam.id);
+        const result = await tryTeam(auth, bestHobbyTeam.id);
         return { ...result, teamSlug: bestHobbyTeam.slug };
       } catch (e) {
         if (!isSkippableTeamError(e)) throw e;
@@ -156,7 +160,7 @@ export async function inferScope(opts: {
 
   // 3. Fall back to username as personal team
   try {
-    const result = await tryTeam(opts.token, username);
+    const result = await tryTeam(auth, username);
     return { ...result, teamSlug: username };
   } catch (e) {
     if (!isSkippableTeamError(e)) throw e;
@@ -176,7 +180,7 @@ export async function inferScope(opts: {
  * @throws {NotOk} On authorization or other API errors.
  */
 async function tryTeam(
-  token: string,
+  auth: ApiAuth,
   teamId: string,
 ): Promise<{ projectId: string; teamId: string; created: boolean }> {
   const teamParam = teamId.startsWith("team_")
@@ -186,7 +190,7 @@ async function tryTeam(
   let created = false;
   try {
     await fetchApi({
-      token,
+      ...auth,
       endpoint: `/v2/projects/${encodeURIComponent(DEFAULT_PROJECT_NAME)}?${teamParam}`,
     });
   } catch (e) {
@@ -195,7 +199,7 @@ async function tryTeam(
     }
 
     await fetchApi({
-      token,
+      ...auth,
       endpoint: `/v11/projects?${teamParam}`,
       method: "POST",
       body: JSON.stringify({
@@ -214,7 +218,7 @@ async function tryTeam(
  * human-readable names from the API in parallel.
  */
 async function resolveLinkedProjectSlugs(
-  token: string,
+  auth: ApiAuth,
   teamId: string,
   projectId: string,
 ): Promise<{ teamSlug?: string; projectSlug?: string }> {
@@ -224,11 +228,11 @@ async function resolveLinkedProjectSlugs(
       : `slug=${encodeURIComponent(teamId)}`;
     const [teamData, projectData] = await Promise.all([
       fetchApi({
-        token,
+        ...auth,
         endpoint: `/v2/teams/${encodeURIComponent(teamId)}`,
       }).then(z.object({ slug: z.string() }).parse),
       fetchApi({
-        token,
+        ...auth,
         endpoint: `/v2/projects/${encodeURIComponent(projectId)}?${teamParam}`,
       }).then(z.object({ name: z.string() }).parse),
     ]);

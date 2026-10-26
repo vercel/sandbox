@@ -1,11 +1,19 @@
 import { NotOk } from "./error.js";
 
-export async function fetchApi(opts: {
+export interface ApiAuth {
   token: string;
-  endpoint: string;
-  method?: string;
-  body?: string;
-}): Promise<unknown> {
+  /** Optional fetch implementation, for example to add headers per request. */
+  fetch?: typeof globalThis.fetch;
+}
+
+export async function fetchApi(
+  opts: ApiAuth & {
+    endpoint: string;
+    method?: string;
+    body?: string;
+  },
+): Promise<unknown> {
+  const fetch = opts.fetch ?? globalThis.fetch;
   const x = await fetch(`https://vercel.com/api${opts.endpoint}`, {
     method: opts.method,
     body: opts.body,

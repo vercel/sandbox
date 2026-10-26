@@ -294,6 +294,18 @@ describe("inferScope", () => {
     });
   });
 
+  test("passes the given fetch to every API request", async () => {
+    fetchApiMock.mockImplementation(
+      mockUserAndTeams({ defaultTeamId: "team_default" }),
+    );
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    await inferScope({ token: "token", fetch });
+    expect(fetchApiMock.mock.calls.length).toBeGreaterThan(1);
+    for (const [opts] of fetchApiMock.mock.calls) {
+      expect(opts).toMatchObject({ token: "token", fetch });
+    }
+  });
+
   describe("project creation", () => {
     test("project 404 triggers project creation", async () => {
       fetchApiMock.mockImplementation(async ({ method }) => {
@@ -477,7 +489,8 @@ describe("inferScope", () => {
         if (endpoint.includes("teamId=team_blocked")) {
           throw new NotOk({
             statusCode: 402,
-            responseText: "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
+            responseText:
+              "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
           });
         }
         return {};
