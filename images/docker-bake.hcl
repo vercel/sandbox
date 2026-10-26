@@ -98,6 +98,7 @@ target "universal" {
   }
 
   args = {
+    FX_VERSION     = "0.0.14"
     NODE_VERSION   = "24.22.1"
     PYTHON_VERSION = "3.14"
   }
