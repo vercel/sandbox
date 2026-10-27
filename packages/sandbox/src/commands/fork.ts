@@ -89,43 +89,28 @@ export const fork = cmd.command({
       command: `sandbox fork my-source --name my-forked-sandbox --vcpus 4`,
     },
   ],
-  async handler({
-    source,
-    name,
-    nonPersistent,
-    ports,
-    scope,
-    timeout,
-    vcpus,
-    silent,
-    connect,
-    envVars,
-    tags,
-    region,
-    failoverRegions,
-    networkId,
-    snapshotExpiration,
-    keepLastSnapshots,
-    keepLastSnapshotsFor,
-    deleteEvictedSnapshots,
-    networkPolicy: networkPolicyMode,
-    allowedDomains,
-    allowedCIDRs,
-    deniedCIDRs,
-  }) {
-    const networkPolicyProvided =
-      networkPolicyMode !== undefined ||
-      allowedDomains.length > 0 ||
-      allowedCIDRs.length > 0 ||
-      deniedCIDRs.length > 0;
-    const networkPolicy = networkPolicyProvided
-      ? buildNetworkPolicy({
-          networkPolicy: networkPolicyMode,
-          allowedDomains,
-          allowedCIDRs,
-          deniedCIDRs,
-        })
-      : undefined;
+  async handler(input) {
+    const {
+      source,
+      name,
+      nonPersistent,
+      ports,
+      scope,
+      timeout,
+      vcpus,
+      silent,
+      connect,
+      envVars,
+      tags,
+      region,
+      failoverRegions,
+      networkId,
+      snapshotExpiration,
+      keepLastSnapshots,
+      keepLastSnapshotsFor,
+      deleteEvictedSnapshots,
+    } = input;
+    const networkPolicy = buildNetworkPolicy(input);
 
     const keepLastSnapshotsPayload = buildKeepLastSnapshotsPayload({
       keepLastSnapshots,

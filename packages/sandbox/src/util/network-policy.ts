@@ -1,5 +1,6 @@
 import chalk from "chalk";
-import type { NetworkPolicy } from "@vercel/sandbox";
+import type { NetworkPolicy, NetworkPolicyRule } from "@vercel/sandbox";
+import type { NetworkPolicyArgs } from "../args/network-policy";
 
 type NetworkPolicyMode = "allow-all" | "deny-all";
 
@@ -22,16 +23,54 @@ export function resolveMode(
   return networkPolicy ?? mode;
 }
 
-/**
- * Builds a NetworkPolicy from CLI arguments.
- */
-export function buildNetworkPolicy(args: {
-  networkPolicy?: NetworkPolicyMode;
-  allowedDomains: string[];
-  allowedCIDRs: string[];
-  deniedCIDRs: string[];
-}): NetworkPolicy {
-  const { networkPolicy, allowedDomains, allowedCIDRs, deniedCIDRs } = args;
+function fail(message: string, hint: string): never {
+  throw new Error([message, `${chalk.bold("hint:")} ${hint}`].join("\n"));
+}
+
+function subnetFields(
+  allowedCIDRs: string[],
+  deniedCIDRs: string[],
+): { subnets: { allow?: string[]; deny?: string[] } } | undefined {
+  if (allowedCIDRs.length === 0 && deniedCIDRs.length === 0) {
+    return undefined;
+  }
+  return {
+    subnets: {
+      ...(allowedCIDRs.length > 0 && { allow: allowedCIDRs }),
+      ...(deniedCIDRs.length > 0 && { deny: deniedCIDRs }),
+    },
+  };
+}
+
+export function buildNetworkPolicy(
+  args: NetworkPolicyArgs,
+): NetworkPolicy | undefined {
+  const {
+    networkPolicy,
+    allowedDomains,
+    allowedCIDRs,
+    deniedCIDRs,
+    requestHeaders,
+  } = args;
+
+  if (networkPolicy && requestHeaders.length > 0) {
+    switch (networkPolicy) {
+      case "allow-all":
+        fail(
+          "Cannot combine --network-policy=allow-all with --request-header.",
+          "To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
+        );
+      case "deny-all":
+        fail(
+          "Cannot combine --network-policy=deny-all with --request-header.",
+          "Drop --network-policy. A custom policy already denies every domain it does not allow.",
+        );
+      default: {
+        const _exhaustive: never = networkPolicy;
+        return _exhaustive;
+      }
+    }
+  }
 
   const hasListOptions =
     allowedDomains.length > 0 ||
@@ -47,17 +86,84 @@ export function buildNetworkPolicy(args: {
     );
   }
 
-  if (hasListOptions) {
+  if (networkPolicy) {
+    return networkPolicy;
+  }
+
+  if (!hasListOptions && requestHeaders.length === 0) {
+    return undefined;
+  }
+
+  const subnets = subnetFields(allowedCIDRs, deniedCIDRs);
+  if (requestHeaders.length === 0) {
     return {
       ...(allowedDomains.length > 0 && { allow: allowedDomains }),
-      ...((allowedCIDRs.length > 0 || deniedCIDRs.length > 0) && {
-        subnets: {
-          ...(allowedCIDRs.length > 0 && { allow: allowedCIDRs }),
-          ...(deniedCIDRs.length > 0 && { deny: deniedCIDRs }),
-        },
-      }),
+      ...subnets,
     };
   }
 
-  return networkPolicy ?? "allow-all";
+  // Null prototype so a token such as `__proto__` stays an own key.
+  const byDomain = new Map<string, Record<string, string>>();
+  for (const header of requestHeaders) {
+    let headers = byDomain.get(header.domain);
+    if (!headers) {
+      headers = Object.create(null) as Record<string, string>;
+      byDomain.set(header.domain, headers);
+    }
+    if (Object.hasOwn(headers, header.name)) {
+      fail(
+        `Duplicate request header "${header.name}" for ${header.domain}.`,
+        "Pass each header once per domain. Header names are case-insensitive.",
+      );
+    }
+    headers[header.name] = header.value.reveal();
+  }
+
+  const allow: Record<string, NetworkPolicyRule[]> = Object.create(null);
+  for (const [domain, headers] of byDomain) {
+    allow[domain] = [{ transform: [{ headers }] }];
+  }
+  for (const domain of allowedDomains) {
+    if (!Object.hasOwn(allow, domain)) {
+      allow[domain] = [];
+    }
+  }
+
+  return {
+    allow,
+    ...subnets,
+  };
+}
+
+export function formatRequestHeaderNames(
+  policy: NetworkPolicy | undefined,
+): string | undefined {
+  if (
+    policy === undefined ||
+    typeof policy === "string" ||
+    policy.allow === undefined ||
+    Array.isArray(policy.allow)
+  ) {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+  for (const [domain, rules] of Object.entries(policy.allow)) {
+    const names: string[] = [];
+    for (const rule of rules) {
+      if (!("transform" in rule) || rule.transform === undefined) {
+        continue;
+      }
+      for (const transform of rule.transform) {
+        if (transform.headers === undefined) {
+          continue;
+        }
+        names.push(...Object.keys(transform.headers));
+      }
+    }
+    if (names.length > 0) {
+      parts.push(`${domain} (${names.join(", ")})`);
+    }
+  }
+  return parts.length === 0 ? undefined : parts.join(", ");
 }

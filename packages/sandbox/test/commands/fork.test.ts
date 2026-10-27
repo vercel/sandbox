@@ -196,6 +196,33 @@ describe("fork command", () => {
     expect(call.networkId).toBeUndefined();
   });
 
+  test("sends a request header policy", async () => {
+    process.env.NPM_AUTH = "Bearer npm_abc==";
+    try {
+      const { fork } = await import("../../src/commands/fork.ts");
+      await cmd.run(fork, [
+        "my-source",
+        "--request-header",
+        "registry.npmjs.org:authorization:NPM_AUTH",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ]);
+
+      expect(mockFork.mock.calls[0][0].networkPolicy).toEqual({
+        allow: {
+          "registry.npmjs.org": [
+            {
+              transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+            },
+          ],
+        },
+      });
+    } finally {
+      delete process.env.NPM_AUTH;
+    }
+  });
+
   test("fails when the source positional is missing", async () => {
     const { fork } = await import("../../src/commands/fork.ts");
     await expect(
