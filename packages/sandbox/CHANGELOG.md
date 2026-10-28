@@ -1,5 +1,18 @@
 # sandbox
 
+## 4.11.0
+
+### Minor Changes
+
+- Add `--request-header domain:header=value` and `--request-header-from-env domain:header=ENV_VAR` so the CLI can set an outbound request header in a network policy. Use `--request-header-from-env` to keep a secret out of the command line. ([#410](https://github.com/vercel/sandbox/pull/410))
+
+### Patch Changes
+
+- Update README intro to reflect persistent-by-default sandboxes. ([#408](https://github.com/vercel/sandbox/pull/408))
+
+- Updated dependencies [[`0fd6b326b429167f662b91fd423cdb76a1c0ca76`](https://github.com/vercel/sandbox/commit/0fd6b326b429167f662b91fd423cdb76a1c0ca76)]:
+  - @vercel/sandbox@3.9.1
+
 ## 4.10.0
 
 ### Minor Changes
