@@ -9,7 +9,11 @@ import {
   networkPolicyArgs,
   networkPolicyMode as networkPolicyModeType,
 } from "../args/network-policy";
-import { buildNetworkPolicy, resolveMode } from "../util/network-policy";
+import {
+  buildNetworkPolicy,
+  formatRequestHeaderNames,
+  resolveMode,
+} from "../util/network-policy";
 import { vcpusType } from "../args/vcpus";
 import { failoverRegionListType, regionType } from "../args/region";
 import { networkIdOrNoneType } from "../args/network-id";
@@ -787,32 +791,32 @@ const networkPolicyCommand = cmd.command({
     }),
     scope,
   },
+  examples: [
+    {
+      description:
+        "Set an Authorization header from an environment variable and allow every other domain",
+      command:
+        "NPM_AUTH=\"Bearer $NPM_TOKEN\" sandbox config network-policy my-sandbox --allowed-domain '*' --request-header-from-env registry.npmjs.org:authorization=NPM_AUTH",
+    },
+    {
+      description: "Set a header whose value is not secret",
+      command:
+        "sandbox config network-policy my-sandbox --allowed-domain '*' --request-header api.example.com:x-source=ci",
+    },
+  ],
   async handler({
     scope: { token, team, project },
     sandbox: sandboxName,
-    networkPolicy: networkPolicyFlag,
-    mode: modeFlag,
-    allowedDomains,
-    allowedCIDRs,
-    deniedCIDRs,
+    mode,
+    ...policyArgs
   }) {
-    const networkPolicyMode = resolveMode(networkPolicyFlag, modeFlag);
-
-    if (
-      networkPolicyMode === undefined &&
-      allowedDomains.length === 0 &&
-      allowedCIDRs.length === 0 &&
-      deniedCIDRs.length === 0
-    ) {
-      throw new Error(`Network policy mode or custom rules must be set.`);
-    }
-
     const networkPolicy = buildNetworkPolicy({
-      networkPolicy: networkPolicyMode,
-      allowedDomains,
-      allowedCIDRs,
-      deniedCIDRs,
+      ...policyArgs,
+      networkPolicy: resolveMode(policyArgs.networkPolicy, mode),
     });
+    if (networkPolicy === undefined) {
+      throw new Error("Network policy mode or custom rules must be set.");
+    }
 
     const sandbox =
       typeof sandboxName !== "string"
@@ -834,11 +838,20 @@ const networkPolicyCommand = cmd.command({
           chalk.cyan(sandbox.name) +
           "\n",
       );
-      const mode =
+      const headers = formatRequestHeaderNames(networkPolicy);
+      const modeLabel =
         typeof networkPolicy === "string" ? networkPolicy : "restricted";
       process.stderr.write(
-        chalk.dim("   ╰ ") + "mode: " + chalk.cyan(mode) + "\n",
+        chalk.dim(headers === undefined ? "   ╰ " : "   │ ") +
+          "mode: " +
+          chalk.cyan(modeLabel) +
+          "\n",
       );
+      if (headers !== undefined) {
+        process.stderr.write(
+          chalk.dim("   ╰ ") + "request headers: " + chalk.cyan(headers) + "\n",
+        );
+      }
     } catch (error) {
       spinner.stop();
       throw error;
