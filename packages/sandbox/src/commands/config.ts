@@ -794,9 +794,14 @@ const networkPolicyCommand = cmd.command({
   examples: [
     {
       description:
-        "Set an Authorization header on the npm registry and allow every other domain",
+        "Set an Authorization header from an environment variable and allow every other domain",
       command:
-        "sandbox config network-policy my-sandbox --allowed-domain '*' --request-header \"registry.npmjs.org:authorization:Bearer $NPM_TOKEN\"",
+        "NPM_AUTH=\"Bearer $NPM_TOKEN\" sandbox config network-policy my-sandbox --allowed-domain '*' --request-header-env registry.npmjs.org:authorization:NPM_AUTH",
+    },
+    {
+      description: "Set a header whose value is not secret",
+      command:
+        "sandbox config network-policy my-sandbox --allowed-domain '*' --request-header api.example.com:x-source:ci",
     },
   ],
   async handler({

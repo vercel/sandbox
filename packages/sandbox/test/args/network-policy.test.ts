@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { inspect, stripVTControlCharacters } from "node:util";
-import { parseRequestHeader, Redacted } from "../../src/args/network-policy.ts";
+import {
+  parseRequestHeader,
+  parseRequestHeaderFromEnv,
+  Redacted,
+} from "../../src/args/network-policy.ts";
 
 const SECRET = "Bearer npm_abc==";
 
@@ -23,7 +27,7 @@ const MATCHER_HINT =
   "hint: Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
 const FORMAT_ERROR = [
   "Invalid --request-header value.",
-  "hint: Use domain:header:value, for example registry.npmjs.org:authorization:Bearer <token>.",
+  "hint: Use domain:header:value, for example example.com:x-source:ci.",
 ].join("\n");
 
 describe("parseRequestHeader", () => {
@@ -147,6 +151,103 @@ describe("parseRequestHeader", () => {
     expect(message).toBe(
       [
         "Header authorization for registry.npmjs.org contains a carriage return or line feed.",
+        "hint: Header values must be a single line.",
+      ].join("\n"),
+    );
+    expect(message).not.toContain("ZZSECRETZZ");
+  });
+});
+
+describe("parseRequestHeaderFromEnv", () => {
+  function envError(input: string, env: NodeJS.ProcessEnv): string {
+    try {
+      parseRequestHeaderFromEnv(input, env);
+    } catch (error) {
+      return text(error);
+    }
+    throw new Error(`expected parse to fail for ${input}`);
+  }
+
+  test("reads the value from the named variable", () => {
+    const parsed = parseRequestHeaderFromEnv(
+      "registry.npmjs.org:Authorization:NPM_AUTH",
+      { NPM_AUTH: SECRET },
+    );
+
+    expect(parsed.domain).toBe("registry.npmjs.org");
+    expect(parsed.name).toBe("authorization");
+    expect(parsed.value.reveal()).toBe("Bearer npm_abc==");
+  });
+
+  test("rejects an unset variable without echoing a value", () => {
+    expect(envError("registry.npmjs.org:authorization:NPM_AUTH", {})).toBe(
+      [
+        "Header authorization for registry.npmjs.org reads NPM_AUTH, which is not set.",
+        'hint: Set NPM_AUTH to the full header value, for example NPM_AUTH="Bearer $NPM_TOKEN".',
+      ].join("\n"),
+    );
+  });
+
+  test.each(["constructor", "toString", "__proto__"])(
+    "treats %s as an unset variable, not an inherited property",
+    (envVar) => {
+      expect(envError(`registry.npmjs.org:authorization:${envVar}`, {})).toBe(
+        [
+          `Header authorization for registry.npmjs.org reads ${envVar}, which is not set.`,
+          `hint: Set ${envVar} to the full header value, for example ${envVar}="Bearer $NPM_TOKEN".`,
+        ].join("\n"),
+      );
+    },
+  );
+
+  test("rejects an empty variable", () => {
+    expect(
+      envError("registry.npmjs.org:authorization:NPM_AUTH", { NPM_AUTH: "" }),
+    ).toBe(
+      [
+        "Header authorization for registry.npmjs.org reads NPM_AUTH, which is empty.",
+        'hint: Set NPM_AUTH to the full header value, for example NPM_AUTH="Bearer $NPM_TOKEN".',
+      ].join("\n"),
+    );
+  });
+
+  test.each([
+    ["a space", "registry.npmjs.org:authorization:has space"],
+    ["a leading digit", "registry.npmjs.org:authorization:9API"],
+    ["a literal value", `registry.npmjs.org:authorization:${SECRET}`],
+  ])("rejects a variable name with %s without echoing it", (_label, input) => {
+    const message = envError(input, { "has space": SECRET, "9API": SECRET });
+
+    expect(message).toBe(
+      [
+        "Invalid environment variable name in --request-header-env.",
+        "hint: Use a name matching [A-Za-z_][A-Za-z0-9_]*, for example NPM_AUTH.",
+      ].join("\n"),
+    );
+    expect(message).not.toContain(SECRET);
+    expect(message).not.toContain("has space");
+  });
+
+  test("rejects a flag with one colon", () => {
+    expect(envError("api.example.com:x-token", {})).toBe(
+      [
+        "Invalid --request-header-env value.",
+        "hint: Use domain:header:ENV_VAR, for example registry.npmjs.org:authorization:NPM_AUTH.",
+      ].join("\n"),
+    );
+  });
+
+  test.each([
+    ["carriage return", "ZZSECRETZZ\rmore"],
+    ["line feed", "ZZSECRETZZ\nmore"],
+  ])("rejects a %s in the variable without echoing it", (_label, value) => {
+    const message = envError("registry.npmjs.org:authorization:NPM_AUTH", {
+      NPM_AUTH: value,
+    });
+
+    expect(message).toBe(
+      [
+        "Header authorization for registry.npmjs.org reads NPM_AUTH, which contains a carriage return or line feed.",
         "hint: Header values must be a single line.",
       ].join("\n"),
     );

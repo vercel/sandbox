@@ -222,6 +222,7 @@ describe("config command", () => {
     });
 
     afterEach(() => {
+      vi.unstubAllEnvs();
       vi.restoreAllMocks();
     });
 
@@ -318,6 +319,60 @@ describe("config command", () => {
       expect(result.output).not.toContain("npm_abc");
       expect(result.output).not.toContain(secret);
     });
+
+    test("--request-header-env reads the value from the environment", async () => {
+      vi.stubEnv("NPM_AUTH", secret);
+      mockGet.mockResolvedValue(fakeSandbox({ name: "my-sbx" }));
+      const result = await runPolicy([
+        "--allowed-domain",
+        "*",
+        "--request-header-env",
+        "registry.npmjs.org:authorization:NPM_AUTH",
+      ]);
+
+      expect(result.failed).toBe(false);
+      expect(mockUpdate).toHaveBeenCalledWith({
+        networkPolicy: {
+          allow: {
+            "registry.npmjs.org": [
+              {
+                transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+              },
+            ],
+            "*": [],
+          },
+        },
+      });
+      expect(tree(result.output)).toBe(
+        [
+          "✅ Network policy updated for sandbox my-sbx",
+          "   │ mode: restricted",
+          "   ╰ request headers: registry.npmjs.org (authorization)",
+        ].join("\n"),
+      );
+      expect(result.output).not.toContain(secret);
+    });
+
+    test.each([
+      ["unset", undefined, "which is not set."],
+      ["empty", "", "which is empty."],
+    ])(
+      "--request-header-env rejects an %s variable before update",
+      async (_label, value, ending) => {
+        vi.stubEnv("NPM_AUTH", value);
+        const result = await runPolicy([
+          "--request-header-env",
+          "registry.npmjs.org:authorization:NPM_AUTH",
+        ]);
+
+        expect(result.failed).toBe(true);
+        expect(mockUpdate).not.toHaveBeenCalled();
+        expect(result.output).toContain(
+          `Header authorization for registry.npmjs.org reads NPM_AUTH, ${ending}`,
+        );
+        expect(result.output).not.toContain(secret);
+      },
+    );
 
     test("keeps the single mode line when no header is set", async () => {
       mockGet.mockResolvedValue(fakeSandbox({ name: "my-sbx" }));
@@ -443,7 +498,7 @@ describe("config command", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output.trim()).toBe(
         [
-          "Cannot combine --network-policy=allow-all with --request-header.",
+          "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
           "hint: To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
         ].join("\n"),
       );
@@ -462,7 +517,7 @@ describe("config command", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output.trim()).toBe(
         [
-          "Cannot combine --network-policy=deny-all with --request-header.",
+          "Cannot combine --network-policy=deny-all with --request-header or --request-header-env.",
           "hint: Drop --network-policy. A custom policy already denies every domain it does not allow.",
         ].join("\n"),
       );
@@ -481,7 +536,7 @@ describe("config command", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output.trim()).toBe(
         [
-          "Cannot combine --network-policy=allow-all with --request-header.",
+          "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
           "hint: To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
         ].join("\n"),
       );

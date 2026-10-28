@@ -16,6 +16,7 @@ const empty = {
   allowedCIDRs: [] as string[],
   deniedCIDRs: [] as string[],
   requestHeaders: [] as RequestHeader[],
+  requestHeadersFromEnv: [] as RequestHeader[],
 };
 
 const registry = header(
@@ -149,6 +150,46 @@ describe("buildNetworkPolicy", () => {
     );
   });
 
+  test("merges --request-header-env headers into the same domain rule", () => {
+    expect(
+      buildNetworkPolicy({
+        ...empty,
+        requestHeaders: [header("registry.npmjs.org", "x-npm-team", "acme")],
+        requestHeadersFromEnv: [registry],
+      }),
+    ).toEqual({
+      allow: {
+        "registry.npmjs.org": [
+          {
+            transform: [
+              {
+                headers: {
+                  "x-npm-team": "acme",
+                  authorization: "Bearer npm_abc",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  test("rejects the same header from both flags", () => {
+    expect(() =>
+      buildNetworkPolicy({
+        ...empty,
+        requestHeaders: [header("registry.npmjs.org", "authorization", "x")],
+        requestHeadersFromEnv: [registry],
+      }),
+    ).toThrowError(
+      [
+        'Duplicate request header "authorization" for registry.npmjs.org.',
+        "hint: Pass each header once per domain. Header names are case-insensitive.",
+      ].join("\n"),
+    );
+  });
+
   test("keeps the same header name on two domains", () => {
     expect(
       buildNetworkPolicy({
@@ -180,7 +221,7 @@ describe("buildNetworkPolicy", () => {
 
     expect(text(caught)).toBe(
       [
-        "Cannot combine --network-policy=allow-all with --request-header.",
+        "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
         "hint: To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
       ].join("\n"),
     );
@@ -200,7 +241,7 @@ describe("buildNetworkPolicy", () => {
 
     expect(text(caught)).toBe(
       [
-        "Cannot combine --network-policy=deny-all with --request-header.",
+        "Cannot combine --network-policy=deny-all with --request-header or --request-header-env.",
         "hint: Drop --network-policy. A custom policy already denies every domain it does not allow.",
       ].join("\n"),
     );
