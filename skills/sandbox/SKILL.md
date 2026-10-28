@@ -1101,8 +1101,8 @@ sandbox config keep-last-snapshots-for <name> <duration|none>
 sandbox config delete-evicted-snapshots <name> <true|false>
 sandbox config current-snapshot <name> <snapshot-id>
 sandbox config network-policy <name> --network-policy deny-all
-sandbox config network-policy <name> --allowed-domain '*' --request-header api.example.com:x-source:ci  # domain:header:value
-API_AUTH="Bearer $API_TOKEN" sandbox config network-policy <name> --allowed-domain '*' --request-header-env api.example.com:authorization:API_AUTH  # Secret value read from $API_AUTH
+sandbox config network-policy <name> --allowed-domain '*' --request-header api.example.com:x-source=ci  # domain:header=value
+API_AUTH="Bearer $API_TOKEN" sandbox config network-policy <name> --allowed-domain '*' --request-header-from-env api.example.com:authorization:API_AUTH  # Secret value read from $API_AUTH
 sandbox config tags <name> --tag env=prod
 ```
 

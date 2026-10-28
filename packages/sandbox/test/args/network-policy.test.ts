@@ -27,13 +27,13 @@ const MATCHER_HINT =
   "hint: Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
 const FORMAT_ERROR = [
   "Invalid --request-header value.",
-  "hint: Use domain:header:value, for example example.com:x-source:ci.",
+  "hint: Use domain:header=value, for example example.com:x-source=ci.",
 ].join("\n");
 
 describe("parseRequestHeader", () => {
-  test("takes the literal value after the second colon, including spaces and padding", () => {
+  test("takes the literal value after the equals sign, including spaces and padding", () => {
     const parsed = parseRequestHeader(
-      `registry.npmjs.org:authorization:${SECRET}`,
+      `registry.npmjs.org:authorization=${SECRET}`,
     );
 
     expect(parsed.domain).toBe("registry.npmjs.org");
@@ -43,7 +43,7 @@ describe("parseRequestHeader", () => {
 
   test("keeps colons and equals signs in the value", () => {
     const parsed = parseRequestHeader(
-      "api.example.com:x-forwarded:https://a.example/b?c=d:e",
+      "api.example.com:x-forwarded=https://a.example/b?c=d:e",
     );
 
     expect(parsed.domain).toBe("api.example.com");
@@ -52,9 +52,9 @@ describe("parseRequestHeader", () => {
   });
 
   test("accepts wildcard domains and lowercases the header name", () => {
-    const wildcard = parseRequestHeader("*.example.com:X-Api-Key:k");
-    const star = parseRequestHeader("*:x-trace:1");
-    const dotted = parseRequestHeader("www.*.com:X.Trace:1");
+    const wildcard = parseRequestHeader("*.example.com:X-Api-Key=k");
+    const star = parseRequestHeader("*:x-trace=1");
+    const dotted = parseRequestHeader("www.*.com:X.Trace=1");
 
     expect(wildcard.domain).toBe("*.example.com");
     expect(wildcard.name).toBe("x-api-key");
@@ -66,16 +66,17 @@ describe("parseRequestHeader", () => {
   });
 
   test("accepts a bracket that is not a leading matcher prefix", () => {
-    const parsed = parseRequestHeader(`foo[bar].com:authorization:${SECRET}`);
+    const parsed = parseRequestHeader(`foo[bar].com:authorization=${SECRET}`);
 
     expect(parsed.domain).toBe("foo[bar].com");
     expect(parsed.name).toBe("authorization");
   });
 
   test.each([
-    ["one colon", "api.example.com:x-token"],
+    ["no equals sign", "api.example.com:x-token"],
+    ["the colon form", "api.example.com:x-token:ZZSECRETZZ"],
     ["no colon", "api.example.com"],
-    ["an empty domain", ":authorization:ZZSECRETZZ"],
+    ["an empty domain", ":authorization=ZZSECRETZZ"],
   ])("rejects %s without echoing the input", (_label, input) => {
     const message = parseError(input);
 
@@ -85,7 +86,7 @@ describe("parseRequestHeader", () => {
   });
 
   test("rejects a bad header token without echoing the input", () => {
-    const input = "registry.npmjs.org:bad header:ZZSECRETZZ";
+    const input = "registry.npmjs.org:bad header=ZZSECRETZZ";
     const message = parseError(input);
 
     expect(message).toBe(
@@ -100,7 +101,7 @@ describe("parseRequestHeader", () => {
   });
 
   test("rejects an empty header name without echoing the value", () => {
-    const message = parseError("registry.npmjs.org::ZZSECRETZZ");
+    const message = parseError("registry.npmjs.org:=ZZSECRETZZ");
 
     expect(message).toBe(
       [
@@ -121,7 +122,7 @@ describe("parseRequestHeader", () => {
   ])(
     "rejects reserved domain syntax %s without echoing the domain or value",
     (_label, domain) => {
-      const message = parseError(`${domain}:authorization:${SECRET}`);
+      const message = parseError(`${domain}:authorization=${SECRET}`);
 
       expect(message).toBe(
         ["Invalid domain for header authorization.", MATCHER_HINT].join("\n"),
@@ -132,12 +133,12 @@ describe("parseRequestHeader", () => {
   );
 
   test("rejects an empty value and names only the validated parts", () => {
-    const message = parseError("registry.npmjs.org:authorization:");
+    const message = parseError("registry.npmjs.org:authorization=");
 
     expect(message).toBe(
       [
         "Header authorization for registry.npmjs.org has an empty value.",
-        "hint: Put the value after the second colon: domain:header:value.",
+        "hint: Put the value after the equals sign: domain:header=value.",
       ].join("\n"),
     );
   });
@@ -146,7 +147,7 @@ describe("parseRequestHeader", () => {
     ["carriage return", "ZZSECRETZZ\rmore"],
     ["line feed", "ZZSECRETZZ\nmore"],
   ])("rejects a %s in the value without echoing it", (_label, value) => {
-    const message = parseError(`registry.npmjs.org:authorization:${value}`);
+    const message = parseError(`registry.npmjs.org:authorization=${value}`);
 
     expect(message).toBe(
       [
@@ -220,7 +221,7 @@ describe("parseRequestHeaderFromEnv", () => {
 
     expect(message).toBe(
       [
-        "Invalid environment variable name in --request-header-env.",
+        "Invalid environment variable name in --request-header-from-env.",
         "hint: Use a name matching [A-Za-z_][A-Za-z0-9_]*, for example NPM_AUTH.",
       ].join("\n"),
     );
@@ -231,7 +232,7 @@ describe("parseRequestHeaderFromEnv", () => {
   test("rejects a flag with one colon", () => {
     expect(envError("api.example.com:x-token", {})).toBe(
       [
-        "Invalid --request-header-env value.",
+        "Invalid --request-header-from-env value.",
         "hint: Use domain:header:ENV_VAR, for example registry.npmjs.org:authorization:NPM_AUTH.",
       ].join("\n"),
     );

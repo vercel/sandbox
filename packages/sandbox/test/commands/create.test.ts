@@ -59,7 +59,7 @@ describe("create command", () => {
     try {
       const { create } = await import("../../src/commands/create.ts");
       await cmd.run(create, [
-        "--request-header-env",
+        "--request-header-from-env",
         "registry.npmjs.org:authorization:NPM_AUTH",
         "--scope=team",
         "--project=proj",
@@ -84,7 +84,7 @@ describe("create command", () => {
     const { create } = await import("../../src/commands/create.ts");
     await cmd.run(create, [
       "--request-header",
-      "registry.npmjs.org:authorization:Bearer npm_abc==",
+      "registry.npmjs.org:authorization=Bearer npm_abc==",
       "--scope=team",
       "--project=proj",
       "--silent",

@@ -150,7 +150,7 @@ describe("buildNetworkPolicy", () => {
     );
   });
 
-  test("merges --request-header-env headers into the same domain rule", () => {
+  test("merges --request-header-from-env headers into the same domain rule", () => {
     expect(
       buildNetworkPolicy({
         ...empty,
@@ -221,7 +221,7 @@ describe("buildNetworkPolicy", () => {
 
     expect(text(caught)).toBe(
       [
-        "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
+        "Cannot combine --network-policy=allow-all with --request-header or --request-header-from-env.",
         "hint: To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
       ].join("\n"),
     );
@@ -241,7 +241,7 @@ describe("buildNetworkPolicy", () => {
 
     expect(text(caught)).toBe(
       [
-        "Cannot combine --network-policy=deny-all with --request-header or --request-header-env.",
+        "Cannot combine --network-policy=deny-all with --request-header or --request-header-from-env.",
         "hint: Drop --network-policy. A custom policy already denies every domain it does not allow.",
       ].join("\n"),
     );

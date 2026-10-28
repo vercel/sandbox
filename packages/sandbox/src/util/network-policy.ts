@@ -58,12 +58,12 @@ export function buildNetworkPolicy(
     switch (networkPolicy) {
       case "allow-all":
         fail(
-          "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
+          "Cannot combine --network-policy=allow-all with --request-header or --request-header-from-env.",
           "To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
         );
       case "deny-all":
         fail(
-          "Cannot combine --network-policy=deny-all with --request-header or --request-header-env.",
+          "Cannot combine --network-policy=deny-all with --request-header or --request-header-from-env.",
           "Drop --network-policy. A custom policy already denies every domain it does not allow.",
         );
       default: {

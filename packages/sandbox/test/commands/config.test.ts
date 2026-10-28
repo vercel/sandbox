@@ -213,7 +213,7 @@ describe("config command", () => {
 
   describe("network-policy", () => {
     const secret = "Bearer npm_abc==";
-    const header = `registry.npmjs.org:authorization:${secret}`;
+    const header = `registry.npmjs.org:authorization=${secret}`;
 
     beforeEach(() => {
       vi.spyOn(process, "exit").mockImplementation((code?: number) => {
@@ -320,13 +320,13 @@ describe("config command", () => {
       expect(result.output).not.toContain(secret);
     });
 
-    test("--request-header-env reads the value from the environment", async () => {
+    test("--request-header-from-env reads the value from the environment", async () => {
       vi.stubEnv("NPM_AUTH", secret);
       mockGet.mockResolvedValue(fakeSandbox({ name: "my-sbx" }));
       const result = await runPolicy([
         "--allowed-domain",
         "*",
-        "--request-header-env",
+        "--request-header-from-env",
         "registry.npmjs.org:authorization:NPM_AUTH",
       ]);
 
@@ -357,11 +357,11 @@ describe("config command", () => {
       ["unset", undefined, "which is not set."],
       ["empty", "", "which is empty."],
     ])(
-      "--request-header-env rejects an %s variable before update",
+      "--request-header-from-env rejects an %s variable before update",
       async (_label, value, ending) => {
         vi.stubEnv("NPM_AUTH", value);
         const result = await runPolicy([
-          "--request-header-env",
+          "--request-header-from-env",
           "registry.npmjs.org:authorization:NPM_AUTH",
         ]);
 
@@ -410,7 +410,7 @@ describe("config command", () => {
     test("rejects an empty value before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "registry.npmjs.org:authorization:",
+        "registry.npmjs.org:authorization=",
       ]);
 
       expect(result.failed).toBe(true);
@@ -420,10 +420,10 @@ describe("config command", () => {
       );
     });
 
-    test("rejects a value without a second colon before update", async () => {
+    test("rejects the colon form without an equals sign before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "registry.npmjs.org:authorization=Bearer ZZINLINESECRET",
+        "registry.npmjs.org:authorization:Bearer ZZINLINESECRET",
       ]);
 
       expect(result.failed).toBe(true);
@@ -434,7 +434,7 @@ describe("config command", () => {
     test("rejects a bad header token before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        `registry.npmjs.org:bad header:${secret}`,
+        `registry.npmjs.org:bad header=${secret}`,
       ]);
 
       expect(result.failed).toBe(true);
@@ -447,7 +447,7 @@ describe("config command", () => {
     test("rejects a reserved domain character before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        `ZZSECRETZZ/v1:authorization:${secret}`,
+        `ZZSECRETZZ/v1:authorization=${secret}`,
       ]);
 
       expect(result.failed).toBe(true);
@@ -460,7 +460,7 @@ describe("config command", () => {
     test("rejects a leading bracket before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        `[ZZSECRETZZ.com:authorization:${secret}`,
+        `[ZZSECRETZZ.com:authorization=${secret}`,
       ]);
 
       expect(result.failed).toBe(true);
@@ -476,7 +476,7 @@ describe("config command", () => {
     ])("rejects a %s in the value before update", async (_label, value) => {
       const result = await runPolicy([
         "--request-header",
-        `registry.npmjs.org:authorization:${value}`,
+        `registry.npmjs.org:authorization=${value}`,
       ]);
 
       expect(result.failed).toBe(true);
@@ -498,7 +498,7 @@ describe("config command", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output.trim()).toBe(
         [
-          "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
+          "Cannot combine --network-policy=allow-all with --request-header or --request-header-from-env.",
           "hint: To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
         ].join("\n"),
       );
@@ -517,7 +517,7 @@ describe("config command", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output.trim()).toBe(
         [
-          "Cannot combine --network-policy=deny-all with --request-header or --request-header-env.",
+          "Cannot combine --network-policy=deny-all with --request-header or --request-header-from-env.",
           "hint: Drop --network-policy. A custom policy already denies every domain it does not allow.",
         ].join("\n"),
       );
@@ -536,7 +536,7 @@ describe("config command", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output.trim()).toBe(
         [
-          "Cannot combine --network-policy=allow-all with --request-header or --request-header-env.",
+          "Cannot combine --network-policy=allow-all with --request-header or --request-header-from-env.",
           "hint: To set request headers and keep every other domain allowed, replace --network-policy=allow-all with --allowed-domain '*'.",
         ].join("\n"),
       );
@@ -548,7 +548,7 @@ describe("config command", () => {
         "--request-header",
         header,
         "--request-header",
-        "registry.npmjs.org:Authorization:acme",
+        "registry.npmjs.org:Authorization=acme",
       ]);
 
       expect(result.failed).toBe(true);

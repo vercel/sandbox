@@ -24,7 +24,7 @@ export const networkPolicy = cmd.option({
     `Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-env for custom policies.`,
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies.`,
   type: cmd.optional(networkPolicyMode),
 });
 
@@ -94,10 +94,11 @@ function fail(message: string, hint: string): never {
 function splitRequestHeader(
   input: string,
   flag: string,
+  separator: ":" | "=",
   formatHint: string,
 ): { domain: string; name: string; rest: string } {
   const first = input.indexOf(":");
-  const second = first <= 0 ? -1 : input.indexOf(":", first + 1);
+  const second = first <= 0 ? -1 : input.indexOf(separator, first + 1);
   if (second < 0) {
     fail(`Invalid ${flag} value.`, formatHint);
   }
@@ -132,13 +133,14 @@ export function parseRequestHeader(input: string): RequestHeader {
   } = splitRequestHeader(
     input,
     "--request-header",
-    "Use domain:header:value, for example example.com:x-source:ci.",
+    "=",
+    "Use domain:header=value, for example example.com:x-source=ci.",
   );
 
   if (value === "") {
     fail(
       `Header ${name} for ${domain} has an empty value.`,
-      "Put the value after the second colon: domain:header:value.",
+      "Put the value after the equals sign: domain:header=value.",
     );
   }
   if (isMultiline(value)) {
@@ -161,13 +163,14 @@ export function parseRequestHeaderFromEnv(
     rest: envVar,
   } = splitRequestHeader(
     input,
-    "--request-header-env",
+    "--request-header-from-env",
+    ":",
     "Use domain:header:ENV_VAR, for example registry.npmjs.org:authorization:NPM_AUTH.",
   );
 
   if (!ENV_VAR_NAME.test(envVar)) {
     fail(
-      "Invalid environment variable name in --request-header-env.",
+      "Invalid environment variable name in --request-header-from-env.",
       "Use a name matching [A-Za-z_][A-Za-z0-9_]*, for example NPM_AUTH.",
     );
   }
@@ -197,7 +200,7 @@ export function parseRequestHeaderFromEnv(
 }
 
 const requestHeaderType = cmd.extendType(cmd.string, {
-  displayName: "domain:header:value",
+  displayName: "domain:header=value",
   async from(input) {
     return parseRequestHeader(input);
   },
@@ -212,12 +215,12 @@ const requestHeaderFromEnvType = cmd.extendType(cmd.string, {
 
 export const requestHeaders = cmd.multioption({
   long: "request-header",
-  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it, so use --request-header-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.`,
+  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.`,
   type: cmd.array(requestHeaderType),
 });
 
 export const requestHeadersFromEnv = cmd.multioption({
-  long: "request-header-env",
+  long: "request-header-from-env",
   description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header:ENV_VAR".`,
   type: cmd.array(requestHeaderFromEnvType),
 });

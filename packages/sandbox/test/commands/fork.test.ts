@@ -201,7 +201,7 @@ describe("fork command", () => {
     await cmd.run(fork, [
       "my-source",
       "--request-header",
-      "registry.npmjs.org:authorization:Bearer npm_abc==",
+      "registry.npmjs.org:authorization=Bearer npm_abc==",
       "--scope=team",
       "--project=proj",
       "--silent",
