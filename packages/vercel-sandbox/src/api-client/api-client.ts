@@ -47,6 +47,7 @@ import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { StringDecoder } from "node:string_decoder";
+import { startSdkVersionCheck } from "../utils/check-sdk-version.js";
 
 const STDIN_MAX_RETRIES = 5;
 const STDIN_MAX_STALLED_TIMEOUTS = 2;
@@ -139,6 +140,7 @@ export class APIClient extends BaseClient {
   private teamId: string;
   private projectId: string | undefined;
   private isJwtToken: boolean;
+  private checkVersion: boolean;
 
   constructor(params: {
     baseUrl?: string;
@@ -155,6 +157,9 @@ export class APIClient extends BaseClient {
 
     this.teamId = params.teamId;
     this.isJwtToken = false;
+    this.checkVersion =
+      !params.fetch &&
+      (!params.baseUrl || params.baseUrl === "https://vercel.com/api");
 
     const claims = decodeUnverifiedToken(params.token);
     if (claims) {
@@ -199,15 +204,20 @@ export class APIClient extends BaseClient {
     const aiAgent = await detectAgentName();
     const agentSuffix = aiAgent ? ` agent/${aiAgent}` : "";
 
-    return super.request(path, {
-      ...params,
-      query: { teamId: this.teamId, ...params?.query },
-      headers: {
-        "content-type": "application/json",
-        "user-agent": `vercel/sandbox/${VERSION}${agentSuffix} (Node.js/${process.version}; ${os.platform()}/${os.arch()})`,
-        ...params?.headers,
-      },
-    });
+    const versionCheck = this.checkVersion ? startSdkVersionCheck() : undefined;
+    try {
+      return await super.request(path, {
+        ...params,
+        query: { teamId: this.teamId, ...params?.query },
+        headers: {
+          "content-type": "application/json",
+          "user-agent": `vercel/sandbox/${VERSION}${agentSuffix} (Node.js/${process.version}; ${os.platform()}/${os.arch()})`,
+          ...params?.headers,
+        },
+      });
+    } finally {
+      versionCheck?.report();
+    }
   }
 
   async getSession(

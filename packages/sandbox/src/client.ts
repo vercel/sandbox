@@ -48,7 +48,8 @@ export const snapshotClient: Pick<
     withErrorHandling(() =>
       Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
     ),
-  get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
+  get: (params) =>
+    withErrorHandling(() => Snapshot.get({ fetch: fetchWithUserAgent, ...params })),
   tree: (params) =>
     withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
 };

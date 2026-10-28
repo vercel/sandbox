@@ -10,6 +10,25 @@ session stops and restored when it resumes. View the documentation
 - [`@vercel/sandbox`](https://www.npmjs.com/package/@vercel/sandbox) (this package) - The SDK for programmatic access to Vercel Sandbox. [Source](https://github.com/vercel/sandbox/tree/main/packages/vercel-sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/sdk-reference)
 - [`sandbox`](https://www.npmjs.com/package/sandbox) - The CLI for interacting with Vercel Sandbox from the command line. [Source](https://github.com/vercel/sandbox/tree/main/packages/sandbox) | [Documentation](https://vercel.com/docs/vercel-sandbox/cli-reference)
 
+## SDK update warnings
+
+The SDK prints an update warning to stderr once per process when its version is
+at least one major version behind the latest stable release on npm. The warning
+includes your installed version, the latest version, and an upgrade command.
+Review the [release notes](https://github.com/vercel/sandbox/releases) before a
+major upgrade.
+
+The check runs alongside the first API request and caches the latest version for
+one hour. If npm is unavailable or the lookup does not finish before the API
+request, the SDK continues without waiting and uses any cached version. Prerelease
+versions, custom `fetch` implementations, and custom API URLs skip the check.
+The Sandbox CLI uses its own update notice.
+
+Set the environment variable `SANDBOX_SKIP_VERSION_CHECK=1` to disable the lookup
+and warning, including in CI or environments with restricted network access.
+Install a release containing this check to receive future warnings; existing
+older installations cannot gain it without an update.
+
 ## What is a sandbox?
 
 A sandbox is an isolated Linux system for your experimentation and use.

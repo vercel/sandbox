@@ -12,7 +12,7 @@ vi.mock("xdg-app-paths", () => ({
   }),
 }));
 
-import { sandboxClient } from "./client";
+import { sandboxClient, snapshotClient } from "./client";
 import { writeTelemetryConfig } from "./telemetry";
 
 describe("fetchWithUserAgent", () => {
@@ -48,6 +48,24 @@ describe("fetchWithUserAgent", () => {
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
     expect(userAgent).toContain("vercel/sandbox/");
     expect(userAgent.match(/ agent\//g)).toHaveLength(1);
+  });
+
+  it("uses the CLI transport for snapshot lookups without an SDK registry check", async () => {
+    await snapshotClient
+      .get({
+        snapshotId: "snap_fake",
+        token: "fake",
+        teamId: "team_fake",
+        projectId: "prj_fake",
+      })
+      .catch(() => undefined);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, init] = fetchMock.mock.calls[0]!;
+    expect(String(input)).toContain("/snapshots/snap_fake");
+    expect(new Headers(init?.headers).get("user-agent")).toMatch(
+      /^vercel\/sandbox-cli\//,
+    );
   });
 
   it("strips the SDK's agent phrase on a config-file opt-out", async () => {
