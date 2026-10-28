@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import Path from "node:path";
-import xdgAppPaths from "xdg-app-paths";
 import { VERSION } from "../version.js";
 import * as Log from "./log.js";
 
@@ -19,6 +19,22 @@ interface VersionCheckOptions {
   cachePath?: string;
   currentVersion?: string;
   fetchImpl?: typeof fetch;
+}
+
+function defaultCachePath(): string {
+  // xdg-app-paths reads require.main.filename on import, which breaks bundled apps.
+  const root = process.env.XDG_CACHE_HOME;
+  if (root) return Path.join(root, "sandbox-sdk", "latest-version.json");
+  if (process.platform === "win32") {
+    return Path.join(
+      process.env.LOCALAPPDATA || Path.join(homedir(), "AppData", "Local"),
+      "sandbox-sdk",
+      "Cache",
+      "latest-version.json",
+    );
+  }
+  const cacheDir = process.platform === "darwin" ? "Library/Caches" : ".cache";
+  return Path.join(homedir(), cacheDir, "sandbox-sdk", "latest-version.json");
 }
 
 function stableMajor(version: unknown): number | undefined {
@@ -68,9 +84,7 @@ export function startSdkVersionCheck(
   state[CHECKED] = true;
 
   try {
-    const cachePath =
-      opts.cachePath ??
-      Path.join(xdgAppPaths("sandbox-sdk").cache(), "latest-version.json");
+    const cachePath = opts.cachePath ?? defaultCachePath();
     const cached = readCache(cachePath);
     let latest = cached?.latest;
     let controller: AbortController | undefined;

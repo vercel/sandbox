@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import Path from "node:path";
 import { isMajorBehind } from "./check-sdk-version.js";
 
 vi.mock("../version.js", () => ({ VERSION: "3.9.1" }));
+vi.mock("node:os", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:os")>();
+  return { ...original, homedir: vi.fn(original.homedir) };
+});
 
 describe("SDK version policy", () => {
   it.each([
@@ -53,6 +63,7 @@ describe("SDK version notice", () => {
     );
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     rmSync(dir, { recursive: true, force: true });
   });
@@ -60,6 +71,30 @@ describe("SDK version notice", () => {
   function cache(latest = "4.0.0", checkedAt = Date.now()) {
     writeFileSync(cachePath, JSON.stringify({ latest, checkedAt }));
   }
+
+  it.each([
+    ["linux", ".cache/sandbox-sdk"],
+    ["darwin", "Library/Caches/sandbox-sdk"],
+    ["win32", "AppData/Local/sandbox-sdk/Cache"],
+  ])(
+    "reuses the native cache on %s without XDG overrides",
+    (platform, relative) => {
+      vi.stubGlobal("process", { ...process, platform });
+      vi.stubEnv("XDG_CACHE_HOME", "");
+      vi.stubEnv("LOCALAPPDATA", "");
+      vi.mocked(homedir).mockReturnValue(dir);
+      const nativePath = Path.join(dir, relative, "latest-version.json");
+      mkdirSync(Path.dirname(nativePath), { recursive: true });
+      writeFileSync(
+        nativePath,
+        JSON.stringify({ latest: "4.0.0", checkedAt: Date.now() }),
+      );
+      const fetchImpl = vi.fn();
+      start({ fetchImpl })?.report();
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledOnce();
+    },
+  );
 
   it("warns once across clients and report calls, using a fresh cache without network", () => {
     cache();
