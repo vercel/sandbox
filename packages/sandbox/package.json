@@ -4,7 +4,7 @@
   "version": "4.11.0",
   "scripts": {
     "clean": "rm -rf node_modules dist",
-    "sandbox": "tsx ./src/sandbox.ts",
+    "sandbox": "tsx ./src/dev-cli.ts",
     "build": "tsdown",
     "vercel-build": "tsx ./scripts/create-preview-deployment-tgz.ts",
     "test": "vitest",
