@@ -76,16 +76,14 @@ export class Redacted {
 export type RequestHeader = {
   readonly domain: string;
   readonly name: string;
-  readonly envVar: string;
   readonly value: Redacted;
 };
 
-const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HEADER_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-const RESERVED_DOMAIN_SYNTAX = /^\[|[ /?@:=]/;
+const RESERVED_DOMAIN_SYNTAX = /^\[|[ /?@=]/;
 
-const INLINE_HINT =
-  'Header values are read from an environment variable, never the command line: NAME="Bearer ..." sandbox ... --request-header domain:header:NAME';
+const FORMAT_HINT =
+  "Use domain:header:value, for example registry.npmjs.org:authorization:Bearer <token>.";
 const MATCHER_HINT =
   "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
 
@@ -93,64 +91,47 @@ function fail(message: string, hint: string): never {
   throw new Error([message, `${chalk.bold("hint:")} ${hint}`].join("\n"));
 }
 
-export function parseRequestHeader(
-  input: string,
-  env: NodeJS.ProcessEnv = process.env,
-): RequestHeader {
-  const last = input.lastIndexOf(":");
-  const mid = last <= 0 ? -1 : input.lastIndexOf(":", last - 1);
-  if (mid <= 0) {
-    fail("Invalid --request-header value.", INLINE_HINT);
+export function parseRequestHeader(input: string): RequestHeader {
+  const first = input.indexOf(":");
+  const second = first <= 0 ? -1 : input.indexOf(":", first + 1);
+  if (second < 0) {
+    fail("Invalid --request-header value.", FORMAT_HINT);
   }
 
-  const envVar = input.slice(last + 1);
-  const nameRaw = input.slice(mid + 1, last);
-  const domain = input.slice(0, mid);
-
-  if (!ENV_VAR_NAME.test(envVar)) {
-    fail(
-      "Invalid environment variable name in --request-header.",
-      "Use a name matching [A-Za-z_][A-Za-z0-9_]*, for example NPM_AUTH.",
-    );
-  }
+  const domain = input.slice(0, first);
+  const nameRaw = input.slice(first + 1, second);
+  const value = input.slice(second + 1);
 
   if (!HEADER_TOKEN.test(nameRaw)) {
     fail(
-      `Invalid header name for environment variable ${envVar}.`,
+      "Invalid header name in --request-header.",
       "Header names are RFC 9110 tokens.",
     );
   }
   const name = nameRaw.toLowerCase();
 
   if (RESERVED_DOMAIN_SYNTAX.test(domain)) {
-    fail(`Invalid domain for header ${name} from ${envVar}.`, MATCHER_HINT);
+    fail(`Invalid domain for header ${name}.`, MATCHER_HINT);
   }
 
-  const raw = env[envVar];
-  if (raw === undefined) {
+  if (value === "") {
     fail(
-      `Environment variable ${envVar} is not set for header ${name} on ${domain}.`,
-      `Set ${envVar} to the full header value, e.g. ${envVar}="Bearer $NPM_TOKEN".`,
+      `Header ${name} for ${domain} has an empty value.`,
+      "Put the value after the second colon: domain:header:value.",
     );
   }
-  if (raw === "") {
+  if (value.includes("\r") || value.includes("\n")) {
     fail(
-      `Environment variable ${envVar} is empty for header ${name} on ${domain}.`,
-      `Set ${envVar} to the full header value, e.g. ${envVar}="Bearer $NPM_TOKEN".`,
-    );
-  }
-  if (raw.includes("\r") || raw.includes("\n")) {
-    fail(
-      `Environment variable ${envVar} contains a carriage return or line feed.`,
+      `Header ${name} for ${domain} contains a carriage return or line feed.`,
       "Header values must be a single line.",
     );
   }
 
-  return { domain, name, envVar, value: new Redacted(raw) };
+  return { domain, name, value: new Redacted(value) };
 }
 
 const requestHeaderType = cmd.extendType(cmd.string, {
-  displayName: "domain:header:ENV_VAR",
+  displayName: "domain:header:value",
   async from(input) {
     return parseRequestHeader(input);
   },
@@ -158,7 +139,7 @@ const requestHeaderType = cmd.extendType(cmd.string, {
 
 export const requestHeaders = cmd.multioption({
   long: "request-header",
-  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:ENV_VAR". The value is read from the environment variable ENV_VAR, so it never appears in the command line. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.`,
+  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.`,
   type: cmd.array(requestHeaderType),
 });
 

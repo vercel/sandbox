@@ -796,7 +796,7 @@ const networkPolicyCommand = cmd.command({
       description:
         "Set an Authorization header on the npm registry and allow every other domain",
       command:
-        "sandbox config network-policy my-sandbox --allowed-domain '*' --request-header registry.npmjs.org:authorization:NPM_AUTH",
+        "sandbox config network-policy my-sandbox --allowed-domain '*' --request-header \"registry.npmjs.org:authorization:Bearer $NPM_TOKEN\"",
     },
   ],
   async handler({

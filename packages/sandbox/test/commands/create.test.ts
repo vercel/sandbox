@@ -55,28 +55,23 @@ describe("create command", () => {
   });
 
   test("sends a request header policy", async () => {
-    process.env.NPM_AUTH = "Bearer npm_abc==";
-    try {
-      const { create } = await import("../../src/commands/create.ts");
-      await cmd.run(create, [
-        "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
-        "--scope=team",
-        "--project=proj",
-        "--silent",
-      ]);
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--request-header",
+      "registry.npmjs.org:authorization:Bearer npm_abc==",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
 
-      expect(mockCreate.mock.calls[0][0].networkPolicy).toEqual({
-        allow: {
-          "registry.npmjs.org": [
-            {
-              transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
-            },
-          ],
-        },
-      });
-    } finally {
-      delete process.env.NPM_AUTH;
-    }
+    expect(mockCreate.mock.calls[0][0].networkPolicy).toEqual({
+      allow: {
+        "registry.npmjs.org": [
+          {
+            transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+          },
+        ],
+      },
+    });
   });
 });

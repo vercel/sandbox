@@ -213,18 +213,15 @@ describe("config command", () => {
 
   describe("network-policy", () => {
     const secret = "Bearer npm_abc==";
+    const header = `registry.npmjs.org:authorization:${secret}`;
 
     beforeEach(() => {
-      process.env.NPM_AUTH = secret;
-      process.env.NPM_TEAM = "acme";
       vi.spyOn(process, "exit").mockImplementation((code?: number) => {
         throw new Error(`process.exit:${code ?? 0}`);
       });
     });
 
     afterEach(() => {
-      delete process.env.NPM_AUTH;
-      delete process.env.NPM_TEAM;
       vi.restoreAllMocks();
     });
 
@@ -295,7 +292,7 @@ describe("config command", () => {
         "--allowed-domain",
         "*",
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        header,
       ]);
 
       expect(result.failed).toBe(false);
@@ -353,36 +350,22 @@ describe("config command", () => {
       );
     });
 
-    test("rejects an unset variable before update", async () => {
-      delete process.env.NPM_AUTH;
+    // Parse errors come from cmd-ts, which echoes the raw argument, so these
+    // tests check the message and that nothing was sent, not the echo.
+    test("rejects an empty value before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        "registry.npmjs.org:authorization:",
       ]);
 
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output).toContain(
-        "Environment variable NPM_AUTH is not set for header authorization on registry.npmjs.org.",
-      );
-      expect(result.output).not.toContain(secret);
-    });
-
-    test("rejects an empty variable before update", async () => {
-      process.env.NPM_AUTH = "";
-      const result = await runPolicy([
-        "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
-      ]);
-
-      expect(result.failed).toBe(true);
-      expect(mockUpdate).not.toHaveBeenCalled();
-      expect(result.output).toContain(
-        "Environment variable NPM_AUTH is empty for header authorization on registry.npmjs.org.",
+        "Header authorization for registry.npmjs.org has an empty value.",
       );
     });
 
-    test("rejects an inline value before update", async () => {
+    test("rejects a value without a second colon before update", async () => {
       const result = await runPolicy([
         "--request-header",
         "registry.npmjs.org:authorization=Bearer ZZINLINESECRET",
@@ -393,38 +376,23 @@ describe("config command", () => {
       expect(result.output).toContain("Invalid --request-header value.");
     });
 
-    test("rejects a bad env var name before update", async () => {
-      const result = await runPolicy([
-        "--request-header",
-        "registry.npmjs.org:authorization:has space",
-      ]);
-
-      expect(result.failed).toBe(true);
-      expect(mockUpdate).not.toHaveBeenCalled();
-      expect(result.output).toContain(
-        "Invalid environment variable name in --request-header.",
-      );
-      expect(result.output).not.toContain(secret);
-    });
-
     test("rejects a bad header token before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "registry.npmjs.org:bad header:NPM_AUTH",
+        `registry.npmjs.org:bad header:${secret}`,
       ]);
 
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output).toContain(
-        "Invalid header name for environment variable NPM_AUTH.",
+        "Invalid header name in --request-header.",
       );
-      expect(result.output).not.toContain(secret);
     });
 
     test("rejects a reserved domain character before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "ZZSECRETZZ/v1:authorization:NPM_AUTH",
+        `ZZSECRETZZ/v1:authorization:${secret}`,
       ]);
 
       expect(result.failed).toBe(true);
@@ -432,13 +400,12 @@ describe("config command", () => {
       expect(result.output).toContain(
         "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
       );
-      expect(result.output).not.toContain(secret);
     });
 
     test("rejects a leading bracket before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "[ZZSECRETZZ.com:authorization:NPM_AUTH",
+        `[ZZSECRETZZ.com:authorization:${secret}`,
       ]);
 
       expect(result.failed).toBe(true);
@@ -446,37 +413,22 @@ describe("config command", () => {
       expect(result.output).toContain(
         "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
       );
-      expect(result.output).not.toContain(secret);
     });
 
-    test("rejects a carriage return in the value before update", async () => {
-      process.env.NPM_AUTH = "ZZSECRETZZ\rmore";
+    test.each([
+      ["carriage return", "ZZSECRETZZ\rmore"],
+      ["line feed", "ZZSECRETZZ\nmore"],
+    ])("rejects a %s in the value before update", async (_label, value) => {
       const result = await runPolicy([
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        `registry.npmjs.org:authorization:${value}`,
       ]);
 
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output).toContain(
-        "Environment variable NPM_AUTH contains a carriage return or line feed.",
+        "Header authorization for registry.npmjs.org contains a carriage return or line feed.",
       );
-      expect(result.output).not.toContain("ZZSECRETZZ");
-    });
-
-    test("rejects a line feed in the value before update", async () => {
-      process.env.NPM_AUTH = "ZZSECRETZZ\nmore";
-      const result = await runPolicy([
-        "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
-      ]);
-
-      expect(result.failed).toBe(true);
-      expect(mockUpdate).not.toHaveBeenCalled();
-      expect(result.output).toContain(
-        "Environment variable NPM_AUTH contains a carriage return or line feed.",
-      );
-      expect(result.output).not.toContain("ZZSECRETZZ");
     });
 
     test("rejects allow-all combined with a header before update", async () => {
@@ -484,7 +436,7 @@ describe("config command", () => {
         "--network-policy",
         "allow-all",
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        header,
       ]);
 
       expect(result.failed).toBe(true);
@@ -503,7 +455,7 @@ describe("config command", () => {
         "--network-policy",
         "deny-all",
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        header,
       ]);
 
       expect(result.failed).toBe(true);
@@ -522,7 +474,7 @@ describe("config command", () => {
         "--mode",
         "allow-all",
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        header,
       ]);
 
       expect(result.failed).toBe(true);
@@ -539,9 +491,9 @@ describe("config command", () => {
     test("rejects a duplicate header before update", async () => {
       const result = await runPolicy([
         "--request-header",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        header,
         "--request-header",
-        "registry.npmjs.org:Authorization:NPM_TEAM",
+        "registry.npmjs.org:Authorization:acme",
       ]);
 
       expect(result.failed).toBe(true);

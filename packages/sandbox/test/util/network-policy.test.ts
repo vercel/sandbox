@@ -8,7 +8,7 @@ import {
 } from "../../src/util/network-policy.ts";
 
 function header(domain: string, name: string, value: string): RequestHeader {
-  return { domain, name, envVar: "X", value: new Redacted(value) };
+  return { domain, name, value: new Redacted(value) };
 }
 
 const empty = {

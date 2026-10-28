@@ -117,7 +117,7 @@ Options:
     --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header:ENV_VAR>   Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:ENV_VAR". The value is read from the environment variable ENV_VAR, so it never appears in the command line. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header <domain:header:value>     Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
     --workdir, -w <str>                        The working directory to run the command in [optional]
 
 Flags:
@@ -180,7 +180,7 @@ Options:
     --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header:ENV_VAR>   Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:ENV_VAR". The value is read from the environment variable ENV_VAR, so it never appears in the command line. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header <domain:header:value>     Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
 
 Flags:
 
@@ -249,7 +249,7 @@ Options:
     --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header:ENV_VAR>   Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:ENV_VAR". The value is read from the environment variable ENV_VAR, so it never appears in the command line. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header <domain:header:value>     Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
 
 Flags:
 
@@ -300,7 +300,7 @@ Options:
     --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header:ENV_VAR>   Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:ENV_VAR". The value is read from the environment variable ENV_VAR, so it never appears in the command line. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header <domain:header:value>     Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
 
 Flags:
 
@@ -638,15 +638,15 @@ Arguments:
 
 Options:
 
-    --network-policy <MODE>                   Network policy mode: "allow-all" or "deny-all"
+    --network-policy <MODE>                 Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header for custom policies. [optional]
-    --allowed-domain <str>                    Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>                      CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                       CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header:ENV_VAR>  Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:ENV_VAR". The value is read from the environment variable ENV_VAR, so it never appears in the command line. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
-    --mode <MODE>                             Alias for --network-policy. [optional]
+    --allowed-domain <str>                  Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                    CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                     CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --request-header <domain:header:value>  Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header:value". The value is everything after the second colon, so it may contain colons. The value appears in the command line, where other processes on the machine can read it. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --mode <MODE>                           Alias for --network-policy. [optional]
 
 Auth & Scope:
 
@@ -662,7 +662,7 @@ Examples:
 
 – Set an Authorization header on the npm registry and allow every other domain
 
-  $ sandbox config network-policy my-sandbox --allowed-domain '*' --request-header registry.npmjs.org:authorization:NPM_AUTH
+  $ sandbox config network-policy my-sandbox --allowed-domain '*' --request-header "registry.npmjs.org:authorization:Bearer $NPM_TOKEN"
 ```
 
 ## `sandbox config network-id`
