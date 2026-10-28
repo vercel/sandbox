@@ -34,4 +34,22 @@ sandbox create opencode # Create a new sandbox and open OpenCode
 sandbox create pi # Create a new sandbox and open Pi
 sandbox create claude # Create a new sandbox and open Claude Code
 sandbox create codex # Create a new sandbox and open Codex
+sandbox create fx # Create a new sandbox and open fx
 ```
+
+Agent shortcuts require an interactive terminal and use the universal image.
+Omit `--image`, `--runtime`, and `--snapshot`. Authenticate with the agent inside
+the sandbox, or pass credentials explicitly with `--env`.
+
+For fx, choose a sign-in option on first launch, or pass an exported AI Gateway
+API key:
+
+```bash
+sandbox create fx --env AI_GATEWAY_API_KEY
+```
+
+The shortcut preserves fx's default permissions. fx can update itself inside the
+sandbox, so its version may change between sessions. Exiting fx leaves the sandbox
+running. Use the printed reconnect command (`fx -c`) to continue the conversation,
+or the stop command when you're finished. If you supplied `--env`, export the
+same values locally before reconnecting; the hint includes names only.

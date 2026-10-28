@@ -1035,6 +1035,7 @@ sandbox create opencode
 sandbox create pi
 sandbox create claude
 sandbox create codex
+sandbox create fx
 
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
@@ -1114,6 +1115,13 @@ drive. The output includes a reminder that size is fixed at creation.
 Agent shortcuts use the universal image and require an interactive terminal.
 Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
 authentication for the agent separately from `sandbox login`.
+
+For fx, choose a sign-in option on first launch or pass an exported AI Gateway
+API key with `sandbox create fx --env AI_GATEWAY_API_KEY`. The shortcut preserves
+fx's default permissions. fx can update itself inside the sandbox, so its version
+may change between sessions. Its reconnect command uses `fx -c` to continue the
+conversation. If you supplied `--env`, export the same values locally before
+reconnecting; the hint includes names only.
 
 Exiting the agent leaves the sandbox running. Unless you pass `--silent`, the CLI
 prints reconnect and stop commands. Follow any environment-variable reminder
