@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 3.9.1
+
+### Patch Changes
+
+- Update README intro to reflect persistent-by-default sandboxes. ([#408](https://github.com/vercel/sandbox/pull/408))
+
 ## 3.9.0
 
 ### Patch Changes
