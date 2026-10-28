@@ -327,7 +327,7 @@ describe("config command", () => {
         "--allowed-domain",
         "*",
         "--request-header-from-env",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        "registry.npmjs.org:authorization=NPM_AUTH",
       ]);
 
       expect(result.failed).toBe(false);
@@ -362,7 +362,7 @@ describe("config command", () => {
         vi.stubEnv("NPM_AUTH", value);
         const result = await runPolicy([
           "--request-header-from-env",
-          "registry.npmjs.org:authorization:NPM_AUTH",
+          "registry.npmjs.org:authorization=NPM_AUTH",
         ]);
 
         expect(result.failed).toBe(true);

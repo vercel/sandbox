@@ -60,7 +60,7 @@ describe("create command", () => {
       const { create } = await import("../../src/commands/create.ts");
       await cmd.run(create, [
         "--request-header-from-env",
-        "registry.npmjs.org:authorization:NPM_AUTH",
+        "registry.npmjs.org:authorization=NPM_AUTH",
         "--scope=team",
         "--project=proj",
         "--silent",

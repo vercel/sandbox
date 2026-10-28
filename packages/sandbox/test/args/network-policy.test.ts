@@ -171,7 +171,7 @@ describe("parseRequestHeaderFromEnv", () => {
 
   test("reads the value from the named variable", () => {
     const parsed = parseRequestHeaderFromEnv(
-      "registry.npmjs.org:Authorization:NPM_AUTH",
+      "registry.npmjs.org:Authorization=NPM_AUTH",
       { NPM_AUTH: SECRET },
     );
 
@@ -181,7 +181,7 @@ describe("parseRequestHeaderFromEnv", () => {
   });
 
   test("rejects an unset variable without echoing a value", () => {
-    expect(envError("registry.npmjs.org:authorization:NPM_AUTH", {})).toBe(
+    expect(envError("registry.npmjs.org:authorization=NPM_AUTH", {})).toBe(
       [
         "Header authorization for registry.npmjs.org reads NPM_AUTH, which is not set.",
         'hint: Set NPM_AUTH to the full header value, for example NPM_AUTH="Bearer $NPM_TOKEN".',
@@ -192,7 +192,7 @@ describe("parseRequestHeaderFromEnv", () => {
   test.each(["constructor", "toString", "__proto__"])(
     "treats %s as an unset variable, not an inherited property",
     (envVar) => {
-      expect(envError(`registry.npmjs.org:authorization:${envVar}`, {})).toBe(
+      expect(envError(`registry.npmjs.org:authorization=${envVar}`, {})).toBe(
         [
           `Header authorization for registry.npmjs.org reads ${envVar}, which is not set.`,
           `hint: Set ${envVar} to the full header value, for example ${envVar}="Bearer $NPM_TOKEN".`,
@@ -203,7 +203,7 @@ describe("parseRequestHeaderFromEnv", () => {
 
   test("rejects an empty variable", () => {
     expect(
-      envError("registry.npmjs.org:authorization:NPM_AUTH", { NPM_AUTH: "" }),
+      envError("registry.npmjs.org:authorization=NPM_AUTH", { NPM_AUTH: "" }),
     ).toBe(
       [
         "Header authorization for registry.npmjs.org reads NPM_AUTH, which is empty.",
@@ -213,9 +213,9 @@ describe("parseRequestHeaderFromEnv", () => {
   });
 
   test.each([
-    ["a space", "registry.npmjs.org:authorization:has space"],
-    ["a leading digit", "registry.npmjs.org:authorization:9API"],
-    ["a literal value", `registry.npmjs.org:authorization:${SECRET}`],
+    ["a space", "registry.npmjs.org:authorization=has space"],
+    ["a leading digit", "registry.npmjs.org:authorization=9API"],
+    ["a literal value", `registry.npmjs.org:authorization=${SECRET}`],
   ])("rejects a variable name with %s without echoing it", (_label, input) => {
     const message = envError(input, { "has space": SECRET, "9API": SECRET });
 
@@ -229,11 +229,14 @@ describe("parseRequestHeaderFromEnv", () => {
     expect(message).not.toContain("has space");
   });
 
-  test("rejects a flag with one colon", () => {
-    expect(envError("api.example.com:x-token", {})).toBe(
+  test.each([
+    ["no equals sign", "api.example.com:x-token"],
+    ["the colon form", "registry.npmjs.org:authorization:NPM_AUTH"],
+  ])("rejects %s", (_label, input) => {
+    expect(envError(input, {})).toBe(
       [
         "Invalid --request-header-from-env value.",
-        "hint: Use domain:header:ENV_VAR, for example registry.npmjs.org:authorization:NPM_AUTH.",
+        "hint: Use domain:header=ENV_VAR, for example registry.npmjs.org:authorization=NPM_AUTH.",
       ].join("\n"),
     );
   });
@@ -242,7 +245,7 @@ describe("parseRequestHeaderFromEnv", () => {
     ["carriage return", "ZZSECRETZZ\rmore"],
     ["line feed", "ZZSECRETZZ\nmore"],
   ])("rejects a %s in the variable without echoing it", (_label, value) => {
-    const message = envError("registry.npmjs.org:authorization:NPM_AUTH", {
+    const message = envError("registry.npmjs.org:authorization=NPM_AUTH", {
       NPM_AUTH: value,
     });
 

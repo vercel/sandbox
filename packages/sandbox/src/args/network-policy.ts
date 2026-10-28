@@ -94,11 +94,10 @@ function fail(message: string, hint: string): never {
 function splitRequestHeader(
   input: string,
   flag: string,
-  separator: ":" | "=",
   formatHint: string,
 ): { domain: string; name: string; rest: string } {
   const first = input.indexOf(":");
-  const second = first <= 0 ? -1 : input.indexOf(separator, first + 1);
+  const second = first <= 0 ? -1 : input.indexOf("=", first + 1);
   if (second < 0) {
     fail(`Invalid ${flag} value.`, formatHint);
   }
@@ -133,7 +132,6 @@ export function parseRequestHeader(input: string): RequestHeader {
   } = splitRequestHeader(
     input,
     "--request-header",
-    "=",
     "Use domain:header=value, for example example.com:x-source=ci.",
   );
 
@@ -164,8 +162,7 @@ export function parseRequestHeaderFromEnv(
   } = splitRequestHeader(
     input,
     "--request-header-from-env",
-    ":",
-    "Use domain:header:ENV_VAR, for example registry.npmjs.org:authorization:NPM_AUTH.",
+    "Use domain:header=ENV_VAR, for example registry.npmjs.org:authorization=NPM_AUTH.",
   );
 
   if (!ENV_VAR_NAME.test(envVar)) {
@@ -207,7 +204,7 @@ const requestHeaderType = cmd.extendType(cmd.string, {
 });
 
 const requestHeaderFromEnvType = cmd.extendType(cmd.string, {
-  displayName: "domain:header:ENV_VAR",
+  displayName: "domain:header=ENV_VAR",
   async from(input) {
     return parseRequestHeaderFromEnv(input);
   },
@@ -221,7 +218,7 @@ export const requestHeaders = cmd.multioption({
 
 export const requestHeadersFromEnv = cmd.multioption({
   long: "request-header-from-env",
-  description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header:ENV_VAR".`,
+  description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".`,
   type: cmd.array(requestHeaderFromEnvType),
 });
 
