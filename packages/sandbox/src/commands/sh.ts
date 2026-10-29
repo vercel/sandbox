@@ -4,9 +4,12 @@ import { create, args as createArgs } from "./create";
 import { exec } from "./exec";
 import { omit } from "../util/omit";
 import { defaultShell } from "../interactive-shell/default-shell";
+import { createContext } from "../args/create-context";
+import { CliError } from "../util/cli-error";
 
 const args = {
   ...omit(createArgs, "connect"),
+  scope: createContext({ allowJson: false }),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the shell exits.",
@@ -17,6 +20,11 @@ export const sh = cmd.command({
   ...commandMetadata.sh,
   args,
   async handler({ removeAfterUse, ...rest }) {
+    if (rest.scope.creationRequested && !rest.scope.mode.interactive) {
+      throw new CliError(
+        "Opening a shell requires an interactive terminal. Create the sandbox without a shell first, then use sandbox connect from a terminal.",
+      );
+    }
     if (!removeAfterUse) {
       return create.handler({
         ...rest,

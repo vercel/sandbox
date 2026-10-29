@@ -47,6 +47,7 @@ import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { StringDecoder } from "node:string_decoder";
+import type { ManagedCredentialOptions } from "../managed-credentials.js";
 
 const STDIN_MAX_RETRIES = 5;
 const STDIN_MAX_STALLED_TIMEOUTS = 2;
@@ -77,7 +78,11 @@ const stdinMaybeWrittenErrors = new WeakSet<object>();
  * earlier attempt of the same request may have been applied before it failed.
  */
 export function stdinMayHaveBeenWritten(error: unknown) {
-  return typeof error === "object" && error !== null && stdinMaybeWrittenErrors.has(error);
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    stdinMaybeWrittenErrors.has(error)
+  );
 }
 
 async function parseStdinResponse(response: Response, maybeApplied = false) {
@@ -228,41 +233,43 @@ export class APIClient extends BaseClient {
   }
 
   async createSandbox(
-    params: WithPrivate<{
-      name?: string;
-      ports?: number[];
-      projectId: string;
-      source?:
-        | {
-            type: "git";
-            url: string;
-            depth?: number;
-            revision?: string;
-            username?: string;
-            password?: string;
-          }
-        | { type: "tarball"; url: string }
-        | { type: "snapshot"; snapshotId: string };
-      timeout?: number;
-      resources?: { vcpus: number };
-      persistent?: boolean;
-      runtime?: RUNTIMES | (string & {});
-      image?: string;
-      networkPolicy?: NetworkPolicy;
-      networkId?: string;
-      env?: Record<string, string>;
-      tags?: Record<string, string>;
-      snapshotExpiration?: number;
-      keepLastSnapshots?: {
-        count: number;
-        expiration?: number;
-        deleteEvicted?: boolean;
-      };
-      mounts?: SandboxMetaData["mounts"];
-      region?: SandboxRegion;
-      failoverRegions?: SandboxRegion[];
-      signal?: AbortSignal;
-    }>,
+    params: WithPrivate<
+      {
+        name?: string;
+        ports?: number[];
+        projectId: string;
+        source?:
+          | {
+              type: "git";
+              url: string;
+              depth?: number;
+              revision?: string;
+              username?: string;
+              password?: string;
+            }
+          | { type: "tarball"; url: string }
+          | { type: "snapshot"; snapshotId: string };
+        timeout?: number;
+        resources?: { vcpus: number };
+        persistent?: boolean;
+        runtime?: RUNTIMES | (string & {});
+        image?: string;
+        networkPolicy?: NetworkPolicy;
+        networkId?: string;
+        env?: Record<string, string>;
+        tags?: Record<string, string>;
+        snapshotExpiration?: number;
+        keepLastSnapshots?: {
+          count: number;
+          expiration?: number;
+          deleteEvicted?: boolean;
+        };
+        mounts?: SandboxMetaData["mounts"];
+        region?: SandboxRegion;
+        failoverRegions?: SandboxRegion[];
+        signal?: AbortSignal;
+      } & ManagedCredentialOptions
+    >,
   ) {
     const privateParams = getPrivateParams(params);
     const endpoint =
@@ -271,10 +278,15 @@ export class APIClient extends BaseClient {
       SandboxAndSessionResponse,
       await this.request(endpoint, {
         method: "POST",
+        // Creation has no idempotency key. An uncertain response must not
+        // result in another sandbox or another set of credential grants.
+        retry: { retries: 0 },
         body: JSON.stringify({
           projectId: params.projectId,
           ports: params.ports,
           source: params.source,
+          commitAs: params.commitAs,
+          credentials: params.credentials,
           timeout: params.timeout,
           resources: params.resources,
           runtime: params.runtime,
