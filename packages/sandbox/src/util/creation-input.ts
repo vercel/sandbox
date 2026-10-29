@@ -49,6 +49,20 @@ const sourceSchema = z.discriminatedUnion("type", [
 
 const unique = (values: readonly string[]) =>
   new Set(values).size === values.length;
+const githubUserId = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .max(16)
+  .refine((value) => Number.isSafeInteger(Number(value)));
+const githubUsername = z
+  .string()
+  .regex(/^@[A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?$/);
+const githubIdentity = z
+  .string()
+  .transform((value) =>
+    /^[0-9]+$/.test(value) || value.startsWith("@") ? value : `@${value}`,
+  )
+  .pipe(z.union([githubUserId, githubUsername]));
 const credentialGroup = z
   .object({
     repositories: z
@@ -61,12 +75,7 @@ const credentialGroup = z
       .min(1)
       .max(GITHUB_API_CREDENTIAL_ACTIONS.length)
       .refine(unique),
-    actAs: z
-      .string()
-      .regex(/^[1-9][0-9]*$/)
-      .max(16)
-      .refine((value) => Number.isSafeInteger(Number(value)))
-      .optional(),
+    actAs: githubIdentity.optional(),
   })
   .strict();
 
@@ -106,7 +115,7 @@ export interface CreationOptions {
   githubRepositories: string[];
   githubActions: string[];
   githubActAs?: string;
-  file?: string;
+  managedCredentialsFile?: string;
 }
 
 export function hasCreationOptions(options: CreationOptions) {
@@ -121,7 +130,7 @@ export function hasCreationOptions(options: CreationOptions) {
     options.githubRepositories.length > 0 ||
     options.githubActions.length > 0 ||
     options.githubActAs !== undefined ||
-    options.file !== undefined
+    options.managedCredentialsFile !== undefined
   );
 }
 
@@ -137,18 +146,20 @@ export async function resolveCreationInput(
       },
     );
   }
-  if (options.file !== undefined) {
-    if (options.file === "")
-      throw new CliError("--file requires a file path or - for stdin.");
-    if (hasCreationOptions({ ...options, file: undefined })) {
+  if (options.managedCredentialsFile !== undefined) {
+    if (options.managedCredentialsFile === "")
       throw new CliError(
-        "--file cannot be combined with Git source or GitHub credential options. Put the complete request in the file.",
+        "--managed-credentials-file requires a file path or - for stdin.",
+      );
+    if (hasCreationOptions({ ...options, managedCredentialsFile: undefined })) {
+      throw new CliError(
+        "--managed-credentials-file cannot be combined with Git source or GitHub credential options. Put the complete request in the file.",
       );
     }
     const content =
-      options.file === "-"
+      options.managedCredentialsFile === "-"
         ? await readStdinPayload()
-        : await readFilePayload(options.file);
+        : await readFilePayload(options.managedCredentialsFile);
     let value: unknown;
     try {
       value = JSON.parse(content);
@@ -156,7 +167,7 @@ export async function resolveCreationInput(
       // JSON.parse's error can contain the input, including an accidentally
       // supplied secret. Never include it in diagnostics.
       throw new CliError(
-        "--file must contain valid UTF-8 JSON. Check the input file's JSON syntax.",
+        "--managed-credentials-file must contain valid UTF-8 JSON. Check the input file's JSON syntax.",
       );
     }
     return validateCreationInput(value);
@@ -301,24 +312,32 @@ export function validateCreationInput(value: unknown): CreationInput {
         : undefined;
     if (!repository) {
       throw new CliError(
-        "A commit identity requires an HTTPS GitHub Git source. Pass --git-source https://github.com/<OWNER>/<REPOSITORY>.git or set source in --file.",
+        "A commit identity requires an HTTPS GitHub Git source. Pass --git-source https://github.com/<OWNER>/<REPOSITORY>.git or set source in --managed-credentials-file.",
       );
     }
     repositories.add(repository.toLowerCase());
   }
-  const identities = new Map<string, string | undefined>();
+  const identities = new Map<string, Set<string | undefined>>();
   for (const group of input.credentials?.github ?? []) {
     for (const name of group.repositories) {
       const repository = name.toLowerCase();
+      const existing = identities.get(repository) ?? new Set();
+      // Keep the existing checks for numeric or omitted identities. The server
+      // resolves usernames before comparing groups that include one.
       if (
-        identities.has(repository) &&
-        identities.get(repository) !== group.actAs
+        [...existing].some(
+          (identity) =>
+            !identity?.startsWith("@") &&
+            !group.actAs?.startsWith("@") &&
+            identity !== group.actAs,
+        )
       ) {
         throw new CliError(
           "GitHub credentials require one identity per repository. Use the same actAs for every occurrence of a repository.",
         );
       }
-      identities.set(repository, group.actAs);
+      existing.add(group.actAs);
+      identities.set(repository, existing);
       repositories.add(repository);
     }
   }
@@ -343,12 +362,14 @@ async function readFilePayload(path: string): Promise<string> {
     constants.O_RDONLY | constants.O_NONBLOCK,
   ).catch(() => {
     throw new CliError(
-      "Can't read --file. Check that the path names a readable JSON file.",
+      "Can't read --managed-credentials-file. Check that the path names a readable JSON file.",
     );
   });
   try {
     if (!(await handle.stat()).isFile())
-      throw new CliError("--file must name a regular JSON file.");
+      throw new CliError(
+        "--managed-credentials-file must name a regular JSON file.",
+      );
     const buffer = Buffer.alloc(MAX_PAYLOAD_BYTES + 1);
     let size = 0;
     while (size < buffer.length) {
@@ -362,13 +383,15 @@ async function readFilePayload(path: string): Promise<string> {
       size += bytesRead;
     }
     if (size > MAX_PAYLOAD_BYTES)
-      throw new CliError("--file must not exceed 64 KiB.");
+      throw new CliError("--managed-credentials-file must not exceed 64 KiB.");
     try {
       return new TextDecoder("utf-8", { fatal: true }).decode(
         buffer.subarray(0, size),
       );
     } catch {
-      throw new CliError("--file must contain valid UTF-8 JSON.");
+      throw new CliError(
+        "--managed-credentials-file must contain valid UTF-8 JSON.",
+      );
     }
   } finally {
     await handle.close();
@@ -378,7 +401,7 @@ async function readFilePayload(path: string): Promise<string> {
 async function readStdinPayload(): Promise<string> {
   if (process.stdin.isTTY)
     throw new CliError(
-      "--file - requires piped JSON input. Redirect a JSON file to stdin or pass its path with --file.",
+      "--managed-credentials-file - requires piped JSON input. Redirect a JSON file to stdin or pass its path with --managed-credentials-file.",
     );
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -398,7 +421,11 @@ async function readStdinPayload(): Promise<string> {
             ),
           );
         } catch {
-          reject(new CliError("--file must contain valid UTF-8 JSON."));
+          reject(
+            new CliError(
+              "--managed-credentials-file must contain valid UTF-8 JSON.",
+            ),
+          );
         }
       }
     };
@@ -406,7 +433,9 @@ async function readStdinPayload(): Promise<string> {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       size += buffer.length;
       if (size > MAX_PAYLOAD_BYTES)
-        finish(new CliError("--file must not exceed 64 KiB."));
+        finish(
+          new CliError("--managed-credentials-file must not exceed 64 KiB."),
+        );
       else chunks.push(buffer);
     };
     const onEnd = () => finish();
@@ -415,7 +444,7 @@ async function readStdinPayload(): Promise<string> {
       () =>
         finish(
           new CliError(
-            "Timed out reading --file - after 30s. Finish the JSON input and close stdin.",
+            "Timed out reading --managed-credentials-file - after 30s. Finish the JSON input and close stdin.",
           ),
         ),
       30_000,

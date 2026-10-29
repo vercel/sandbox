@@ -24,7 +24,7 @@ delegates to; an already-installed Vercel CLI still uses its published version.
 ## One credential group: repeated options
 
 ```sh
-node packages/sandbox/bin/sandbox.mjs create --scope acme --project acme-web --git-source https://github.com/acme/widgets.git --commit-as-name "Grace Hopper" --commit-as-email grace@example.com --github-repository acme/widgets --github-action github:issues:read --github-action github:pull-request:create --github-act-as 42
+node packages/sandbox/bin/sandbox.mjs create --scope acme --project acme-web --git-source https://github.com/acme/widgets.git --commit-as-name "Grace Hopper" --commit-as-email grace@example.com --github-repository acme/widgets --github-action github:issues:read --github-action github:pull-request:create --github-act-as grace-hopper
 ```
 
 `--commit-as-name` and `--commit-as-email` must be supplied together. Instead,
@@ -38,11 +38,18 @@ that source. The commit identity is metadata, not proof of identity or consent.
 Each `--github-repository` and `--github-action` appends one value. Every listed
 repository receives every action, with a single shared identity. Duplicates,
 empty values, comma-separated lists, and repeated scalar options are errors.
-Use `--file` for different actions or identities on different repositories.
+Use `--managed-credentials-file` for different actions or identities on different repositories.
 
-`--github-act-as` accepts a numeric GitHub user ID, not a username. When omitted,
-the API uses the direct caller's connected GitHub account where available.
-It never uses the commit identity as the API identity.
+`--github-act-as` accepts a numeric GitHub user ID or a GitHub username, with or
+without `@`. The CLI sends usernames with `@` for the API to resolve. An all-digit
+value is an ID; prefix an all-digit username with `@`. When omitted, the API uses
+the eligible caller's connected GitHub account where available. It never uses the
+commit identity as the API identity.
+
+The API resolves usernames using stored GitHub connections and project Bounds.
+Unknown and unauthorized usernames receive the same denial. A stored username
+can be stale after a rename, so use a numeric ID to avoid selecting the wrong
+account. Username support requires the API changes in vercel/api#102227.
 
 Use a direct-user Vercel personal token with access to the test team for GitHub
 API requests. It can establish the individual Grant consent during creation.
@@ -81,13 +88,13 @@ enabled, but does not make the initial source clone managed.
 ## Multiple credential groups: JSON file
 
 ```sh
-node packages/sandbox/bin/sandbox.mjs create --scope acme --project acme-web --file packages/sandbox/docs/managed-credentials.example.json
+node packages/sandbox/bin/sandbox.mjs create --scope acme --project acme-web --managed-credentials-file packages/sandbox/docs/managed-credentials.example.json
 ```
 
 The file accepts only `source`, `commitAs`, and `credentials`, using API field
 names. Team, project, token, and sandbox name stay in their existing CLI options.
 The CLI never automatically discovers this file or merges its permission sets
-with options. `--file` conflicts with all new source/credential options, including
+with options. `--managed-credentials-file` conflicts with all new source/credential options, including
 `--no-github`. A `source` in the file conflicts with `--snapshot`.
 
 Git sources support `url`, optional `revision`, and optional positive `depth`.
@@ -97,10 +104,12 @@ A snapshot source cannot be combined with a runtime, image, or agent shortcut.
 An empty file object supplies no credentials; an explicit empty `github` array
 enables tooling without initial grants. Files are UTF-8 JSON, at most 64 KiB.
 
-For generated input, `--file -` reads stdin (bounded to 30 seconds):
+The `actAs` field accepts IDs and usernames, with the same rules as
+`--github-act-as`. For generated input, `--managed-credentials-file -` reads
+stdin (bounded to 30 seconds):
 
 ```sh
-node packages/sandbox/bin/sandbox.mjs create --scope acme --project acme-web --file - --yes --json < packages/sandbox/docs/managed-credentials.example.json
+node packages/sandbox/bin/sandbox.mjs create --scope acme --project acme-web --managed-credentials-file - --yes --json < packages/sandbox/docs/managed-credentials.example.json
 ```
 
 ## Consent, results, and lifecycle

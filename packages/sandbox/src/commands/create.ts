@@ -157,7 +157,7 @@ export const create = cmd.command({
       const launcher = agent ? agents[agent] : undefined;
       if (snapshot !== undefined && creation.source !== undefined) {
         throw new CliError(
-          "--snapshot cannot be combined with --git-source or source in --file.",
+          "--snapshot cannot be combined with --git-source or source in --managed-credentials-file.",
         );
       }
       const source =

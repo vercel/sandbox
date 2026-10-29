@@ -49,8 +49,8 @@ const credentialOptions = {
     type: cmd.optional(cmd.boolean),
     description: "Do not use Git's global commit identity. (experimental)",
   }),
-  file: optionalString(
-    "file",
+  managedCredentialsFile: optionalString(
+    "managed-credentials-file",
     "FILE",
     "Read source, commitAs, and credentials from a JSON file. - reads stdin. Cannot be combined with credential options. (experimental)",
   ),
@@ -74,7 +74,7 @@ const credentialOptions = {
   githubActAs: optionalString(
     "github-act-as",
     "USER",
-    "Numeric GitHub user ID for the credential group; otherwise use the direct caller's connected account. (experimental)",
+    "GitHub user ID or username for the credential group; otherwise use the eligible caller's connected account. (experimental)",
   ),
   githubActions: cmd.multioption({
     long: "github-action",
@@ -88,7 +88,7 @@ const credentialOptions = {
     long: "github-repository",
     type: cmd.array({ ...cmd.string, displayName: "REPOSITORY" }),
     description:
-      "GitHub owner/repository. Repeat to append; duplicates are rejected. One shared identity and action set; use --file for multiple groups. (experimental)",
+      "GitHub owner/repository. Repeat to append; duplicates are rejected. One shared identity and action set; use --managed-credentials-file for multiple groups. (experimental)",
   }),
 };
 
@@ -158,7 +158,7 @@ export function createContext({
         const mode = await resolveExecutionMode({
           json,
           nonInteractive: execution.nonInteractive,
-          payloadStdin: options.file === "-",
+          payloadStdin: options.managedCredentialsFile === "-",
         });
         const creationRequested = hasCreationOptions(options);
         const auth = createScope(

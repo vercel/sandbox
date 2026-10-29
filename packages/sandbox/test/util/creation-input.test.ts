@@ -73,6 +73,57 @@ describe("creation inputs", () => {
     });
   });
 
+  test.each([
+    ["alice", "@alice"],
+    ["@alice", "@alice"],
+    ["Mixed_Case-123", "@Mixed_Case-123"],
+    ["42", "42"],
+    ["@42", "@42"],
+    ["a".repeat(39), `@${"a".repeat(39)}`],
+  ])("normalizes GitHub identity %s to %s", async (input, expected) => {
+    await expect(
+      resolveCreationInput({
+        ...empty,
+        githubRepositories: ["acme/widgets"],
+        githubActions: ["github:issues:read"],
+        githubActAs: input,
+      }),
+    ).resolves.toEqual({
+      credentials: {
+        github: [
+          {
+            repositories: ["acme/widgets"],
+            actions: ["github:issues:read"],
+            actAs: expected,
+          },
+        ],
+      },
+    });
+  });
+
+  test.each([
+    "",
+    "@",
+    "0",
+    "00",
+    "-alice",
+    "alice-",
+    "@@alice",
+    "alice/name",
+    "alice space",
+    "a".repeat(40),
+    "9007199254740992",
+  ])("rejects an invalid GitHub identity %j", async (githubActAs) => {
+    await expect(
+      resolveCreationInput({
+        ...empty,
+        githubRepositories: ["acme/widgets"],
+        githubActions: ["github:issues:read"],
+        githubActAs,
+      }),
+    ).rejects.toThrow("credentials.github.0.actAs");
+  });
+
   test("--commit-as-me reads Git's global name and email", async () => {
     const config = join(directory, "gitconfig");
     await writeFile(
@@ -172,8 +223,12 @@ describe("creation inputs", () => {
       resolveCreationInput({ ...empty, commitAsMe: true, noCommitAsMe: true }),
     ).rejects.toThrow("cannot be used together");
     await expect(
-      resolveCreationInput({ ...empty, commitAsMe: true, file: "input.json" }),
-    ).rejects.toThrow("--file cannot be combined");
+      resolveCreationInput({
+        ...empty,
+        commitAsMe: true,
+        managedCredentialsFile: "input.json",
+      }),
+    ).rejects.toThrow("--managed-credentials-file cannot be combined");
   });
 
   test.each([
@@ -201,11 +256,6 @@ describe("creation inputs", () => {
       githubActions: ["github:issues:read", "github:issues:read"],
     },
     { githubRepositories: ["acme/widgets"], githubActions: ["git:write"] },
-    {
-      githubRepositories: ["acme/widgets"],
-      githubActions: ["github:issues:read"],
-      githubActAs: "grace",
-    },
     {
       githubRepositories: ["acme/widgets"],
       githubActions: ["github:issues:read"],
@@ -282,12 +332,65 @@ describe("creation inputs", () => {
     };
     const file = join(directory, "creation.json");
     await writeFile(file, JSON.stringify(value));
-    await expect(resolveCreationInput({ ...empty, file })).resolves.toEqual(
-      value,
+    await expect(
+      resolveCreationInput({ ...empty, managedCredentialsFile: file }),
+    ).resolves.toEqual(value);
+    await expect(
+      resolveCreationInput({
+        ...empty,
+        managedCredentialsFile: file,
+        github: false,
+      }),
+    ).rejects.toThrow("cannot be combined");
+  });
+
+  test("file input normalizes usernames and lets the API resolve mixed references", async () => {
+    const file = join(directory, "creation-usernames.json");
+    const group = {
+      repositories: ["acme/widgets"],
+      actions: ["github:issues:read"],
+    };
+    await writeFile(
+      file,
+      JSON.stringify({
+        credentials: {
+          github: [
+            { ...group, actAs: "alice" },
+            { ...group, actions: ["github:issues:create"], actAs: "@ALICE" },
+            { ...group, actAs: "42" },
+          ],
+        },
+      }),
     );
     await expect(
-      resolveCreationInput({ ...empty, file, github: false }),
-    ).rejects.toThrow("cannot be combined");
+      resolveCreationInput({ ...empty, managedCredentialsFile: file }),
+    ).resolves.toEqual({
+      credentials: {
+        github: [
+          { ...group, actAs: "@alice" },
+          { ...group, actions: ["github:issues:create"], actAs: "@ALICE" },
+          { ...group, actAs: "42" },
+        ],
+      },
+    });
+  });
+
+  test("different numeric IDs still conflict even when a username appears between them", () => {
+    const group = {
+      repositories: ["acme/widgets"],
+      actions: ["github:issues:read"],
+    };
+    expect(() =>
+      validateCreationInput({
+        credentials: {
+          github: [
+            { ...group, actAs: "42" },
+            { ...group, actAs: "alice" },
+            { ...group, actAs: "43" },
+          ],
+        },
+      }),
+    ).toThrow("one identity per repository");
   });
 
   test("allows the same repository in multiple groups only with a consistent identity", () => {
@@ -336,34 +439,39 @@ describe("creation inputs", () => {
   test("never echoes malformed JSON, secrets, or unknown field names", async () => {
     const file = join(directory, "bad.json");
     await writeFile(file, '{"token":"secret-value"');
-    const error = await resolveCreationInput({ ...empty, file }).catch(
-      (error) => error,
-    );
+    const error = await resolveCreationInput({
+      ...empty,
+      managedCredentialsFile: file,
+    }).catch((error) => error);
     expect(error.message).not.toContain("secret-value");
     await writeFile(file, '{"secret-value":"secret-value"}');
-    const schemaError = await resolveCreationInput({ ...empty, file }).catch(
-      (error) => error,
-    );
+    const schemaError = await resolveCreationInput({
+      ...empty,
+      managedCredentialsFile: file,
+    }).catch((error) => error);
     expect(JSON.stringify(schemaError.options)).not.toContain("secret-value");
     expect(schemaError.message).not.toContain("secret-value");
   });
 
   test("rejects unreadable, directory, oversized and invalid UTF-8 files", async () => {
     await expect(
-      resolveCreationInput({ ...empty, file: join(directory, "missing") }),
+      resolveCreationInput({
+        ...empty,
+        managedCredentialsFile: join(directory, "missing"),
+      }),
     ).rejects.toThrow("Can't read");
     await expect(
-      resolveCreationInput({ ...empty, file: directory }),
+      resolveCreationInput({ ...empty, managedCredentialsFile: directory }),
     ).rejects.toThrow("regular JSON file");
     const file = join(directory, "large.json");
     await writeFile(file, " ".repeat(65537));
-    await expect(resolveCreationInput({ ...empty, file })).rejects.toThrow(
-      "64 KiB",
-    );
+    await expect(
+      resolveCreationInput({ ...empty, managedCredentialsFile: file }),
+    ).rejects.toThrow("64 KiB");
     await writeFile(file, Buffer.from([0xff]));
-    await expect(resolveCreationInput({ ...empty, file })).rejects.toThrow(
-      "UTF-8",
-    );
+    await expect(
+      resolveCreationInput({ ...empty, managedCredentialsFile: file }),
+    ).rejects.toThrow("UTF-8");
   });
 
   test("reads JSON from stdin without prompting", async () => {
@@ -371,7 +479,10 @@ describe("creation inputs", () => {
     vi.spyOn(process, "stdin", "get").mockReturnValue(
       stdin as typeof process.stdin,
     );
-    const result = resolveCreationInput({ ...empty, file: "-" });
+    const result = resolveCreationInput({
+      ...empty,
+      managedCredentialsFile: "-",
+    });
     stdin.end('{"credentials":{"github":[]}}');
     await expect(result).resolves.toEqual({ credentials: { github: [] } });
     expect(stdin.listenerCount("data")).toBe(0);

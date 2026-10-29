@@ -41,7 +41,7 @@ export const run = cmd.command({
       !rest.scope.mode.interactive
     ) {
       throw new CliError(
-        "An interactive command cannot share stdin with --file - or run in non-interactive mode. Create the sandbox first, then use sandbox exec from a terminal.",
+        "An interactive command cannot share stdin with --managed-credentials-file - or run in non-interactive mode. Create the sandbox first, then use sandbox exec from a terminal.",
       );
     }
 

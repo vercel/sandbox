@@ -99,6 +99,33 @@ describe("managed credential commands", () => {
     expect(stdout).not.toHaveBeenCalled();
   });
 
+  test.each(["grace", "@grace"])(
+    "forwards and previews username %s",
+    async (username) => {
+      await createWith([
+        "--github-repository=acme/widgets",
+        "--github-action=github:issues:read",
+        `--github-act-as=${username}`,
+        "--yes",
+        "--silent",
+      ]);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          credentials: {
+            github: [
+              {
+                repositories: ["acme/widgets"],
+                actions: ["github:issues:read"],
+                actAs: "@grace",
+              },
+            ],
+          },
+        }),
+      );
+      expect(stderr.mock.calls.flat().join("")).toContain("GitHub user @grace");
+    },
+  );
+
   test("--commit-as-me forwards the global Git identity", async () => {
     const config = join(directory, "gitconfig");
     await writeFile(
@@ -224,7 +251,7 @@ describe("managed credential commands", () => {
     };
     const file = join(directory, "create.json");
     await writeFile(file, JSON.stringify({ credentials }));
-    await createWith(["--file", file, "--yes", "--silent"]);
+    await createWith(["--managed-credentials-file", file, "--yes", "--silent"]);
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ credentials }),
     );
@@ -304,6 +331,49 @@ describe("managed credential commands", () => {
     ]);
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ credentials: { github: [] } }),
+    );
+    expect(mockExec).toHaveBeenCalledOnce();
+  });
+
+  test("run accepts usernames from --managed-credentials-file", async () => {
+    const file = join(directory, "run-credentials.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["github:issues:read"],
+              actAs: "grace",
+            },
+          ],
+        },
+      }),
+    );
+    const { run } = await import("../../src/commands/run");
+    await cmd.run(run, [
+      "--scope=team",
+      "--project=project",
+      `--managed-credentials-file=${file}`,
+      "--yes",
+      "--silent",
+      "--",
+      "echo",
+      "hello",
+    ]);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["github:issues:read"],
+              actAs: "@grace",
+            },
+          ],
+        },
+      }),
     );
     expect(mockExec).toHaveBeenCalledOnce();
   });

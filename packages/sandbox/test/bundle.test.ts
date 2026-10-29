@@ -117,6 +117,9 @@ describe("built package", () => {
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
       expect(result.stdout.includes("--github-action")).toBe(enabled === "1");
+      expect(result.stdout.includes("--managed-credentials-file")).toBe(
+        enabled === "1",
+      );
     }
   });
 
@@ -251,7 +254,7 @@ describe("built package", () => {
         {
           repositories: ["acme/reference"],
           actions: ["github:pull-request:create"],
-          actAs: "43",
+          actAs: "alice",
         },
       ],
     };
@@ -264,7 +267,7 @@ describe("built package", () => {
         "create",
         "--scope=acme",
         "--project=acme-web",
-        "--file=-",
+        "--managed-credentials-file=-",
         "--yes",
         "--json",
       ],
@@ -280,9 +283,58 @@ describe("built package", () => {
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout).outcome).toBe("created");
     expect(result.stdout).not.toContain("credentials");
-    expect(JSON.parse(readFileSync(request, "utf8")).credentials).toEqual(
-      credentials,
+    expect(JSON.parse(readFileSync(request, "utf8")).credentials).toEqual({
+      github: [
+        credentials.github[0],
+        { ...credentials.github[1], actAs: "@alice" },
+      ],
+    });
+  });
+
+  test("the built binary sends a username to the API without a GitHub lookup", () => {
+    const { preload, request } = mockApi("username");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        "--github-repository=acme/widgets",
+        "--github-action=github:issues:read",
+        "--github-act-as=alice",
+        "--yes",
+        "--json",
+      ],
+      { cwd: outRoot, env: credentialEnv(), encoding: "utf8", timeout: 10_000 },
     );
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(
+      JSON.parse(readFileSync(request, "utf8")).credentials.github[0].actAs,
+    ).toBe("@alice");
+  });
+
+  test("the old --file option is not accepted", () => {
+    const { preload, request } = mockApi("old-file");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        "--file=example.json",
+        "--yes",
+      ],
+      { cwd: outRoot, env: credentialEnv(), encoding: "utf8", timeout: 10_000 },
+    );
+    expect(result.status).not.toBe(0);
+    expect(existsSync(request)).toBe(false);
   });
 
   test("JSON without consent exits 2, writes only stderr and makes no request", () => {
