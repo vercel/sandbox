@@ -97,41 +97,45 @@ describe("built package", () => {
     expect(status).toBe(0);
   });
 
-  test("credential help stays offline and is visible without the gate", () => {
-    for (const enabled of [undefined, "0", "1"]) {
-      for (const command of ["create", "run", "sh"]) {
-        const result = spawnSync(
-          process.execPath,
-          [path.join(outRoot, "bin/sandbox.mjs"), command, "--help"],
-          {
-            cwd: outRoot,
-            env: {
-              ...env,
-              __VERCEL_SANDBOX_MANAGED_CREDENTIALS: enabled,
-              VERCEL_TOKEN: "",
-              VERCEL_AUTH_TOKEN: "",
-            },
-            encoding: "utf8",
-            timeout: 10_000,
+  test.each(
+    [undefined, "0", "1"].flatMap((enabled) =>
+      ["create", "run", "sh"].map((command) => [command, enabled] as const),
+    ),
+  )(
+    "%s credential help stays offline and is visible with former gate %s",
+    (command, enabled) => {
+      const result = spawnSync(
+        process.execPath,
+        [path.join(outRoot, "bin/sandbox.mjs"), command, "--help"],
+        {
+          cwd: outRoot,
+          env: {
+            ...env,
+            __VERCEL_SANDBOX_MANAGED_CREDENTIALS: enabled,
+            VERCEL_TOKEN: "",
+            VERCEL_AUTH_TOKEN: "",
           },
-        );
-        expect(result.status).toBe(0);
-        expect(result.stderr).toBe("");
-        for (const flag of [
-          "--commit-as-name",
-          "--commit-as-email",
-          "--commit-as-me",
-          "--git-source",
-          "--github",
-          "--github-repository",
-          "--github-action",
-          "--github-act-as",
-          "--managed-credentials-file",
-        ])
-          expect(result.stdout).toContain(flag);
-      }
-    }
-  });
+          encoding: "utf8",
+          timeout: 10_000,
+        },
+      );
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      for (const flag of [
+        "--commit-as-name",
+        "--commit-as-email",
+        "--commit-as-me",
+        "--git-source",
+        "--github",
+        "--github-repository",
+        "--github-action",
+        "--github-act-as",
+        "--managed-credentials-file",
+      ])
+        expect(result.stdout).toContain(flag);
+    },
+    15_000,
+  );
 
   test("the binary forwards repeated options all the way to the API", () => {
     const { preload, request } = mockApi("repeated");
