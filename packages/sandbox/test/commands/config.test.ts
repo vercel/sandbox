@@ -453,11 +453,11 @@ describe("config command", () => {
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output).toContain(
-        "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
+        "Path matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules. To limit a header to HTTP methods, prefix it with [method=GET,HEAD].",
       );
     });
 
-    test("rejects a leading bracket before update", async () => {
+    test("rejects a leading bracket that is not a method matcher before update", async () => {
       const result = await runPolicy([
         "--request-header",
         `[ZZSECRETZZ.com:authorization=${secret}`,
@@ -465,9 +465,69 @@ describe("config command", () => {
 
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
+      expect(result.output).toContain("Invalid matcher in --request-header.");
       expect(result.output).toContain(
-        "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
+        "Path matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
       );
+    });
+
+    test("rejects a lowercase method before update", async () => {
+      vi.stubEnv("NPM_AUTH", secret);
+      const result = await runPolicy([
+        "--request-header-from-env",
+        "[method=get]registry.npmjs.org:authorization=NPM_AUTH",
+      ]);
+
+      expect(result.failed).toBe(true);
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(result.output).toContain(
+        "Methods are case-sensitive. Write them in uppercase, for example GET.",
+      );
+      expect(result.output).not.toContain(secret);
+    });
+
+    test("limits a header from the environment to GET and HEAD", async () => {
+      vi.stubEnv("NPM_AUTH", secret);
+      mockGet.mockResolvedValue(fakeSandbox({ name: "my-sbx" }));
+      const result = await runPolicy([
+        "--allowed-domain",
+        "*",
+        "--request-header-from-env",
+        "[method=GET,HEAD]registry.npmjs.org:authorization=NPM_AUTH",
+        "--request-header",
+        "registry.npmjs.org:x-source=ci",
+      ]);
+
+      expect(result.failed).toBe(false);
+      expect(mockUpdate).toHaveBeenCalledWith({
+        networkPolicy: {
+          allow: {
+            "registry.npmjs.org": [
+              {
+                match: { method: ["GET", "HEAD"] },
+                transform: [
+                  {
+                    headers: {
+                      authorization: "Bearer npm_abc==",
+                      "x-source": "ci",
+                    },
+                  },
+                ],
+              },
+              { transform: [{ headers: { "x-source": "ci" } }] },
+            ],
+            "*": [],
+          },
+        },
+      });
+      expect(tree(result.output)).toBe(
+        [
+          "✅ Network policy updated for sandbox my-sbx",
+          "   │ mode: restricted",
+          "   ╰ request headers: registry.npmjs.org (x-source, authorization [GET,HEAD])",
+        ].join("\n"),
+      );
+      expect(result.output).not.toContain(secret);
     });
 
     test.each([

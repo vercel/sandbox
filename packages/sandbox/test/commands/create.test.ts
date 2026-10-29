@@ -80,6 +80,28 @@ describe("create command", () => {
     }
   });
 
+  test("sends a request header limited to methods", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--request-header",
+      "[method=GET,HEAD]registry.npmjs.org:authorization=Bearer npm_abc==",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate.mock.calls[0][0].networkPolicy).toEqual({
+      allow: {
+        "registry.npmjs.org": [
+          {
+            match: { method: ["GET", "HEAD"] },
+            transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+          },
+        ],
+      },
+    });
+  });
+
   test("sends a request header policy", async () => {
     const { create } = await import("../../src/commands/create.ts");
     await cmd.run(create, [

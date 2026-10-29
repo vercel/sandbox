@@ -196,6 +196,29 @@ describe("fork command", () => {
     expect(call.networkId).toBeUndefined();
   });
 
+  test("sends a request header limited to methods", async () => {
+    const { fork } = await import("../../src/commands/fork.ts");
+    await cmd.run(fork, [
+      "my-source",
+      "--request-header",
+      "[method=GET,HEAD]registry.npmjs.org:authorization=Bearer npm_abc==",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockFork.mock.calls[0][0].networkPolicy).toEqual({
+      allow: {
+        "registry.npmjs.org": [
+          {
+            match: { method: ["GET", "HEAD"] },
+            transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+          },
+        ],
+      },
+    });
+  });
+
   test("sends a request header policy", async () => {
     const { fork } = await import("../../src/commands/fork.ts");
     await cmd.run(fork, [

@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import type { NetworkPolicy, NetworkPolicyRule } from "@vercel/sandbox";
-import type { NetworkPolicyArgs } from "../args/network-policy";
+import type { NetworkPolicyArgs, RequestHeader } from "../args/network-policy";
 
 type NetworkPolicyMode = "allow-all" | "deny-all";
 
@@ -103,26 +103,27 @@ export function buildNetworkPolicy(
     };
   }
 
-  // Null prototype so a token such as `__proto__` stays an own key.
-  const byDomain = new Map<string, Record<string, string>>();
+  const byDomain = new Map<string, RequestHeader[]>();
   for (const header of requestHeaders) {
-    let headers = byDomain.get(header.domain);
-    if (!headers) {
-      headers = Object.create(null) as Record<string, string>;
-      byDomain.set(header.domain, headers);
-    }
-    if (Object.hasOwn(headers, header.name)) {
+    const headers = byDomain.get(header.domain) ?? [];
+    const clash = headers.find(
+      (other) => other.name === header.name && methodsOverlap(other, header),
+    );
+    if (clash) {
       fail(
         `Duplicate request header "${header.name}" for ${header.domain}.`,
-        "Pass each header once per domain. Header names are case-insensitive.",
+        clash.methods === undefined && header.methods === undefined
+          ? "Pass each header once per domain. Header names are case-insensitive."
+          : "Limit each copy of a header to methods the other copies do not list. A header without [method=...] applies to every method.",
       );
     }
-    headers[header.name] = header.value.reveal();
+    headers.push(header);
+    byDomain.set(header.domain, headers);
   }
 
   const allow: Record<string, NetworkPolicyRule[]> = Object.create(null);
   for (const [domain, headers] of byDomain) {
-    allow[domain] = [{ transform: [{ headers }] }];
+    allow[domain] = domainRules(headers);
   }
   for (const domain of allowedDomains) {
     if (!Object.hasOwn(allow, domain)) {
@@ -134,6 +135,62 @@ export function buildNetworkPolicy(
     allow,
     ...subnets,
   };
+}
+
+function methodsOverlap(a: RequestHeader, b: RequestHeader): boolean {
+  return (
+    a.methods === undefined ||
+    b.methods === undefined ||
+    a.methods.some((method) => b.methods?.includes(method))
+  );
+}
+
+function headerRecord(headers: RequestHeader[]): Record<string, string> {
+  // Null prototype so a token such as `__proto__` stays an own key.
+  const record = Object.create(null) as Record<string, string>;
+  for (const header of headers) {
+    record[header.name] = header.value.reveal();
+  }
+  return record;
+}
+
+/**
+ * The proxy applies only the first rule that matches a request, and a rule
+ * without `match` matches every request. So each method rule carries the
+ * unlimited headers too, methods that get the same headers share one rule, and
+ * the unlimited rule comes last.
+ */
+function domainRules(headers: RequestHeader[]): NetworkPolicyRule[] {
+  const byMethods = new Map<
+    string,
+    { methods: string[]; headers: RequestHeader[] }
+  >();
+  const methods = [
+    ...new Set(headers.flatMap((header) => header.methods ?? [])),
+  ];
+  for (const method of methods) {
+    const applied = headers.filter(
+      (header) =>
+        header.methods === undefined || header.methods.includes(method),
+    );
+    const key = applied.map((header) => headers.indexOf(header)).join(",");
+    const group = byMethods.get(key);
+    if (group) {
+      group.methods.push(method);
+    } else {
+      byMethods.set(key, { methods: [method], headers: applied });
+    }
+  }
+
+  const rules: NetworkPolicyRule[] = [...byMethods.values()].map((group) => ({
+    match: { method: group.methods },
+    transform: [{ headers: headerRecord(group.headers) }],
+  }));
+  const unlimited = headers.filter((header) => header.methods === undefined);
+  if (unlimited.length > 0) {
+    rules.push({ transform: [{ headers: headerRecord(unlimited) }] });
+  }
+  return rules;
 }
 
 export function formatRequestHeaderNames(
@@ -150,20 +207,32 @@ export function formatRequestHeaderNames(
 
   const parts: string[] = [];
   for (const [domain, rules] of Object.entries(policy.allow)) {
-    const names: string[] = [];
+    // A name maps to its methods, or to `undefined` when it is not limited.
+    const names = new Map<string, string[] | undefined>();
     for (const rule of rules) {
       if (!("transform" in rule) || rule.transform === undefined) {
         continue;
       }
+      const methods = rule.match?.method;
       for (const transform of rule.transform) {
-        if (transform.headers === undefined) {
-          continue;
+        for (const name of Object.keys(transform.headers ?? {})) {
+          const known = names.get(name);
+          if (
+            methods === undefined ||
+            (names.has(name) && known === undefined)
+          ) {
+            names.set(name, undefined);
+          } else {
+            names.set(name, [...new Set([...(known ?? []), ...methods])]);
+          }
         }
-        names.push(...Object.keys(transform.headers));
       }
     }
-    if (names.length > 0) {
-      parts.push(`${domain} (${names.join(", ")})`);
+    if (names.size > 0) {
+      const labels = [...names].map(([name, methods]) =>
+        methods === undefined ? name : `${name} [${methods.join(",")}]`,
+      );
+      parts.push(`${domain} (${labels.join(", ")})`);
     }
   }
   return parts.length === 0 ? undefined : parts.join(", ");

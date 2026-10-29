@@ -20,8 +20,7 @@ const networkPolicyMode = cmd.extendType(cmd.string, {
 
 export const networkPolicy = cmd.option({
   long: "network-policy",
-  description:
-    `Network policy mode: "allow-all" or "deny-all"
+  description: `Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
     Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies.`,
@@ -30,22 +29,19 @@ export const networkPolicy = cmd.option({
 
 export const allowedDomains = cmd.multioption({
   long: "allowed-domain",
-  description:
-    `Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.`,
+  description: `Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.`,
   type: cmd.array(cmd.string),
 });
 
 export const allowedCIDRs = cmd.multioption({
   long: "allowed-cidr",
-  description:
-    `CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.`,
+  description: `CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.`,
   type: cmd.array(cmd.string),
 });
 
 export const deniedCIDRs = cmd.multioption({
   long: "denied-cidr",
-  description:
-    `CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.`,
+  description: `CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.`,
   type: cmd.array(cmd.string),
 });
 
@@ -77,33 +73,72 @@ export type RequestHeader = {
   readonly domain: string;
   readonly name: string;
   readonly value: Redacted;
+  /** HTTP methods the header is limited to. `undefined` means every request. */
+  readonly methods: readonly string[] | undefined;
 };
 
 const HEADER_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const RESERVED_DOMAIN_SYNTAX = /^\[|[ /?@=]/;
 const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-const MATCHER_HINT =
-  "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
+const PATH_HINT =
+  "Path matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
+const MATCHER_HINT = `${PATH_HINT} To limit a header to HTTP methods, prefix it with [method=GET,HEAD].`;
+const METHOD_PREFIX = "[method=";
+const METHOD_FORMAT_HINT =
+  "Use [method=GET,HEAD]domain:header=..., with methods separated by commas and no spaces.";
 const SINGLE_LINE_HINT = "Header values must be a single line.";
 
 function fail(message: string, hint: string): never {
   throw new Error([message, `${chalk.bold("hint:")} ${hint}`].join("\n"));
 }
 
+function splitMethods(
+  input: string,
+  flag: string,
+): { methods: readonly string[] | undefined; header: string } {
+  if (!input.startsWith("[")) {
+    return { methods: undefined, header: input };
+  }
+  const close = input.indexOf("]");
+  if (!input.startsWith(METHOD_PREFIX) || close < 0) {
+    fail(`Invalid matcher in ${flag}.`, `${METHOD_FORMAT_HINT} ${PATH_HINT}`);
+  }
+
+  const methods = input.slice(METHOD_PREFIX.length, close).split(",");
+  for (const method of methods) {
+    if (!HEADER_TOKEN.test(method)) {
+      fail(`Invalid HTTP method in ${flag}.`, METHOD_FORMAT_HINT);
+    }
+    if (method !== method.toUpperCase()) {
+      fail(
+        `Invalid HTTP method in ${flag}.`,
+        "Methods are case-sensitive. Write them in uppercase, for example GET.",
+      );
+    }
+  }
+  return { methods: [...new Set(methods)], header: input.slice(close + 1) };
+}
+
 function splitRequestHeader(
   input: string,
   flag: string,
   formatHint: string,
-): { domain: string; name: string; rest: string } {
-  const first = input.indexOf(":");
-  const second = first <= 0 ? -1 : input.indexOf("=", first + 1);
+): {
+  domain: string;
+  name: string;
+  rest: string;
+  methods: readonly string[] | undefined;
+} {
+  const { methods, header } = splitMethods(input, flag);
+  const first = header.indexOf(":");
+  const second = first <= 0 ? -1 : header.indexOf("=", first + 1);
   if (second < 0) {
     fail(`Invalid ${flag} value.`, formatHint);
   }
 
-  const domain = input.slice(0, first);
-  const nameRaw = input.slice(first + 1, second);
+  const domain = header.slice(0, first);
+  const nameRaw = header.slice(first + 1, second);
 
   if (!HEADER_TOKEN.test(nameRaw)) {
     fail(
@@ -117,7 +152,7 @@ function splitRequestHeader(
     fail(`Invalid domain for header ${name}.`, MATCHER_HINT);
   }
 
-  return { domain, name, rest: input.slice(second + 1) };
+  return { domain, name, rest: header.slice(second + 1), methods };
 }
 
 function isMultiline(value: string): boolean {
@@ -129,6 +164,7 @@ export function parseRequestHeader(input: string): RequestHeader {
     domain,
     name,
     rest: value,
+    methods,
   } = splitRequestHeader(
     input,
     "--request-header",
@@ -148,7 +184,7 @@ export function parseRequestHeader(input: string): RequestHeader {
     );
   }
 
-  return { domain, name, value: new Redacted(value) };
+  return { domain, name, value: new Redacted(value), methods };
 }
 
 export function parseRequestHeaderFromEnv(
@@ -159,6 +195,7 @@ export function parseRequestHeaderFromEnv(
     domain,
     name,
     rest: envVar,
+    methods,
   } = splitRequestHeader(
     input,
     "--request-header-from-env",
@@ -193,7 +230,7 @@ export function parseRequestHeaderFromEnv(
     );
   }
 
-  return { domain, name, value: new Redacted(value) };
+  return { domain, name, value: new Redacted(value), methods };
 }
 
 const requestHeaderType = cmd.extendType(cmd.string, {
@@ -212,13 +249,13 @@ const requestHeaderFromEnvType = cmd.extendType(cmd.string, {
 
 export const requestHeaders = cmd.multioption({
   long: "request-header",
-  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.`,
+  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.`,
   type: cmd.array(requestHeaderType),
 });
 
 export const requestHeadersFromEnv = cmd.multioption({
   long: "request-header-from-env",
-  description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".`,
+  description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.`,
   type: cmd.array(requestHeaderFromEnvType),
 });
 

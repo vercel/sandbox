@@ -24,7 +24,7 @@ function parseError(input: string): string {
 }
 
 const MATCHER_HINT =
-  "hint: Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
+  "hint: Path matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules. To limit a header to HTTP methods, prefix it with [method=GET,HEAD].";
 const FORMAT_ERROR = [
   "Invalid --request-header value.",
   "hint: Use domain:header=value, for example example.com:x-source=ci.",
@@ -118,7 +118,7 @@ describe("parseRequestHeader", () => {
     ["question mark", "ZZDOMAINZZ?.com"],
     ["at", "user@ZZDOMAINZZ.com"],
     ["equals", "ZZDOMAINZZ=domain.com"],
-    ["leading bracket", "[ZZDOMAINZZ.com"],
+    ["second matcher", "[method=GET][ZZDOMAINZZ.com"],
   ])(
     "rejects reserved domain syntax %s without echoing the domain or value",
     (_label, domain) => {
@@ -156,6 +156,96 @@ describe("parseRequestHeader", () => {
       ].join("\n"),
     );
     expect(message).not.toContain("ZZSECRETZZ");
+  });
+});
+
+describe("method matchers", () => {
+  test("takes the header without a prefix as unlimited", () => {
+    expect(parseRequestHeader("example.com:x-source=ci").methods).toBe(
+      undefined,
+    );
+  });
+
+  test("parses a method prefix on --request-header", () => {
+    const parsed = parseRequestHeader(
+      `[method=GET,HEAD]registry.npmjs.org:authorization=${SECRET}`,
+    );
+
+    expect(parsed.methods).toEqual(["GET", "HEAD"]);
+    expect(parsed.domain).toBe("registry.npmjs.org");
+    expect(parsed.name).toBe("authorization");
+    expect(parsed.value.reveal()).toBe(SECRET);
+  });
+
+  test("parses a method prefix on --request-header-from-env", () => {
+    const parsed = parseRequestHeaderFromEnv(
+      "[method=GET,HEAD]*.npmjs.org:authorization=NPM_AUTH",
+      { NPM_AUTH: SECRET },
+    );
+
+    expect(parsed.methods).toEqual(["GET", "HEAD"]);
+    expect(parsed.domain).toBe("*.npmjs.org");
+    expect(parsed.value.reveal()).toBe(SECRET);
+  });
+
+  test("drops repeated methods and keeps custom method tokens", () => {
+    expect(
+      parseRequestHeader("[method=GET,M-SEARCH,GET]a.com:x=1").methods,
+    ).toEqual(["GET", "M-SEARCH"]);
+  });
+
+  const METHOD_FORMAT_HINT =
+    "hint: Use [method=GET,HEAD]domain:header=..., with methods separated by commas and no spaces.";
+
+  test.each([
+    ["an unknown matcher", "[path=/ZZDOMAINZZ]a.com"],
+    ["no closing bracket", "[method=GET ZZDOMAINZZ.com"],
+    ["an empty bracket", "[]ZZDOMAINZZ.com"],
+    ["a bare bracket", "[ZZDOMAINZZ.com"],
+  ])("rejects %s without echoing input", (_label, prefix) => {
+    const message = parseError(`${prefix}:authorization=${SECRET}`);
+
+    expect(message).toBe(
+      [
+        "Invalid matcher in --request-header.",
+        `${METHOD_FORMAT_HINT} Path matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.`,
+      ].join("\n"),
+    );
+    expect(message).not.toContain("ZZDOMAINZZ");
+    expect(message).not.toContain(SECRET);
+  });
+
+  test.each([
+    ["no methods", "[method=]"],
+    ["an empty method", "[method=GET,,HEAD]"],
+    ["a space", "[method=GET, HEAD]"],
+    ["a trailing comma", "[method=GET,]"],
+  ])("rejects %s", (_label, prefix) => {
+    const message = parseError(`${prefix}a.com:authorization=${SECRET}`);
+
+    expect(message).toBe(
+      ["Invalid HTTP method in --request-header.", METHOD_FORMAT_HINT].join(
+        "\n",
+      ),
+    );
+    expect(message).not.toContain(SECRET);
+  });
+
+  test("rejects a lowercase method, since the proxy compares methods case-sensitively", () => {
+    expect(parseError(`[method=get]a.com:authorization=${SECRET}`)).toBe(
+      [
+        "Invalid HTTP method in --request-header.",
+        "hint: Methods are case-sensitive. Write them in uppercase, for example GET.",
+      ].join("\n"),
+    );
+  });
+
+  test("reports the flag name for --request-header-from-env", () => {
+    expect(() =>
+      parseRequestHeaderFromEnv("[method=get]a.com:authorization=NPM_AUTH", {
+        NPM_AUTH: SECRET,
+      }),
+    ).toThrow("Invalid HTTP method in --request-header-from-env.");
   });
 });
 
