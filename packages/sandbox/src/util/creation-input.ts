@@ -6,7 +6,6 @@ import { promisify } from "node:util";
 import { z } from "zod";
 import { CliError } from "./cli-error";
 
-export const MANAGED_CREDENTIALS_GATE = "__VERCEL_SANDBOX_MANAGED_CREDENTIALS";
 const MAX_PAYLOAD_BYTES = 64 * 1024;
 const MAX_REPOSITORIES = 25;
 const execFileAsync = promisify(execFile);
@@ -138,14 +137,6 @@ export async function resolveCreationInput(
   options: CreationOptions,
 ): Promise<CreationInput> {
   if (!hasCreationOptions(options)) return {};
-  if (process.env[MANAGED_CREDENTIALS_GATE] !== "1") {
-    throw new CliError(
-      `Managed credential inputs are experimental. Set ${MANAGED_CREDENTIALS_GATE}=1 to use them.`,
-      {
-        reason: "feature_unavailable",
-      },
-    );
-  }
   if (options.managedCredentialsFile !== undefined) {
     if (options.managedCredentialsFile === "")
       throw new CliError(

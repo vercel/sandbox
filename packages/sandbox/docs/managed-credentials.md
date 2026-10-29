@@ -1,9 +1,8 @@
 # Managed credential inputs (experimental)
 
 These inputs require the API fields from vercel/api#102202 and the project's
-managed credential feature gates. They are hidden until
-`__VERCEL_SANDBOX_MANAGED_CREDENTIALS=1` is set. This local opt-in does not grant
-API access or enable the server-side feature gates.
+server-side managed credential feature gates and permissions. The flags are
+available without a local opt-in.
 
 ## Test locally
 
@@ -12,7 +11,6 @@ From the repository root, build the SDK and CLI:
 ```sh
 pnpm --filter @vercel/sandbox build
 pnpm --filter sandbox build
-export __VERCEL_SANDBOX_MANAGED_CREDENTIALS=1
 node packages/sandbox/bin/sandbox.mjs create --help
 ```
 

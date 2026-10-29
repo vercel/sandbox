@@ -7,7 +7,6 @@ import { createTokenOption } from "./auth";
 import { CliError } from "../util/cli-error";
 import {
   hasCreationOptions,
-  MANAGED_CREDENTIALS_GATE,
   resolveCreationInput,
   type CreationInput,
 } from "../util/creation-input";
@@ -136,12 +135,11 @@ export function createContext({
       scope.register?.(context);
     },
     helpTopics() {
-      const credentials =
-        process.env[MANAGED_CREDENTIALS_GATE] === "1"
-          ? Object.values(credentialOptions)
-          : [];
       return [
-        ...[...credentials, ...Object.values(executionOptions)]
+        ...[
+          ...Object.values(credentialOptions),
+          ...Object.values(executionOptions),
+        ]
           .flatMap((option) => option.helpTopics())
           .map((topic) => ({ ...topic, category: "options" })),
         ...scope.helpTopics(),

@@ -97,29 +97,39 @@ describe("built package", () => {
     expect(status).toBe(0);
   });
 
-  test("credential help stays offline and is hidden without the gate", () => {
-    for (const enabled of ["", "1"]) {
-      const result = spawnSync(
-        process.execPath,
-        [path.join(outRoot, "bin/sandbox.mjs"), "create", "--help"],
-        {
-          cwd: outRoot,
-          env: {
-            ...env,
-            __VERCEL_SANDBOX_MANAGED_CREDENTIALS: enabled,
-            VERCEL_TOKEN: "",
-            VERCEL_AUTH_TOKEN: "",
+  test("credential help stays offline and is visible without the gate", () => {
+    for (const enabled of [undefined, "0", "1"]) {
+      for (const command of ["create", "run", "sh"]) {
+        const result = spawnSync(
+          process.execPath,
+          [path.join(outRoot, "bin/sandbox.mjs"), command, "--help"],
+          {
+            cwd: outRoot,
+            env: {
+              ...env,
+              __VERCEL_SANDBOX_MANAGED_CREDENTIALS: enabled,
+              VERCEL_TOKEN: "",
+              VERCEL_AUTH_TOKEN: "",
+            },
+            encoding: "utf8",
+            timeout: 10_000,
           },
-          encoding: "utf8",
-          timeout: 10_000,
-        },
-      );
-      expect(result.status).toBe(0);
-      expect(result.stderr).toBe("");
-      expect(result.stdout.includes("--github-action")).toBe(enabled === "1");
-      expect(result.stdout.includes("--managed-credentials-file")).toBe(
-        enabled === "1",
-      );
+        );
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        for (const flag of [
+          "--commit-as-name",
+          "--commit-as-email",
+          "--commit-as-me",
+          "--git-source",
+          "--github",
+          "--github-repository",
+          "--github-action",
+          "--github-act-as",
+          "--managed-credentials-file",
+        ])
+          expect(result.stdout).toContain(flag);
+      }
     }
   });
 
@@ -403,7 +413,7 @@ describe("built package", () => {
 function credentialEnv() {
   return {
     ...env,
-    __VERCEL_SANDBOX_MANAGED_CREDENTIALS: "1",
+    __VERCEL_SANDBOX_MANAGED_CREDENTIALS: undefined,
     VERCEL_TOKEN: "test-token",
     VERCEL_AUTH_TOKEN: "test-token",
   };

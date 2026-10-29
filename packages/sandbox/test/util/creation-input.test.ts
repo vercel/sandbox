@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import {
-  MANAGED_CREDENTIALS_GATE,
   resolveCreationInput,
   validateCreationInput,
   type CreationOptions,
@@ -17,7 +16,7 @@ const source = { type: "git", url: "https://github.com/acme/widgets.git" };
 describe("creation inputs", () => {
   let directory: string;
   beforeEach(async () => {
-    vi.stubEnv(MANAGED_CREDENTIALS_GATE, "1");
+    vi.stubEnv("__VERCEL_SANDBOX_MANAGED_CREDENTIALS", undefined);
     directory = await mkdtemp(join(tmpdir(), "sandbox-creation-input-"));
   });
   afterEach(async () => {
@@ -26,13 +25,16 @@ describe("creation inputs", () => {
     await rm(directory, { recursive: true, force: true });
   });
 
-  test("the gate is required only when new inputs are supplied", async () => {
-    vi.stubEnv(MANAGED_CREDENTIALS_GATE, "");
-    await expect(resolveCreationInput(empty)).resolves.toEqual({});
-    await expect(
-      resolveCreationInput({ ...empty, github: true }),
-    ).rejects.toThrow("experimental");
-  });
+  test.each([undefined, "0", "1"])(
+    "managed inputs work regardless of the former gate (%s)",
+    async (value) => {
+      vi.stubEnv("__VERCEL_SANDBOX_MANAGED_CREDENTIALS", value);
+      await expect(resolveCreationInput(empty)).resolves.toEqual({});
+      await expect(
+        resolveCreationInput({ ...empty, github: true }),
+      ).resolves.toEqual({ credentials: { github: [] } });
+    },
+  );
 
   test("an empty GitHub list is distinct from omission", async () => {
     await expect(resolveCreationInput(empty)).resolves.toEqual({});

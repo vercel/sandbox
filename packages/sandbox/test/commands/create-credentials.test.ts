@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { APIError } from "@vercel/sandbox";
 import { StyledError } from "../../src/error";
 import { CliError } from "../../src/util/cli-error";
-import { MANAGED_CREDENTIALS_GATE } from "../../src/util/creation-input";
 
 const { mockCreate, mockGet, mockExec, mockInferScope, mockLogin } = vi.hoisted(
   () => ({
@@ -43,7 +42,7 @@ describe("managed credential commands", () => {
   let stderr: ReturnType<typeof vi.spyOn>;
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.stubEnv(MANAGED_CREDENTIALS_GATE, "1");
+    vi.stubEnv("__VERCEL_SANDBOX_MANAGED_CREDENTIALS", undefined);
     vi.stubEnv("VERCEL_AUTH_TOKEN", "test-token");
     directory = await mkdtemp(join(tmpdir(), "sandbox-create-credentials-"));
     stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);

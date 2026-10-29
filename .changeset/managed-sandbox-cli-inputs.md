@@ -5,7 +5,8 @@
 ---
 
 Add experimental managed Git and GitHub credential inputs to sandbox creation,
-including `--commit-as-me` to use the global Git identity.
+including `--commit-as-me` to use the global Git identity, without a local
+feature gate.
 Use repeated options for one permission group or --managed-credentials-file
 for multiple groups. Accept GitHub usernames or IDs for API identities. Carry
 the current API fields through the SDK, validate inputs,
