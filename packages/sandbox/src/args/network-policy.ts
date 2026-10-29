@@ -1,6 +1,12 @@
 import * as cmd from "cmd-ts";
 import type { ParsingInto } from "cmd-ts/dist/esm/argparser";
 import chalk from "chalk";
+import { readFile } from "node:fs/promises";
+import {
+  NetworkPolicyParseError,
+  parseNetworkPolicy,
+  type NetworkPolicy,
+} from "@vercel/sandbox";
 
 const networkPolicyMode = cmd.extendType(cmd.string, {
   displayName: "MODE",
@@ -23,7 +29,7 @@ export const networkPolicy = cmd.option({
   description: `Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies.`,
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies.`,
   type: cmd.optional(networkPolicyMode),
 });
 
@@ -73,72 +79,33 @@ export type RequestHeader = {
   readonly domain: string;
   readonly name: string;
   readonly value: Redacted;
-  /** HTTP methods the header is limited to. `undefined` means every request. */
-  readonly methods: readonly string[] | undefined;
 };
 
 const HEADER_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const RESERVED_DOMAIN_SYNTAX = /^\[|[ /?@=]/;
 const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-const PATH_HINT =
-  "Path matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
-const MATCHER_HINT = `${PATH_HINT} To limit a header to HTTP methods, prefix it with [method=GET,HEAD].`;
-const METHOD_PREFIX = "[method=";
-const METHOD_FORMAT_HINT =
-  "Use [method=GET,HEAD]domain:header=..., with methods separated by commas and no spaces.";
+const MATCHER_HINT =
+  "--request-header does not take path or method matchers. To use them, write the policy as JSON and pass it with --network-policy-file.";
 const SINGLE_LINE_HINT = "Header values must be a single line.";
 
 function fail(message: string, hint: string): never {
   throw new Error([message, `${chalk.bold("hint:")} ${hint}`].join("\n"));
 }
 
-function splitMethods(
-  input: string,
-  flag: string,
-): { methods: readonly string[] | undefined; header: string } {
-  if (!input.startsWith("[")) {
-    return { methods: undefined, header: input };
-  }
-  const close = input.indexOf("]");
-  if (!input.startsWith(METHOD_PREFIX) || close < 0) {
-    fail(`Invalid matcher in ${flag}.`, `${METHOD_FORMAT_HINT} ${PATH_HINT}`);
-  }
-
-  const methods = input.slice(METHOD_PREFIX.length, close).split(",");
-  for (const method of methods) {
-    if (!HEADER_TOKEN.test(method)) {
-      fail(`Invalid HTTP method in ${flag}.`, METHOD_FORMAT_HINT);
-    }
-    if (method !== method.toUpperCase()) {
-      fail(
-        `Invalid HTTP method in ${flag}.`,
-        "Methods are case-sensitive. Write them in uppercase, for example GET.",
-      );
-    }
-  }
-  return { methods: [...new Set(methods)], header: input.slice(close + 1) };
-}
-
 function splitRequestHeader(
   input: string,
   flag: string,
   formatHint: string,
-): {
-  domain: string;
-  name: string;
-  rest: string;
-  methods: readonly string[] | undefined;
-} {
-  const { methods, header } = splitMethods(input, flag);
-  const first = header.indexOf(":");
-  const second = first <= 0 ? -1 : header.indexOf("=", first + 1);
+): { domain: string; name: string; rest: string } {
+  const first = input.indexOf(":");
+  const second = first <= 0 ? -1 : input.indexOf("=", first + 1);
   if (second < 0) {
     fail(`Invalid ${flag} value.`, formatHint);
   }
 
-  const domain = header.slice(0, first);
-  const nameRaw = header.slice(first + 1, second);
+  const domain = input.slice(0, first);
+  const nameRaw = input.slice(first + 1, second);
 
   if (!HEADER_TOKEN.test(nameRaw)) {
     fail(
@@ -152,7 +119,7 @@ function splitRequestHeader(
     fail(`Invalid domain for header ${name}.`, MATCHER_HINT);
   }
 
-  return { domain, name, rest: header.slice(second + 1), methods };
+  return { domain, name, rest: input.slice(second + 1) };
 }
 
 function isMultiline(value: string): boolean {
@@ -164,7 +131,6 @@ export function parseRequestHeader(input: string): RequestHeader {
     domain,
     name,
     rest: value,
-    methods,
   } = splitRequestHeader(
     input,
     "--request-header",
@@ -184,7 +150,7 @@ export function parseRequestHeader(input: string): RequestHeader {
     );
   }
 
-  return { domain, name, value: new Redacted(value), methods };
+  return { domain, name, value: new Redacted(value) };
 }
 
 export function parseRequestHeaderFromEnv(
@@ -195,7 +161,6 @@ export function parseRequestHeaderFromEnv(
     domain,
     name,
     rest: envVar,
-    methods,
   } = splitRequestHeader(
     input,
     "--request-header-from-env",
@@ -230,7 +195,7 @@ export function parseRequestHeaderFromEnv(
     );
   }
 
-  return { domain, name, value: new Redacted(value), methods };
+  return { domain, name, value: new Redacted(value) };
 }
 
 const requestHeaderType = cmd.extendType(cmd.string, {
@@ -249,14 +214,99 @@ const requestHeaderFromEnvType = cmd.extendType(cmd.string, {
 
 export const requestHeaders = cmd.multioption({
   long: "request-header",
-  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.`,
+  description: `Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.`,
   type: cmd.array(requestHeaderType),
 });
 
 export const requestHeadersFromEnv = cmd.multioption({
   long: "request-header-from-env",
-  description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.`,
+  description: `Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".`,
   type: cmd.array(requestHeaderFromEnvType),
+});
+
+const POLICY_SHAPE_HINT = `Write the SDK's NetworkPolicy as JSON, for example {"allow":{"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}],"*":[]}}.`;
+
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) {
+    fail(
+      "--network-policy-file - reads stdin, but stdin is a terminal.",
+      "Pipe the policy in, for example with a heredoc: --network-policy-file - <<EOF.",
+    );
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * Reads a network policy from a JSON file, or from stdin when `path` is `-`.
+ * Errors name the file and the JSON path of a problem, never the content,
+ * because the policy can hold credentials.
+ */
+export async function readNetworkPolicyFile(
+  path: string,
+  read: (path: string) => Promise<string> = (p) =>
+    p === "-" ? readStdin() : readFile(p, "utf8"),
+): Promise<NetworkPolicy> {
+  const source = path === "-" ? "stdin" : path;
+
+  let text: string;
+  try {
+    text = await read(path);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === undefined) {
+      throw error;
+    }
+    fail(
+      `Cannot read the network policy file ${source} (${code}).`,
+      "Pass a readable JSON file, or - to read stdin.",
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch (error) {
+    // Node's message quotes the input, so keep only the position.
+    const message = String(error);
+    const where = (/line \d+ column \d+/.exec(message) ??
+      /position \d+/.exec(message))?.[0];
+    fail(
+      `The network policy in ${source} is not valid JSON${where ? ` (${where})` : ""}.`,
+      POLICY_SHAPE_HINT,
+    );
+  }
+
+  try {
+    return parseNetworkPolicy(json);
+  } catch (error) {
+    if (error instanceof NetworkPolicyParseError) {
+      fail(
+        [
+          `The network policy in ${source} is invalid:`,
+          ...error.issues.map((issue) => `  ${issue}`),
+        ].join("\n"),
+        POLICY_SHAPE_HINT,
+      );
+    }
+    throw error;
+  }
+}
+
+const networkPolicyFileType = cmd.extendType(cmd.string, {
+  displayName: "FILE",
+  async from(path) {
+    return readNetworkPolicyFile(path);
+  },
+});
+
+export const networkPolicyFile = cmd.option({
+  long: "network-policy-file",
+  description: `Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.`,
+  type: cmd.optional(networkPolicyFileType),
 });
 
 export { networkPolicyMode };
@@ -268,6 +318,7 @@ export const networkPolicyArgs = {
   deniedCIDRs,
   requestHeaders,
   requestHeadersFromEnv,
+  networkPolicyFile,
 } as const;
 
 export type NetworkPolicyArgs = {

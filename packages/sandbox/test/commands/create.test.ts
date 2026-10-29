@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const { mockCreate } = vi.hoisted(() => ({ mockCreate: vi.fn() }));
 
@@ -80,17 +83,8 @@ describe("create command", () => {
     }
   });
 
-  test("sends a request header limited to methods", async () => {
-    const { create } = await import("../../src/commands/create.ts");
-    await cmd.run(create, [
-      "--request-header",
-      "[method=GET,HEAD]registry.npmjs.org:authorization=Bearer npm_abc==",
-      "--scope=team",
-      "--project=proj",
-      "--silent",
-    ]);
-
-    expect(mockCreate.mock.calls[0][0].networkPolicy).toEqual({
+  test("sends the policy from --network-policy-file", async () => {
+    const policy = {
       allow: {
         "registry.npmjs.org": [
           {
@@ -99,7 +93,19 @@ describe("create command", () => {
           },
         ],
       },
-    });
+    };
+    const path = join(mkdtempSync(join(tmpdir(), "policy-")), "policy.json");
+    writeFileSync(path, JSON.stringify(policy));
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--network-policy-file",
+      path,
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate.mock.calls[0][0].networkPolicy).toEqual(policy);
   });
 
   test("sends a request header policy", async () => {

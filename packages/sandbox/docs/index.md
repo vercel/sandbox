@@ -113,12 +113,13 @@ Options:
     --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies. [optional]
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
     --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.
-    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
     --workdir, -w <str>                                The working directory to run the command in [optional]
 
 Flags:
@@ -177,12 +178,13 @@ Options:
     --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies. [optional]
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
     --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.
-    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
 
 Flags:
 
@@ -247,12 +249,13 @@ Options:
     --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies. [optional]
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
     --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.
-    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
 
 Flags:
 
@@ -299,12 +302,13 @@ Options:
     --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies. [optional]
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
     --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.
-    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
 
 Flags:
 
@@ -645,12 +649,13 @@ Options:
     --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env for custom policies. [optional]
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
     --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
     --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain. To limit the header to HTTP methods, prefix it with [method=GET,HEAD], for example '[method=GET,HEAD]registry.npmjs.org:x-source=ci'. Methods are case-sensitive. Quote the value so the shell does not expand the brackets.
-    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR". Takes the same [method=GET,HEAD] prefix as --request-header.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
     --mode <MODE>                                      Alias for --network-policy. [optional]
 
 Auth & Scope:

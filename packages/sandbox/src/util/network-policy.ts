@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import type { NetworkPolicy, NetworkPolicyRule } from "@vercel/sandbox";
-import type { NetworkPolicyArgs, RequestHeader } from "../args/network-policy";
+import type { NetworkPolicyArgs } from "../args/network-policy";
 
 type NetworkPolicyMode = "allow-all" | "deny-all";
 
@@ -54,6 +54,22 @@ export function buildNetworkPolicy(
   } = args;
   const requestHeaders = [...args.requestHeaders, ...requestHeadersFromEnv];
 
+  if (args.networkPolicyFile !== undefined) {
+    if (
+      networkPolicy ||
+      allowedDomains.length > 0 ||
+      allowedCIDRs.length > 0 ||
+      deniedCIDRs.length > 0 ||
+      requestHeaders.length > 0
+    ) {
+      fail(
+        "Cannot combine --network-policy-file with other network policy flags.",
+        "Put the whole policy in the file. It replaces --network-policy, --allowed-domain, --allowed-cidr, --denied-cidr, --request-header, and --request-header-from-env.",
+      );
+    }
+    return args.networkPolicyFile;
+  }
+
   if (networkPolicy && requestHeaders.length > 0) {
     switch (networkPolicy) {
       case "allow-all":
@@ -103,27 +119,26 @@ export function buildNetworkPolicy(
     };
   }
 
-  const byDomain = new Map<string, RequestHeader[]>();
+  // Null prototype so a token such as `__proto__` stays an own key.
+  const byDomain = new Map<string, Record<string, string>>();
   for (const header of requestHeaders) {
-    const headers = byDomain.get(header.domain) ?? [];
-    const clash = headers.find(
-      (other) => other.name === header.name && methodsOverlap(other, header),
-    );
-    if (clash) {
+    let headers = byDomain.get(header.domain);
+    if (!headers) {
+      headers = Object.create(null) as Record<string, string>;
+      byDomain.set(header.domain, headers);
+    }
+    if (Object.hasOwn(headers, header.name)) {
       fail(
         `Duplicate request header "${header.name}" for ${header.domain}.`,
-        clash.methods === undefined && header.methods === undefined
-          ? "Pass each header once per domain. Header names are case-insensitive."
-          : "Limit each copy of a header to methods the other copies do not list. A header without [method=...] applies to every method.",
+        "Pass each header once per domain. Header names are case-insensitive.",
       );
     }
-    headers.push(header);
-    byDomain.set(header.domain, headers);
+    headers[header.name] = header.value.reveal();
   }
 
   const allow: Record<string, NetworkPolicyRule[]> = Object.create(null);
   for (const [domain, headers] of byDomain) {
-    allow[domain] = domainRules(headers);
+    allow[domain] = [{ transform: [{ headers }] }];
   }
   for (const domain of allowedDomains) {
     if (!Object.hasOwn(allow, domain)) {
@@ -135,62 +150,6 @@ export function buildNetworkPolicy(
     allow,
     ...subnets,
   };
-}
-
-function methodsOverlap(a: RequestHeader, b: RequestHeader): boolean {
-  return (
-    a.methods === undefined ||
-    b.methods === undefined ||
-    a.methods.some((method) => b.methods?.includes(method))
-  );
-}
-
-function headerRecord(headers: RequestHeader[]): Record<string, string> {
-  // Null prototype so a token such as `__proto__` stays an own key.
-  const record = Object.create(null) as Record<string, string>;
-  for (const header of headers) {
-    record[header.name] = header.value.reveal();
-  }
-  return record;
-}
-
-/**
- * The proxy applies only the first rule that matches a request, and a rule
- * without `match` matches every request. So each method rule carries the
- * unlimited headers too, methods that get the same headers share one rule, and
- * the unlimited rule comes last.
- */
-function domainRules(headers: RequestHeader[]): NetworkPolicyRule[] {
-  const byMethods = new Map<
-    string,
-    { methods: string[]; headers: RequestHeader[] }
-  >();
-  const methods = [
-    ...new Set(headers.flatMap((header) => header.methods ?? [])),
-  ];
-  for (const method of methods) {
-    const applied = headers.filter(
-      (header) =>
-        header.methods === undefined || header.methods.includes(method),
-    );
-    const key = applied.map((header) => headers.indexOf(header)).join(",");
-    const group = byMethods.get(key);
-    if (group) {
-      group.methods.push(method);
-    } else {
-      byMethods.set(key, { methods: [method], headers: applied });
-    }
-  }
-
-  const rules: NetworkPolicyRule[] = [...byMethods.values()].map((group) => ({
-    match: { method: group.methods },
-    transform: [{ headers: headerRecord(group.headers) }],
-  }));
-  const unlimited = headers.filter((header) => header.methods === undefined);
-  if (unlimited.length > 0) {
-    rules.push({ transform: [{ headers: headerRecord(unlimited) }] });
-  }
-  return rules;
 }
 
 export function formatRequestHeaderNames(
@@ -207,32 +166,20 @@ export function formatRequestHeaderNames(
 
   const parts: string[] = [];
   for (const [domain, rules] of Object.entries(policy.allow)) {
-    // A name maps to its methods, or to `undefined` when it is not limited.
-    const names = new Map<string, string[] | undefined>();
+    const names: string[] = [];
     for (const rule of rules) {
       if (!("transform" in rule) || rule.transform === undefined) {
         continue;
       }
-      const methods = rule.match?.method;
       for (const transform of rule.transform) {
-        for (const name of Object.keys(transform.headers ?? {})) {
-          const known = names.get(name);
-          if (
-            methods === undefined ||
-            (names.has(name) && known === undefined)
-          ) {
-            names.set(name, undefined);
-          } else {
-            names.set(name, [...new Set([...(known ?? []), ...methods])]);
-          }
+        if (transform.headers === undefined) {
+          continue;
         }
+        names.push(...Object.keys(transform.headers));
       }
     }
-    if (names.size > 0) {
-      const labels = [...names].map(([name, methods]) =>
-        methods === undefined ? name : `${name} [${methods.join(",")}]`,
-      );
-      parts.push(`${domain} (${labels.join(", ")})`);
+    if (names.length > 0) {
+      parts.push(`${domain} (${[...new Set(names)].join(", ")})`);
     }
   }
   return parts.length === 0 ? undefined : parts.join(", ");

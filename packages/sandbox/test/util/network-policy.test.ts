@@ -7,13 +7,8 @@ import {
   formatRequestHeaderNames,
 } from "../../src/util/network-policy.ts";
 
-function header(
-  domain: string,
-  name: string,
-  value: string,
-  methods?: string[],
-): RequestHeader {
-  return { domain, name, value: new Redacted(value), methods };
+function header(domain: string, name: string, value: string): RequestHeader {
+  return { domain, name, value: new Redacted(value) };
 }
 
 const empty = {
@@ -22,6 +17,7 @@ const empty = {
   deniedCIDRs: [] as string[],
   requestHeaders: [] as RequestHeader[],
   requestHeadersFromEnv: [] as RequestHeader[],
+  networkPolicyFile: undefined as NetworkPolicy | undefined,
 };
 
 const registry = header(
@@ -325,168 +321,64 @@ describe("buildNetworkPolicy", () => {
   });
 });
 
-describe("buildNetworkPolicy with method matchers", () => {
-  const npm = "registry.npmjs.org";
-  const limited = header(npm, "authorization", "Bearer npm_abc", [
-    "GET",
-    "HEAD",
-  ]);
-  const source = header(npm, "x-source", "ci");
+describe("buildNetworkPolicy with --network-policy-file", () => {
+  const filePolicy: NetworkPolicy = {
+    allow: {
+      "registry.npmjs.org": [
+        {
+          match: { method: ["GET", "HEAD"] },
+          transform: [{ headers: { authorization: "Bearer npm_abc" } }],
+        },
+      ],
+    },
+  };
 
-  test("limits a header to its methods", () => {
-    expect(buildNetworkPolicy({ ...empty, requestHeaders: [limited] })).toEqual(
-      {
+  test("returns the file's policy unchanged", () => {
+    expect(
+      buildNetworkPolicy({ ...empty, networkPolicyFile: filePolicy }),
+    ).toBe(filePolicy);
+  });
+
+  test.each([
+    ["--network-policy", { networkPolicy: "deny-all" as const }],
+    ["--allowed-domain", { allowedDomains: ["*"] }],
+    ["--allowed-cidr", { allowedCIDRs: ["10.0.0.0/8"] }],
+    ["--denied-cidr", { deniedCIDRs: ["10.0.0.0/8"] }],
+    ["--request-header", { requestHeaders: [registry] }],
+    ["--request-header-from-env", { requestHeadersFromEnv: [registry] }],
+  ])("rejects combining it with %s", (_flag, extra) => {
+    let message = "";
+    try {
+      buildNetworkPolicy({
+        ...empty,
+        ...extra,
+        networkPolicyFile: filePolicy,
+      });
+    } catch (error) {
+      message = text(error);
+    }
+    expect(message).toBe(
+      [
+        "Cannot combine --network-policy-file with other network policy flags.",
+        "hint: Put the whole policy in the file. It replaces --network-policy, --allowed-domain, --allowed-cidr, --denied-cidr, --request-header, and --request-header-from-env.",
+      ].join("\n"),
+    );
+  });
+
+  test("names a header in several rules once", () => {
+    expect(
+      formatRequestHeaderNames({
         allow: {
-          [npm]: [
+          "a.com": [
             {
-              match: { method: ["GET", "HEAD"] },
-              transform: [{ headers: { authorization: "Bearer npm_abc" } }],
+              match: { method: ["GET"] },
+              transform: [{ headers: { a: "1" } }],
             },
+            { transform: [{ headers: { a: "2", b: "3" } }] },
           ],
         },
-      },
-    );
-  });
-
-  test("copies unlimited headers into the method rule and puts the unlimited rule last", () => {
-    // The proxy applies only the first matching rule, so GET must get both.
-    expect(
-      buildNetworkPolicy({
-        ...empty,
-        requestHeaders: [source],
-        requestHeadersFromEnv: [limited],
       }),
-    ).toEqual({
-      allow: {
-        [npm]: [
-          {
-            match: { method: ["GET", "HEAD"] },
-            transform: [
-              {
-                headers: { "x-source": "ci", authorization: "Bearer npm_abc" },
-              },
-            ],
-          },
-          { transform: [{ headers: { "x-source": "ci" } }] },
-        ],
-      },
-    });
-  });
-
-  test("splits overlapping method lists so each method gets every header that lists it", () => {
-    const write = header(npm, "x-write", "1", ["POST", "GET"]);
-    expect(
-      buildNetworkPolicy({ ...empty, requestHeaders: [limited, write] }),
-    ).toEqual({
-      allow: {
-        [npm]: [
-          {
-            match: { method: ["GET"] },
-            transform: [
-              { headers: { authorization: "Bearer npm_abc", "x-write": "1" } },
-            ],
-          },
-          {
-            match: { method: ["HEAD"] },
-            transform: [{ headers: { authorization: "Bearer npm_abc" } }],
-          },
-          {
-            match: { method: ["POST"] },
-            transform: [{ headers: { "x-write": "1" } }],
-          },
-        ],
-      },
-    });
-  });
-
-  test("allows one header name with different values on methods that do not overlap", () => {
-    const writeToken = header(npm, "authorization", "Bearer npm_write", [
-      "PUT",
-    ]);
-    expect(
-      buildNetworkPolicy({ ...empty, requestHeaders: [limited, writeToken] }),
-    ).toEqual({
-      allow: {
-        [npm]: [
-          {
-            match: { method: ["GET", "HEAD"] },
-            transform: [{ headers: { authorization: "Bearer npm_abc" } }],
-          },
-          {
-            match: { method: ["PUT"] },
-            transform: [{ headers: { authorization: "Bearer npm_write" } }],
-          },
-        ],
-      },
-    });
-  });
-
-  const OVERLAP_ERROR = [
-    'Duplicate request header "authorization" for registry.npmjs.org.',
-    "hint: Limit each copy of a header to methods the other copies do not list. A header without [method=...] applies to every method.",
-  ].join("\n");
-
-  test("rejects one header name on overlapping methods", () => {
-    expect(() =>
-      buildNetworkPolicy({
-        ...empty,
-        requestHeaders: [
-          limited,
-          header(npm, "authorization", "Bearer other", ["HEAD"]),
-        ],
-      }),
-    ).toThrowError(OVERLAP_ERROR);
-  });
-
-  test("rejects one header name both limited and unlimited", () => {
-    expect(() =>
-      buildNetworkPolicy({
-        ...empty,
-        requestHeaders: [registry],
-        requestHeadersFromEnv: [limited],
-      }),
-    ).toThrowError(OVERLAP_ERROR);
-  });
-
-  test("keeps the same limited header on two domains apart", () => {
-    const other = header("npm.pkg.github.com", "authorization", "Bearer gh", [
-      "GET",
-    ]);
-    const policy = buildNetworkPolicy({
-      ...empty,
-      allowedDomains: ["*"],
-      requestHeaders: [limited, other],
-    });
-
-    expect(policy).toEqual({
-      allow: {
-        [npm]: [
-          {
-            match: { method: ["GET", "HEAD"] },
-            transform: [{ headers: { authorization: "Bearer npm_abc" } }],
-          },
-        ],
-        "npm.pkg.github.com": [
-          {
-            match: { method: ["GET"] },
-            transform: [{ headers: { authorization: "Bearer gh" } }],
-          },
-        ],
-        "*": [],
-      },
-    });
-  });
-
-  test("names each header once, with the methods it is limited to", () => {
-    const policy = buildNetworkPolicy({
-      ...empty,
-      requestHeaders: [source, limited],
-    });
-
-    expect(formatRequestHeaderNames(policy)).toBe(
-      "registry.npmjs.org (x-source, authorization [GET,HEAD])",
-    );
-    expect(formatRequestHeaderNames(policy)).not.toContain("npm_abc");
+    ).toBe("a.com (a, b)");
   });
 });
 
