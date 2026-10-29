@@ -1,6 +1,7 @@
 ---
 "sandbox": minor
 "@vercel/sandbox": patch
+"@vercel/sandbox-mock": patch
 ---
 
 Add experimental managed Git and GitHub credential inputs to sandbox creation,

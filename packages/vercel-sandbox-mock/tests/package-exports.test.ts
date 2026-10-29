@@ -24,6 +24,12 @@ describe("public exports", () => {
     expect(typeof mock.setupSandbox).toBe("function");
   });
 
+  test("re-exports the SDK's managed credential actions unchanged", () => {
+    expect(mock.GITHUB_API_CREDENTIAL_ACTIONS).toBe(
+      real.GITHUB_API_CREDENTIAL_ACTIONS,
+    );
+  });
+
   test("the ./proxy entry point re-exports the real proxy surface", () => {
     for (const name of Object.keys(realProxy)) {
       expect(mockProxy, `missing proxy export: ${name}`).toHaveProperty(name);
