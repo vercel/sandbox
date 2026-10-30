@@ -110,6 +110,8 @@ export function createScope(
         typeof teamId.value === "undefined"
       ) {
         try {
+          const inferProject = projectId.value === undefined;
+          const inferTeam = teamId.value === undefined;
           const infer = () =>
             inferScope({
               token: t.value,
@@ -119,8 +121,8 @@ export function createScope(
           const scope = await (readOnly ? infer() : withFreshAuthRetry(infer));
           projectId.value ??= scope.project;
           teamId.value ??= scope.owner;
-          projectSlug = scope.projectSlug;
-          teamSlug = scope.ownerSlug;
+          projectSlug = inferProject ? scope.projectSlug : undefined;
+          teamSlug = inferTeam ? scope.ownerSlug : undefined;
         } catch (err) {
           debug("scope inference failed: %O", err);
           const detail =
