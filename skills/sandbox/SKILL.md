@@ -1104,6 +1104,10 @@ sandbox config current-snapshot <name> <snapshot-id>
 sandbox config network-policy <name> --network-policy deny-all
 sandbox config network-policy <name> --allowed-domain '*' --request-header api.example.com:x-source=ci  # domain:header=value
 API_AUTH="Bearer $API_TOKEN" sandbox config network-policy <name> --allowed-domain '*' --request-header-from-env api.example.com:authorization=API_AUTH  # Secret value read from $API_AUTH
+sandbox config network-policy <name> --network-policy-file policy.json  # Whole policy as SDK NetworkPolicy JSON; use - for stdin
+sandbox config network-policy <name> --network-policy-file - <<EOF  # A heredoc keeps $NPM_TOKEN out of the command line
+{"allow": {"*": [], "registry.npmjs.org": [{"match": {"method": ["GET", "HEAD"]}, "transform": [{"headers": {"authorization": "Bearer $NPM_TOKEN"}}]}]}}
+EOF
 sandbox config tags <name> --tag env=prod
 ```
 

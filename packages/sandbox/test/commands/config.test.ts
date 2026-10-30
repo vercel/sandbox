@@ -1,5 +1,8 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { stripVTControlCharacters } from "node:util";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import * as cmd from "cmd-ts";
 
 const { mockGet, mockUpdate } = vi.hoisted(() => ({
@@ -353,6 +356,83 @@ describe("config command", () => {
       expect(result.output).not.toContain(secret);
     });
 
+    function policyFile(contents: string): string {
+      const path = join(mkdtempSync(join(tmpdir(), "policy-")), "policy.json");
+      writeFileSync(path, contents);
+      return path;
+    }
+
+    test("--network-policy-file sends the file's policy and prints header names", async () => {
+      mockGet.mockResolvedValue(fakeSandbox({ name: "my-sbx" }));
+      const policy = {
+        allow: {
+          "registry.npmjs.org": [
+            {
+              match: { method: ["GET", "HEAD"] },
+              transform: [{ headers: { authorization: secret } }],
+            },
+          ],
+          "*": [],
+        },
+      };
+      const result = await runPolicy([
+        "--network-policy-file",
+        policyFile(JSON.stringify(policy)),
+      ]);
+
+      expect(result.failed).toBe(false);
+      expect(mockUpdate).toHaveBeenCalledWith({ networkPolicy: policy });
+      expect(tree(result.output)).toBe(
+        [
+          "✅ Network policy updated for sandbox my-sbx",
+          "   │ mode: restricted",
+          "   ╰ request headers: registry.npmjs.org (authorization)",
+        ].join("\n"),
+      );
+      expect(result.output).not.toContain(secret);
+    });
+
+    test("--network-policy-file rejects an invalid policy before any API call", async () => {
+      const result = await runPolicy([
+        "--network-policy-file",
+        policyFile(
+          JSON.stringify({
+            allow: {
+              "registry.npmjs.org": [
+                {
+                  match: { methods: ["GET"] },
+                  transform: [{ headers: { authorization: secret } }],
+                },
+              ],
+            },
+          }),
+        ),
+      ]);
+
+      expect(result.failed).toBe(true);
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(result.output).toContain(
+        'allow["registry.npmjs.org"][0].match.methods: unknown key',
+      );
+      expect(result.output).not.toContain(secret);
+    });
+
+    test("--network-policy-file rejects other network flags before any API call", async () => {
+      const result = await runPolicy([
+        "--allowed-domain",
+        "*",
+        "--network-policy-file",
+        policyFile('"deny-all"'),
+      ]);
+
+      expect(result.failed).toBe(true);
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(result.output).toContain(
+        "Cannot combine --network-policy-file with other network policy flags.",
+      );
+    });
+
     test.each([
       ["unset", undefined, "which is not set."],
       ["empty", "", "which is empty."],
@@ -453,7 +533,7 @@ describe("config command", () => {
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output).toContain(
-        "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
+        "--request-header does not take path or method matchers. To use them, write the policy as JSON and pass it with --network-policy-file.",
       );
     });
 
@@ -466,7 +546,7 @@ describe("config command", () => {
       expect(result.failed).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(result.output).toContain(
-        "Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.",
+        "--request-header does not take path or method matchers. To use them, write the policy as JSON and pass it with --network-policy-file.",
       );
     });
 

@@ -3,8 +3,11 @@ import { inspect, stripVTControlCharacters } from "node:util";
 import {
   parseRequestHeader,
   parseRequestHeaderFromEnv,
+  NETWORK_POLICY_SCHEMA,
+  readNetworkPolicyFile,
   Redacted,
 } from "../../src/args/network-policy.ts";
+import { parseNetworkPolicy } from "@vercel/sandbox";
 
 const SECRET = "Bearer npm_abc==";
 
@@ -24,7 +27,7 @@ function parseError(input: string): string {
 }
 
 const MATCHER_HINT =
-  "hint: Path and method matchers are not supported by the CLI yet. Use the SDK's networkPolicy rules.";
+  "hint: --request-header does not take path or method matchers. To use them, write the policy as JSON and pass it with --network-policy-file.";
 const FORMAT_ERROR = [
   "Invalid --request-header value.",
   "hint: Use domain:header=value, for example example.com:x-source=ci.",
@@ -270,5 +273,171 @@ describe("Redacted", () => {
     expect(JSON.stringify({ value })).toBe('{"value":"<redacted>"}');
     expect(inspect({ value })).not.toContain("npm_abc");
     expect(inspect({ value })).toContain("<redacted>");
+  });
+});
+
+describe("readNetworkPolicyFile", () => {
+  const policy = {
+    allow: {
+      "registry.npmjs.org": [
+        {
+          match: { method: ["GET", "HEAD"] },
+          transform: [{ headers: { authorization: SECRET } }],
+        },
+      ],
+      "*": [],
+    },
+  };
+  const reader = (text: string) => async () => text;
+
+  async function readError(
+    text: string,
+    path = "policy.json",
+  ): Promise<string> {
+    try {
+      await readNetworkPolicyFile(path, reader(text));
+    } catch (error) {
+      const message = text_(error);
+      expect(message).not.toContain("npm_abc");
+      return message;
+    }
+    throw new Error("expected readNetworkPolicyFile to fail");
+  }
+  const text_ = text;
+
+  const SHAPE_HINT = `hint: ${NETWORK_POLICY_SCHEMA}`;
+
+  test("returns the policy from the file", async () => {
+    await expect(
+      readNetworkPolicyFile("policy.json", reader(JSON.stringify(policy))),
+    ).resolves.toEqual(policy);
+  });
+
+  test("reads stdin for -", async () => {
+    const read = async (path: string) => {
+      expect(path).toBe("-");
+      return '"deny-all"';
+    };
+    await expect(readNetworkPolicyFile("-", read)).resolves.toBe("deny-all");
+  });
+
+  test("reports the position of invalid JSON when Node gives one", async () => {
+    const message = await readError('{"allow":\n "*" []}');
+    expect(message).toBe(
+      [
+        "The network policy in policy.json is not valid JSON (line 2 column 6).",
+        SHAPE_HINT,
+      ].join("\n"),
+    );
+  });
+
+  test("drops Node's quote of the input, which can hold a secret", async () => {
+    // Node reports an unexpected token by quoting the text around it.
+    expect(await readError(`{"allow": ${SECRET}}`)).toBe(
+      ["The network policy in policy.json is not valid JSON.", SHAPE_HINT].join(
+        "\n",
+      ),
+    );
+  });
+
+  test("names stdin as the source", async () => {
+    expect(await readError("", "-")).toContain(
+      "The network policy in stdin is not valid JSON",
+    );
+  });
+
+  test("lists each invalid path without values", async () => {
+    const bad = structuredClone(policy) as Record<string, any>;
+    bad.allow["registry.npmjs.org"][0].match = { methods: ["GET"] };
+    expect(await readError(JSON.stringify(bad))).toBe(
+      [
+        "The network policy in policy.json is invalid:",
+        '  allow["registry.npmjs.org"][0].match.methods: unknown key',
+        SHAPE_HINT,
+      ].join("\n"),
+    );
+  });
+
+  test("reports a file it cannot read by error code", async () => {
+    const message = text_(
+      await readNetworkPolicyFile("missing.json").catch((error) => error),
+    );
+    expect(message).toBe(
+      [
+        "Cannot read the network policy file missing.json (ENOENT).",
+        "hint: Pass a readable JSON file, or - to read stdin.",
+      ].join("\n"),
+    );
+  });
+});
+
+describe("NETWORK_POLICY_SCHEMA", () => {
+  // Every field the schema text documents. parseNetworkPolicy rejects unknown
+  // keys, so a documented field the SDK does not accept fails here.
+  const everyField = {
+    allow: {
+      "*.example.com": [],
+      "registry.npmjs.org": [
+        {
+          match: {
+            path: { exact: "/x" },
+            method: ["GET", "HEAD"],
+            queryString: [{ key: { startsWith: "a" }, value: { regex: "^b" } }],
+            headers: [{ key: { exact: "x-k" } }, { value: { exact: "v" } }],
+          },
+          transform: [{ headers: { authorization: "Bearer ..." } }],
+        },
+        { forwardURL: "https://proxy.example.com/sandbox" },
+        {
+          response: {
+            statusCode: 403,
+            headers: { "x-reason": "denied" },
+            body: "no",
+            contentType: "text/plain",
+          },
+        },
+      ],
+    },
+    subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
+  };
+
+  test("every documented field parses", () => {
+    expect(parseNetworkPolicy(structuredClone(everyField))).toEqual(everyField);
+    expect(parseNetworkPolicy({ allow: ["a.com"] })).toEqual({
+      allow: ["a.com"],
+    });
+    expect(parseNetworkPolicy("allow-all")).toBe("allow-all");
+    expect(parseNetworkPolicy("deny-all")).toBe("deny-all");
+  });
+
+  test("names every field it documents", () => {
+    for (const key of [
+      "allow",
+      "subnets",
+      "deny",
+      "match",
+      "transform",
+      "headers",
+      "forwardURL",
+      "response",
+      "statusCode",
+      "body",
+      "contentType",
+      "path",
+      "method",
+      "queryString",
+      "exact",
+      "startsWith",
+      "regex",
+      "key",
+      "value",
+    ]) {
+      expect(NETWORK_POLICY_SCHEMA).toContain(`"${key}"`);
+    }
+  });
+
+  test("its example parses", () => {
+    const example = /Example: (.*)$/m.exec(NETWORK_POLICY_SCHEMA)?.[1];
+    expect(() => parseNetworkPolicy(JSON.parse(example ?? ""))).not.toThrow();
   });
 });

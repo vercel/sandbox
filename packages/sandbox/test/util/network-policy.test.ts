@@ -17,6 +17,7 @@ const empty = {
   deniedCIDRs: [] as string[],
   requestHeaders: [] as RequestHeader[],
   requestHeadersFromEnv: [] as RequestHeader[],
+  networkPolicyFile: undefined as NetworkPolicy | undefined,
 };
 
 const registry = header(
@@ -317,6 +318,67 @@ describe("buildNetworkPolicy", () => {
     expect(buildNetworkPolicy({ ...empty, networkPolicy: "deny-all" })).toBe(
       "deny-all",
     );
+  });
+});
+
+describe("buildNetworkPolicy with --network-policy-file", () => {
+  const filePolicy: NetworkPolicy = {
+    allow: {
+      "registry.npmjs.org": [
+        {
+          match: { method: ["GET", "HEAD"] },
+          transform: [{ headers: { authorization: "Bearer npm_abc" } }],
+        },
+      ],
+    },
+  };
+
+  test("returns the file's policy unchanged", () => {
+    expect(
+      buildNetworkPolicy({ ...empty, networkPolicyFile: filePolicy }),
+    ).toBe(filePolicy);
+  });
+
+  test.each([
+    ["--network-policy", { networkPolicy: "deny-all" as const }],
+    ["--allowed-domain", { allowedDomains: ["*"] }],
+    ["--allowed-cidr", { allowedCIDRs: ["10.0.0.0/8"] }],
+    ["--denied-cidr", { deniedCIDRs: ["10.0.0.0/8"] }],
+    ["--request-header", { requestHeaders: [registry] }],
+    ["--request-header-from-env", { requestHeadersFromEnv: [registry] }],
+  ])("rejects combining it with %s", (_flag, extra) => {
+    let message = "";
+    try {
+      buildNetworkPolicy({
+        ...empty,
+        ...extra,
+        networkPolicyFile: filePolicy,
+      });
+    } catch (error) {
+      message = text(error);
+    }
+    expect(message).toBe(
+      [
+        "Cannot combine --network-policy-file with other network policy flags.",
+        "hint: Put the whole policy in the file. It replaces --network-policy, --allowed-domain, --allowed-cidr, --denied-cidr, --request-header, and --request-header-from-env.",
+      ].join("\n"),
+    );
+  });
+
+  test("names a header in several rules once", () => {
+    expect(
+      formatRequestHeaderNames({
+        allow: {
+          "a.com": [
+            {
+              match: { method: ["GET"] },
+              transform: [{ headers: { a: "1" } }],
+            },
+            { transform: [{ headers: { a: "2", b: "3" } }] },
+          ],
+        },
+      }),
+    ).toBe("a.com (a, b)");
   });
 });
 

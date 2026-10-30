@@ -54,6 +54,22 @@ export function buildNetworkPolicy(
   } = args;
   const requestHeaders = [...args.requestHeaders, ...requestHeadersFromEnv];
 
+  if (args.networkPolicyFile !== undefined) {
+    if (
+      networkPolicy ||
+      allowedDomains.length > 0 ||
+      allowedCIDRs.length > 0 ||
+      deniedCIDRs.length > 0 ||
+      requestHeaders.length > 0
+    ) {
+      fail(
+        "Cannot combine --network-policy-file with other network policy flags.",
+        "Put the whole policy in the file. It replaces --network-policy, --allowed-domain, --allowed-cidr, --denied-cidr, --request-header, and --request-header-from-env.",
+      );
+    }
+    return args.networkPolicyFile;
+  }
+
   if (networkPolicy && requestHeaders.length > 0) {
     switch (networkPolicy) {
       case "allow-all":
@@ -163,7 +179,7 @@ export function formatRequestHeaderNames(
       }
     }
     if (names.length > 0) {
-      parts.push(`${domain} (${names.join(", ")})`);
+      parts.push(`${domain} (${[...new Set(names)].join(", ")})`);
     }
   }
   return parts.length === 0 ? undefined : parts.join(", ");
