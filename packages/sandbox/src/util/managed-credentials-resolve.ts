@@ -410,7 +410,7 @@ export const FIELD_DEPENDENTS: Record<EditableField, readonly EditableField[]> =
     repository: ["commitAs"],
     actions: [],
     commitAs: [],
-    actAs: [],
+    actAs: ["commitAs"],
   };
 
 /** Every field invalidated by editing `field`, including transitive ones. */

@@ -687,6 +687,34 @@ describe("create with managed credentials", () => {
   });
 
   describe("creation failures", () => {
+    test("does not restore an old Git source when the approved configuration has none", async () => {
+      const preparation = await import(
+        "../../src/util/managed-credentials-create"
+      );
+      vi.spyOn(preparation, "prepareManagedCredentials").mockResolvedValue({
+        transport: { credentials: { github: [] } },
+        config: { credentials: { github: [] } },
+        vcpus: 6,
+      });
+      await createWith(["--enable-managed-credentials", "--yes", "--silent"]);
+      expect(mockCreate.mock.calls[0][0].source).toBeUndefined();
+    });
+    test("sh --rm rejects managed creation when stdin cannot support an interactive shell", async () => {
+      const path = join(directory, "shell-credentials.json");
+      await writeFile(path, JSON.stringify({ credentials: { github: [] } }));
+      const { sh } = await import("../../src/commands/sh");
+      await expect(
+        cmd.run(sh, [
+          "--scope=team",
+          "--project=project",
+          "--rm",
+          "--yes",
+          `--credentials-from-config-file=${path}`,
+        ]),
+      ).rejects.toThrow("interactive");
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(mockExec).not.toHaveBeenCalled();
+    });
     test.each(["run", "sh"])(
       "%s rejects dry-run without starting anything",
       async (name) => {
