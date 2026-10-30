@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import chalk from "chalk";
 import ms from "ms";
@@ -7,9 +8,7 @@ import { sandboxClient } from "../client";
 import { Duration } from "../types/duration";
 
 export const extend = cmd.command({
-  name: "extend",
-  description:
-    "Add time to a running session without changing its default timeout",
+  ...commandMetadata.extend,
   args: {
     sandbox: cmd.positional({
       type: sandboxName,

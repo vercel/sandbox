@@ -4,7 +4,8 @@ export default defineConfig({
   entry: ["src/index.ts", "src/sandbox.ts"],
   outDir: "dist",
   format: ["esm"],
-  sourcemap: true,
+  sourcemap: false,
+  minify: true,
   define: {
     "process.env.VERCEL_DEV": JSON.stringify("0"),
   },

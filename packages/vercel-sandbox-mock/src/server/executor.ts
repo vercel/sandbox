@@ -18,6 +18,7 @@ export interface RunArgs {
   cwd?: string;
   env?: Record<string, string>;
   sudo?: boolean;
+  stdin?: Buffer;
 }
 
 /**
@@ -27,7 +28,10 @@ export interface RunArgs {
  * Strip the `sudo`/options prefix and run the inner argv; there is no real
  * privilege or identity change (just-bash always runs as root).
  */
-function unwrapSudo(command: string, args: string[]): { command: string; args: string[] } {
+function unwrapSudo(
+  command: string,
+  args: string[],
+): { command: string; args: string[] } {
   if (command !== "sudo") return { command, args };
   let i = 0;
   while (i < args.length) {
@@ -74,7 +78,10 @@ export class Executor {
     const inner = await JustBashSandbox.create({
       cwd: config.cwd,
       env: config.env,
-      customCommands: [...buildUserCommands(config.users), ...config.customCommands],
+      customCommands: [
+        ...buildUserCommands(config.users),
+        ...config.customCommands,
+      ],
     });
     // just-bash only seeds /bin, /usr, /dev, ... — create the standard
     // directories a real sandbox image ships with.
@@ -95,9 +102,39 @@ export class Executor {
 
     // Intercept the coreutils invocations the SDK's FileSystem makes with
     // GNU flags just-bash doesn't support; everything else runs in just-bash.
-    const intercepted = await tryFsCommand(this.fs, params.cwd ?? this.#cwd, command, args);
+    const intercepted = await tryFsCommand(
+      this.fs,
+      params.cwd ?? this.#cwd,
+      command,
+      args,
+    );
     if (intercepted) {
-      return { ...intercepted, startedAt, durationMs: Math.max(0, Date.now() - startedAt) };
+      return {
+        ...intercepted,
+        startedAt,
+        durationMs: Math.max(0, Date.now() - startedAt),
+      };
+    }
+
+    if (params.stdin) {
+      // `runCommand` has no stdin option, so run through the shell it wraps.
+      const result = await this.#inner.bashEnvInstance.exec(
+        `'${command.replace(/'/g, `'\\''`)}'`,
+        {
+          args,
+          cwd: params.cwd,
+          env: params.env,
+          stdin: params.stdin.toString("latin1"),
+          stdinKind: "bytes",
+        },
+      );
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        startedAt,
+        durationMs: Math.max(0, Date.now() - startedAt),
+      };
     }
 
     const result = await this.#inner.runCommand({

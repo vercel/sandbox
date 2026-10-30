@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { sandboxName } from "../args/sandbox-name";
 import { Sandbox } from "@vercel/sandbox";
@@ -29,8 +30,7 @@ export const args = {
 } as const;
 
 export const snapshot = cmd.command({
-  name: "snapshot",
-  description: "Take a snapshot of the filesystem of a sandbox",
+  ...commandMetadata.snapshot,
   args,
   async handler({
     sandbox: sandboxName,

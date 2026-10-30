@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { command as handler } from "../handlers";
 import { MockServer } from "./mock-server";
 
 const BASE = "https://vercel.com/api";
@@ -154,6 +155,223 @@ describe("MockServer routing", () => {
         )
       ).text();
       expect(logs).toContain('"data":"yo\\n"');
+    });
+  });
+
+  describe("stdin", () => {
+    const b64 = (text: string) => Buffer.from(text).toString("base64");
+
+    async function startCat(
+      call: ReturnType<typeof makeServer>["call"],
+      name = "cat",
+    ) {
+      const { session } = await createSandbox(call);
+      const { command } = await j(
+        await call("POST", `/v2/sandboxes/sessions/${session.id}/cmd`, {
+          body: { command: name, env: {}, sudo: false, attachStdin: true },
+        }),
+      );
+      const base = `/v2/sandboxes/sessions/${session.id}/cmd/${command.id}`;
+      const write = (body: object) => call("POST", `${base}/stdin`, { body });
+      return { session, command, base, write, b64 };
+    }
+
+    test("buffers writes, skips resent bytes, and runs the command on close", async () => {
+      const { call } = makeServer();
+      const { command, base, write, b64 } = await startCat(call);
+      expect(command.exitCode).toBeNull();
+
+      expect(await j(await write({ data: b64("hello "), offset: 0 }))).toEqual(
+        expect.objectContaining({ bytesWritten: 6 }),
+      );
+      const resent = await j(
+        await write({ data: b64("hello world"), offset: 0 }),
+      );
+      expect(resent.bytesWritten).toBe(11);
+      expect(
+        (await j(await write({ close: true, offset: 11 }))).bytesWritten,
+      ).toBe(11);
+      expect((await write({ close: true, offset: 11 })).status).toBe(200);
+
+      const finished = await j(await call("GET", `${base}?wait=true`));
+      expect(finished.command.exitCode).toBe(0);
+      expect(await (await call("GET", `${base}/logs`)).text()).toContain(
+        '"data":"hello world"',
+      );
+      const exited = await write({ data: b64("late") });
+      expect(exited.status).toBe(404);
+      expect((await j(exited)).error.code).toBe("command_not_found_or_exited");
+    });
+
+    test("rejects offsets past the bytes written and bad input", async () => {
+      const { call } = makeServer();
+      const { write, b64 } = await startCat(call);
+      await write({ data: b64("abc"), offset: 0 });
+
+      const past = await write({ data: b64("d"), offset: 4 });
+      expect(past.status).toBe(409);
+      expect((await j(past)).error.code).toBe("command_stdin_offset_mismatch");
+      expect((await write({ close: true, offset: 2 })).status).toBe(409);
+      const invalid = await write({ data: "not base64!" });
+      expect(invalid.status).toBe(400);
+      expect((await j(invalid)).error.code).toBe("bad_request");
+      expect((await write({ offset: -1 })).status).toBe(400);
+    });
+
+    test("after close, new bytes are rejected but resends still succeed", async () => {
+      const { server, call } = makeServer();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      server.setDefaultHandlers([
+        handler("slow", async () => {
+          await gate;
+          return {};
+        }),
+      ]);
+      const { base, write } = await startCat(call, "slow");
+
+      expect(
+        (await write({ data: b64("ab"), offset: 0, close: true })).status,
+      ).toBe(200);
+      expect(
+        (await write({ data: b64("ab"), offset: 0, close: true })).status,
+      ).toBe(200);
+      expect((await write({ data: b64("ab"), offset: 0 })).status).toBe(200);
+      expect((await j(await write({}))).bytesWritten).toBe(2);
+      const extra = await write({ data: b64("c"), offset: 2 });
+      expect(extra.status).toBe(400);
+      expect((await j(extra)).error.code).toBe("command_stdin_unavailable");
+      expect((await write({ close: true })).status).toBe(400);
+
+      release();
+      const finished = await j(await call("GET", `${base}?wait=true`));
+      expect(finished.command.exitCode).toBe(0);
+    });
+
+    test("a command that has exited rejects writes with 404", async () => {
+      const { call } = makeServer();
+      const { session } = await createSandbox(call);
+      const { command } = await j(
+        await call("POST", `/v2/sandboxes/sessions/${session.id}/cmd`, {
+          body: { command: "echo", env: {}, sudo: false },
+        }),
+      );
+      const res = await call(
+        "POST",
+        `/v2/sandboxes/sessions/${session.id}/cmd/${command.id}/stdin`,
+        { body: { data: "aGk=" } },
+      );
+      expect(res.status).toBe(404);
+      expect((await j(res)).error.code).toBe("command_not_found_or_exited");
+    });
+
+    test("wait:true streams the command chunk before stdin closes", async () => {
+      const { call } = makeServer();
+      const { session } = await createSandbox(call);
+      const res = await call(
+        "POST",
+        `/v2/sandboxes/sessions/${session.id}/cmd`,
+        {
+          body: {
+            command: "cat",
+            env: {},
+            sudo: false,
+            wait: true,
+            logs: true,
+            attachStdin: true,
+          },
+        },
+      );
+      const reader = res.body!.getReader();
+      const first = JSON.parse(
+        new TextDecoder().decode((await reader.read()).value),
+      );
+      expect(first.command.exitCode).toBeNull();
+
+      await call(
+        "POST",
+        `/v2/sandboxes/sessions/${session.id}/cmd/${first.command.id}/stdin`,
+        { body: { data: b64("hi"), close: true } },
+      );
+      let rest = "";
+      for (
+        let chunk = await reader.read();
+        !chunk.done;
+        chunk = await reader.read()
+      ) {
+        rest += new TextDecoder().decode(chunk.value);
+      }
+      const lines = rest
+        .trim()
+        .split("\n")
+        .map((l) => JSON.parse(l));
+      expect(lines).toContainEqual({ stream: "stdout", data: "hi" });
+      expect(lines.at(-1).command.exitCode).toBe(0);
+    });
+
+    test("killing a command waiting for stdin finishes it", async () => {
+      const { call } = makeServer();
+      const { base } = await startCat(call);
+      await call("POST", `${base}/kill`, { body: { signal: 15 } });
+      const finished = await j(await call("GET", `${base}?wait=true`));
+      expect(finished.command.exitCode).toBe(143);
+    });
+
+    test("kill and session stop end a command running after close", async () => {
+      const { server, call } = makeServer();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      server.setDefaultHandlers([
+        handler("slow", async () => {
+          await gate;
+          return { stdout: "late" };
+        }),
+      ]);
+      const killed = await startCat(call, "slow");
+      await killed.write({ close: true });
+      await call("POST", `${killed.base}/kill`, { body: { signal: 15 } });
+      expect(
+        (await j(await call("GET", `${killed.base}?wait=true`))).command
+          .exitCode,
+      ).toBe(143);
+
+      const stopped = await startCat(call, "slow");
+      await stopped.write({ close: true });
+      await call("POST", `/v2/sandboxes/sessions/${stopped.session.id}/stop`);
+      expect(
+        (await j(await call("GET", `${stopped.base}?wait=true`))).command
+          .exitCode,
+      ).toBe(137);
+
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect((await j(await call("GET", killed.base))).command.exitCode).toBe(
+        143,
+      );
+      expect((await j(await call("GET", stopped.base))).command.exitCode).toBe(
+        137,
+      );
+      expect(
+        await (await call("GET", `${killed.base}/logs`)).text(),
+      ).not.toContain("late");
+    });
+
+    test("stopping the session ends a command waiting for stdin", async () => {
+      const { call } = makeServer();
+      const { session, base } = await startCat(call);
+      await call("POST", `/v2/sandboxes/sessions/${session.id}/stop`);
+      const finished = await j(await call("GET", `${base}?wait=true`));
+      expect(finished.command.exitCode).toBe(137);
+    });
+
+    test("an aborted wait rejects instead of waiting for stdin", async () => {
+      const { server, call } = makeServer();
+      const { base } = await startCat(call);
+      await expect(
+        server.fetch(`${BASE}${base}?wait=true`, {
+          signal: AbortSignal.timeout(10),
+        }),
+      ).rejects.toThrow();
     });
   });
 

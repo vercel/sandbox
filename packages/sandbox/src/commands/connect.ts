@@ -1,14 +1,13 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
-import * as Exec from "./exec";
+import { exec, args as execArgs } from "./exec";
 import { omit } from "../util/omit";
 import { defaultShell } from "../interactive-shell/default-shell";
 
 export const connect = cmd.command({
-  name: "connect",
-  aliases: ["ssh", "shell"],
-  description: "Start an interactive shell in an existing sandbox",
+  ...commandMetadata.connect,
   args: omit(
-    Exec.args,
+    execArgs,
     "command",
     "args",
     "interactive",
@@ -17,7 +16,7 @@ export const connect = cmd.command({
     "timeout",
   ),
   async handler(args) {
-    return Exec.exec.handler({
+    return exec.handler({
       ...defaultShell,
       interactive: true,
       detached: false,

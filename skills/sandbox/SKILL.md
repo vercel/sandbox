@@ -49,6 +49,7 @@ import {
   Sandbox,
   Session,
   Snapshot,
+  Drive,
   Command,
   CommandFinished,
 } from "@vercel/sandbox";
@@ -260,6 +261,48 @@ const fork = await Sandbox.fork({
   env: { OPENAI_API_KEY: process.env.OPENAI_API_KEY! },
 });
 ```
+
+### When to fork a sandbox or a drive
+
+Use `Sandbox.fork` when each worker needs its own sandbox environment, including
+installed tools and files from the source sandbox's snapshot. Use `drive.fork`
+when each worker needs an independent writable copy of persistent files.
+`Sandbox.fork` does not inherit drive mounts; pass `mounts` if the fork needs a
+drive.
+Mount a drive when files should persist across sandbox runs. Many sandboxes
+can mount `drive.snapshot()` for read-only access; each mount captures the
+drive's files at mount time. Mount a new snapshot to see later writes. A drive
+allows one read-write mount at a time. The sandbox and drive must be in the
+same region. Write to a read-write mount once before forking a drive or
+mounting its snapshot.
+
+```typescript
+import { Drive, Sandbox } from "@vercel/sandbox";
+
+const baseDrive = await Drive.getOrCreate({ name: "agent-base-files" });
+const seed = await Sandbox.create({
+  region: baseDrive.region,
+  mounts: { "/workspace": baseDrive },
+});
+await seed.writeFiles([
+  { path: "/workspace/README.md", content: "starter" },
+]);
+await seed.stop();
+
+// The source drive has now been written to and can be forked.
+const workerDrive = await baseDrive.fork({ name: "agent-worker-1-files" });
+const worker = await Sandbox.create({
+  region: workerDrive.region,
+  mounts: { "/workspace": workerDrive },
+});
+await worker.writeFiles([
+  { path: "/workspace/result.txt", content: "worker" },
+]);
+await worker.stop();
+```
+
+The worker's writes stay on `workerDrive`; the base drive keeps the starter
+files. Fork the base drive again with a different name for another worker.
 
 ### Auto-Dispose Pattern
 
@@ -939,7 +982,7 @@ const result = await sandbox.runCommand({
 | Default timeout | 5 minutes                                                                       |
 | Base system     | Ubuntu 26.04                                                                    |
 | User context    | `ubuntu` user                                                                   |
-| Writable path   | `/vercel/sandbox`                                                               |
+| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                              |
 | Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
@@ -992,6 +1035,7 @@ sandbox create opencode
 sandbox create pi
 sandbox create claude
 sandbox create codex
+sandbox create fx
 
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
@@ -1025,7 +1069,7 @@ sandbox exec --detach <name> -- npm run dev
 sandbox commands get <name> <command-id>
 sandbox commands logs <name> <command-id>
 sandbox commands wait <name> <command-id>
-sandbox commands kill <name> <command-id> --signal SIGTERM
+sandbox commands kill <name> <command-id> --signal SIGTERM  # Also SIGKILL, SIGINT, SIGHUP, SIGQUIT
 
 # Add time to the current running session without changing future defaults
 sandbox extend <name> <duration>
@@ -1048,6 +1092,11 @@ sandbox snapshots remove <snapshot-id>
 sandbox snapshots tree <name>                # Walk the tree from the sandbox's current snapshot
 sandbox snapshots tree <name> --cursor <snapshot-id> --sort-order asc
 
+# Create or retrieve a drive; size is fixed at creation
+sandbox drives get-or-create workspace --max-size 200GiB
+sandbox drives get-or-create archive --max-size 2TiB
+sandbox drives get-or-create workspace --max-size 214748364800  # Raw bytes
+
 # Config (view + update any sandbox parameter)
 sandbox config list <name>
 sandbox config vcpus <name> <count>
@@ -1061,12 +1110,30 @@ sandbox config keep-last-snapshots-for <name> <duration|none>
 sandbox config delete-evicted-snapshots <name> <true|false>
 sandbox config current-snapshot <name> <snapshot-id>
 sandbox config network-policy <name> --network-policy deny-all
+sandbox config network-policy <name> --allowed-domain '*' --request-header api.example.com:x-source=ci  # domain:header=value
+API_AUTH="Bearer $API_TOKEN" sandbox config network-policy <name> --allowed-domain '*' --request-header-from-env api.example.com:authorization=API_AUTH  # Secret value read from $API_AUTH
+sandbox config network-policy <name> --network-policy-file policy.json  # Whole policy as SDK NetworkPolicy JSON; use - for stdin
+sandbox config network-policy <name> --network-policy-file - <<EOF  # A heredoc keeps $NPM_TOKEN out of the command line
+{"allow": {"*": [], "registry.npmjs.org": [{"match": {"method": ["GET", "HEAD"]}, "transform": [{"headers": {"authorization": "Bearer $NPM_TOKEN"}}]}]}}
+EOF
 sandbox config tags <name> --tag env=prod
 ```
+
+Drive sizes accept bytes or units such as `GiB` and `TiB`. Unit names are
+case-insensitive; `GB` and `TB` are aliases for the binary units. Omitting
+`--max-size` retrieves the existing size or uses the plan default for a new
+drive. The output includes a reminder that size is fixed at creation.
 
 Agent shortcuts use the universal image and require an interactive terminal.
 Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
 authentication for the agent separately from `sandbox login`.
+
+For fx, choose a sign-in option on first launch or pass an exported AI Gateway
+API key with `sandbox create fx --env AI_GATEWAY_API_KEY`. The shortcut preserves
+fx's default permissions. fx can update itself inside the sandbox, so its version
+may change between sessions. Its reconnect command uses `fx -c` to continue the
+conversation. If you supplied `--env`, export the same values locally before
+reconnecting; the hint includes names only.
 
 Exiting the agent leaves the sandbox running. Unless you pass `--silent`, the CLI
 prints reconnect and stop commands. Follow any environment-variable reminder

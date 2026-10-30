@@ -1,4 +1,6 @@
 import * as cmd from "cmd-ts";
+import { APIError } from "@vercel/sandbox";
+import { commandMetadata } from "../command-metadata";
 import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
@@ -43,7 +45,17 @@ async function getCurrentCommand({
       `Sandbox ${name} has no running session for command ${commandId}.`,
     );
   }
-  return session.getCommand(commandId);
+  try {
+    return await session.getCommand(commandId);
+  } catch (error) {
+    if (error instanceof APIError && error.response.status === 404) {
+      throw new Error(
+        `Command ${commandId} was not found in the current session of ${name}. It may have run in an earlier session.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 }
 
 const get = cmd.command({
@@ -94,7 +106,15 @@ const kill = cmd.command({
     signal: cmd.option({
       long: "signal",
       description: "Signal to send (default SIGTERM)",
-      type: cmd.optional(cmd.oneOf(["SIGTERM", "SIGKILL"] as const)),
+      type: cmd.optional(
+        cmd.oneOf([
+          "SIGTERM",
+          "SIGKILL",
+          "SIGINT",
+          "SIGHUP",
+          "SIGQUIT",
+        ] as const),
+      ),
     }),
   },
   async handler({ signal, ...input }) {
@@ -107,7 +127,6 @@ const kill = cmd.command({
 });
 
 export const commands = cmd.subcommands({
-  name: "commands",
-  description: "Inspect and control commands in a running sandbox session",
+  ...commandMetadata.commands,
   cmds: { get, logs, wait, kill },
 });

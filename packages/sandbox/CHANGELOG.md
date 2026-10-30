@@ -1,5 +1,43 @@
 # sandbox
 
+## 4.11.1
+
+### Patch Changes
+
+- Fix `createApp()` for CLIs that embed the Sandbox CLI, such as `vercel sandbox`. Since 4.10.0, loading a command also started the standalone CLI, which parsed the host's `process.argv`, failed with `Not a valid subcommand name`, and exited the host process with code 1. ([#411](https://github.com/vercel/sandbox/pull/411))
+
+## 4.11.0
+
+### Minor Changes
+
+- Add `--request-header domain:header=value` and `--request-header-from-env domain:header=ENV_VAR` so the CLI can set an outbound request header in a network policy. Use `--request-header-from-env` to keep a secret out of the command line. ([#410](https://github.com/vercel/sandbox/pull/410))
+
+### Patch Changes
+
+- Update README intro to reflect persistent-by-default sandboxes. ([#408](https://github.com/vercel/sandbox/pull/408))
+
+- Updated dependencies [[`0fd6b326b429167f662b91fd423cdb76a1c0ca76`](https://github.com/vercel/sandbox/commit/0fd6b326b429167f662b91fd423cdb76a1c0ca76)]:
+  - @vercel/sandbox@3.9.1
+
+## 4.10.0
+
+### Minor Changes
+
+- Lazy-load commands for faster executions. ([#393](https://github.com/vercel/sandbox/pull/393))
+
+### Patch Changes
+
+- Updated dependencies [[`4495bafcf5269ab00abc8a8c855b5f86e2a57d12`](https://github.com/vercel/sandbox/commit/4495bafcf5269ab00abc8a8c855b5f86e2a57d12), [`4a08262beacd1a30c31edbe3dac85a235716c078`](https://github.com/vercel/sandbox/commit/4a08262beacd1a30c31edbe3dac85a235716c078)]:
+  - @vercel/sandbox@3.9.0
+
+## 4.9.0
+
+### Minor Changes
+
+- Add `sandbox extend` to increase a running session's timeout without changing future session defaults, and clarify `sandbox config timeout` help. ([#389](https://github.com/vercel/sandbox/pull/389))
+
+- `sandbox drives get-or-create --max-size` now accepts sizes with units (`200GiB`, `2TiB`) as well as raw bytes, and rejects input it cannot parse instead of truncating it, so `2TiB` is no longer read as 2 bytes. When `--max-size` is omitted, the printed size says where it came from: `max size: 1 TiB (set with --max-size at creation, fixed afterwards)`. ([#342](https://github.com/vercel/sandbox/pull/342))
+
 ## 4.8.1
 
 ### Patch Changes
