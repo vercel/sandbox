@@ -44,8 +44,11 @@ describe("token", () => {
     vi.clearAllMocks();
     mockGetAuth.mockReturnValue(null);
 
-    // Clear relevant env vars
+    // Clear relevant env vars. VERCEL_TOKEN is included because `token` reads
+    // it too: leaving a developer's real token in the environment would
+    // otherwise satisfy the lookup before any mock is consulted.
     delete process.env.VERCEL_AUTH_TOKEN;
+    delete process.env.VERCEL_TOKEN;
     delete process.env.VERCEL_OIDC_TOKEN;
   });
 

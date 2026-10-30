@@ -28,6 +28,28 @@ import { CliError } from "../util/cli-error";
 import { confirmCreation } from "../util/confirm-creation";
 import { APIError } from "@vercel/sandbox";
 import { StyledError } from "../error";
+import {
+  MANAGED_CREDENTIALS_VCPUS,
+  prepareManagedCredentials,
+  persistManagedConfiguration,
+  reportDryRun,
+} from "../util/managed-credentials-create";
+
+/**
+ * Narrow `create.handler`'s result for commands that compose it.
+ *
+ * `create` returns no sandbox for `--dry-run`, which previews a creation
+ * without performing one. `run` and `sh` reject that flag up front, so this
+ * only guards the type.
+ */
+export function requireCreatedSandbox<T>(sandbox: T | undefined): T {
+  if (!sandbox) {
+    throw new CliError(
+      "Expected a created sandbox. --dry-run only previews a creation; use sandbox create --dry-run.",
+    );
+  }
+  return sandbox;
+}
 
 export const args = {
   name: cmd.option({
@@ -139,13 +161,22 @@ export const create = cmd.command({
       deleteEvictedSnapshots,
     } = input;
     const { creation, mode } = scope;
-    const authScope = {
+    // Filled in once the managed-credentials review has settled, since a
+    // correction there changes which team and project everything downstream —
+    // the creation call, follow-up commands, and printed hints — refers to.
+    let effectiveTeam = scope.team;
+    let effectiveProject = scope.project;
+    const authScope = () => ({
       token: scope.token,
-      team: scope.team,
-      project: scope.project,
-      ...(scope.teamSlug ? { teamSlug: scope.teamSlug } : {}),
-      ...(scope.projectSlug ? { projectSlug: scope.projectSlug } : {}),
-    };
+      team: effectiveTeam,
+      project: effectiveProject,
+      ...(scope.teamSlug && effectiveTeam === scope.team
+        ? { teamSlug: scope.teamSlug }
+        : {}),
+      ...(scope.projectSlug && effectiveProject === scope.project
+        ? { projectSlug: scope.projectSlug }
+        : {}),
+    });
     let creationAttempted = false;
     let createdName: string | undefined;
     try {
@@ -157,7 +188,7 @@ export const create = cmd.command({
       const launcher = agent ? agents[agent] : undefined;
       if (snapshot !== undefined && creation.source !== undefined) {
         throw new CliError(
-          "--snapshot cannot be combined with --git-source or source in --managed-credentials-file.",
+          "--snapshot cannot be combined with a managed credentials source. Remove --snapshot, or drop the --credentials-* options.",
         );
       }
       const source =
@@ -227,7 +258,35 @@ export const create = cmd.command({
             : {};
 
       const persistent = !nonPersistent;
-      const resources = vcpus ? { vcpus } : undefined;
+
+      // Review and approve managed credentials before anything is created.
+      // The proposal can be corrected here, so its approved configuration — not
+      // the one parsed from the flags — is what gets sent.
+      const prepared = await prepareManagedCredentials({
+        context: scope,
+        ...(name !== undefined ? { sandboxName: name } : {}),
+        ...(vcpus !== undefined ? { vcpus } : {}),
+      });
+      if (prepared?.teamOverride !== undefined) {
+        effectiveTeam = prepared.teamOverride;
+      }
+      if (prepared?.projectOverride !== undefined) {
+        effectiveProject = prepared.projectOverride;
+      }
+      // A dry run never creates a sandbox, mutates policy, or writes files —
+      // including when no managed credentials were requested, so the flag is
+      // safe to add to any `create` invocation.
+      if (scope.dryRun) {
+        reportDryRun({ context: scope, ...(prepared ? { prepared } : {}) });
+        return undefined;
+      }
+      const managedCreation = prepared?.transport ?? creation;
+
+      const resources = prepared
+        ? { vcpus: prepared.vcpus }
+        : vcpus
+          ? { vcpus }
+          : undefined;
       const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
       const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
       await confirmCreation(scope, name);
@@ -235,22 +294,23 @@ export const create = cmd.command({
         silent || !mode.interactive
           ? undefined
           : ora("Creating sandbox...").start();
+      const managedSource = prepared?.transport.source ?? source;
       const sourceOptions =
-        source?.type === "snapshot"
-          ? { source }
-          : { ...runtimeOptions, source };
+        managedSource?.type === "snapshot"
+          ? { source: managedSource }
+          : { ...runtimeOptions, source: managedSource };
       let sandbox;
       try {
         creationAttempted = true;
         sandbox = await sandboxClient.create({
           name,
-          teamId: scope.team,
-          projectId: scope.project,
+          teamId: effectiveTeam,
+          projectId: effectiveProject,
           token: scope.token,
           ports,
           ...sourceOptions,
-          commitAs: creation.commitAs,
-          credentials: creation.credentials,
+          commitAs: managedCreation.commitAs,
+          credentials: managedCreation.credentials,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -282,6 +342,20 @@ export const create = cmd.command({
         );
       }
 
+      // Persist after a confirmed creation, using the identifier the response
+      // actually returned. A failure here reports the created sandbox rather
+      // than creating another one to retry a local write.
+      let persistedPath: string | undefined;
+      if (prepared) {
+        persistedPath = await persistManagedConfiguration({
+          context: scope,
+          config: prepared.config,
+          sandboxId: sandbox.currentSession().sessionId,
+          sandboxName: sandbox.name,
+          silent,
+        });
+      }
+
       if (mode.json) {
         const session = sandbox.currentSession();
         const selector = (value: string, placeholder: string) =>
@@ -294,15 +368,18 @@ export const create = cmd.command({
           "list",
           selector(sandbox.name, "<SANDBOX>"),
           "--scope",
-          selector(scope.team, "<TEAM>"),
+          selector(effectiveTeam, "<TEAM>"),
           "--project",
-          selector(scope.project, "<PROJECT>"),
+          selector(effectiveProject, "<PROJECT>"),
         ];
         process.stdout.write(
           JSON.stringify({
             sandbox: { name: sandbox.name },
             session: { id: session.sessionId, status: session.status },
             outcome: "created",
+            ...(persistedPath
+              ? { configuration: { path: persistedPath } }
+              : {}),
             next: [
               {
                 command: argv.join(" "),
@@ -346,7 +423,7 @@ export const create = cmd.command({
             ...(launcher
               ? { command: launcher.command, args: launcher.args }
               : defaultShell),
-            scope: authScope,
+            scope: authScope(),
             asSudo: false,
             cwd: undefined,
             skipExtendingTimeout: false,
@@ -358,7 +435,7 @@ export const create = cmd.command({
           });
         } finally {
           if (launcher && !silent) {
-            const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
+            const scopeFlags = `--scope=${effectiveTeam} --project=${effectiveProject}`;
             const envFlags =
               launcher.reconnectEnv === "explicit"
                 ? Object.keys(envVars)

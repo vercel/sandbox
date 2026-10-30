@@ -47,7 +47,10 @@ import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { StringDecoder } from "node:string_decoder";
-import type { ManagedCredentialOptions } from "../managed-credentials.js";
+import type {
+  ManagedCredentialOptions,
+  ManagedSourceCredentials,
+} from "../managed-credentials.js";
 
 const STDIN_MAX_RETRIES = 5;
 const STDIN_MAX_STALLED_TIMEOUTS = 2;
@@ -246,6 +249,7 @@ export class APIClient extends BaseClient {
               revision?: string;
               username?: string;
               password?: string;
+              credentials?: ManagedSourceCredentials;
             }
           | { type: "tarball"; url: string }
           | { type: "snapshot"; snapshotId: string };

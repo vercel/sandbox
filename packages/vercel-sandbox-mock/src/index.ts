@@ -19,6 +19,7 @@ export type {
 export {
   DEFAULT_SANDBOX_REGION,
   GITHUB_API_CREDENTIAL_ACTIONS,
+  MANAGED_GIT_ACTIONS,
   Session,
   SandboxUser,
   SandboxUserAlreadyExistsError,
@@ -47,6 +48,8 @@ export type {
   InvalidRequestProxyHandler,
   ProxyMeta,
   ProxyHandler,
+  ManagedGitAction,
+  ManagedSourceCredentials,
 } from "@vercel/sandbox";
 
 export type { IFileSystem } from "just-bash";

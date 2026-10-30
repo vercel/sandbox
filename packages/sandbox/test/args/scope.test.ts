@@ -113,7 +113,10 @@ describe("scope", () => {
       "new-team-slug",
     );
 
-    // Env var has OLD token
+    // Env var has OLD token. The higher-precedence token variables are cleared
+    // so a developer's real token cannot satisfy the lookup first.
+    delete process.env.VERCEL_AUTH_TOKEN;
+    delete process.env.VERCEL_TOKEN;
     process.env.VERCEL_OIDC_TOKEN = oldToken;
 
     // But getVercelOidcToken returns NEW token (simulating refresh)
