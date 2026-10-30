@@ -33,3 +33,11 @@ test("dry-run refuses remote default-project creation", async () => {
   expect(Auth.inferScope).not.toHaveBeenCalled();
   expect(withFreshAuthRetry).not.toHaveBeenCalled();
 });
+test.each([
+  ["--scope=explicit-team", "teamSlug"],
+  ["--project=explicit-project", "projectSlug"],
+])("does not label %s with another target's OIDC slug", async (flag, slug) => {
+  const token = `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ owner_id: "team_token", project_id: "prj_token", owner: "token-team", project: "token-project" })).toString("base64url")}.signature`;
+  const result = await cmd.run(parser, [`--token=${token}`, flag]);
+  expect(result.scope[slug as "teamSlug" | "projectSlug"]).toBeUndefined();
+});

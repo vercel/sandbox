@@ -67,6 +67,11 @@ test("invalid configuration is rejected before authentication", async () => {
   ).rejects.toThrow("Can't read");
   expect(getVercelToken).not.toHaveBeenCalled();
 });
+test("execution syntax errors retain the requested JSON error mode", async () => {
+  await expect(
+    cmd.run(parser, ["--json", "--yes", "--yes"]),
+  ).rejects.toMatchObject({ options: { json: true } });
+});
 test.each([
   "--git-source",
   "--github-action",

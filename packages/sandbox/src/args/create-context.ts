@@ -83,9 +83,24 @@ export function createContext({
       ];
     },
     async parse(context) {
-      const run = await parseOptions(execution, context);
-      const json = run.json === true;
+      // Preserve output mode even if an earlier execution option is malformed.
+      let json =
+        allowJson &&
+        context.nodes.some((node) => {
+          const option = node as {
+            type: string;
+            key?: string;
+            value?: { node: { raw: string } };
+          };
+          return (
+            option.type === "longOption" &&
+            option.key === "json" &&
+            option.value?.node.raw !== "false"
+          );
+        });
       try {
+        const run = await parseOptions(execution, context);
+        json = run.json === true;
         const managedOptions = await parseOptions(
           managedCredentialOptions,
           context,
