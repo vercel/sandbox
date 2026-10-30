@@ -1,6 +1,6 @@
 import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
-import { create, args as createArgs } from "./create";
+import { create, args as createArgs, requireCreatedSandbox } from "./create";
 import { exec } from "./exec";
 import { omit } from "../util/omit";
 import { defaultShell } from "../interactive-shell/default-shell";
@@ -25,21 +25,32 @@ export const sh = cmd.command({
         "Opening a shell requires an interactive terminal. Create the sandbox without a shell first, then use sandbox connect from a terminal.",
       );
     }
+    // Opening a shell needs a running sandbox, which a creation preview does
+    // not produce.
+    if (rest.scope.dryRun) {
+      throw new CliError(
+        "--dry-run previews a creation and does not start a sandbox, so it cannot be combined with sandbox sh. Use sandbox create --dry-run.",
+      );
+    }
     if (!removeAfterUse) {
-      return create.handler({
-        ...rest,
-        agent: undefined,
-        connect: true,
-      });
+      return requireCreatedSandbox(
+        await create.handler({
+          ...rest,
+          agent: undefined,
+          connect: true,
+        }),
+      );
     }
 
-    const sandbox = await create.handler({
-      ...rest,
-      agent: undefined,
-      connect: false,
-      nonPersistent: true,
-      __printConnectHint: false,
-    } as Parameters<typeof create.handler>[0]);
+    const sandbox = requireCreatedSandbox(
+      await create.handler({
+        ...rest,
+        agent: undefined,
+        connect: false,
+        nonPersistent: true,
+        __printConnectHint: false,
+      } as Parameters<typeof create.handler>[0]),
+    );
 
     try {
       await exec.handler({

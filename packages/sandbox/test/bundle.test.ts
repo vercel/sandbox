@@ -131,6 +131,16 @@ describe("built package", () => {
         "--github-action",
         "--github-act-as",
         "--managed-credentials-file",
+        // The replacement surface must be discoverable from --help too.
+        "--enable-managed-credentials",
+        "--credentials-repo",
+        "--credentials-action",
+        "--credentials-commit-as",
+        "--credentials-act-as",
+        "--credentials-no-write",
+        "--credentials-from-config-file",
+        "--credentials-from-sandbox",
+        "--credentials-persist-configuration",
       ])
         expect(result.stdout).toContain(flag);
     },
@@ -411,6 +421,311 @@ describe("built package", () => {
       "vercel",
       "sandbox",
     ]);
+  });
+
+  // The `--credentials-*` surface must work in the shipped bundle, not only in
+  // direct TypeScript calls. These cases pass every inferable value explicitly
+  // so they never depend on the test machine's Git remotes or gh login.
+
+  const credentialArgs = [
+    "--credentials-repo=acme/widgets",
+    "--credentials-commit-as=Grace Hopper <grace@example.com>",
+    "--credentials-act-as=42",
+  ];
+
+  test("the built binary forwards a --credentials-* request with six vCPUs", () => {
+    const { preload, request } = mockApi("credentials-flags");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        ...credentialArgs,
+        "--credentials-action=issues:read",
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(JSON.parse(readFileSync(request, "utf8"))).toMatchObject({
+      source: {
+        type: "git",
+        url: "https://github.com/acme/widgets.git",
+        credentials: true,
+      },
+      commitAs: { name: "Grace Hopper", email: "grace@example.com" },
+      credentials: {
+        github: [
+          {
+            repositories: ["acme/widgets"],
+            actions: ["github:issues:read"],
+            actAs: "42",
+          },
+        ],
+      },
+      resources: { vcpus: 6 },
+    });
+  });
+
+  test("the built binary honors an explicit --vcpus over the managed default", () => {
+    const { preload, request } = mockApi("credentials-vcpus");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        ...credentialArgs,
+        "--vcpus=2",
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(readFileSync(request, "utf8")).resources).toEqual({
+      vcpus: 2,
+    });
+  });
+
+  test("the built binary requests a read-only clone for --credentials-no-write", () => {
+    const { preload, request } = mockApi("credentials-no-write");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        "--credentials-repo=acme/widgets",
+        "--credentials-act-as=42",
+        "--credentials-no-write",
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const body = JSON.parse(readFileSync(request, "utf8"));
+    expect(body.source.credentials).toBe("read");
+    expect(body.commitAs).toBeUndefined();
+  });
+
+  test("the built binary persists a configuration that replays through the bundle", () => {
+    const persisted = path.join(outRoot, "persisted-credentials.json");
+    const first = mockApi("credentials-persist");
+    const write = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        first.preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        ...credentialArgs,
+        `--credentials-persist-configuration=${persisted}`,
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(write.stderr).toBe("");
+    expect(write.status).toBe(0);
+    expect(JSON.parse(write.stdout).configuration.path).toBe(persisted);
+
+    const replay = mockApi("credentials-replay");
+    const read = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        replay.preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        `--credentials-from-config-file=${persisted}`,
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(read.status).toBe(0);
+    const original = JSON.parse(readFileSync(first.request, "utf8"));
+    const replayed = JSON.parse(readFileSync(replay.request, "utf8"));
+    expect(replayed.source).toEqual(original.source);
+    expect(replayed.commitAs).toEqual(original.commitAs);
+    expect(replayed.credentials).toEqual(original.credentials);
+  });
+
+  test("--dry-run makes no request and writes no configuration file", () => {
+    const { preload, request } = mockApi("credentials-dry-run");
+    const persisted = path.join(outRoot, "dry-run-credentials.json");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        ...credentialArgs,
+        `--credentials-persist-configuration=${persisted}`,
+        "--dry-run",
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).outcome).toBe("dry_run");
+    expect(existsSync(request)).toBe(false);
+    expect(existsSync(persisted)).toBe(false);
+  });
+
+  test("the embedded CLI accepts the --credentials-* surface", () => {
+    const { preload, request } = mockApi("credentials-embedded");
+    const host = path.join(outRoot, "credentials-host.mjs");
+    writeFileSync(
+      host,
+      `import { createApp } from "./dist/index.mjs"; await createApp({appName:"vercel sandbox",withoutAuth:false}).run(process.argv.slice(2));`,
+    );
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        host,
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        ...credentialArgs,
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).next[0].argv.slice(0, 2)).toEqual([
+      "vercel",
+      "sandbox",
+    ]);
+    expect(JSON.parse(readFileSync(request, "utf8"))).toMatchObject({
+      source: { credentials: true },
+      resources: { vcpus: 6 },
+    });
+  });
+
+  test("a managed credentials request without consent makes no API call", () => {
+    const { preload, request } = mockApi("credentials-consent");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        ...credentialArgs,
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr).reason).toBe("confirmation_required");
+    expect(existsSync(request)).toBe(false);
+  });
+
+  test("the replacement options cannot be mixed with the legacy ones", () => {
+    const { preload, request } = mockApi("credentials-mixed");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        path.join(outRoot, "bin/sandbox.mjs"),
+        "create",
+        "--scope=acme",
+        "--project=acme-web",
+        "--git-source=https://github.com/acme/widgets.git",
+        "--credentials-action=issues:read",
+        "--yes",
+        "--json",
+      ],
+      {
+        cwd: outRoot,
+        env: credentialEnv(),
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(existsSync(request)).toBe(false);
   });
 });
 

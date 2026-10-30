@@ -11,6 +11,9 @@ const safe = (text: string) =>
 
 export async function confirmCreation(context: CreateContext, name?: string) {
   const { creation, mode, yes } = context;
+  // The `--credentials-*` options get the full review screen instead, which
+  // `create` drives so a correction can re-run inference.
+  if (context.managed) return;
   if (!creation.commitAs && !creation.credentials) return;
 
   const effects: string[] = [];

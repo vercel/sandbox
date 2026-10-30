@@ -32,7 +32,10 @@ import { FileSystem } from "./filesystem.js";
 import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
-import type { ManagedCredentialOptions } from "./managed-credentials.js";
+import type {
+  ManagedCredentialOptions,
+  ManagedSourceCredentials,
+} from "./managed-credentials.js";
 
 export type {
   NetworkPolicy,
@@ -62,6 +65,13 @@ export interface BaseCreateSandboxParams {
         url: string;
         depth?: number;
         revision?: string;
+        /**
+         * Request Vercel-managed Git credentials for this source instead of
+         * supplying a username and password. `true` requests write access;
+         * `"read"` requests a read-only clone, which leaves `commitAs`
+         * metadata without effect.
+         */
+        credentials?: ManagedSourceCredentials;
       }
     | {
         type: "git";

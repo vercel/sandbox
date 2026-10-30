@@ -1,7 +1,7 @@
 import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { APIError, type Sandbox } from "@vercel/sandbox";
-import { create, args as createArgs } from "./create";
+import { create, args as createArgs, requireCreatedSandbox } from "./create";
 import { exec, args as execArgs } from "./exec";
 import { sandboxClient } from "../client";
 import { StyledError } from "../error";
@@ -41,7 +41,14 @@ export const run = cmd.command({
       !rest.scope.mode.interactive
     ) {
       throw new CliError(
-        "An interactive command cannot share stdin with --managed-credentials-file - or run in non-interactive mode. Create the sandbox first, then use sandbox exec from a terminal.",
+        "An interactive command cannot share stdin with a configuration read from stdin or run in non-interactive mode. Create the sandbox first, then use sandbox exec from a terminal.",
+      );
+    }
+    // `run` has to produce a sandbox to execute in, so a creation preview has
+    // nothing to run against.
+    if (rest.scope.dryRun) {
+      throw new CliError(
+        "--dry-run previews a creation and does not start a sandbox, so it cannot be combined with sandbox run. Use sandbox create --dry-run.",
       );
     }
 
@@ -70,23 +77,27 @@ export const run = cmd.command({
           error.cause instanceof APIError &&
           error.cause.response.status === 404
         ) {
-          sandbox = await create.handler({
-            ...rest,
-            agent: undefined,
-            nonPersistent: rest.nonPersistent || removeAfterUse,
-            __printConnectHint: false,
-          } as Parameters<typeof create.handler>[0]);
+          sandbox = requireCreatedSandbox(
+            await create.handler({
+              ...rest,
+              agent: undefined,
+              nonPersistent: rest.nonPersistent || removeAfterUse,
+              __printConnectHint: false,
+            } as Parameters<typeof create.handler>[0]),
+          );
         } else {
           throw error;
         }
       }
     } else {
-      sandbox = await create.handler({
-        ...rest,
-        agent: undefined,
-        nonPersistent: rest.nonPersistent || removeAfterUse,
-        __printConnectHint: false,
-      } as Parameters<typeof create.handler>[0]);
+      sandbox = requireCreatedSandbox(
+        await create.handler({
+          ...rest,
+          agent: undefined,
+          nonPersistent: rest.nonPersistent || removeAfterUse,
+          __printConnectHint: false,
+        } as Parameters<typeof create.handler>[0]),
+      );
     }
 
     try {

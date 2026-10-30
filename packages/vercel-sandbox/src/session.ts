@@ -200,6 +200,21 @@ export class Session implements ExecutionContext {
   }
 
   /**
+   * The managed-credential request this session was created with, when the
+   * API reports one.
+   *
+   * Describes the repositories and actions that were *requested*, so an
+   * equivalent configuration can be rebuilt for another Sandbox. It carries no
+   * tokens, Grant IDs, or attestations: those are not reusable and must never
+   * be copied between Sandboxes.
+   *
+   * @hidden
+   */
+  public get managedCredentials(): SessionMetaData["managedCredentials"] {
+    return this.session.managedCredentials;
+  }
+
+  /**
    * The creation date of this session.
    */
   public get createdAt(): Date {
