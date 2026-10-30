@@ -6,7 +6,7 @@ import { runtime } from "../args/runtime";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
-import { scope } from "../args/scope";
+import { createContext } from "../args/create-context";
 import { sandboxClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
 import { publishPorts } from "../args/ports";
@@ -24,6 +24,31 @@ import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
+import { CliError } from "../util/cli-error";
+import { APIError } from "@vercel/sandbox";
+import { StyledError } from "../error";
+import {
+  MANAGED_CREDENTIALS_VCPUS,
+  prepareManagedCredentials,
+  persistManagedConfiguration,
+  reportDryRun,
+} from "../util/managed-credentials-create";
+
+/**
+ * Narrow `create.handler`'s result for commands that compose it.
+ *
+ * `create` returns no sandbox for `--dry-run`, which previews a creation
+ * without performing one. `run` and `sh` reject that flag up front, so this
+ * only guards the type.
+ */
+export function requireCreatedSandbox<T>(sandbox: T | undefined): T {
+  if (!sandbox) {
+    throw new CliError(
+      "Expected a created sandbox. --dry-run only previews a creation; use sandbox create --dry-run.",
+    );
+  }
+  return sandbox;
+}
 
 export const args = {
   name: cmd.option({
@@ -81,7 +106,7 @@ export const args = {
   networkId,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
-  scope,
+  scope: createContext(),
 } as const;
 
 export const create = cmd.command({
@@ -134,88 +159,158 @@ export const create = cmd.command({
       keepLastSnapshotsFor,
       deleteEvictedSnapshots,
     } = input;
-    // Internal flag for composing commands (e.g. `run`) that create a sandbox
-    // as a step rather than as the outcome, where a connect hint would mislead.
-    const { __printConnectHint = true } = input as {
-      __printConnectHint?: boolean;
-    };
-    const launcher = agent ? agents[agent] : undefined;
-    if (agent) {
-      if (
-        runtime !== undefined ||
-        image !== undefined ||
-        snapshot !== undefined
-      ) {
-        throw new Error(
-          `sandbox create ${agent} cannot be combined with --runtime, --image, or --snapshot.`,
-        );
-      }
-      if (!isatty(0) || !isatty(1)) {
-        throw new Error(
-          `sandbox create ${agent} requires a terminal (TTY). Run it in an interactive terminal.`,
-        );
-      }
-    }
-    if (runtime !== undefined && image !== undefined) {
-      throw new Error("--runtime and --image cannot be used together.");
-    }
-
-    // Look up the latest published CLI version while the creation request is
-    // in flight, so stale installs learn they're behind at no latency cost.
-    const versionCheck = silent ? undefined : startLatestVersionCheck();
-
-    const networkPolicy = buildNetworkPolicy(input) ?? "allow-all";
-
-    const keepLastSnapshotsPayload = buildKeepLastSnapshotsPayload({
-      keepLastSnapshots,
-      keepLastSnapshotsFor,
-      deleteEvictedSnapshots,
+    const { creation, mode } = scope;
+    // Filled in once the managed-credentials review has settled, since a
+    // correction there changes which team and project everything downstream —
+    // the creation call, follow-up commands, and printed hints — refers to.
+    let effectiveTeam = scope.team;
+    let effectiveProject = scope.project;
+    const authScope = () => ({
+      token: scope.token,
+      team: effectiveTeam,
+      project: effectiveProject,
+      ...(scope.teamSlug && effectiveTeam === scope.team
+        ? { teamSlug: scope.teamSlug }
+        : {}),
+      ...(scope.projectSlug && effectiveProject === scope.project
+        ? { projectSlug: scope.projectSlug }
+        : {}),
     });
+    let creationAttempted = false;
+    let createdName: string | undefined;
+    try {
+      // Internal flag for composing commands (e.g. `run`) that create a sandbox
+      // as a step rather than as the outcome, where a connect hint would mislead.
+      const { __printConnectHint = true } = input as {
+        __printConnectHint?: boolean;
+      };
+      const launcher = agent ? agents[agent] : undefined;
+      if (snapshot !== undefined && creation.source !== undefined) {
+        throw new CliError(
+          "--snapshot cannot be combined with a managed credentials source. Remove --snapshot, or drop the --credentials-* options.",
+        );
+      }
+      const source =
+        creation.source ??
+        (snapshot
+          ? { type: "snapshot" as const, snapshotId: snapshot }
+          : undefined);
+      if (
+        source?.type === "snapshot" &&
+        !agent &&
+        (runtime !== undefined || image !== undefined)
+      ) {
+        throw new CliError(
+          "A snapshot source cannot be combined with --runtime, --image, or an agent shortcut.",
+        );
+      }
+      if (mode.json && (silent || connect || agent)) {
+        throw new CliError(
+          "--json cannot be combined with --silent, --connect, or an agent shortcut.",
+        );
+      }
+      if (!mode.interactive && (connect || agent) && scope.creationRequested) {
+        throw new CliError(
+          "Connecting after creation requires an interactive terminal. Remove --connect or the agent shortcut, then connect separately.",
+        );
+      }
+      if (agent) {
+        if (
+          runtime !== undefined ||
+          image !== undefined ||
+          snapshot !== undefined ||
+          source?.type === "snapshot"
+        ) {
+          throw new Error(
+            `sandbox create ${agent} cannot be combined with --runtime, --image, or --snapshot.`,
+          );
+        }
+        if (!isatty(0) || !isatty(1)) {
+          throw new Error(
+            `sandbox create ${agent} requires a terminal (TTY). Run it in an interactive terminal.`,
+          );
+        }
+      }
+      if (runtime !== undefined && image !== undefined) {
+        throw new Error("--runtime and --image cannot be used together.");
+      }
 
-    const selectedImage = agent ? "vercel/sandbox/universal" : image;
-    const runtimeOptions =
-      selectedImage !== undefined
-        ? { image: selectedImage }
-        : runtime !== undefined
-          ? { runtime }
-          : {};
+      // Look up the latest published CLI version while the creation request is
+      // in flight, so stale installs learn they're behind at no latency cost.
+      const versionCheck =
+        silent || mode.json || scope.dryRun
+          ? undefined
+          : startLatestVersionCheck();
 
-    const persistent = !nonPersistent;
-    const resources = vcpus ? { vcpus } : undefined;
-    const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
-    const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
-    const spinner = silent ? undefined : ora("Creating sandbox...").start();
-    const sandbox = snapshot
-      ? await sandboxClient.create({
+      const networkPolicy = buildNetworkPolicy(input) ?? "allow-all";
+
+      const keepLastSnapshotsPayload = buildKeepLastSnapshotsPayload({
+        keepLastSnapshots,
+        keepLastSnapshotsFor,
+        deleteEvictedSnapshots,
+      });
+
+      const selectedImage = agent ? "vercel/sandbox/universal" : image;
+      const runtimeOptions =
+        selectedImage !== undefined
+          ? { image: selectedImage }
+          : runtime !== undefined
+            ? { runtime }
+            : {};
+
+      const persistent = !nonPersistent;
+
+      // Review and approve managed credentials before anything is created.
+      // The proposal can be corrected here, so its approved configuration — not
+      // the one parsed from the flags — is what gets sent.
+      const prepared = await prepareManagedCredentials({
+        context: scope,
+        ...(name !== undefined ? { sandboxName: name } : {}),
+        ...(vcpus !== undefined ? { vcpus } : {}),
+      });
+      if (prepared?.teamOverride !== undefined) {
+        effectiveTeam = prepared.teamOverride;
+      }
+      if (prepared?.projectOverride !== undefined) {
+        effectiveProject = prepared.projectOverride;
+      }
+      // A dry run never creates a sandbox, mutates policy, or writes files —
+      // including when no managed credentials were requested, so the flag is
+      // safe to add to any `create` invocation.
+      if (scope.dryRun) {
+        reportDryRun({ context: scope, ...(prepared ? { prepared } : {}) });
+        return undefined;
+      }
+      const managedCreation = prepared?.transport ?? creation;
+
+      const resources = prepared
+        ? { vcpus: prepared.vcpus }
+        : vcpus
+          ? { vcpus }
+          : undefined;
+      const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
+      const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
+      const spinner =
+        silent || !mode.interactive
+          ? undefined
+          : ora("Creating sandbox...").start();
+      const managedSource = prepared?.transport.source ?? source;
+      const sourceOptions =
+        managedSource?.type === "snapshot"
+          ? { source: managedSource }
+          : { ...runtimeOptions, source: managedSource };
+      let sandbox;
+      try {
+        creationAttempted = true;
+        sandbox = await sandboxClient.create({
           name,
-          source: { type: "snapshot", snapshotId: snapshot },
-          teamId: scope.team,
-          projectId: scope.project,
+          teamId: effectiveTeam,
+          projectId: effectiveProject,
           token: scope.token,
           ports,
-          timeout: ms(timeout),
-          resources,
-          networkPolicy,
-          env: envVars,
-          tags: tagsObj,
-          mounts: mountsObj,
-          region,
-          failoverRegions,
-          networkId,
-          persistent,
-          snapshotExpiration: snapshotExpiration
-            ? ms(snapshotExpiration)
-            : undefined,
-          keepLastSnapshots: keepLastSnapshotsPayload,
-          __interactive: true,
-        })
-      : await sandboxClient.create({
-          name,
-          teamId: scope.team,
-          projectId: scope.project,
-          token: scope.token,
-          ports,
-          ...runtimeOptions,
+          ...sourceOptions,
+          commitAs: managedCreation.commitAs,
+          credentials: managedCreation.credentials,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -232,103 +327,191 @@ export const create = cmd.command({
           keepLastSnapshots: keepLastSnapshotsPayload,
           __interactive: true,
         });
-    spinner?.stop();
+        createdName = sandbox.name;
+      } finally {
+        spinner?.stop();
+      }
 
-    if (!sandbox.interactivePort) {
-      throw new Error(
-        [
-          `Sandbox created but interactive port is missing.`,
-          `${chalk.bold("hint:")} This is an internal error. Please try again.`,
-          "╰▶ Report this issue: https://github.com/vercel/sandbox/issues",
-        ].join("\n"),
-      );
-    }
+      if (!sandbox.interactivePort) {
+        throw new Error(
+          [
+            `Sandbox created but interactive port is missing.`,
+            `${chalk.bold("hint:")} This is an internal error. Please try again.`,
+            "╰▶ Report this issue: https://github.com/vercel/sandbox/issues",
+          ].join("\n"),
+        );
+      }
 
-    if (!silent) {
-      printSandboxSummary({
-        sandbox,
-        scope,
-        action: "created",
-        connectHint: !agent && !connect && __printConnectHint,
-      });
-      versionCheck?.report();
-    }
+      // Persist after a confirmed creation, using the identifier the response
+      // actually returned. A failure here reports the created sandbox rather
+      // than creating another one to retry a local write.
+      let persistedPath: string | undefined;
+      if (prepared) {
+        persistedPath = await persistManagedConfiguration({
+          context: scope,
+          config: prepared.config,
+          sandboxId: sandbox.currentSession().sessionId,
+          sandboxName: sandbox.name,
+          silent,
+        });
+      }
 
-    if (agent || connect) {
-      try {
-        if (launcher) {
-          try {
-            const check = await sandbox.runCommand({
-              cmd: launcher.command,
-              args: ["--version"],
-              env: { ...launcher.env, ...envVars },
-            });
-            if (check.exitCode !== 0) {
+      if (mode.json) {
+        const session = sandbox.currentSession();
+        const selector = (value: string, placeholder: string) =>
+          /^[A-Za-z0-9_.-]+$/.test(value) ? value : placeholder;
+        const argv = [
+          ...(scope.appName === "vercel sandbox"
+            ? ["vercel", "sandbox"]
+            : ["sandbox"]),
+          "config",
+          "list",
+          selector(sandbox.name, "<SANDBOX>"),
+          "--scope",
+          selector(effectiveTeam, "<TEAM>"),
+          "--project",
+          selector(effectiveProject, "<PROJECT>"),
+        ];
+        process.stdout.write(
+          JSON.stringify({
+            sandbox: { name: sandbox.name },
+            session: { id: session.sessionId, status: session.status },
+            outcome: "created",
+            ...(persistedPath
+              ? { configuration: { path: persistedPath } }
+              : {}),
+            next: [
+              {
+                command: argv.join(" "),
+                argv,
+              },
+            ],
+          }) + "\n",
+        );
+      } else if (!silent) {
+        printSandboxSummary({
+          sandbox,
+          scope: authScope(),
+          action: "created",
+          connectHint: !agent && !connect && __printConnectHint,
+        });
+        versionCheck?.report();
+      }
+
+      if (agent || connect) {
+        try {
+          if (launcher) {
+            try {
+              const check = await sandbox.runCommand({
+                cmd: launcher.command,
+                args: ["--version"],
+                env: { ...launcher.env, ...envVars },
+              });
+              if (check.exitCode !== 0) {
+                throw new Error(
+                  `Version check exited with code ${check.exitCode}.`,
+                );
+              }
+            } catch (cause) {
               throw new Error(
-                `Version check exited with code ${check.exitCode}.`,
+                `Unable to start ${launcher.displayName} (${launcher.command}) in the sandbox.`,
+                { cause },
               );
             }
-          } catch (cause) {
-            throw new Error(
-              `Unable to start ${launcher.displayName} (${launcher.command}) in the sandbox.`,
-              { cause },
-            );
           }
-        }
-        await exec.handler({
-          ...(launcher
-            ? { command: launcher.command, args: launcher.args }
-            : defaultShell),
-          scope,
-          asSudo: false,
-          cwd: undefined,
-          skipExtendingTimeout: false,
-          envVars: launcher ? { ...launcher.env, ...envVars } : {},
-          interactive: true,
-          detached: false,
-          stdin: false,
-          tty: true,
-          sandbox,
-          timeout: undefined,
-        });
-      } finally {
-        if (launcher && !silent) {
-          const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
-          const envFlags =
-            launcher.reconnectEnv === "explicit"
-              ? Object.keys(envVars)
-                  .map((key) => ` --env='${key.replaceAll("'", "'\\''")}'`)
-                  .join("")
-              : Object.entries(launcher.env)
-                  .map(([key, value]) => ` --env=${key}=${value}`)
-                  .join("");
-          process.stderr.write(
-            `\n${chalk.blue("ℹ")} Exiting ${launcher.displayName} does not stop the sandbox.\n`,
-          );
-          if (launcher.reconnectEnv === "explicit" && envFlags) {
+          await exec.handler({
+            ...(launcher
+              ? { command: launcher.command, args: launcher.args }
+              : defaultShell),
+            scope: authScope(),
+            asSudo: false,
+            cwd: undefined,
+            skipExtendingTimeout: false,
+            envVars: launcher ? { ...launcher.env, ...envVars } : {},
+            interactive: true,
+            detached: false,
+            stdin: false,
+            tty: true,
+            sandbox,
+            timeout: undefined,
+          });
+        } finally {
+          if (launcher && !silent) {
+            const scopeFlags = `--scope=${effectiveTeam} --project=${effectiveProject}`;
+            const envFlags =
+              launcher.reconnectEnv === "explicit"
+                ? Object.keys(envVars)
+                    .map((key) => ` --env='${key.replaceAll("'", "'\\''")}'`)
+                    .join("")
+                : Object.entries(launcher.env)
+                    .map(([key, value]) => ` --env=${key}=${value}`)
+                    .join("");
+            process.stderr.write(
+              `\n${chalk.blue("ℹ")} Exiting ${launcher.displayName} does not stop the sandbox.\n`,
+            );
+            if (launcher.reconnectEnv === "explicit" && envFlags) {
+              process.stderr.write(
+                chalk.dim("   │ ") +
+                  "Before reconnecting, export the same --env values in your local shell. Values are not included in this hint.\n",
+              );
+            }
             process.stderr.write(
               chalk.dim("   │ ") +
-                "Before reconnecting, export the same --env values in your local shell. Values are not included in this hint.\n",
+                "Reconnect: " +
+                chalk.cyan(
+                  `sandbox exec ${scopeFlags} --interactive${envFlags} ${sandbox.name} -- ${[launcher.command, ...launcher.reconnectArgs].join(" ")}`,
+                ) +
+                "\n",
+            );
+            process.stderr.write(
+              chalk.dim("   ╰ ") +
+                "Stop: " +
+                chalk.cyan(`sandbox stop ${scopeFlags} ${sandbox.name}`) +
+                "\n",
             );
           }
-          process.stderr.write(
-            chalk.dim("   │ ") +
-              "Reconnect: " +
-              chalk.cyan(
-                `sandbox exec ${scopeFlags} --interactive${envFlags} ${sandbox.name} -- ${[launcher.command, ...launcher.reconnectArgs].join(" ")}`,
-              ) +
-              "\n",
-          );
-          process.stderr.write(
-            chalk.dim("   ╰ ") +
-              "Stop: " +
-              chalk.cyan(`sandbox stop ${scopeFlags} ${sandbox.name}`) +
-              "\n",
-          );
         }
       }
-    }
 
-    return sandbox;
+      return sandbox;
+    } catch (error) {
+      if (error instanceof CliError)
+        throw new CliError(error.message, {
+          ...error.options,
+          json: mode.json,
+        });
+      if (mode.json || scope.creationRequested) {
+        const apiError =
+          error instanceof APIError
+            ? error
+            : error instanceof StyledError && error.cause instanceof APIError
+              ? error.cause
+              : undefined;
+        const rejected =
+          apiError !== undefined && apiError.response.status < 500;
+        const unknownOutcome = creationAttempted && !createdName && !rejected;
+        throw new CliError(
+          createdName
+            ? "The sandbox was created, but the local follow-up failed. Inspect the sandbox before retrying."
+            : unknownOutcome
+              ? "Can't confirm whether the sandbox was created. Inspect the sandbox list before retrying."
+              : "Sandbox creation was rejected. Check project access and managed credential availability before retrying.",
+          {
+            reason: createdName
+              ? "post_creation_failed"
+              : unknownOutcome
+                ? "unknown_outcome"
+                : "creation_failed",
+            exitCode: 1,
+            json: mode.json,
+            data: {
+              sandbox: { name: createdName ?? name ?? null },
+              ...(apiError ? { status: apiError.response.status } : {}),
+            },
+          },
+        );
+      }
+      throw error;
+    }
   },
 });
