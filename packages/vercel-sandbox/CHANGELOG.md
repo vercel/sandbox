@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 3.10.0
+
+### Minor Changes
+
+- Add `--network-policy-file <FILE>` (use `-` for stdin) to `create`, `run`, `sh`, `fork`, and `config network-policy`. It takes the whole network policy as JSON in the SDK's `NetworkPolicy` shape, so the CLI can express any rule the SDK can, such as a request header limited to `GET` and `HEAD`. The SDK exports `parseNetworkPolicy`, which validates untrusted input with the same rules as `Sandbox.create`, rejects unknown keys, and never includes values in its errors. `@vercel/sandbox-mock` re-exports both. ([#417](https://github.com/vercel/sandbox/pull/417))
+
 ## 3.9.1
 
 ### Patch Changes
