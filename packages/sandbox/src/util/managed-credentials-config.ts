@@ -146,7 +146,7 @@ export const githubActor = z
 const action = z.string().transform((value, ctx) => {
   const canonical = canonicalAction(value);
   if (!canonical) {
-    ctx.addIssue({ code: "custom", message: `Unsupported action: ${value}` });
+    ctx.addIssue({ code: "custom", message: "Unsupported credential action." });
     return z.NEVER;
   }
   return canonical;
@@ -272,7 +272,9 @@ export function validateConfig(
           { data: { repository: group.repo } },
         );
       }
-    } else {
+    }
+    // Remember every comparable numeric actor, not an earlier unknown alias.
+    if (group.actAs !== undefined && !group.actAs.startsWith("@")) {
       actors.set(key, group.actAs);
     }
   }
