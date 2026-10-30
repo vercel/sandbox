@@ -294,7 +294,10 @@ export const create = cmd.command({
         silent || !mode.interactive
           ? undefined
           : ora("Creating sandbox...").start();
-      const managedSource = prepared?.transport.source ?? source;
+      const managedSource = prepared
+        ? (prepared.transport.source ??
+          (source?.type === "snapshot" ? source : undefined))
+        : source;
       const sourceOptions =
         managedSource?.type === "snapshot"
           ? { source: managedSource }

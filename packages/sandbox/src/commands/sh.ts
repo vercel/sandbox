@@ -20,6 +20,11 @@ export const sh = cmd.command({
   ...commandMetadata.sh,
   args,
   async handler({ removeAfterUse, ...rest }) {
+    if (rest.scope.creationRequested && !rest.scope.mode.interactive) {
+      throw new CliError(
+        "An interactive shell cannot share stdin with a configuration payload or run in non-interactive mode. Create the sandbox first, then use sandbox exec from a terminal.",
+      );
+    }
     if (rest.scope.dryRun)
       throw new CliError("--dry-run is only supported by sandbox create.");
     if (!removeAfterUse) {
