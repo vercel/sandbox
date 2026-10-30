@@ -82,6 +82,22 @@ describe("repository helpers", () => {
 });
 
 describe("configuration parsing", () => {
+  test("does not echo an accidental secret from an invalid action", () => {
+    expect(() =>
+      parseConfig({
+        credentials: {
+          github: [{ repo: "o/r", actions: ["accidental-secret-value"] }],
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseConfig({
+        credentials: {
+          github: [{ repo: "o/r", actions: ["accidental-secret-value"] }],
+        },
+      }),
+    ).not.toThrow("accidental-secret-value");
+  });
   test("accepts the logical shape and canonicalizes actions", () => {
     const config = parseConfig(base);
     expect(config.credentials.github[0].actions).toEqual([
@@ -173,6 +189,27 @@ describe("configuration parsing", () => {
       }),
     ).toThrow(/one actAs per repository/);
   });
+
+  test.each([undefined, "@alias"])(
+    "detects numeric conflicts after a first actor of %s",
+    (actAs) => {
+      expect(() =>
+        parseConfig({
+          credentials: {
+            github: [
+              {
+                repo: "o/r",
+                actions: ["issues:read"],
+                ...(actAs ? { actAs } : {}),
+              },
+              { repo: "O/R", actions: ["issues:comment"], actAs: "1" },
+              { repo: "o/r", actions: ["pull-request:create"], actAs: "2" },
+            ],
+          },
+        }),
+      ).toThrow("one actAs per repository");
+    },
+  );
 
   test("does not report a conflict between two usernames the server resolves", () => {
     expect(() =>

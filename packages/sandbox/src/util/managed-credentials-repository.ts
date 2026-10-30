@@ -36,7 +36,9 @@ export async function inferRepository(
   if (!remotes) return undefined;
   const parsed = new Map<string, string>();
   for (const line of remotes.split("\n")) {
-    const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line.trim());
+    const match = /^(\S+)\s+(\S+)\s+\(fetch\)(?:\s+\[[^\]\r\n]*\])?$/.exec(
+      line.trim(),
+    );
     if (!match) continue;
     const repo = repositoryFromRemote(match[2]);
     if (repo && !parsed.has(match[1])) parsed.set(match[1], repo);
