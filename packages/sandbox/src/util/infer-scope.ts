@@ -22,9 +22,11 @@ export type InferredScope = {
 export async function inferScope({
   token,
   team,
+  readOnly,
 }: {
   token: string;
   team?: string;
+  readOnly?: boolean;
 }): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
   const jwt = z.jwt().safeParse(token);
@@ -42,6 +44,12 @@ export async function inferScope({
       project: projectJson.projectId,
     });
     return { owner: projectJson.orgId, project: projectJson.projectId };
+  }
+
+  if (readOnly) {
+    throw new Error(
+      "Dry-run cannot create a default project. Pass --scope and --project, link a local project, or provide an OIDC token with scope claims.",
+    );
   }
 
   debug("trying to infer scope from API token", { team });
