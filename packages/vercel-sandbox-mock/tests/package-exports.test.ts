@@ -10,6 +10,16 @@ import {
 } from "@vercel/sandbox";
 
 describe("public exports", () => {
+  test("re-exports managed credential action constants unchanged", () => {
+    expect(mock).toHaveProperty(
+      "GITHUB_API_CREDENTIAL_ACTIONS",
+      real.GITHUB_API_CREDENTIAL_ACTIONS,
+    );
+    expect(mock).toHaveProperty(
+      "MANAGED_GIT_ACTIONS",
+      real.MANAGED_GIT_ACTIONS,
+    );
+  });
   test("re-exports every value the real SDK exposes", () => {
     const realValues = Object.keys(real).filter(
       (key) => typeof (real as Record<string, unknown>)[key] !== "undefined",
