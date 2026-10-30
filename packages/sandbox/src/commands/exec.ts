@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import { Sandbox } from "@vercel/sandbox";
 import * as cmd from "cmd-ts";
 import ms from "ms";
@@ -92,8 +93,7 @@ export const args = {
 } as const;
 
 export const exec = cmd.command({
-  name: "exec",
-  description: "Execute a command in an existing sandbox",
+  ...commandMetadata.exec,
   args,
   async handler({
     command,
@@ -109,6 +109,9 @@ export const exec = cmd.command({
     skipExtendingTimeout,
     timeout,
   }) {
+    if (interactive && stdin) {
+      throw new Error("--stdin cannot be combined with --interactive.");
+    }
     if (interactive && detached) {
       throw new Error("--detach cannot be combined with --interactive.");
     }

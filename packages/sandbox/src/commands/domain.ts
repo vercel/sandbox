@@ -1,11 +1,11 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 
 export const domain = cmd.command({
-  name: "domain",
-  description: "Print the public domain for a port in a running sandbox",
+  ...commandMetadata.domain,
   args: {
     sandbox: cmd.positional({ type: sandboxName }),
     port: cmd.positional({
@@ -25,7 +25,14 @@ export const domain = cmd.command({
       token,
       resume: false,
     });
-    if (sandbox.currentSession().status !== "running") {
+    const session = (() => {
+      try {
+        return sandbox.currentSession();
+      } catch {
+        return null;
+      }
+    })();
+    if (session?.status !== "running") {
       throw new Error(`Sandbox ${name} has no running session.`);
     }
     process.stdout.write(`${sandbox.domain(port)}\n`);

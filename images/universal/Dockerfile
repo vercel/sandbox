@@ -7,11 +7,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
-ARG NODE_MAJOR=24
-RUN tarball="$(curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/SHASUMS256.txt" \
-      | grep -oE 'node-v[0-9]+\.[0-9]+\.[0-9]+-linux-x64\.tar\.xz' | head -n1)" && \
-    mkdir -p /opt/node && \
-    curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/${tarball}" \
+ARG NODE_VERSION
+RUN mkdir -p /opt/node && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
       | bsdtar -xJ --strip-components=1 -C /opt/node && \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md
 
@@ -101,6 +99,17 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.local/bin:/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
+# fx (https://github.com/vercel-labs/fx). Installed into ~/.local/bin, like the
+# upstream installer, so `fx upgrade` works without sudo.
+ARG FX_VERSION
+RUN mkdir -p ~/.local/bin && \
+    cd /tmp && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz" && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz.sha256" && \
+    sha256sum -c fx-linux-x86_64.tar.gz.sha256 && \
+    tar -xzf fx-linux-x86_64.tar.gz -C ~/.local/bin fx && \
+    rm fx-linux-x86_64.tar.gz fx-linux-x86_64.tar.gz.sha256
+
 RUN node --version && \
     bun --version && \
     python --version | grep -F "Python ${PYTHON_VERSION}." && \
@@ -112,4 +121,5 @@ RUN node --version && \
     opencode --version && \
     claude --version && \
     codex --version && \
-    pi --version
+    pi --version && \
+    fx --version

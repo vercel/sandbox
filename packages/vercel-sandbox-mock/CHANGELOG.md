@@ -1,5 +1,23 @@
 # @vercel/sandbox-mock
 
+## 3.9.1
+
+### Patch Changes
+
+- Updated dependencies [[`0fd6b326b429167f662b91fd423cdb76a1c0ca76`](https://github.com/vercel/sandbox/commit/0fd6b326b429167f662b91fd423cdb76a1c0ca76)]:
+  - @vercel/sandbox@3.9.1
+
+## 3.9.0
+
+### Minor Changes
+
+- Support command stdin: `writeStdin()`, `closeStdin()` and `stdin: Readable`. Writes are buffered, and the command runs once stdin is closed. ([#397](https://github.com/vercel/sandbox/pull/397))
+
+### Patch Changes
+
+- Updated dependencies [[`4495bafcf5269ab00abc8a8c855b5f86e2a57d12`](https://github.com/vercel/sandbox/commit/4495bafcf5269ab00abc8a8c855b5f86e2a57d12), [`4a08262beacd1a30c31edbe3dac85a235716c078`](https://github.com/vercel/sandbox/commit/4a08262beacd1a30c31edbe3dac85a235716c078)]:
+  - @vercel/sandbox@3.9.0
+
 ## 3.8.0
 
 ### Patch Changes

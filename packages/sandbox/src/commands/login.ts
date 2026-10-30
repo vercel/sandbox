@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import chalk from "chalk";
 import { output } from "../util/output";
@@ -15,8 +16,7 @@ import createDebugger from "debug";
 const debug = createDebugger("sandbox:login");
 
 export const login = cmd.command({
-  name: "login",
-  description: "Log in to the Sandbox CLI",
+  ...commandMetadata.login,
   args: {},
   async handler() {
     using spinner = acquireRelease(

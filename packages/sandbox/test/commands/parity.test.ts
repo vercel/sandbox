@@ -208,40 +208,85 @@ describe("SDK parity CLI commands", () => {
     );
   });
 
-  test("users exec preserves remote arguments before trailing scope flags", async () => {
+  test.each([
+    ["--scope=team", "--project=proj"],
+    ["--team", "team", "--project", "proj"],
+  ])(
+    "users exec preserves remote arguments before trailing scope flags %j",
+    async (...flags) => {
+      const { users } = await import("../../src/commands/users.ts");
+      await cmd.run(users, [
+        "exec",
+        "my-sandbox",
+        "alice",
+        "ls",
+        "-la",
+        ...flags,
+      ]);
+      expect(mockUserRunCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ cmd: "ls", args: ["-la"] }),
+      );
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.objectContaining({ teamId: "team", projectId: "proj" }),
+      );
+    },
+  );
+
+  test("users exec preserves scope-like remote options after the separator", async () => {
     const { users } = await import("../../src/commands/users.ts");
-    await cmd.run(users, ["exec", "my-sandbox", "alice", "ls", "-la", ...scopeFlags]);
+    await cmd.run(users, [
+      "exec",
+      ...scopeFlags,
+      "my-sandbox",
+      "alice",
+      "--",
+      "echo",
+      "--project",
+      "remote",
+    ]);
     expect(mockUserRunCommand).toHaveBeenCalledWith(
-      expect.objectContaining({ cmd: "ls", args: ["-la"] }),
-    );
-    expect(mockGet).toHaveBeenCalledWith(
-      expect.objectContaining({ teamId: "team", projectId: "proj" }),
+      expect.objectContaining({ cmd: "echo", args: ["--project", "remote"] }),
     );
   });
 
   test("domain explains a missing session without resuming", async () => {
     mockGet.mockResolvedValue({
       currentSession() {
-        throw new Error("No active session. Run a command or call resume first.");
+        throw new Error(
+          "No active session. Run a command or call resume first.",
+        );
       },
       domain: mockDomain,
     });
     const { domain } = await import("../../src/commands/domain.ts");
-    await expect(cmd.run(domain, ["my-sandbox", "3000", ...scopeFlags])).rejects.toThrow(
-      "Sandbox my-sandbox has no running session.",
+    await expect(
+      cmd.run(domain, ["my-sandbox", "3000", ...scopeFlags]),
+    ).rejects.toThrow("Sandbox my-sandbox has no running session.");
+    expect(mockGet).toHaveBeenCalledWith(
+      expect.objectContaining({ resume: false }),
     );
-    expect(mockGet).toHaveBeenCalledWith(expect.objectContaining({ resume: false }));
     expect(mockDomain).not.toHaveBeenCalled();
   });
 
   test("exec rejects stdin with interactive mode before fetching a sandbox", async () => {
     const { exec } = await import("../../src/commands/exec.ts");
-    await expect(exec.handler({
-      sandbox: "my-sandbox", command: "cat", args: [],
-      scope: { token: "tok", team: "team", project: "proj" },
-      asSudo: false, interactive: true, detached: false, stdin: true,
-      skipExtendingTimeout: false, tty: false, cwd: undefined, envVars: {}, timeout: undefined,
-    })).rejects.toThrow("--stdin cannot be combined with --interactive.");
+    await expect(
+      exec.handler({
+        sandbox: "my-sandbox",
+        command: "cat",
+        args: [],
+        scope: { token: "tok", team: "team", project: "proj" },
+        asSudo: false,
+        interactive: true,
+        detached: false,
+        stdin: true,
+        skipExtendingTimeout: false,
+        tty: false,
+        cwd: undefined,
+        envVars: {},
+        timeout: undefined,
+      }),
+    ).rejects.toThrow("--stdin cannot be combined with --interactive.");
     expect(mockGet).not.toHaveBeenCalled();
   });
 

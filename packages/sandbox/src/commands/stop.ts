@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import chalk from "chalk";
 import ora from "ora";
@@ -81,8 +82,7 @@ function printStopResult(name: string, sandbox: Sandbox, sessionSnapshot: StopRe
 }
 
 export const stop = cmd.command({
-  name: "stop",
-  description: "Stop the current session of one or more sandboxes",
+  ...commandMetadata.stop,
   args: {
     sandboxName: cmd.positional({
       type: sandboxName,

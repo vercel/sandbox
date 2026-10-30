@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { sandboxName } from "../args/sandbox-name";
 import { scope } from "../args/scope";
@@ -82,7 +83,6 @@ const removeUser = cmd.command({
 });
 
 export const groups = cmd.subcommands({
-  name: "groups",
-  description: "Create groups and manage their users",
+  ...commandMetadata.groups,
   cmds: { create, "add-user": addUser, "remove-user": removeUser },
 });

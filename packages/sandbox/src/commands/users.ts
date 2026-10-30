@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import ms from "ms";
 import { sandboxName } from "../args/sandbox-name";
@@ -36,12 +37,26 @@ const exec = cmd.command({
   name: "exec",
   description: "Run a command as a Linux user",
   args: {
-    ...target,
+    sandbox: target.sandbox,
+    username: target.username,
     command: cmd.positional({
       displayName: "command",
       description: "Executable",
     }),
-    args: cmd.rest({ displayName: "args", description: "Command arguments" }),
+    args: {
+      ...cmd.rest({ displayName: "args", description: "Command arguments" }),
+      parse(context) {
+        // Leave scope options for the scope parser, even after command arguments.
+        return cmd.rest().parse({
+          ...context,
+          nodes: context.nodes.filter(
+            (node) =>
+              node.type !== "longOption" ||
+              !["token", "scope", "team", "project"].includes(node.key),
+          ),
+        });
+      },
+    },
     cwd: cmd.option({
       long: "workdir",
       short: "w",
@@ -68,6 +83,7 @@ const exec = cmd.command({
       description: "Maximum command duration",
       type: cmd.optional(Duration),
     }),
+    scope,
   },
   async handler({
     sandbox: name,
@@ -117,7 +133,6 @@ const exec = cmd.command({
 });
 
 export const users = cmd.subcommands({
-  name: "users",
-  description: "Create users and run commands as a user",
+  ...commandMetadata.users,
   cmds: { create, exec },
 });

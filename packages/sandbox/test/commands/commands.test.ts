@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
+import { APIError } from "@vercel/sandbox";
 
 const { mockGet, mockRunCommand, mockGetCommand, mockWait, mockKill } =
   vi.hoisted(() => ({
@@ -22,9 +23,11 @@ const scope = { token: "tok", team: "team", project: "proj" };
 const commandArgs = ["my-sandbox", "cmd_1", "--scope=team", "--project=proj"];
 
 describe("detached command lifecycle", () => {
+  let previousExitCode: typeof process.exitCode;
   beforeEach(() => {
+    previousExitCode = process.exitCode;
     vi.clearAllMocks();
-    process.env.VERCEL_AUTH_TOKEN = "tok";
+    vi.stubEnv("VERCEL_AUTH_TOKEN", "tok");
     mockRunCommand.mockResolvedValue({ cmdId: "cmd_1" });
     mockWait.mockResolvedValue({ exitCode: 0 });
     mockGetCommand.mockResolvedValue({
@@ -41,6 +44,49 @@ describe("detached command lifecycle", () => {
       currentSession: () => ({ status: "running", getCommand: mockGetCommand }),
     });
   });
+
+  afterEach(() => {
+    process.exitCode = previousExitCode;
+    vi.unstubAllEnvs();
+  });
+
+  test("wait propagates a failed command's exit code", async () => {
+    mockWait.mockResolvedValue({ exitCode: 3 });
+    const { commands } = await import("../../src/commands/commands.ts");
+    await cmd.run(commands, ["wait", ...commandArgs]);
+    expect(process.exitCode).toBe(3);
+  });
+
+  test.each(["SIGINT", "SIGHUP", "SIGQUIT"])(
+    "kill accepts %s",
+    async (signal) => {
+      const { commands } = await import("../../src/commands/commands.ts");
+      await cmd.run(commands, ["kill", ...commandArgs, `--signal=${signal}`]);
+      expect(mockKill).toHaveBeenCalledWith(signal);
+    },
+  );
+
+  test("explains when a command is absent from the current session", async () => {
+    mockGetCommand.mockRejectedValue(
+      new APIError(new Response(null, { status: 404 })),
+    );
+    const { commands } = await import("../../src/commands/commands.ts");
+    await expect(cmd.run(commands, ["get", ...commandArgs])).rejects.toThrow(
+      "Command cmd_1 was not found in the current session of my-sandbox. It may have run in an earlier session.",
+    );
+  });
+
+  test.each([403, 500])(
+    "preserves command lookup errors with status %i",
+    async (status) => {
+      const error = new APIError(new Response(null, { status }));
+      mockGetCommand.mockRejectedValue(error);
+      const { commands } = await import("../../src/commands/commands.ts");
+      await expect(cmd.run(commands, ["get", ...commandArgs])).rejects.toBe(
+        error,
+      );
+    },
+  );
 
   test("detached exec prints the ID and does not wait for the command", async () => {
     const output = vi

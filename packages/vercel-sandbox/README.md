@@ -1,7 +1,9 @@
 # Vercel Sandbox
 
-Vercel Sandbox allows you to run arbitrary code in isolated, ephemeral Linux
-VMs. View the documentation [here](https://vercel.com/docs/vercel-sandbox).
+Vercel Sandbox allows you to run arbitrary code in isolated Linux microVMs.
+Sandboxes are persistent by default: the filesystem is snapshotted when a
+session stops and restored when it resumes. View the documentation
+[here](https://vercel.com/docs/vercel-sandbox).
 
 ## Packages
 

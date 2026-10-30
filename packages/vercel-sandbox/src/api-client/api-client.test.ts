@@ -2347,6 +2347,13 @@ describe("APIClient", () => {
           status,
           headers: { "content-type": "application/json" },
         });
+      const timeout = (bytesWritten: number) =>
+        new Response(
+          JSON.stringify({
+            error: { code: "command_stdin_timeout", bytesWritten },
+          }),
+          { status: 504, headers: { "content-type": "application/json" } },
+        );
       const bodies = () =>
         mockFetch.mock.calls.map(([, init]) => JSON.parse(init.body));
       const write = (params: { data?: Uint8Array; close?: boolean } = {}) =>
@@ -2454,52 +2461,19 @@ describe("APIClient", () => {
 
       it("resends after a timeout while the process keeps reading", async () => {
         mockFetch
-          .mockResolvedValueOnce(failure(504))
-          .mockResolvedValueOnce(written(5))
-          .mockResolvedValueOnce(failure(504))
-          .mockResolvedValueOnce(written(7))
-          .mockResolvedValueOnce(failure(504))
-          .mockResolvedValueOnce(written(9))
+          .mockResolvedValueOnce(timeout(5))
+          .mockResolvedValueOnce(timeout(7))
+          .mockResolvedValueOnce(timeout(9))
           .mockResolvedValueOnce(written(10));
 
         const result = await settle(write({ data: new Uint8Array(6) }));
 
         expect(result).toEqual({ value: { bytesWritten: 10 } });
-        expect(bodies().map((b) => b.data !== undefined)).toEqual([
-          true,
-          false,
-          true,
-          false,
-          true,
-          false,
-          true,
-        ]);
+        expect(mockFetch).toHaveBeenCalledTimes(4);
+        expect(bodies().every((b) => b.data !== undefined)).toBe(true);
       });
 
       it("gives up on timeouts when the process stops reading", async () => {
-        mockFetch
-          .mockResolvedValueOnce(failure(504))
-          .mockResolvedValueOnce(written(4))
-          .mockResolvedValueOnce(failure(504))
-          .mockResolvedValueOnce(written(4));
-
-        const result = await settle(write());
-
-        expect(result).toHaveProperty("error");
-        expect(
-          (result as { error: APIError<unknown> }).error.response.status,
-        ).toBe(504);
-        expect(mockFetch).toHaveBeenCalledTimes(4);
-      });
-
-      it("uses the bytes written a timeout reports instead of asking for them", async () => {
-        const timeout = (bytesWritten: number) =>
-          new Response(
-            JSON.stringify({
-              error: { code: "command_stdin_timeout", bytesWritten },
-            }),
-            { status: 504, headers: { "content-type": "application/json" } },
-          );
         mockFetch
           .mockResolvedValueOnce(timeout(5))
           .mockResolvedValueOnce(timeout(5))
@@ -2510,8 +2484,21 @@ describe("APIClient", () => {
         expect(result).toMatchObject({
           error: { response: { status: 504 } },
         });
-        expect(bodies().every((b) => b.data !== undefined)).toBe(true);
         expect(mockFetch).toHaveBeenCalledTimes(3);
+      });
+
+      it("gives up on timeouts that don't report bytes written", async () => {
+        mockFetch
+          .mockResolvedValueOnce(failure(504))
+          .mockResolvedValueOnce(failure(504));
+
+        const result = await settle(write());
+
+        expect(result).toMatchObject({
+          error: { response: { status: 504 } },
+        });
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(bodies()[1]).toEqual(bodies()[0]);
       });
 
       it("treats a resent close that finds the command gone as closed", async () => {
