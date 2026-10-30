@@ -29,6 +29,39 @@ const context = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("request detection", () => {
+  test("actor invalidation includes profile-derived commit credit", () => {
+    expect(invalidatedBy("actAs")).toContain("commitAs");
+    expect(invalidatedBy("team")).toContain("commitAs");
+  });
+  test("re-resolving an actor recomputes profile credit, not the previous proposal", async () => {
+    const ctx = context({
+      inferCommitIdentityImpl: vi.fn().mockResolvedValue(undefined),
+      inferActorImpl: vi
+        .fn()
+        .mockResolvedValueOnce({
+          actAs: "1",
+          source: "gh",
+          profile: { name: "One", login: "one", id: "1" },
+        })
+        .mockResolvedValueOnce({
+          actAs: "2",
+          source: "gh",
+          profile: { name: "Two", login: "two", id: "2" },
+        }),
+    });
+    const first = await resolveManagedCredentials(
+      options({ enableManagedCredentials: true }),
+      ctx,
+    );
+    const next = await resolveManagedCredentials(
+      options({ enableManagedCredentials: true, credentialsActAs: "2" }),
+      ctx,
+    );
+    expect(first?.config.commitAs?.email).toBe(
+      "1+one@users.noreply.github.com",
+    );
+    expect(next?.config.commitAs?.email).toBe("2+two@users.noreply.github.com");
+  });
   test("a bare create requests nothing", () => {
     expect(hasManagedCredentialsRequest(options())).toBe(false);
   });
