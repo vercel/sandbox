@@ -2,41 +2,43 @@
 
 Python on top of the [ubuntu](../ubuntu) base image.
 
-| Image tags                                                   | Python source                                | Bake target  |
-| ------------------------------------------------------------ | -------------------------------------------- | ------------ |
-| `vercel/sandbox/python:3.14`                                 | Versioned Ubuntu archive package             | `python`     |
-| `vercel/sandbox/python:3.15`, `vercel/sandbox/python:3.15.0` | CPython 3.15.0 source, verified with SHA-256 | `python-315` |
+| Image tags                                                   | Python version | Bake target  |
+| ------------------------------------------------------------ | -------------- | ------------ |
+| `vercel/sandbox/python:3.14`                                 | 3.14.8         | `python`     |
+| `vercel/sandbox/python:3.15`, `vercel/sandbox/python:3.15.0` | 3.15.0         | `python-315` |
 
-Python 3.14 is pinned via the versioned package from the Ubuntu archive;
-the build fails if the distro stops shipping that version.
-
-Python 3.15 is compiled from the [official CPython source release](https://www.python.org/downloads/release/python-3150/)
-in a separate build stage, keeping compilers and development headers out of the
-runtime image. The interpreter is installed under `/usr/local` without replacing
-Ubuntu's system Python. Update both `PYTHON_VERSION` and `PYTHON_SHA256` when
-updating the source release.
+Both versions use the same Dockerfile. Set `PYTHON_VERSION` to a full CPython
+release version (`major.minor.patch`) to select the interpreter. The build
+downloads the corresponding source release from `python.org` over HTTPS and
+compiles it in a separate stage, keeping compilers and development headers out
+of the runtime image. The interpreter is installed under `/usr/local` without
+replacing Ubuntu's system Python.
 
 Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ## Packages
 
-Both versions include `git`, `pip`, `venv`, `uv`, and `uvx`, with `python` and
-`python3` pointing to the selected interpreter.
+- `git`
+- `python`, `python3`, and the versioned interpreter (for example, `python3.15`)
+- `pip`, `pip3`, and `venv`
+- `uv` and `uvx` (installed via pip)
 
-- Python 3.14 uses `python3.14`, `python3.14-venv`, `python3-pip`, and
-  `python-is-python3` from Ubuntu.
-- Python 3.15 provides `python3.15`, `pip`, and `pip3` from the source build.
-  The image build verifies the interpreter version, standard-library extension
-  imports, and virtual environment creation with pip as the `ubuntu` user.
-- `uv` and `uvx` are installed via pip in both images.
+The image build verifies the selected interpreter version, standard-library
+extension imports, and virtual environment creation with pip as the `ubuntu`
+user.
 
 ## Building locally
 
 From the `images` directory:
 
 ```sh
+docker buildx bake python
 docker buildx bake python-315
+
+# Select another release using only PYTHON_VERSION.
+# Override tags too when loading or publishing a custom version.
+docker buildx bake python --set python.args.PYTHON_VERSION=3.15.0 --set python.tags=python-local:3.15.0
 ```
 
-The existing `docker buildx bake python` target continues to build Python 3.14.
-The default and `vmi` groups build both versions.
+The default and `vmi` groups build both versions. Adding a release does not
+require a new Dockerfile; configure its version and tags in `docker-bake.hcl`.
