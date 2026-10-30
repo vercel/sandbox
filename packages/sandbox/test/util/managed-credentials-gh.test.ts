@@ -6,6 +6,19 @@ vi.mock("../../src/util/managed-credentials-command", () => ({
 }));
 beforeEach(() => vi.resetAllMocks());
 describe("gh account metadata", () => {
+  test("checks only the active account so an expired inactive account cannot block it", async () => {
+    vi.mocked(runCommand).mockImplementation(async (_file, args) => {
+      if (args[0] === "auth")
+        return args.includes("--active")
+          ? { status: "ok", stdout: "healthy active account" }
+          : { status: "failed", stderr: "inactive account token expired" };
+      return {
+        status: "ok",
+        stdout: JSON.stringify({ login: "active", id: 42 }),
+      };
+    });
+    expect(await readGhAccount()).toMatchObject({ login: "active", id: 42 });
+  });
   test("reads github.com identity without retrieving credentials", async () => {
     vi.mocked(runCommand)
       .mockResolvedValueOnce({ status: "ok", stdout: "logged in" })
@@ -25,7 +38,7 @@ describe("gh account metadata", () => {
       name: "Ada",
     });
     expect(vi.mocked(runCommand).mock.calls.map((call) => call[1])).toEqual([
-      ["auth", "status", "--hostname", "github.com"],
+      ["auth", "status", "--active", "--hostname", "github.com"],
       [
         "api",
         "user",

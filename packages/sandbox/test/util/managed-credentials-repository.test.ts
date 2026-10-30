@@ -33,6 +33,14 @@ describe("repository inference", () => {
       );
     expect(await inferRepository("/work")).toBe("own/r");
   });
+  test("recognizes a partial-clone origin before other remotes", async () => {
+    vi.mocked(readCommand)
+      .mockResolvedValueOnce("true")
+      .mockResolvedValueOnce(
+        "origin https://github.com/own/r.git (fetch) [blob:none]\nupstream https://github.com/upstream/r.git (fetch)",
+      );
+    expect(await inferRepository()).toBe("own/r");
+  });
   test("falls back to another supported fetch remote", async () => {
     vi.mocked(readCommand)
       .mockResolvedValueOnce("true")
