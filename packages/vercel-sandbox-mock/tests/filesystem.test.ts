@@ -32,6 +32,18 @@ describe("FileSystem (real SDK over mock fetch)", () => {
     await expect(sandbox.fs.readFile(`${root}/missing`)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  test("rename replaces an existing empty directory", async () => {
+    await sandbox.fs.mkdir(`${root}/next`, { recursive: true });
+    await sandbox.fs.writeFile(`${root}/next/f`, "new");
+    await sandbox.fs.mkdir(`${root}/current`, { recursive: true });
+    await sandbox.fs.rename(`${root}/next`, `${root}/current`);
+    expect(await sandbox.fs.readFile(`${root}/current/f`, "utf8")).toBe("new");
+    expect(await sandbox.fs.exists(`${root}/current/next`)).toBe(false);
+    await expect(
+      sandbox.fs.rename(`${root}/text.txt`, `${root}/current`),
+    ).rejects.toMatchObject({ code: "EISDIR" });
+  });
+
   test("rm recursive removes a tree", async () => {
     await sandbox.fs.mkdir(`${root}/sub/deep`, { recursive: true });
     await sandbox.fs.writeFile(`${root}/sub/deep/f`, "x");

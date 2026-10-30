@@ -44,8 +44,8 @@ function formatStat(
 
 /**
  * The real SDK's `FileSystem` shells out to coreutils with GNU-specific flags
- * (`stat -L -c`, `find -printf`, `truncate`, `mktemp`, `realpath`, `test`) that
- * just-bash either lacks or implements without those options. Intercept exactly
+ * (`stat -L -c`, `find -printf`, `truncate`, `mktemp`, `realpath`, `test`,
+ * `mv -T`) that just-bash either lacks or implements without those options. Intercept exactly
  * those invocations and answer them directly from the in-memory filesystem;
  * everything else falls through to just-bash. Returns `null` when not handled.
  */
@@ -114,6 +114,36 @@ export async function tryFsCommand(
     } catch {
       return enoent("realpath", last);
     }
+  }
+
+  if (command === "mv" && args.length === 3 && args[0] === "-T") {
+    // GNU `mv -T SRC DEST` (rename(2) semantics); just-bash has no -T.
+    const [, src, dest] = args;
+    const fail = (message: string): CommandOutput => ({
+      stdout: "",
+      stderr: `mv: ${message}\n`,
+      exitCode: 1,
+    });
+    let srcStats: Awaited<ReturnType<IFileSystem["lstat"]>>;
+    try {
+      srcStats = await fs.lstat(abs(src));
+    } catch {
+      return fail(`cannot stat '${src}': No such file or directory`);
+    }
+    const destStats = await fs.lstat(abs(dest)).catch(() => null);
+    if (destStats?.isDirectory) {
+      if (!srcStats.isDirectory) {
+        return fail(`cannot overwrite directory '${dest}' with non-directory`);
+      }
+      if ((await fs.readdir(abs(dest))).length > 0) {
+        return fail(`cannot overwrite '${dest}': Directory not empty`);
+      }
+      await fs.rm(abs(dest), { recursive: true });
+    } else if (destStats && srcStats.isDirectory) {
+      return fail(`cannot overwrite non-directory '${dest}' with directory '${src}'`);
+    }
+    await fs.mv(abs(src), abs(dest));
+    return { stdout: "", stderr: "", exitCode: 0 };
   }
 
   if (command === "test") {
