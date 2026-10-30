@@ -1,5 +1,6 @@
 import { Sandbox, APIError, Snapshot, Drive } from "@vercel/sandbox";
 import { version } from "./pkg";
+import { authHeadersFor } from "./auth-headers";
 import { withFreshAuthRetry } from "./util/fresh-auth-retry";
 import { formatApiError } from "./util/format-error";
 import { telemetry } from "./telemetry";
@@ -15,28 +16,28 @@ export const sandboxClient: Pick<
   get: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params });
+      const sandbox = await Sandbox.get({ ...requestOptions(params), resume: false, ...params });
       trackSession(sandbox, "attached");
       return sandbox;
     }),
   create: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.create({ fetch: fetchWithUserAgent, ...params });
+      const sandbox = await Sandbox.create({ ...requestOptions(params), ...params });
       trackSession(sandbox, "created");
       return sandbox;
     }),
   fork: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.fork({ fetch: fetchWithUserAgent, ...params });
+      const sandbox = await Sandbox.fork({ ...requestOptions(params), ...params });
       trackSession(sandbox, "created");
       return sandbox;
     }),
   list: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+      return Sandbox.list({ ...requestOptions(params), ...params } as typeof params);
     }),
 };
 
@@ -46,11 +47,14 @@ export const snapshotClient: Pick<
 > = {
   list: (params) =>
     withErrorHandling(() =>
-      Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
+      Snapshot.list({ ...requestOptions(params), ...params }),
     ),
-  get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
+  get: (params) =>
+    withErrorHandling(() =>
+      Snapshot.get({ ...authOptions(params), ...params }),
+    ),
   tree: (params) =>
-    withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() => Snapshot.tree({ ...requestOptions(params), ...params })),
 };
 
 export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
@@ -58,14 +62,14 @@ export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
   delete(drive: Drive): Promise<void>;
 } = {
   get: (params) =>
-    withErrorHandling(() => Drive.get({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() => Drive.get({ ...requestOptions(params), ...params })),
   getOrCreate: (params) =>
     withErrorHandling(() =>
-      Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
+      Drive.getOrCreate({ ...requestOptions(params), ...params }),
     ),
   list: (params) =>
     withErrorHandling(() =>
-      Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
+      Drive.list({ ...requestOptions(params), ...params } as typeof params),
     ),
   delete: (drive) => withErrorHandling(() => drive.delete()),
   fork: (drive, params) => withErrorHandling(() => drive.fork(params)),
@@ -82,6 +86,16 @@ function scopeField(params: unknown, field: string): string | undefined {
 function updateScope(params: unknown): void {
   telemetry.updateTeamId(scopeField(params, "teamId"));
   telemetry.updateProjectId(scopeField(params, "projectId"));
+}
+
+/** Authenticate with `createApp`'s `getAuthHeaders` when there's no token. */
+function authOptions(params: unknown) {
+  const getAuthHeaders = authHeadersFor(scopeField(params, "token"));
+  return getAuthHeaders ? { getAuthHeaders } : {};
+}
+
+function requestOptions(params: unknown) {
+  return { fetch: fetchWithUserAgent, ...authOptions(params) };
 }
 
 function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {

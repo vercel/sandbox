@@ -1,16 +1,30 @@
 import { NotOk } from "./error.js";
+import {
+  withAuthHeaders,
+  type AuthHeadersProvider,
+} from "../api-client/auth-headers.js";
 
-export async function fetchApi(opts: {
+export interface ApiAuth {
   token: string;
-  endpoint: string;
-  method?: string;
-  body?: string;
-}): Promise<unknown> {
-  const x = await fetch(`https://vercel.com/api${opts.endpoint}`, {
+  /** Builds each request's auth headers, instead of `Bearer` with `token`. */
+  getAuthHeaders?: AuthHeadersProvider;
+}
+
+export async function fetchApi(
+  opts: ApiAuth & {
+    endpoint: string;
+    method?: string;
+    body?: string;
+  },
+): Promise<unknown> {
+  const send = opts.getAuthHeaders
+    ? withAuthHeaders(fetch, opts.getAuthHeaders)
+    : fetch;
+  const x = await send(`https://vercel.com/api${opts.endpoint}`, {
     method: opts.method,
     body: opts.body,
     headers: {
-      Authorization: `Bearer ${opts.token}`,
+      ...(!opts.getAuthHeaders && { Authorization: `Bearer ${opts.token}` }),
       "Content-Type": "application/json",
     },
   });
