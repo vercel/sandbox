@@ -224,7 +224,28 @@ export const requestHeadersFromEnv = cmd.multioption({
   type: cmd.array(requestHeaderFromEnvType),
 });
 
-const POLICY_SHAPE_HINT = `Write the SDK's NetworkPolicy as JSON, for example {"allow":{"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}],"*":[]}}.`;
+/**
+ * The NetworkPolicy JSON schema, shown in --help and in validation errors.
+ * The SDK's TSDoc is the only other place it is described. A test parses a
+ * policy that uses every field listed here.
+ */
+export const NETWORK_POLICY_SCHEMA = `The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}}`;
+
+const POLICY_SHAPE_HINT = NETWORK_POLICY_SCHEMA;
 
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) {
@@ -305,7 +326,8 @@ const networkPolicyFileType = cmd.extendType(cmd.string, {
 
 export const networkPolicyFile = cmd.option({
   long: "network-policy-file",
-  description: `Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.`,
+  description: `Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    ${NETWORK_POLICY_SCHEMA}`,
   type: cmd.optional(networkPolicyFileType),
 });
 

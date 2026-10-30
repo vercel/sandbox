@@ -119,7 +119,22 @@ Options:
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
     --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
-    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
     --workdir, -w <str>                                The working directory to run the command in [optional]
 
 Flags:
@@ -184,7 +199,22 @@ Options:
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
     --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
-    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
 
 Flags:
 
@@ -255,7 +285,22 @@ Options:
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
     --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
-    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
 
 Flags:
 
@@ -308,7 +353,22 @@ Options:
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
     --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
-    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
 
 Flags:
 
@@ -655,7 +715,22 @@ Options:
     --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
     --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
     --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
-    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin), in the SDK's NetworkPolicy shape. Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags. [optional]
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
     --mode <MODE>                                      Alias for --network-policy. [optional]
 
 Auth & Scope:

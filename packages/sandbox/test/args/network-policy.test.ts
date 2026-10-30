@@ -3,9 +3,11 @@ import { inspect, stripVTControlCharacters } from "node:util";
 import {
   parseRequestHeader,
   parseRequestHeaderFromEnv,
+  NETWORK_POLICY_SCHEMA,
   readNetworkPolicyFile,
   Redacted,
 } from "../../src/args/network-policy.ts";
+import { parseNetworkPolicy } from "@vercel/sandbox";
 
 const SECRET = "Bearer npm_abc==";
 
@@ -303,7 +305,7 @@ describe("readNetworkPolicyFile", () => {
   }
   const text_ = text;
 
-  const SHAPE_HINT = `hint: Write the SDK's NetworkPolicy as JSON, for example {"allow":{"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}],"*":[]}}.`;
+  const SHAPE_HINT = `hint: ${NETWORK_POLICY_SCHEMA}`;
 
   test("returns the policy from the file", async () => {
     await expect(
@@ -366,5 +368,76 @@ describe("readNetworkPolicyFile", () => {
         "hint: Pass a readable JSON file, or - to read stdin.",
       ].join("\n"),
     );
+  });
+});
+
+describe("NETWORK_POLICY_SCHEMA", () => {
+  // Every field the schema text documents. parseNetworkPolicy rejects unknown
+  // keys, so a documented field the SDK does not accept fails here.
+  const everyField = {
+    allow: {
+      "*.example.com": [],
+      "registry.npmjs.org": [
+        {
+          match: {
+            path: { exact: "/x" },
+            method: ["GET", "HEAD"],
+            queryString: [{ key: { startsWith: "a" }, value: { regex: "^b" } }],
+            headers: [{ key: { exact: "x-k" } }, { value: { exact: "v" } }],
+          },
+          transform: [{ headers: { authorization: "Bearer ..." } }],
+        },
+        { forwardURL: "https://proxy.example.com/sandbox" },
+        {
+          response: {
+            statusCode: 403,
+            headers: { "x-reason": "denied" },
+            body: "no",
+            contentType: "text/plain",
+          },
+        },
+      ],
+    },
+    subnets: { allow: ["10.0.0.0/8"], deny: ["10.1.0.0/16"] },
+  };
+
+  test("every documented field parses", () => {
+    expect(parseNetworkPolicy(structuredClone(everyField))).toEqual(everyField);
+    expect(parseNetworkPolicy({ allow: ["a.com"] })).toEqual({
+      allow: ["a.com"],
+    });
+    expect(parseNetworkPolicy("allow-all")).toBe("allow-all");
+    expect(parseNetworkPolicy("deny-all")).toBe("deny-all");
+  });
+
+  test("names every field it documents", () => {
+    for (const key of [
+      "allow",
+      "subnets",
+      "deny",
+      "match",
+      "transform",
+      "headers",
+      "forwardURL",
+      "response",
+      "statusCode",
+      "body",
+      "contentType",
+      "path",
+      "method",
+      "queryString",
+      "exact",
+      "startsWith",
+      "regex",
+      "key",
+      "value",
+    ]) {
+      expect(NETWORK_POLICY_SCHEMA).toContain(`"${key}"`);
+    }
+  });
+
+  test("its example parses", () => {
+    const example = /Example: (.*)$/m.exec(NETWORK_POLICY_SCHEMA)?.[1];
+    expect(() => parseNetworkPolicy(JSON.parse(example ?? ""))).not.toThrow();
   });
 });
