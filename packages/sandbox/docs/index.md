@@ -20,6 +20,9 @@ Commands:
     stop           <name> [...name]            Stop the current session of one or more sandboxes
     extend         <name> <num UNIT>           Add time to a running session without changing its default timeout
     commands                                   Inspect and control commands in a running sandbox session
+    domain         <name> <port>               Print the public domain for a port in a running sandbox
+    users                                      Create users and run commands as a user
+    groups                                     Create shared groups and manage membership
     rm | remove    <name> [...name]            Permanently remove one or more sandboxes
     run            <command> [...args]         Create and run a command in a sandbox
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
@@ -416,6 +419,7 @@ Flags:
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
     --detach             Start the command and print its ID without waiting for it to finish. [optional]
+    --stdin              Forward local stdin, or keep detached stdin open for later writes. [optional]
     --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
     --help, -h           show help [optional]
 
@@ -499,10 +503,13 @@ For command help, run `sandbox commands <command> --help`
 
 Commands:
 
-    get   <name> <command-id>  Show the status of a command in the current session
-    logs  <name> <command-id>  Stream a command's stdout and stderr
-    wait  <name> <command-id>  Wait for a command to finish and return its exit code
-    kill  <name> <command-id>  Stop a running command without stopping its sandbox
+    get          <name> <command-id>  Show the status of a command in the current session
+    logs         <name> <command-id>  Stream a command's stdout and stderr
+    wait         <name> <command-id>  Wait for a command to finish and return its exit code
+    kill         <name> <command-id>  Stop a running command without stopping its sandbox
+    write        <name> <command-id>  Write piped bytes to a command started with --detach --stdin. Wait for each write to finish before starting another, including from other CLI processes.
+    close-stdin  <name> <command-id>  Send EOF to a command started with --detach --stdin
+    output       <name> <command-id>  Wait for a command to finish, then print its text output (not binary-safe). Use sandbox commands logs to stream output while it runs.
 ```
 
 ## `sandbox commands get`
@@ -603,6 +610,278 @@ Auth & Scope:
 Options:
 
     --signal <value>  Signal to send (default SIGTERM) [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands write`
+
+```
+write
+
+▲ sandbox commands write [options]
+
+Write piped bytes to a command started with --detach --stdin. Wait for each write to finish before starting another, including from other CLI processes.
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands close-stdin`
+
+```
+close-stdin
+
+▲ sandbox commands close-stdin [options]
+
+Send EOF to a command started with --detach --stdin
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands output`
+
+```
+output
+
+▲ sandbox commands output [options]
+
+Wait for a command to finish, then print its text output (not binary-safe). Use sandbox commands logs to stream output while it runs.
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Options:
+
+    --stream <value>  Output stream to print (default both) [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox domain`
+
+```
+domain
+
+▲ sandbox domain [options]
+
+Print the public domain for a port in a running sandbox
+
+Arguments:
+
+    <name>    The name of the sandbox
+    <number>  Published port number
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox users`
+
+```
+sandbox users
+
+▲ sandbox users [options] <command>
+
+For command help, run `sandbox users <command> --help`
+
+Commands:
+
+    create  <name> <username>                      Create a Linux user with an isolated home directory
+    exec    <name> <username> <command> [...args]  Run a command as a Linux user
+```
+
+## `sandbox users create`
+
+```
+create
+
+▲ sandbox users create [options]
+
+Create a Linux user with an isolated home directory
+
+Arguments:
+
+    <name>      The name of the sandbox
+    <username>  Linux user name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox users exec`
+
+```
+exec
+
+▲ sandbox users exec [options]
+
+Run a command as a Linux user
+
+Arguments:
+
+    <name>      The name of the sandbox
+    <username>  Linux user name
+    <command>   Executable
+    [...args]   Command arguments
+
+Options:
+
+    --workdir, -w <str>                Working directory (defaults to the user's home) [optional]
+    --env <key=value>, -e=<key=value>  Environment variables for the command
+    --timeout <num UNIT>               Maximum command duration [optional]
+
+Flags:
+
+    --detach    Start the command and print its ID without waiting [optional]
+    --stdin     Forward local stdin, or keep detached stdin open for later writes [optional]
+    --help, -h  show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+```
+
+## `sandbox groups`
+
+```
+sandbox groups
+
+▲ sandbox groups [options] <command>
+
+For command help, run `sandbox groups <command> --help`
+
+Commands:
+
+    create       <name> <groupname>             Create a Linux group and its shared directory
+    add-user     <name> <groupname> <username>  Add a user to a group
+    remove-user  <name> <groupname> <username>  Remove a user from a group
+```
+
+## `sandbox groups create`
+
+```
+create
+
+▲ sandbox groups create [options]
+
+Create a Linux group and its shared directory
+
+Arguments:
+
+    <name>       The name of the sandbox
+    <groupname>  Linux group name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox groups add-user`
+
+```
+add-user
+
+▲ sandbox groups add-user [options]
+
+Add a user to a group
+
+Arguments:
+
+    <name>       The name of the sandbox
+    <groupname>  Linux group name
+    <username>   Linux user name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox groups remove-user`
+
+```
+remove-user
+
+▲ sandbox groups remove-user [options]
+
+Remove a user from a group
+
+Arguments:
+
+    <name>       The name of the sandbox
+    <groupname>  Linux group name
+    <username>   Linux user name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
 
 Flags:
 

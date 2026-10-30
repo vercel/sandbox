@@ -43,6 +43,7 @@ export const sh = cmd.command({
         envVars: {},
         interactive: true,
         detached: false,
+        stdin: false,
         tty: true,
         sandbox,
         timeout: undefined,

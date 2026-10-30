@@ -286,6 +286,7 @@ export const create = cmd.command({
           envVars: launcher ? { ...launcher.env, ...envVars } : {},
           interactive: true,
           detached: false,
+          stdin: false,
           tty: true,
           sandbox,
           timeout: undefined,

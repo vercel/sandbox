@@ -67,6 +67,21 @@ export const commandMetadata = {
     description: "Inspect and control commands in a running sandbox session",
     positionals: [],
   },
+  domain: {
+    name: "domain",
+    description: "Print the public domain for a port in a running sandbox",
+    positionals: ["<name>", "<port>"],
+  },
+  users: {
+    name: "users",
+    description: "Create users and run commands as a user",
+    positionals: [],
+  },
+  groups: {
+    name: "groups",
+    description: "Create shared groups and manage membership",
+    positionals: [],
+  },
   remove: {
     name: "remove",
     description: "Permanently remove one or more sandboxes",
