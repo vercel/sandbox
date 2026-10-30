@@ -40,6 +40,20 @@ const valueOf = (rows: ReturnType<typeof buildReview>, label: string) =>
   rows.find((row) => row.label === label)?.value;
 
 describe("review contents", () => {
+  test("associates each repository's API access with its actor", () => {
+    const rows = review({
+      config: parseConfig({
+        credentials: {
+          github: [
+            { repo: "one/repo", actions: ["issues:read"], actAs: "@one" },
+            { repo: "two/repo", actions: ["issues:comment"], actAs: "@two" },
+          ],
+        },
+      }),
+    });
+    expect(valueOf(rows, "API actor one/repo")).toBe("@one");
+    expect(valueOf(rows, "API actor two/repo")).toBe("@two");
+  });
   test("shows team, project, source, access, resources, and origin", () => {
     const rows = review();
     expect(valueOf(rows, "Team")).toBe("jacks-projects");
