@@ -25,7 +25,7 @@ const failure = () =>
 export async function readGhAccount(): Promise<GhAccount | undefined> {
   const status = await runCommand(
     "gh",
-    ["auth", "status", "--hostname", "github.com"],
+    ["auth", "status", "--active", "--hostname", "github.com"],
     GH_TIMEOUT_MS,
   );
   if (status.status === "absent") return undefined;

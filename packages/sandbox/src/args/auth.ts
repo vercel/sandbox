@@ -39,9 +39,11 @@ export function createTokenOption(allowLogin = true, readOnly = false) {
         if (process.env.VERCEL_AUTH_TOKEN) {
           return process.env.VERCEL_AUTH_TOKEN;
         }
-        if (process.env.VERCEL_TOKEN) return process.env.VERCEL_TOKEN;
         if (readOnly) {
-          const existing = process.env.VERCEL_OIDC_TOKEN || getAuth()?.token;
+          const existing =
+            process.env.VERCEL_OIDC_TOKEN ||
+            process.env.VERCEL_TOKEN ||
+            getAuth()?.token;
           if (existing) return existing;
           throw new Error(
             "Dry-run requires existing credentials. Pass --token, set VERCEL_AUTH_TOKEN, or run sandbox login separately.",
@@ -60,6 +62,8 @@ export function createTokenOption(allowLogin = true, readOnly = false) {
             );
           }
         }
+
+        if (process.env.VERCEL_TOKEN) return process.env.VERCEL_TOKEN;
 
         // Try to get CLI token, which handles auth.json reading and refresh
         try {

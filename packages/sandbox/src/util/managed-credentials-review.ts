@@ -87,6 +87,12 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
         ? { note: "explicitly empty; defaults are not added" }
         : {}),
     });
+    if (api.length > 0) {
+      rows.push({
+        label: `API actor ${safeText(group.repo)}`,
+        value: safeText(group.actAs ?? "caller's connected GitHub account"),
+      });
+    }
   }
 
   const sourceGit = config.source

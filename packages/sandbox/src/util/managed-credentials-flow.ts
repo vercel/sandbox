@@ -98,11 +98,10 @@ export async function runManagedCredentialsFlow(options: {
   let project = context.project;
 
   for (;;) {
-    const missingBounds = await resolveBounds(
-      context,
-      { team, project },
-      resolved.config,
-    );
+    const missingBounds =
+      scope.team !== undefined && scope.project === undefined
+        ? []
+        : await resolveBounds(context, { team, project }, resolved.config);
 
     const rows = buildReview({
       config: resolved.config,
@@ -236,7 +235,9 @@ export async function runManagedCredentialsFlow(options: {
 
     // Recompute from the corrected inputs rather than patching the previous
     // proposal, so dependent inference and the permission check are redone.
-    resolved = await context.reresolve(overrides, scope);
+    if (scope.team === undefined || scope.project !== undefined) {
+      resolved = await context.reresolve(overrides, scope);
+    }
   }
 }
 
