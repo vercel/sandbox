@@ -200,6 +200,15 @@ export class Session implements ExecutionContext {
   }
 
   /**
+   * Nonsecret access requested at creation, when reported by the API.
+   * Reuse still requires authorization for the new Sandbox.
+   * @hidden
+   */
+  public get managedCredentials(): SessionMetaData["managedCredentials"] {
+    return this.session.managedCredentials;
+  }
+
+  /**
    * The creation date of this session.
    */
   public get createdAt(): Date {
