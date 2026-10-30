@@ -325,6 +325,43 @@ describe("interactive review", () => {
     ).rejects.toMatchObject({ options: { reason: "canceled" } });
   });
 
+  test("waits for a replacement project before inference or policy reads", async () => {
+    const { input, output } = scripted([
+      "e",
+      "team",
+      "other-team",
+      "",
+      "e",
+      "project",
+      "other-project",
+      "c",
+    ]);
+    const reresolve = vi.fn(async (_options, scope) => {
+      if (scope.team && !scope.project) throw new Error("incomplete scope");
+      return resolved();
+    });
+    const readBounds = vi.fn(async (scope) => {
+      if (scope.project === "(not set)") throw new Error("invalid project");
+      return { status: "known" as const, bounds: [] };
+    });
+    const result = await runManagedCredentialsFlow({
+      initial: resolved(),
+      managedOptions,
+      context: baseContext({
+        interactive: true,
+        input,
+        output,
+        reresolve,
+        readBounds,
+      }),
+    });
+    expect(result.scopeOverrides).toEqual({
+      team: "other-team",
+      project: "other-project",
+    });
+    expect(reresolve).toHaveBeenCalledTimes(1);
+    expect(readBounds).toHaveBeenCalledTimes(2);
+  });
   test("an unedited scope reports no overrides", async () => {
     const { input, output } = scripted(["c"]);
     const result = await runManagedCredentialsFlow({
