@@ -62,6 +62,11 @@ export const commandMetadata = {
       "Add time to a running session without changing its default timeout",
     positionals: ["<name>", "<num UNIT>"],
   },
+  commands: {
+    name: "commands",
+    description: "Inspect and control commands in a running sandbox session",
+    positionals: [],
+  },
   remove: {
     name: "remove",
     description: "Permanently remove one or more sandboxes",

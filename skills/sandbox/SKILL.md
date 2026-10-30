@@ -1055,13 +1055,21 @@ sandbox run --rm -- npm build                # DELETES the sandbox after running
 
 # Execute command in an existing sandbox
 sandbox exec <name> -- npm install
-sandbox exec <name> --stop -- npm build
+sandbox exec <name> -- npm build
+sandbox stop <name>
 
 # Start an interactive shell
 sandbox connect <name>
 
 # Copy files
 sandbox cp local-file.txt <name>:/vercel/sandbox/
+
+# Start a command and retrieve its ID for later inspection
+sandbox exec --detach <name> -- npm run dev
+sandbox commands get <name> <command-id>
+sandbox commands logs <name> <command-id>
+sandbox commands wait <name> <command-id>
+sandbox commands kill <name> <command-id> --signal SIGTERM  # Also SIGKILL, SIGINT, SIGHUP, SIGQUIT
 
 # Add time to the current running session without changing future defaults
 sandbox extend <name> <duration>

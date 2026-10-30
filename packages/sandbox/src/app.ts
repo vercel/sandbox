@@ -16,6 +16,8 @@ export const commandLoaders: Record<CommandName, () => Promise<CliCommand>> = {
   connect: () => import("./commands/connect").then(({ connect }) => connect),
   stop: () => import("./commands/stop").then(({ stop }) => stop),
   extend: () => import("./commands/extend").then(({ extend }) => extend),
+  commands: () =>
+    import("./commands/commands").then(({ commands }) => commands),
   remove: () => import("./commands/remove").then(({ remove }) => remove),
   run: () => import("./commands/run").then(({ run }) => run),
   snapshot: () =>

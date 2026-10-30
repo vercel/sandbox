@@ -19,6 +19,7 @@ Commands:
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
     stop           <name> [...name]            Stop the current session of one or more sandboxes
     extend         <name> <num UNIT>           Add time to a running session without changing its default timeout
+    commands                                   Inspect and control commands in a running sandbox session
     rm | remove    <name> [...name]            Permanently remove one or more sandboxes
     run            <command> [...args]         Create and run a command in a sandbox
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
@@ -414,6 +415,7 @@ Flags:
     --sudo               Give extended privileges to the command. [optional]
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
+    --detach             Start the command and print its ID without waiting for it to finish. [optional]
     --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
     --help, -h           show help [optional]
 
@@ -486,6 +488,127 @@ Examples:
   $ sandbox extend my-sandbox 30m
 ```
 
+## `sandbox commands`
+
+```
+sandbox commands
+
+▲ sandbox commands [options] <command>
+
+For command help, run `sandbox commands <command> --help`
+
+Commands:
+
+    get   <name> <command-id>  Show the status of a command in the current session
+    logs  <name> <command-id>  Stream a command's stdout and stderr
+    wait  <name> <command-id>  Wait for a command to finish and return its exit code
+    kill  <name> <command-id>  Stop a running command without stopping its sandbox
+```
+
+## `sandbox commands get`
+
+```
+get
+
+▲ sandbox commands get [options]
+
+Show the status of a command in the current session
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands logs`
+
+```
+logs
+
+▲ sandbox commands logs [options]
+
+Stream a command's stdout and stderr
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands wait`
+
+```
+wait
+
+▲ sandbox commands wait [options]
+
+Wait for a command to finish and return its exit code
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands kill`
+
+```
+kill
+
+▲ sandbox commands kill [options]
+
+Stop a running command without stopping its sandbox
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Options:
+
+    --signal <value>  Signal to send (default SIGTERM) [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
 ## `sandbox copy`
 
 ```
@@ -534,7 +657,6 @@ Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
-    --timeout <num UNIT>               Maximum duration to wait for the command (e.g. 30s, 5m). On expiry the process is killed with SIGKILL. Cannot be combined with --interactive. [optional]
 
 Auth & Scope:
 

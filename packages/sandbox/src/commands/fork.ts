@@ -200,6 +200,7 @@ export const fork = cmd.command({
         skipExtendingTimeout: false,
         envVars: {},
         interactive: true,
+        detached: false,
         tty: true,
         sandbox,
         timeout: undefined,
