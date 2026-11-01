@@ -140,6 +140,106 @@ describe("validateName (unit)", () => {
   );
 });
 
+describe("relative path resolution (unit)", () => {
+  function setup(stdout = "") {
+    const sandbox = new Sandbox({
+      client: {} as any,
+      routes: [],
+      sandbox: { id: "test" } as any,
+    });
+    vi.spyOn(sandbox, "getDefaultUser").mockResolvedValue({
+      username: "vercel-sandbox",
+      group: "vercel-sandbox",
+    });
+    const writeFiles = vi
+      .spyOn(sandbox, "writeFiles")
+      .mockResolvedValue(undefined as any);
+    const mkDir = vi
+      .spyOn(sandbox, "mkDir")
+      .mockResolvedValue(undefined as any);
+    const runCommand = vi.spyOn(sandbox, "runCommand").mockResolvedValue(
+      new CommandFinished({
+        sessionId: "test",
+        cmd: {} as any,
+        exitCode: 0,
+        output: { stdout, stderr: "" },
+      }),
+    );
+    return { alice: sandbox.asUser("alice"), writeFiles, mkDir, runCommand };
+  }
+
+  const escaping = ["../outside.txt", "../../etc/hosts", "a/../../outside.txt"];
+
+  it.each(escaping)("writeFiles rejects %s", async (path) => {
+    const { alice, writeFiles } = setup();
+    await expect(alice.writeFiles([{ path, content: "x" }])).rejects.toThrow(
+      "outside the home directory",
+    );
+    expect(writeFiles).not.toHaveBeenCalled();
+  });
+
+  it.each(escaping)("mkDir rejects %s", async (path) => {
+    const { alice, mkDir } = setup();
+    await expect(alice.mkDir(path)).rejects.toThrow(
+      "outside the home directory",
+    );
+    expect(mkDir).not.toHaveBeenCalled();
+  });
+
+  it.each(escaping)("readFileToBuffer rejects %s", async (path) => {
+    const { alice, runCommand } = setup();
+    await expect(alice.readFileToBuffer({ path })).rejects.toThrow(
+      "outside the home directory",
+    );
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  it("rejects a sibling directory sharing the home prefix", async () => {
+    const { alice, writeFiles } = setup();
+    await expect(
+      alice.writeFiles([{ path: "../alice2/x.txt", content: "x" }]),
+    ).rejects.toThrow("outside the home directory");
+    expect(writeFiles).not.toHaveBeenCalled();
+  });
+
+  it("normalizes relative paths that stay inside the home directory", async () => {
+    const { alice, writeFiles, mkDir } = setup("alice");
+    await alice.writeFiles([{ path: "notes/../data.txt", content: "x" }]);
+    expect(writeFiles).toHaveBeenCalledWith(
+      [expect.objectContaining({ path: "/home/alice/data.txt" })],
+      undefined,
+    );
+    await alice.mkDir("projects/./app");
+    expect(mkDir).toHaveBeenCalledWith("/home/alice/projects/app", undefined);
+  });
+
+  it("reads relative paths from the home directory", async () => {
+    const { alice, runCommand } = setup(Buffer.from("hi").toString("base64"));
+    const content = await alice.readFileToBuffer({ path: "dir/../data.txt" });
+    expect(content?.toString()).toBe("hi");
+    expect(runCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining(["/home/alice/data.txt"]),
+      }),
+    );
+  });
+
+  it("keeps absolute paths and explicit cwd as-is", async () => {
+    const { alice, writeFiles, runCommand } = setup("alice");
+    await alice.writeFiles([{ path: "/tmp/shared.txt", content: "x" }]);
+    expect(writeFiles).toHaveBeenCalledWith(
+      [expect.objectContaining({ path: "/tmp/shared.txt" })],
+      undefined,
+    );
+    await alice.readFileToBuffer({ path: "../b.txt", cwd: "/tmp/a" });
+    expect(runCommand).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining(["/tmp/a/../b.txt"]),
+      }),
+    );
+  });
+});
+
 describe.skipIf(process.env.RUN_INTEGRATION_TESTS !== "1")(
   "SandboxUser integration",
   () => {
