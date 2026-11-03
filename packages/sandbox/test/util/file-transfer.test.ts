@@ -71,6 +71,34 @@ describe("batchBySize", () => {
 });
 
 describe("parseFindEntries", () => {
+  test.each(["f", "d", "l"])(
+    "rejects Windows-ambiguous names for entry type %s",
+    (kind) => {
+      for (const rel of ["notes\\draft.txt", "notes:backup.txt"]) {
+        const listing = [kind, rel, "755", "", ""].join("\0");
+        expect(() => parseFindEntries(listing, "win32")).toThrow(
+          /filename.*Windows/,
+        );
+      }
+    },
+  );
+
+  test("accepts POSIX-separated paths on Windows", () => {
+    expect(
+      parseFindEntries(
+        ["f", "notes/draft.txt", "644", "", ""].join("\0"),
+        "win32",
+      ),
+    ).toEqual([{ type: "file", rel: "notes/draft.txt", mode: 0o644 }]);
+  });
+
+  test("preserves literal backslashes and colons on POSIX hosts", () => {
+    const rel = "notes\\draft:backup.txt";
+    expect(
+      parseFindEntries(["f", rel, "644", "", ""].join("\0"), "linux"),
+    ).toEqual([{ type: "file", rel, mode: 0o644 }]);
+  });
+
   test("parses NUL-separated tree metadata, including names with newlines", () => {
     expect(
       parseFindEntries(

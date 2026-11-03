@@ -88,7 +88,10 @@ export function batchBySize<T extends { size: number }>(
  * Parse NUL-separated `find` output containing type, relative path, mode, and
  * symlink target fields. The root entry has an empty relative path.
  */
-export function parseFindEntries(stdout: string): RemoteEntry[] {
+export function parseFindEntries(
+  stdout: string,
+  platform: NodeJS.Platform = process.platform,
+): RemoteEntry[] {
   if (stdout === "") return [];
   const fields = stdout.split("\0");
   if (fields.at(-1) === "") fields.pop();
@@ -104,6 +107,9 @@ export function parseFindEntries(stdout: string): RemoteEntry[] {
       string,
       string,
     ];
+    if (platform === "win32" && /[\\:]/.test(rel)) {
+      throw new Error(`Cannot copy filename ${JSON.stringify(rel)} on Windows`);
+    }
     const mode = parseInt(modeText, 8);
     if (!Number.isFinite(mode)) {
       throw new Error(`Invalid file mode returned by sandbox: ${modeText}`);
