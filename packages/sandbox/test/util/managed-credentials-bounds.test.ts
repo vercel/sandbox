@@ -15,6 +15,19 @@ test("Git write ceiling covers reads, while reporting only genuinely missing act
     }),
   ).toEqual([{ repo: "o/r", actions: ["github:issues:read"] }]);
 });
+test("no project Bounds means no ceiling, not deny everything", () => {
+  expect(
+    calculateMissingBounds(config, { status: "known", bounds: [] }),
+  ).toEqual([]);
+});
+test("configured Bounds with no actions still restrict access", () => {
+  expect(
+    calculateMissingBounds(config, {
+      status: "known",
+      bounds: [{ repo: "o/r", actions: [] }],
+    }),
+  ).toEqual([{ repo: "o/r", actions: ["git:read", "github:issues:read"] }]);
+});
 test("a failed policy lookup is never treated as an empty policy", () => {
   expect(() =>
     calculateMissingBounds(config, { status: "unknown", reason: "offline" }),

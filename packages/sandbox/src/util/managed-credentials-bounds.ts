@@ -57,6 +57,11 @@ export function calculateMissingBounds(
     );
   }
 
+  // An empty project policy has no ceiling. Do not propose adding Bounds to
+  // satisfy a request: that would introduce restrictions, not raise them.
+  // The creation flow separately warns and confirms this unbounded state.
+  if (lookup.bounds.length === 0) return [];
+
   const permitted = new Map<string, Set<string>>();
   for (const bound of lookup.bounds) {
     const key = bound.repo.toLowerCase();
