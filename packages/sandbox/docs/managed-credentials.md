@@ -11,7 +11,7 @@ Read-only clones require API support for `source.credentials: "read"`.
 Configuration reuse requires the API to return the original request metadata.
 This CLI change does not deploy either backend contract.
 
-Only GitHub is supported today. The `--credentials-*` naming is deliberately
+Only GitHub is supported today. The `--credentials-github-*` naming is deliberately
 forge-neutral so NPM, AI Gateway, and Linear credentials can join the same
 prefix later.
 
@@ -55,9 +55,9 @@ never on its own a request for repository access.
   gh / Vercel ──▶│                          │              │
                  └──────────────────────────┘              │
                                                             ▼
-  --credentials-from-config-file ──┐              ┌──────────────────┐
+  --credentials-github-from-config-file ──┐              ┌──────────────────┐
                                    ├────────────▶ │  review screen   │
-  --credentials-from-sandbox ──────┘              │ Create/Edit/Cancel│
+  --credentials-github-from-sandbox ──────┘              │ Create/Edit/Cancel│
      (explicit: no defaults added)                └──────────────────┘
                                                       │         │
                                             edit ◀────┘         ▼ create
@@ -68,7 +68,7 @@ never on its own a request for repository access.
                                                         └──────────────────┘
                                                                  │
                                                                  ▼
-                                   --credentials-persist-configuration
+                                   --credentials-github-persist-configuration
                                         writes the configuration as JSON
 ```
 
@@ -92,12 +92,12 @@ Inference runs before any question is asked. Explicit values always win.
 ### Repository
 
 HTTPS and SSH `github.com` remotes are both recognized. Override with
-`--credentials-repo OWNER/REPO`, which also becomes the clone source — in
+`--credentials-github-repo OWNER/REPO`, which also becomes the clone source — in
 single-repository mode there is no separate source flag to pass.
 
 ### API actor
 
-1. An explicit `--credentials-act-as` wins.
+1. An explicit `--credentials-github-act-as` wins.
 2. Otherwise `gh` takes precedence.
 3. Vercel's linked GitHub identity is queried **only** when `gh` is not logged
    in.
@@ -112,9 +112,9 @@ user.
 Vercel's fallback reads `GET /v1/integrations/account-links` and accepts only
 the default `github.com` OAuth **login** connection. Another provider, an
 enterprise host, a limited connection, or an ambiguous account list is treated
-as unknown, and the CLI asks for `--credentials-act-as` instead of guessing.
+as unknown, and the CLI asks for `--credentials-github-act-as` instead of guessing.
 
-`--credentials-act-as` accepts a username (with or without `@`) or a numeric
+`--credentials-github-act-as` accepts a username (with or without `@`) or a numeric
 user ID. When `gh` reports a numeric ID, the CLI authorizes with that immutable
 ID while displaying the readable login, so a later rename cannot redirect the
 grant.
@@ -181,12 +181,12 @@ vercel sandbox create \
   --scope=team_example \
   --project=prj_example \
   --vcpus=6 \
-  --credentials-repo=acme/widgets \
-  --credentials-action=github:issues:read \
-  --credentials-action=github:issues:comment \
-  --credentials-action=github:pull-request:create \
-  --credentials-act-as=42 \
-  '--credentials-commit-as=Grace Hopper <grace@example.com>'
+  --credentials-github-repo=acme/widgets \
+  --credentials-github-action=github:issues:read \
+  --credentials-github-action=github:issues:comment \
+  --credentials-github-action=github:pull-request:create \
+  --credentials-github-act-as=42 \
+  '--credentials-github-commit-as=Grace Hopper <grace@example.com>'
 ```
 
 The output preserves `create`, `run`, or `sh`, along with the original command
@@ -213,7 +213,7 @@ project, the CLI does not print an incomplete command.
 Git permission is decided **independently** of the API action set:
 
 - Git write (`git:write`) is the default for a managed source.
-- `--credentials-no-write` requests a read-only clone (`git:read`) instead. It
+- `--credentials-github-no-write` requests a read-only clone (`git:read`) instead. It
   does not remove requested API permissions and does not turn API writes into
   reads.
 - A read-only configuration omits the inferred commit credit entirely, since
@@ -223,10 +223,10 @@ Overriding the API actions never changes Git access:
 
 ```sh
 # Narrower API access, Git write unchanged
-vercel sandbox create --credentials-action issues:read
+vercel sandbox create --credentials-github-action issues:read
 
 # Full default API access, read-only clone
-vercel sandbox create --enable-managed-credentials --credentials-no-write
+vercel sandbox create --enable-managed-credentials --credentials-github-no-write
 ```
 
 Workflow-file write access is never requested by default.
@@ -241,7 +241,7 @@ issues:comment
 pull-request:create
 ```
 
-Supplying any `--credentials-action` **replaces** that set rather than adding
+Supplying any `--credentials-github-action` **replaces** that set rather than adding
 to it, so a deliberately narrow request is never widened. Repeat the flag to
 request several actions; comma-separated lists and duplicates are rejected.
 
@@ -255,7 +255,7 @@ Direct flags describe one repository. Multiple repositories, differing action
 sets, or multiple identities belong in a configuration file:
 
 ```sh
-vercel sandbox create --credentials-from-config-file config.json
+vercel sandbox create --credentials-github-from-config-file config.json
 ```
 
 ```json
@@ -315,22 +315,22 @@ See [`managed-credentials.example.json`](./managed-credentials.example.json).
 
 ```sh
 # Writes $PWD/<sbx_id>-credentials.json
-vercel sandbox create --enable-managed-credentials --credentials-persist-configuration
+vercel sandbox create --enable-managed-credentials --credentials-github-persist-configuration
 
 # Writes an explicit path
 vercel sandbox create --enable-managed-credentials \
-  --credentials-persist-configuration=./widgets-credentials.json
+  --credentials-github-persist-configuration=./widgets-credentials.json
 ```
 
-The path is attached with `=`. A bare `--credentials-persist-configuration`
-uses the default name, so `--credentials-persist-configuration path.json`
+The path is attached with `=`. A bare `--credentials-github-persist-configuration`
+uses the default name, so `--credentials-github-persist-configuration path.json`
 would leave `path.json` as a separate argument; the CLI detects that and says
 so.
 
 The file is written **after** a successful creation and round-trips through
-`--credentials-from-config-file`. The default name uses the `sbx_*` session
+`--credentials-github-from-config-file`. The default name uses the `sbx_*` session
 identifier the creation response returned — the same identifier
-`--credentials-from-sandbox` accepts.
+`--credentials-github-from-sandbox` accepts.
 
 An existing file is never overwritten: the CLI reports the path and stops. If
 the write fails, the error names the sandbox that was already created; the CLI
@@ -339,8 +339,8 @@ never creates a second sandbox to retry a local write.
 ### Copy from another sandbox
 
 ```sh
-vercel sandbox create --credentials-from-sandbox sbx_132456789
-vercel sandbox create --credentials-from-sandbox my-sandbox
+vercel sandbox create --credentials-github-from-sandbox sbx_132456789
+vercel sandbox create --credentials-github-from-sandbox my-sandbox
 ```
 
 Both names and `sbx_*` identifiers are accepted, resolved through an
