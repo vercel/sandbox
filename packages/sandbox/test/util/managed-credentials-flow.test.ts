@@ -119,8 +119,331 @@ describe("non-interactive consent", () => {
   });
 });
 
+describe("unbounded project confirmation", () => {
+  function capture(answers: string[]) {
+    const io = scripted(answers);
+    const chunks: string[] = [];
+    io.output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+    return { ...io, text: () => chunks.join("") };
+  }
+
+  test.each(["n", "", "c", "create", "sure"])(
+    "requires separate approval after the initial yes: %j",
+    async (answer) => {
+      const io = capture(["y", answer]);
+      const hasProjectBounds = vi.fn().mockResolvedValue(false);
+      await expect(
+        runManagedCredentialsFlow({
+          initial: resolved(),
+          managedOptions,
+          context: baseContext({ interactive: true, ...io, hasProjectBounds }),
+        }),
+      ).rejects.toMatchObject({
+        options: { reason: "canceled", exitCode: 130 },
+      });
+      expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(io.text()).toContain("This project has no Bounds");
+      expect(io.text()).toContain("no project-wide limit");
+      expect(io.text()).toContain("Continue without project Bounds? (y/N)");
+    },
+  );
+
+  test.each(["y", "yes", " YES "])(
+    "two approvals accept an unbounded project: %j",
+    async (answer) => {
+      const io = capture(["y", answer]);
+      const hasProjectBounds = vi.fn().mockResolvedValue(false);
+      const result = await runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({ interactive: true, ...io, hasProjectBounds }),
+      });
+      expect(result.config).toEqual(configFor());
+      expect(io.text()).toContain("Continue without project Bounds? (y/N)");
+    },
+  );
+
+  test("configured Bounds do not add a second prompt", async () => {
+    const io = capture(["y"]);
+    const hasProjectBounds = vi.fn().mockResolvedValue(true);
+    await runManagedCredentialsFlow({
+      initial: resolved(),
+      managedOptions,
+      context: baseContext({ interactive: true, ...io, hasProjectBounds }),
+    });
+    expect(hasProjectBounds).toHaveBeenCalledOnce();
+    expect(io.text()).not.toContain("Continue without project Bounds");
+  });
+
+  test("rejecting the original proposal does not look up Bounds", async () => {
+    const io = capture(["n"]);
+    const hasProjectBounds = vi.fn();
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({ interactive: true, ...io, hasProjectBounds }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "canceled" } });
+    expect(hasProjectBounds).not.toHaveBeenCalled();
+  });
+
+  test.each([false, true])(
+    "--yes accepts both confirmations but still prints the warning (interactive: %j)",
+    async (interactive) => {
+      const io = capture([]);
+      const hasProjectBounds = vi.fn().mockResolvedValue(false);
+      const readBounds = vi.fn().mockResolvedValue(undefined);
+      const reresolve = vi.fn();
+      const result = await runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          interactive,
+          yes: true,
+          ...io,
+          hasProjectBounds,
+          readBounds,
+          reresolve,
+        }),
+      });
+      expect(result.config).toEqual(configFor());
+      expect(result.missingBounds).toEqual([]);
+      expect(result.boundsApproved).toBe(false);
+      expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(readBounds).toHaveBeenCalledExactlyOnceWith({
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(reresolve).not.toHaveBeenCalled();
+      expect(io.text()).toContain("This project has no Bounds");
+      expect(io.text()).toContain(
+        "The Sandbox still receives only the rights shown above",
+      );
+      expect(io.text()).not.toContain("Continue without project Bounds?");
+      expect(io.text()).not.toContain(
+        "Create this sandbox, edit a value, or cancel?",
+      );
+    },
+  );
+
+  test("JSON --yes emits a structured warning without extra plain text", async () => {
+    const io = capture([]);
+    const stdout = vi.spyOn(process.stdout, "write");
+    try {
+      await runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          yes: true,
+          json: true,
+          ...io,
+          hasProjectBounds: vi.fn().mockResolvedValue(false),
+        }),
+      });
+      expect(io.text().trim().split("\n")).toHaveLength(1);
+      expect(JSON.parse(io.text())).toMatchObject({
+        status: "warning",
+        reason: "project_has_no_bounds",
+        message: expect.stringContaining(
+          "The Sandbox still receives only the rights shown above",
+        ),
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(stdout).not.toHaveBeenCalled();
+    } finally {
+      stdout.mockRestore();
+    }
+  });
+
+  test("JSON --yes defaults to one warning on stderr and leaves stdout untouched", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const stdout = vi.spyOn(process.stdout, "write");
+    try {
+      await runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          yes: true,
+          json: true,
+          output: undefined,
+          hasProjectBounds: vi.fn().mockResolvedValue(false),
+        }),
+      });
+      expect(stderr).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+        status: "warning",
+        reason: "project_has_no_bounds",
+        message: expect.stringContaining("no project-wide limit"),
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(stdout).not.toHaveBeenCalled();
+    } finally {
+      stderr.mockRestore();
+      stdout.mockRestore();
+    }
+  });
+
+  test.each([false, true])(
+    "dry-run does not perform the post-approval Bounds lookup (yes: %j)",
+    async (yes) => {
+      const hasProjectBounds = vi.fn();
+      await runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({ dryRun: true, yes, hasProjectBounds }),
+      });
+      expect(hasProjectBounds).not.toHaveBeenCalled();
+    },
+  );
+
+  test("noninteractive use without --yes does not look up Bounds", async () => {
+    const hasProjectBounds = vi.fn();
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({ hasProjectBounds }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "confirmation_required" } });
+    expect(hasProjectBounds).not.toHaveBeenCalled();
+  });
+
+  test.each([false, true])(
+    "unreadable Bounds fail closed after approval (yes: %j)",
+    async (yes) => {
+      const io = capture(yes ? [] : ["y"]);
+      const error = new CliError("Cannot read Bounds", {
+        reason: "policy_unknown",
+      });
+      await expect(
+        runManagedCredentialsFlow({
+          initial: resolved(),
+          managedOptions,
+          context: baseContext({
+            interactive: true,
+            yes,
+            ...io,
+            hasProjectBounds: vi.fn().mockRejectedValue(error),
+          }),
+        }),
+      ).rejects.toBe(error);
+      expect(io.text()).not.toContain("This project has no Bounds");
+      expect(io.text()).not.toContain("Continue without project Bounds?");
+    },
+  );
+
+  test.each(["EOF", "SIGINT"])(
+    "cancels with the full retry command on %s at the second prompt",
+    async (event) => {
+      const io = capture(["y"]);
+      // A terminal-like stream exercises readline's SIGINT event without sending
+      // a signal to the test process.
+      if (event === "SIGINT") Object.assign(io.output, { isTTY: true });
+      io.output.on("data", (chunk: Buffer) => {
+        if (chunk.toString() === "Continue without project Bounds? (y/N) ") {
+          setImmediate(() => {
+            if (event === "EOF") io.input.end();
+            else io.input.write("\u0003");
+          });
+        }
+      });
+      const command =
+        "sandbox create --scope=jacks-projects --project=api --credentials-repo=vercel/api --credentials-actions=issues:read,git:write --credentials-act-as=@scubbo --credentials-commit-as='Jack Jackson <scubbojj@gmail.com>'";
+      const renderCommand = vi.fn().mockReturnValue(command);
+      const hasProjectBounds = vi.fn().mockResolvedValue(false);
+      await expect(
+        runManagedCredentialsFlow({
+          initial: resolved(),
+          managedOptions,
+          context: baseContext({
+            interactive: true,
+            ...io,
+            hasProjectBounds,
+            renderCommand,
+          }),
+        }),
+      ).rejects.toMatchObject({
+        options: { reason: "canceled", exitCode: 130, data: { command } },
+      });
+      expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(renderCommand).toHaveBeenCalledExactlyOnceWith({
+        config: configFor(),
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(io.text()).toContain(command);
+    },
+  );
+
+  test("checks the corrected scope and retains the editable cancellation command", async () => {
+    const io = capture(["e", "team", "other-team", "other-project", "y", "n"]);
+    const hasProjectBounds = vi.fn().mockResolvedValue(false);
+    const renderCommand = vi
+      .fn()
+      .mockReturnValue(
+        "sandbox create --scope=other-team --project=other-project",
+      );
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          interactive: true,
+          ...io,
+          hasProjectBounds,
+          renderCommand,
+        }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "canceled" } });
+    expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+      team: "other-team",
+      project: "other-project",
+    });
+    expect(io.text()).toContain(
+      "sandbox create --scope=other-team --project=other-project",
+    );
+  });
+
+  test("approves the final corrected project after both confirmations", async () => {
+    const io = capture(["e", "project", "other-project", "y", "y"]);
+    const hasProjectBounds = vi.fn().mockResolvedValue(false);
+    const result = await runManagedCredentialsFlow({
+      initial: resolved(),
+      managedOptions,
+      context: baseContext({ interactive: true, ...io, hasProjectBounds }),
+    });
+    expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+      team: "jacks-projects",
+      project: "other-project",
+    });
+    expect(result).toEqual({
+      config: configFor(),
+      team: "jacks-projects",
+      project: "other-project",
+      scopeOverrides: { project: "other-project" },
+      missingBounds: [],
+      boundsApproved: false,
+    });
+  });
+});
+
 describe("policy additions", () => {
-  const readBounds = vi.fn().mockResolvedValue({ status: "known", bounds: [] });
+  const readBounds = vi.fn().mockResolvedValue({
+    status: "known",
+    bounds: [{ repo: "other/repo", actions: [] }],
+  });
 
   test("reports missing bounds and requires explicit approval", async () => {
     await expect(
@@ -461,13 +784,21 @@ describe("interactive review", () => {
       "n",
     ]);
     const reresolve = vi.fn().mockResolvedValue(resolved());
+    const hasProjectBounds = vi.fn();
     await expect(
       runManagedCredentialsFlow({
         initial: resolved(),
         managedOptions,
-        context: baseContext({ interactive: true, input, output, reresolve }),
+        context: baseContext({
+          interactive: true,
+          input,
+          output,
+          reresolve,
+          hasProjectBounds,
+        }),
       }),
     ).rejects.toMatchObject({ options: { reason: "canceled" } });
+    expect(hasProjectBounds).not.toHaveBeenCalled();
   });
 
   test("waits for a replacement project before inference or policy reads", async () => {
@@ -489,6 +820,7 @@ describe("interactive review", () => {
       if (scope.project === "(not set)") throw new Error("invalid project");
       return { status: "known" as const, bounds: [] };
     });
+    const hasProjectBounds = vi.fn().mockResolvedValue(true);
     const result = await runManagedCredentialsFlow({
       initial: resolved(),
       managedOptions,
@@ -498,6 +830,7 @@ describe("interactive review", () => {
         output,
         reresolve,
         readBounds,
+        hasProjectBounds,
       }),
     });
     expect(result.scopeOverrides).toEqual({
@@ -506,6 +839,10 @@ describe("interactive review", () => {
     });
     expect(reresolve).toHaveBeenCalledTimes(1);
     expect(readBounds).toHaveBeenCalledTimes(2);
+    expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+      team: "other-team",
+      project: "other-project",
+    });
   });
   test("an unedited scope reports no overrides", async () => {
     const { input, output } = scripted(["c"]);
