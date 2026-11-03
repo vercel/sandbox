@@ -46,11 +46,11 @@ export interface ManagedCredentialsOptions {
 
 /** Direct flags that describe a single repository's access. */
 const DIRECT_FLAGS = [
-  ["credentialsRepo", "--credentials-repo"],
-  ["credentialsActions", "--credentials-action"],
-  ["credentialsCommitAs", "--credentials-commit-as"],
-  ["credentialsActAs", "--credentials-act-as"],
-  ["credentialsNoWrite", "--credentials-no-write"],
+  ["credentialsRepo", "--credentials-github-repo"],
+  ["credentialsActions", "--credentials-github-action"],
+  ["credentialsCommitAs", "--credentials-github-commit-as"],
+  ["credentialsActAs", "--credentials-github-act-as"],
+  ["credentialsNoWrite", "--credentials-github-no-write"],
 ] as const;
 
 function suppliedDirectFlags(options: ManagedCredentialsOptions): string[] {
@@ -97,7 +97,7 @@ export interface ResolveContext {
   teamId?: string;
   cwd?: string;
   fetch?: typeof globalThis.fetch;
-  /** Resolve `--credentials-from-sandbox` through a read-only lookup. */
+  /** Resolve `--credentials-github-from-sandbox` through a read-only lookup. */
   loadFromSandbox?: (selector: string) => Promise<ManagedCredentialsConfig>;
   inferRepositoryImpl?: typeof inferRepository;
   inferCommitIdentityImpl?: typeof inferCommitIdentity;
@@ -122,7 +122,7 @@ function assertCompatibleOptions(options: ManagedCredentialsOptions): void {
     !hasManagedCredentialsRequest(options)
   ) {
     throw new CliError(
-      "--credentials-persist-configuration saves a managed-credentials configuration, but none was requested. Add --enable-managed-credentials, or one of the other --credentials-* options.",
+      "--credentials-github-persist-configuration saves a managed-credentials configuration, but none was requested. Add --enable-managed-credentials, or one of the other --credentials-github-* options.",
     );
   }
 
@@ -131,15 +131,15 @@ function assertCompatibleOptions(options: ManagedCredentialsOptions): void {
     options.credentialsFromSandbox !== undefined
   ) {
     throw new CliError(
-      "--credentials-from-config-file and --credentials-from-sandbox both supply a complete configuration. Pass one.",
+      "--credentials-github-from-config-file and --credentials-github-from-sandbox both supply a complete configuration. Pass one.",
     );
   }
 
   const explicitSource =
     options.credentialsFromConfigFile !== undefined
-      ? "--credentials-from-config-file"
+      ? "--credentials-github-from-config-file"
       : options.credentialsFromSandbox !== undefined
-        ? "--credentials-from-sandbox"
+        ? "--credentials-github-from-sandbox"
         : undefined;
 
   if (explicitSource && direct.length > 0) {
@@ -156,13 +156,13 @@ function assertCompatibleOptions(options: ManagedCredentialsOptions): void {
 
   if (options.credentialsFromConfigFile === "") {
     throw new CliError(
-      "--credentials-from-config-file requires a file path, or - to read stdin.",
+      "--credentials-github-from-config-file requires a file path, or - to read stdin.",
     );
   }
 
   if (options.credentialsFromSandbox === "") {
     throw new CliError(
-      "--credentials-from-sandbox requires a Sandbox name or sbx_* identifier.",
+      "--credentials-github-from-sandbox requires a Sandbox name or sbx_* identifier.",
     );
   }
 }
@@ -184,7 +184,7 @@ export async function resolveManagedCredentials(
   if (options.credentialsFromConfigFile !== undefined) {
     const payload = await readJsonPayload(
       options.credentialsFromConfigFile,
-      "--credentials-from-config-file",
+      "--credentials-github-from-config-file",
     );
     return {
       config: parseConfig(payload),
@@ -200,7 +200,7 @@ export async function resolveManagedCredentials(
   if (options.credentialsFromSandbox !== undefined) {
     if (!context.loadFromSandbox) {
       throw new CliError(
-        "--credentials-from-sandbox is unavailable in this context.",
+        "--credentials-github-from-sandbox is unavailable in this context.",
       );
     }
     const config = await context.loadFromSandbox(
@@ -228,7 +228,7 @@ async function resolveFromFlags(
   if (repo !== undefined) {
     if (!isRepository(repo)) {
       throw new CliError(
-        `--credentials-repo expects OWNER/REPOSITORY. Received: ${repo}`,
+        `--credentials-github-repo expects OWNER/REPOSITORY. Received: ${repo}`,
       );
     }
     provenance.repository = "explicit";
@@ -236,10 +236,10 @@ async function resolveFromFlags(
     repo = await (context.inferRepositoryImpl ?? inferRepository)(context.cwd);
     if (repo === undefined) {
       throw new CliError(
-        "Can't infer the repository for managed credentials. Run the command inside a GitHub repository with a github.com remote, or pass --credentials-repo OWNER/REPOSITORY.",
+        "Can't infer the repository for managed credentials. Run the command inside a GitHub repository with a github.com remote, or pass --credentials-github-repo OWNER/REPOSITORY.",
         {
           reason: "missing_context",
-          data: { required: ["--credentials-repo"] },
+          data: { required: ["--credentials-github-repo"] },
         },
       );
     }
@@ -256,7 +256,7 @@ async function resolveFromFlags(
 
   // --- Git access -----------------------------------------------------
   // Git permission is decided independently of the API action set, so
-  // overriding actions never changes it. `--credentials-no-write` downgrades
+  // overriding actions never changes it. `--credentials-github-no-write` downgrades
   // write to read without touching API actions.
   const gitAction: CredentialAction = options.credentialsNoWrite
     ? "git:read"
@@ -277,10 +277,10 @@ async function resolveFromFlags(
 
   if (!actor && apiActions.length > 0) {
     throw new CliError(
-      "Can't resolve the GitHub account to act as. Log in with gh, or pass --credentials-act-as with a GitHub username or numeric user ID.",
+      "Can't resolve the GitHub account to act as. Log in with gh, or pass --credentials-github-act-as with a GitHub username or numeric user ID.",
       {
         reason: "missing_context",
-        data: { required: ["--credentials-act-as"] },
+        data: { required: ["--credentials-github-act-as"] },
       },
     );
   }
@@ -290,7 +290,7 @@ async function resolveFromFlags(
   if (options.credentialsCommitAs !== undefined) {
     if (options.credentialsNoWrite) {
       throw new CliError(
-        "--credentials-commit-as has no effect with --credentials-no-write, which requests read-only Git access. Drop one of the two.",
+        "--credentials-github-commit-as has no effect with --credentials-github-no-write, which requests read-only Git access. Drop one of the two.",
       );
     }
     commitAs = parseCommitAs(options.credentialsCommitAs);
@@ -321,10 +321,10 @@ async function resolveFromFlags(
     if (!commitAs) {
       // Nothing is fabricated when the metadata cannot be resolved.
       throw new CliError(
-        'Can\'t infer a commit identity for managed Git write access. Set git config user.name and user.email, pass --credentials-commit-as "Name <email>", or request read-only access with --credentials-no-write.',
+        'Can\'t infer a commit identity for managed Git write access. Set git config user.name and user.email, pass --credentials-github-commit-as "Name <email>", or request read-only access with --credentials-github-no-write.',
         {
           reason: "missing_context",
-          data: { required: ["--credentials-commit-as"] },
+          data: { required: ["--credentials-github-commit-as"] },
         },
       );
     }
@@ -356,28 +356,30 @@ async function resolveFromFlags(
   };
 }
 
-/** Validate and canonicalize `--credentials-action` values. */
+/** Validate and canonicalize `--credentials-github-action` values. */
 export function parseActions(values: readonly string[]): GithubApiAction[] {
   const actions: GithubApiAction[] = [];
   for (const value of values) {
     if (value.includes(",")) {
       throw new CliError(
-        `--credentials-action takes one action per flag. Repeat the flag instead of a comma-separated list. Received: ${value}`,
+        `--credentials-github-action takes one action per flag. Repeat the flag instead of a comma-separated list. Received: ${value}`,
       );
     }
     const canonical = canonicalAction(value);
     if (!canonical) {
       throw new CliError(
-        `Unsupported --credentials-action value: ${value}. Run the command with --help to list the accepted actions.`,
+        `Unsupported --credentials-github-action value: ${value}. Run the command with --help to list the accepted actions.`,
       );
     }
     if (!isApiAction(canonical)) {
       throw new CliError(
-        `--credentials-action configures GitHub API access. Use --credentials-no-write to request read-only Git access instead of ${value}.`,
+        `--credentials-github-action configures GitHub API access. Use --credentials-github-no-write to request read-only Git access instead of ${value}.`,
       );
     }
     if (actions.includes(canonical)) {
-      throw new CliError(`Duplicate --credentials-action value: ${value}.`);
+      throw new CliError(
+        `Duplicate --credentials-github-action value: ${value}.`,
+      );
     }
     actions.push(canonical);
   }

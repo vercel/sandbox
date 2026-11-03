@@ -9,7 +9,7 @@ test("bounded JSON file input rejects oversized, invalid and non-file inputs wit
   try {
     await writeFile(file, '{"credentials":{"github":[]}}');
     expect(
-      await readJsonPayload(file, "--credentials-from-config-file"),
+      await readJsonPayload(file, "--credentials-github-from-config-file"),
     ).toEqual({ credentials: { github: [] } });
     for (const content of [
       Buffer.alloc(65537),
@@ -18,14 +18,14 @@ test("bounded JSON file input rejects oversized, invalid and non-file inputs wit
     ]) {
       await writeFile(file, content);
       await expect(
-        readJsonPayload(file, "--credentials-from-config-file"),
+        readJsonPayload(file, "--credentials-github-from-config-file"),
       ).rejects.toThrow();
       await expect(
-        readJsonPayload(file, "--credentials-from-config-file"),
+        readJsonPayload(file, "--credentials-github-from-config-file"),
       ).rejects.not.toThrow("secret-invalid-json");
     }
     await expect(
-      readJsonPayload(dir, "--credentials-from-config-file"),
+      readJsonPayload(dir, "--credentials-github-from-config-file"),
     ).rejects.toThrow("regular JSON file");
   } finally {
     await rm(dir, { recursive: true, force: true });
