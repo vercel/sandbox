@@ -17,7 +17,7 @@ export interface GhAccount {
 const GH_TIMEOUT_MS = 10_000;
 const failure = () =>
   new CliError(
-    "Could not read the active github.com account from gh. Fix gh or pass --credentials-act-as explicitly. The CLI does not fall back to another identity after a gh failure.",
+    "Could not read the active github.com account from gh. Fix gh or pass --credentials-github-act-as explicitly. The CLI does not fall back to another identity after a gh failure.",
     { reason: "identity_lookup_failed" },
   );
 
