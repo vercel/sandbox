@@ -41,6 +41,8 @@ export interface FlowContext {
   readBounds?: (
     scope: Required<ScopeOverrides>,
   ) => Promise<BoundsLookup | undefined>;
+  /** Check only for project Bounds, after the proposal has been approved. */
+  hasProjectBounds?: (scope: Required<ScopeOverrides>) => Promise<boolean>;
   /** Render the latest proposal as an editable command, without performing it. */
   renderCommand?: (proposal: {
     config: ManagedCredentialsConfig;
@@ -79,8 +81,8 @@ export interface FlowResult {
 }
 
 /**
- * Present one complete proposal, accept corrections, and get a single
- * approval.
+ * Present one complete proposal, accept corrections, and get approval,
+ * including a second confirmation when the project has no Bounds.
  *
  * Inference has already run, so the user sees a finished configuration rather
  * than a sequence of per-field confirmations. Editing any value re-runs the
@@ -135,6 +137,37 @@ export async function runManagedCredentialsFlow(options: {
     }
   };
 
+  const confirmProjectBounds = async () => {
+    if (!context.hasProjectBounds) return;
+    if (await context.hasProjectBounds({ team, project })) return;
+
+    const message =
+      "This project has no Bounds. There is no project-wide limit on managed-credential access. The Sandbox still receives only the rights shown above.";
+    if (context.json) {
+      write(
+        `${JSON.stringify({
+          status: "warning",
+          reason: "project_has_no_bounds",
+          message,
+          team,
+          project,
+        })}\n`,
+      );
+    } else {
+      write(`\n  ${message}\n\n`);
+    }
+
+    // `--yes` accepts both confirmations, but never suppresses the warning.
+    if (context.yes) return;
+    const answer = await withCancellation(() =>
+      question("Continue without project Bounds? (y/N) ", {
+        ...(context.input ? { input: context.input } : {}),
+        ...(context.output ? { output: context.output } : {}),
+      }),
+    );
+    if (!/^(y|yes)$/i.test(answer.trim())) cancel();
+  };
+
   for (;;) {
     const missingBounds =
       scope.team !== undefined && scope.project === undefined
@@ -180,6 +213,7 @@ export async function runManagedCredentialsFlow(options: {
     // `--yes` is approval, including for the clearly displayed policy
     // additions. It never supplies a missing input.
     if (context.yes) {
+      await confirmProjectBounds();
       return {
         config: resolved.config,
         team,
@@ -241,6 +275,7 @@ export async function runManagedCredentialsFlow(options: {
         write("  Set a project for the corrected team before creating.\n");
         continue;
       }
+      await confirmProjectBounds();
       return {
         config: resolved.config,
         team,
