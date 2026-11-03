@@ -68,7 +68,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     ...(config.source && input.provenance.repository === "git-remote"
       ? { note: "inferred from the local Git remote" }
       : config.source && input.provenance.repository === "explicit"
-        ? { note: "from --credentials-repo" }
+        ? { note: "from --credentials-github-repo" }
         : {}),
   });
 
@@ -113,7 +113,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       : sourceGit === "git:read"
         ? {
             note: inferredGit
-              ? "read-only clone, from --credentials-no-write"
+              ? "read-only clone, from --credentials-github-no-write"
               : "read-only clone",
           }
         : {}),
@@ -148,7 +148,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       : input.provenance.actor === "vercel-account-link"
         ? { note: "from the GitHub account linked to Vercel" }
         : input.provenance.actor === "explicit"
-          ? { note: "from --credentials-act-as" }
+          ? { note: "from --credentials-github-act-as" }
           : {}),
   });
 
