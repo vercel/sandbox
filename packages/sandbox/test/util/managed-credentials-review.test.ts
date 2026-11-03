@@ -240,9 +240,12 @@ describe("bounds calculation", () => {
     ]);
   });
 
-  test("treats a repository with no bound as entirely missing", () => {
+  test("treats a repository outside configured Bounds as entirely missing", () => {
     expect(
-      calculateMissingBounds(config, { status: "known", bounds: [] }),
+      calculateMissingBounds(config, {
+        status: "known",
+        bounds: [{ repo: "other/repository", actions: [] }],
+      }),
     ).toEqual([
       {
         repo: "vercel/api",
