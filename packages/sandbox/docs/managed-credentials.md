@@ -139,6 +139,35 @@ Correctable values: team, project, repository, actions, commit credit, and API
 actor. Correcting the team discards a project that was linked for the previous
 team.
 
+### Confirm a project with no Bounds
+
+After you approve the proposal, the CLI checks whether the selected project has
+any Bounds. Bounds set a project-wide limit on managed-credential access. If
+there are no Bounds, there is no such limit.
+
+For a project with no Bounds, the CLI prints a warning and asks:
+
+```text
+Continue without project Bounds? (y/N)
+```
+
+Answer `y` or `yes` to continue. Any other answer cancels before creation and
+prints the editable command described below. The Sandbox still receives only
+the rights shown in the proposal. No Bounds does not automatically give that
+Sandbox every permission.
+
+The `--yes` option accepts both confirmations, but the warning still appears.
+With `--json --yes`, the warning is one JSON object on stderr, with
+`reason: "project_has_no_bounds"`. The created result on stdout is unchanged.
+
+The check uses the final approved team and project. It reads all relevant pages
+before deciding that no Bounds exist. If the CLI cannot read the policy, it
+stops instead of treating the failed lookup as an empty policy. The current
+token must have permission to read the project and its team's Bounds.
+
+The check is read-only. It does not create, change, or remove Bounds. The
+backend change that treats no Bounds as no project-wide limit is separate.
+
 ### Reject and correct the command
 
 If you reject a complete proposal, the CLI prints its full explicit-flags command
@@ -341,20 +370,15 @@ allocation. Ordinary creation defaults are unchanged.
 
 ## Safety rules
 
-A **Bound** is a project-wide access ceiling. A **Grant** gives one particular
-sandbox access to one repository, within that ceiling. They are not the same
-thing, and the CLI keeps them distinct:
+A Bound sets a project-wide access limit. A Grant gives one particular Sandbox
+access to one repository. The CLI reads whether Bounds exist, but it never
+creates or changes them:
 
-- Only the minimal missing Bound additions are proposed, per repository, and
-  they are shown as project-wide before approval.
-- A policy lookup that fails is **unknown**, not an empty policy and not
-  permission to add access. The CLI refuses to propose additions derived from
-  an unreadable policy.
-- Where no policy source is readable at all, the CLI proposes nothing and lets
-  the server enforce the ceiling.
-
-The command does not yet use a production policy reader. It cannot provision
-missing Bounds. The API enforces the existing project ceiling.
+- If Bounds exist, the API enforces them. The CLI does not add missing Bounds.
+- If no Bounds exist, the CLI warns that there is no project-wide limit and asks
+  for a second confirmation. The warning does not change the requested grants.
+- If the policy cannot be read, the command stops. A failed lookup never means
+  that access is unrestricted.
 
 Also enforced:
 
