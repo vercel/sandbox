@@ -2,13 +2,24 @@ import * as cmd from "cmd-ts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { CliError } from "../../src/util/cli-error";
 
-const { mockCreate, mockGet, mockDecision } = vi.hoisted(() => ({
+const {
+  mockCreate,
+  mockGet,
+  mockDecision,
+  mockHasProjectBounds,
+  mockBoundsAnswer,
+} = vi.hoisted(() => ({
   mockCreate: vi.fn(),
   mockGet: vi.fn(),
   mockDecision: vi.fn(),
+  mockHasProjectBounds: vi.fn(),
+  mockBoundsAnswer: vi.fn(),
 }));
 vi.mock("../../src/client", () => ({
   sandboxClient: { create: mockCreate, get: mockGet },
+}));
+vi.mock("../../src/util/managed-credentials-project-bounds", () => ({
+  hasProjectBounds: mockHasProjectBounds,
 }));
 vi.mock("../../src/util/check-latest-version", () => ({
   startLatestVersionCheck: () => ({ report() {} }),
@@ -21,6 +32,7 @@ vi.mock("../../src/util/managed-credentials-review", async (original) => ({
     typeof import("../../src/util/managed-credentials-review")
   >()),
   promptReviewDecision: mockDecision,
+  question: mockBoundsAnswer,
 }));
 vi.mock("../../src/telemetry/agent", () => ({
   detectAgentName: async () => undefined,
@@ -29,12 +41,23 @@ vi.mock("../../src/telemetry/agent", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockDecision.mockResolvedValue({ action: "cancel" });
+  mockHasProjectBounds.mockResolvedValue(true);
+  mockBoundsAnswer.mockResolvedValue("n");
 });
 afterEach(() => vi.restoreAllMocks());
 
-test.each(["create", "run", "sh"] as const)(
-  "%s prints its explicit command on rejection without creating a Sandbox",
-  async (name) => {
+test.each(
+  (["create", "run", "sh"] as const).flatMap((name) => [
+    { name, rejectAt: "proposal" },
+    { name, rejectAt: "no Bounds" },
+  ]),
+)(
+  "$name prints its explicit command when rejecting $rejectAt without creating a Sandbox",
+  async ({ name, rejectAt }) => {
+    if (rejectAt === "no Bounds") {
+      mockDecision.mockResolvedValue({ action: "create" });
+      mockHasProjectBounds.mockResolvedValue(false);
+    }
     const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     const { create } = await import("../../src/commands/create");
@@ -83,5 +106,21 @@ test.each(["create", "run", "sh"] as const)(
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockGet).not.toHaveBeenCalled();
     expect(stdout).not.toHaveBeenCalled();
+    if (rejectAt === "no Bounds") {
+      expect(mockHasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+        token: "secret-rejection-test-token",
+        team: "team",
+        project: "project",
+      });
+      expect(mockBoundsAnswer).toHaveBeenCalledWith(
+        "Continue without project Bounds? (y/N) ",
+        expect.any(Object),
+      );
+      expect(stderr.mock.calls.flat().join("")).toContain(
+        "This project has no Bounds",
+      );
+    } else {
+      expect(mockHasProjectBounds).not.toHaveBeenCalled();
+    }
   },
 );

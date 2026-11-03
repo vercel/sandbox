@@ -15,6 +15,7 @@ const {
   mockInferCommitIdentity,
   mockInferActor,
   mockVersionCheck,
+  mockHasProjectBounds,
 } = vi.hoisted(() => ({
   mockCreate: vi.fn(),
   mockGet: vi.fn(),
@@ -25,6 +26,7 @@ const {
   mockInferCommitIdentity: vi.fn(),
   mockInferActor: vi.fn(),
   mockVersionCheck: vi.fn(() => ({ report() {} })),
+  mockHasProjectBounds: vi.fn(),
 }));
 
 vi.mock("../../src/client", () => ({
@@ -32,6 +34,9 @@ vi.mock("../../src/client", () => ({
 }));
 vi.mock("../../src/util/check-latest-version", () => ({
   startLatestVersionCheck: mockVersionCheck,
+}));
+vi.mock("../../src/util/managed-credentials-project-bounds", () => ({
+  hasProjectBounds: mockHasProjectBounds,
 }));
 vi.mock("../../src/commands/exec", () => ({
   exec: { handler: mockExec },
@@ -74,6 +79,7 @@ describe("create with managed credentials", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockHasProjectBounds.mockResolvedValue(true);
     vi.stubEnv("VERCEL_AUTH_TOKEN", "test-token");
     directory = await mkdtemp(join(tmpdir(), "sandbox-managed-credentials-"));
     stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
@@ -108,6 +114,50 @@ describe("create with managed credentials", () => {
   };
 
   const errText = () => stderr.mock.calls.flat().join("");
+
+  describe("unbounded project warning", () => {
+    test("--yes accepts the state but prints its warning before creation", async () => {
+      mockHasProjectBounds.mockResolvedValue(false);
+      await createWith(["--enable-managed-credentials", "--yes", "--silent"]);
+      expect(mockHasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+        token: "test-token",
+        team: "team",
+        project: "project",
+      });
+      expect(errText()).toContain("This project has no Bounds");
+      expect(mockCreate).toHaveBeenCalledOnce();
+      expect(stdout).not.toHaveBeenCalled();
+    });
+
+    test("JSON --yes keeps the warning on stderr and the creation result on stdout", async () => {
+      mockHasProjectBounds.mockResolvedValue(false);
+      await createWith(["--enable-managed-credentials", "--yes", "--json"]);
+      expect(JSON.parse(errText())).toMatchObject({
+        status: "warning",
+        reason: "project_has_no_bounds",
+      });
+      expect(JSON.parse(stdout.mock.calls.flat().join(""))).toMatchObject({
+        outcome: "created",
+        sandbox: { name: "new-sandbox" },
+      });
+      expect(mockCreate).toHaveBeenCalledOnce();
+    });
+
+    test("an unreadable policy stops creation even with --yes", async () => {
+      mockHasProjectBounds.mockRejectedValue(
+        new CliError("Cannot read project Bounds", {
+          reason: "policy_unknown",
+        }),
+      );
+      await expect(
+        createWith(["--enable-managed-credentials", "--yes", "--json"]),
+      ).rejects.toMatchObject({
+        options: { reason: "policy_unknown", json: true },
+      });
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(stdout).not.toHaveBeenCalled();
+    });
+  });
 
   describe("bare create", () => {
     test("requests no managed credentials and keeps default resources", async () => {
