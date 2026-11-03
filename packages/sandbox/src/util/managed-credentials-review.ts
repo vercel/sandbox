@@ -15,6 +15,7 @@ import type {
   EditableField,
 } from "./managed-credentials-resolve";
 import { EDITABLE_FIELDS } from "./managed-credentials-resolve";
+import type { InferredActor } from "./managed-credentials-identity";
 
 /** Strip control and bidirectional characters before display. */
 export const safeText = (text: string) =>
@@ -24,6 +25,8 @@ export interface ReviewInput {
   config: ManagedCredentialsConfig;
   originLabel: string;
   provenance: ConfigProvenance;
+  actor?: InferredActor;
+  edited?: readonly EditableField[];
   team: string;
   project: string;
   sandboxName?: string;
@@ -35,7 +38,7 @@ export interface ReviewInput {
 export interface ReviewRow {
   label: string;
   value: string;
-  /** Why this value was chosen, shown dimmed beside the value. */
+  /** Why this value was chosen, shown in the third column. */
   note?: string;
 }
 
@@ -48,150 +51,246 @@ export interface ReviewRow {
  * permission, and showing them as one field would imply otherwise.
  */
 export function buildReview(input: ReviewInput): ReviewRow[] {
-  const { config } = input;
-  const rows: ReviewRow[] = [];
+  const { config, provenance } = input;
+  const edited = new Set(input.edited);
+  const origin = `from ${safeText(input.originLabel || "the resolved configuration")}`;
+  const source = (field: EditableField, inferred: string) =>
+    edited.has(field) ? "edited during review" : inferred;
+  const rows: ReviewRow[] = [
+    {
+      label: "Team",
+      value: safeText(input.team),
+      note: provenance.team ?? "provided scope",
+    },
+    {
+      label: "Project",
+      value: safeText(input.project),
+      note: provenance.project ?? "provided scope",
+    },
+    {
+      label: "Sandbox",
+      value: input.sandboxName
+        ? safeText(input.sandboxName)
+        : "new sandbox (name assigned by the server)",
+      note: input.sandboxName ? "from --name" : "assigned by the server",
+    },
+    {
+      label: "Source",
+      value: config.source
+        ? safeText(config.source.repo)
+        : "none (no repository cloned)",
+      note: source(
+        "repository",
+        !config.source
+          ? "no clone requested"
+          : provenance.repository === "git-remote"
+            ? "inferred from the local Git remote"
+            : provenance.repository === "explicit"
+              ? "from --credentials-github-repo"
+              : origin,
+      ),
+    },
+  ];
+  if (config.source?.revision)
+    rows.push({
+      label: "Revision",
+      value: safeText(config.source.revision),
+      note: origin,
+    });
 
-  rows.push({ label: "Team", value: safeText(input.team) });
-  rows.push({ label: "Project", value: safeText(input.project) });
-  rows.push({
-    label: "Sandbox",
-    value: input.sandboxName
-      ? safeText(input.sandboxName)
-      : "new sandbox (name assigned by the server)",
-  });
-
-  rows.push({
-    label: "Source",
-    value: config.source
-      ? safeText(config.source.repo)
-      : "none (no repository cloned)",
-    ...(config.source && input.provenance.repository === "git-remote"
-      ? { note: "inferred from the local Git remote" }
-      : config.source && input.provenance.repository === "explicit"
-        ? { note: "from --credentials-github-repo" }
-        : {}),
-  });
-
-  if (config.source?.revision) {
-    rows.push({ label: "Revision", value: safeText(config.source.revision) });
-  }
-
-  // Per-repository access, so a multi-repository configuration shows its
-  // mapping rather than a merged union of permissions.
+  const actionSource =
+    provenance.actions === "github-access"
+      ? "from --github-access"
+      : provenance.actions === "explicit"
+        ? "from --credentials-github-action"
+        : provenance.actions === "config" || provenance.repository === "config"
+          ? origin
+          : "default GitHub API actions";
+  const actorSource =
+    provenance.actor === "gh"
+      ? "inferred from active gh account"
+      : provenance.actor === "vercel-account-link"
+        ? "from Vercel-linked GitHub account"
+        : provenance.actor === "explicit"
+          ? "from --credentials-github-act-as"
+          : provenance.actor === "config"
+            ? origin
+            : "selected by the backend";
+  let actorRows = 0;
   for (const group of config.credentials.github) {
     const api = group.actions.filter(isApiAction);
     rows.push({
       label: `Access ${safeText(group.repo)}`,
-      value: api.length > 0 ? api.join(", ") : "no GitHub API actions",
-      ...(api.length === 0
-        ? { note: "explicitly empty; defaults are not added" }
-        : {}),
+      value: api.length ? api.join(", ") : "no GitHub API actions",
+      note: source(
+        "actions",
+        api.length
+          ? actionSource
+          : `${origin}; explicitly empty; defaults are not added`,
+      ),
     });
-    if (api.length > 0) {
+    if (api.length) {
+      actorRows++;
       rows.push({
-        label: `API actor ${safeText(group.repo)}`,
-        value: safeText(group.actAs ?? "caller's connected GitHub account"),
+        label:
+          config.credentials.github.length === 1
+            ? "API actor"
+            : `API actor ${safeText(group.repo)}`,
+        value: displayActor(group.actAs, input.actor),
+        note: source(
+          "actAs",
+          group.actAs === undefined
+            ? `backend default; no actor set in ${safeText(input.originLabel)}`
+            : actorSource,
+        ),
       });
     }
   }
+  if (!actorRows)
+    rows.push({
+      label: "API actor",
+      value: "none",
+      note: "no GitHub API access requested",
+    });
 
   const sourceGit = config.source
     ? gitAccessFor(config, config.source.repo)
     : undefined;
-  // Only describe where Git access came from when it was inferred from the
-  // flags; a configuration file states it directly.
-  const inferredGit = input.provenance.repository !== "config";
+  const gitSource = !sourceGit
+    ? "no Git access requested"
+    : provenance.gitAccess === "github-access"
+      ? `from --github-access=${sourceGit === "git:read" ? "read" : "write"}`
+      : provenance.gitAccess === "config" || provenance.repository === "config"
+        ? origin
+        : provenance.gitAccess === "explicit" || sourceGit === "git:read"
+          ? `from --credentials-github-no-write${sourceGit === "git:write" ? "=false" : ""}`
+          : "default for a managed source";
   rows.push({
     label: "Git access",
     value: sourceGit ?? "none",
-    ...(sourceGit === "git:write"
-      ? {
-          note:
-            input.provenance.gitAccess === "github-access"
-              ? "from --github-access=write: clone, fetch, pull, and push"
-              : inferredGit
-                ? "default for a managed source; clone, fetch, pull, and push"
-                : "clone, fetch, pull, and push",
-        }
-      : sourceGit === "git:read"
-        ? {
-            note:
-              input.provenance.gitAccess === "github-access"
-                ? "read-only clone, from --github-access=read"
-                : inferredGit
-                  ? "read-only clone, from --credentials-github-no-write"
-                  : "read-only clone",
-          }
-        : {}),
+    note: gitSource,
   });
 
+  const creditSource =
+    provenance.commitAs === "git-config"
+      ? "inferred from Git configuration"
+      : provenance.commitAs === "profile-fallback"
+        ? "inferred from the resolved GitHub profile"
+        : provenance.commitAs === "explicit"
+          ? "from --credentials-github-commit-as"
+          : provenance.commitAs === "omitted"
+            ? "omitted for a read-only configuration"
+            : provenance.commitAs === "config" ||
+                provenance.repository === "config"
+              ? origin
+              : config.commitAs
+                ? "from the resolved configuration"
+                : "no commit credit requested";
   rows.push({
     label: "Commit credit",
     value: config.commitAs
       ? `${safeText(config.commitAs.name)} <${safeText(config.commitAs.email)}>`
       : "none",
-    ...(hasInertCommitAs(config)
-      ? { note: "no effect without Git write access" }
-      : input.provenance.commitAs === "git-config"
-        ? { note: "inferred from the effective local Git configuration" }
-        : input.provenance.commitAs === "omitted"
-          ? { note: "omitted for a read-only configuration" }
-          : {}),
+    note:
+      source("commitAs", creditSource) +
+      (hasInertCommitAs(config) ? "; no effect without Git write access" : ""),
   });
-
-  const actors = [
-    ...new Set(
-      config.credentials.github
-        .filter((group) => group.actions.some(isApiAction))
-        .map((group) => group.actAs ?? "caller's connected GitHub account"),
-    ),
-  ];
-  rows.push({
-    label: "API actor",
-    value: actors.length > 0 ? actors.map(safeText).join(", ") : "none",
-    ...(input.provenance.actor === "gh"
-      ? { note: "from the active gh account" }
-      : input.provenance.actor === "vercel-account-link"
-        ? { note: "from the GitHub account linked to Vercel" }
-        : input.provenance.actor === "explicit"
-          ? { note: "from --credentials-github-act-as" }
-          : {}),
-  });
-
   rows.push({
     label: "Resources",
     value: `${input.vcpus} vCPUs`,
-    ...(input.vcpusExplicit
-      ? { note: "from --vcpus" }
-      : { note: "managed-credentials default" }),
+    note: input.vcpusExplicit ? "from --vcpus" : "managed-credentials default",
   });
-
-  rows.push({ label: "Configuration", value: safeText(input.originLabel) });
-
-  if (input.missingBounds.length > 0) {
-    for (const line of describeMissingBounds(input.missingBounds)) {
-      rows.push({
-        label: "Policy addition",
-        value: safeText(line),
-        note: "raises the project-wide ceiling for everyone in the project",
-      });
-    }
-  }
-
+  for (const line of describeMissingBounds(input.missingBounds))
+    rows.push({
+      label: "Policy addition",
+      value: safeText(line),
+      note: "policy comparison; raises the project-wide ceiling for everyone in the project",
+    });
   return rows;
 }
 
-/** Render the review model as aligned text. */
-export function renderReview(rows: readonly ReviewRow[]): string {
-  const width = Math.max(...rows.map((row) => row.label.length));
-  return rows
+/** Display metadata cannot change or substitute an authorization selector. */
+function displayActor(
+  selector: string | undefined,
+  actor: InferredActor | undefined,
+): string {
+  if (selector?.startsWith("@")) return safeText(selector);
+  if (selector && actor?.actAs === selector && actor.login) {
+    const login = safeText(actor.login).replace(/^@/, "").trim();
+    if (login) return `@${login}`;
+  }
+  return selector
+    ? "GitHub username unavailable"
+    : "caller's connected GitHub account";
+}
+
+/** Render complete values and provenance in three aligned, wrapping columns. */
+export function renderReview(
+  rows: readonly ReviewRow[],
+  columns = process.stderr.columns ?? 120,
+): string {
+  const width = Math.max(
+    40,
+    Math.floor(Number.isFinite(columns) ? columns : 120),
+  );
+  const available = width - 6;
+  const labelWidth = Math.min(
+    Math.max(7, ...rows.map((row) => Array.from(safeText(row.label)).length)),
+    Math.floor(available * 0.25),
+  );
+  const sourceWidth = Math.min(
+    Math.max(
+      4,
+      ...rows.map(
+        (row) => Array.from(safeText(row.note ?? "not specified")).length,
+      ),
+    ),
+    Math.floor(available * 0.35),
+  );
+  const valueWidth = Math.min(
+    Math.max(5, ...rows.map((row) => Array.from(safeText(row.value)).length)),
+    available - labelWidth - sourceWidth,
+  );
+  const table = [{ label: "Setting", value: "Value", note: "From" }, ...rows];
+  return table
     .map((row) => {
-      const label = row.label.padEnd(width);
-      return row.note
-        ? `  ${label}  ${row.value}\n  ${" ".repeat(width)}  └ ${row.note}\n`
-        : `  ${label}  ${row.value}\n`;
+      const cells = [
+        wrapReviewCell(row.label, labelWidth),
+        wrapReviewCell(row.value, valueWidth),
+        wrapReviewCell(row.note ?? "not specified", sourceWidth),
+      ];
+      return Array.from(
+        { length: Math.max(...cells.map((cell) => cell.length)) },
+        (_, line) =>
+          `  ${padReviewCell(cells[0][line] ?? "", labelWidth)}  ${padReviewCell(cells[1][line] ?? "", valueWidth)}  ${cells[2][line] ?? ""}`.trimEnd() +
+          "\n",
+      ).join("");
     })
     .join("");
+}
+
+function padReviewCell(text: string, width: number): string {
+  return text + " ".repeat(Math.max(0, width - Array.from(text).length));
+}
+
+function wrapReviewCell(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of safeText(text).split(/\s+/).filter(Boolean)) {
+    if (line && Array.from(`${line} ${word}`).length > width) {
+      lines.push(line);
+      line = "";
+    }
+    let remaining = Array.from(word);
+    while (remaining.length > width) {
+      lines.push(remaining.slice(0, width).join(""));
+      remaining = remaining.slice(width);
+    }
+    const tail = remaining.join("");
+    if (tail) line = line ? `${line} ${tail}` : tail;
+  }
+  if (line || !lines.length) lines.push(line);
+  return lines;
 }
 
 export type ReviewDecision =

@@ -122,6 +122,8 @@ describe("inferred single-repository defaults", () => {
       repository: "git-remote",
       commitAs: "git-config",
       actor: "gh",
+      actions: "default",
+      gitAccess: "default",
     });
   });
 

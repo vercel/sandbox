@@ -885,7 +885,7 @@ describe("interactive review", () => {
       },
       context: baseContext({ interactive: true, input, output }),
     }).catch(() => undefined);
-    const menu = chunks.join("");
+    const menu = chunks.join("").split("Which value?").at(-1)!;
     expect(menu).toContain("team");
     expect(menu).not.toContain("repository");
     expect(menu).not.toContain("GitHub API actions");
@@ -927,5 +927,113 @@ describe("interactive review", () => {
     });
     expect(reresolve).not.toHaveBeenCalled();
     expect(result.config.source?.repo).toBe("vercel/api");
+  });
+});
+
+describe("review display metadata", () => {
+  test("carries scope sources and usernames through the real flow without changing IDs", async () => {
+    const initial = resolved();
+    initial.config.credentials.github[0].actAs = "2373726";
+    initial.actor = { actAs: "2373726", login: "scubbo", source: "gh" };
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+    const result = await runManagedCredentialsFlow({
+      initial,
+      managedOptions,
+      context: baseContext({
+        dryRun: true,
+        output,
+        scopeProvenance: {
+          team: "from .vercel/project.json",
+          project: "from .vercel/project.json",
+        },
+      }),
+    });
+    const text = chunks.join("");
+    expect(text).toMatch(/Team\s+jacks-projects\s+from \.vercel\/project.json/);
+    expect(text).toMatch(/API actor\s+@scubbo/);
+    expect(text).not.toContain("2373726");
+    expect(result.config.credentials.github[0].actAs).toBe("2373726");
+  });
+
+  test("updates scope provenance after edits and preserves the preset's Git source", async () => {
+    const initial: ResolvedManagedCredentials = {
+      ...resolved(),
+      config: parseConfig({
+        source: { repo: "vercel/api" },
+        credentials: {
+          github: [
+            {
+              repo: "vercel/api",
+              actions: ["git:read", "issues:read"],
+              actAs: "@scubbo",
+            },
+          ],
+        },
+      }),
+      provenance: {
+        repository: "git-remote",
+        actions: "github-access",
+        gitAccess: "github-access",
+        actor: "gh",
+        commitAs: "omitted",
+      },
+    };
+    const next = {
+      ...initial,
+      config: parseConfig({
+        ...initial.config,
+        credentials: {
+          github: [
+            {
+              ...initial.config.credentials.github[0],
+              actions: ["git:read", "issues:comment"],
+            },
+          ],
+        },
+      }),
+      provenance: {
+        ...initial.provenance,
+        actions: "explicit" as const,
+        gitAccess: "explicit" as const,
+      },
+    };
+    const io = scripted([
+      "e",
+      "team",
+      "other-team",
+      "other-project",
+      "e",
+      "actions",
+      "issues:comment",
+      "c",
+    ]);
+    const chunks: string[] = [];
+    io.output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+    await runManagedCredentialsFlow({
+      initial,
+      managedOptions: { credentialsActions: [], githubAccess: "read" },
+      context: baseContext({
+        ...io,
+        interactive: true,
+        reresolve: vi
+          .fn()
+          .mockResolvedValueOnce(initial)
+          .mockResolvedValue(next),
+        scopeProvenance: {
+          team: "from .vercel/project.json",
+          project: "from .vercel/project.json",
+        },
+      }),
+    });
+    const text = chunks.join("");
+    expect(text).toMatch(/Team\s+other-team\s+edited during review/);
+    expect(text).toMatch(/Project\s+other-project\s+edited during review/);
+    expect(text).toMatch(
+      /Access vercel\/api\s+github:issues:comment\s+edited during review/,
+    );
+    expect(text).toContain("from --github-access=read");
+    expect(text).not.toContain("from --credentials-github-no-write");
   });
 });

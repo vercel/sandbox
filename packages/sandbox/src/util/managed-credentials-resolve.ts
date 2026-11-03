@@ -88,10 +88,13 @@ export function hasManagedCredentialsRequest(
 
 /** How each field of the proposal was arrived at, for the review screen. */
 export interface ConfigProvenance {
+  team?: string;
+  project?: string;
   repository?: "explicit" | "git-remote" | "config";
   commitAs?: IdentitySource | "profile-fallback" | "config" | "omitted";
   actor?: IdentitySource | "config" | "unresolved";
-  gitAccess?: "github-access";
+  actions?: "default" | "explicit" | "github-access" | "config";
+  gitAccess?: "github-access" | "default" | "explicit" | "config";
 }
 
 export interface ResolvedManagedCredentials extends ResolvedConfig {
@@ -230,7 +233,13 @@ export async function resolveManagedCredentials(
         options.credentialsFromConfigFile === "-"
           ? "configuration file (stdin)"
           : `configuration file ${options.credentialsFromConfigFile}`,
-      provenance: { repository: "config", commitAs: "config", actor: "config" },
+      provenance: {
+        repository: "config",
+        commitAs: "config",
+        actor: "config",
+        actions: "config",
+        gitAccess: "config",
+      },
     };
   }
 
@@ -247,7 +256,13 @@ export async function resolveManagedCredentials(
       config: validateConfig(config),
       origin: "sandbox",
       originLabel: `Sandbox ${options.credentialsFromSandbox}`,
-      provenance: { repository: "config", commitAs: "config", actor: "config" },
+      provenance: {
+        repository: "config",
+        commitAs: "config",
+        actor: "config",
+        actions: "config",
+        gitAccess: "config",
+      },
     };
   }
 
@@ -303,7 +318,16 @@ async function resolveFromFlags(
       ? "git:read"
       : "git:write";
   const readOnly = gitAction === "git:read";
-  if (preset) provenance.gitAccess = "github-access";
+  provenance.actions = preset
+    ? "github-access"
+    : options.credentialsActions.length > 0
+      ? "explicit"
+      : "default";
+  provenance.gitAccess = preset
+    ? "github-access"
+    : options.credentialsNoWrite !== undefined
+      ? "explicit"
+      : "default";
 
   // --- GitHub API actor -------------------------------------------------
   // Resolved before the commit identity so its profile metadata is available

@@ -138,13 +138,24 @@ test.each([false, true])(
     if (json) {
       expect(JSON.parse(stdout.mock.calls.flat().join(""))).toMatchObject({
         outcome: "dry_run",
-        managedCredentials: { source: { repo: "acme/widgets" } },
+        managedCredentials: {
+          source: { repo: "acme/widgets" },
+          credentials: { github: [{ actAs: "42" }] },
+        },
       });
     } else {
       expect(stderr.mock.calls.flat().join("")).toContain("default-team");
       expect(stderr.mock.calls.flat().join("")).toContain(
         "vercel-sandbox-default-project",
       );
+      const review = stderr.mock.calls.flat().join("");
+      expect(review).toMatch(/Team\s+default-team\s+inferred from/);
+      expect(review).toMatch(
+        /Project\s+vercel-sandbox-default-project\s+default Sandbox project/,
+      );
+      expect(review).toMatch(/API actor\s+@grace\s+inferred from/);
+      expect(review).not.toMatch(/API actor\s+42(?:\s|$)/);
+      expect(review).not.toMatch(/Configuration\s+command-line flags/);
       expect(stdout).not.toHaveBeenCalled();
     }
     noMutations();

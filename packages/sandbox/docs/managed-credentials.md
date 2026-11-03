@@ -178,9 +178,18 @@ proof of GitHub identity, and not proof of permission.
 
 ## Review, edit, approve
 
-The review shows the team and project, the source, each repository's API
-actions, Git access, commit credit, the API actor, the resource allocation, the
-configuration's origin, and any proposed project-wide policy additions.
+The review uses three columns: the setting, its value, and where the value came
+from. Every field has a source, including the team, project, API permissions,
+API actor, Git access, commit credit, and resource allocation. Sources identify
+explicit flags, linked configuration, token claims, account defaults, or review
+edits. Long values wrap within their column without hiding requested rights.
+
+Each repository's API access has one actor row with a GitHub username. The request
+still uses its original authorization selector, including a numeric ID when available.
+If a numeric selector has no matching username metadata, the review shows
+`GitHub username unavailable`. It never guesses another account or displays an
+ID as a username. Configuration input sources appear in the source column rather
+than as a separate Sandbox setting.
 
 Answer `c` to create, `e` to correct a value, or anything else to cancel.
 Cancelling happens before any sandbox, grant, policy change, or local file is

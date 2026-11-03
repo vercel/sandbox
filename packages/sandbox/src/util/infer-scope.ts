@@ -5,6 +5,11 @@ import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 
 const debug = createDebugger("sandbox:scope");
 
+export interface ScopeProvenance {
+  team: string;
+  project: string;
+}
+
 /**
  * Inferred scope information for a sandbox session.
  */
@@ -17,6 +22,8 @@ export type InferredScope = {
   projectSlug?: string;
   /** Human-readable team slug for display */
   ownerSlug?: string;
+  /** Display metadata, never authorization. */
+  source?: "oidc" | "project-config" | "account-default";
 };
 
 export async function inferScope({
@@ -43,7 +50,11 @@ export async function inferScope({
       owner: projectJson.orgId,
       project: projectJson.projectId,
     });
-    return { owner: projectJson.orgId, project: projectJson.projectId };
+    return {
+      owner: projectJson.orgId,
+      project: projectJson.projectId,
+      source: "project-config",
+    };
   }
 
   debug("trying to infer scope from API token", { team, readOnly });
@@ -70,7 +81,11 @@ const JwtSchema = z
 
 async function inferFromJwt(jwt: string) {
   const body = JSON.parse(Buffer.from(jwt.split(".")[1], "base64").toString());
-  return { _tag: "OIDC" as const, ...JwtSchema.parse(body) };
+  return {
+    _tag: "OIDC" as const,
+    source: "oidc" as const,
+    ...JwtSchema.parse(body),
+  };
 }
 
 async function inferFromToken(
@@ -84,6 +99,7 @@ async function inferFromToken(
     ...(readOnly ? { readOnly: true } : {}),
   });
   return {
+    source: "account-default" as const,
     owner: teamId,
     project: projectId,
     ownerSlug: teamSlug ?? teamId,

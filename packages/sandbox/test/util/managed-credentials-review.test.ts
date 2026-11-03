@@ -62,7 +62,8 @@ describe("review contents", () => {
     expect(valueOf(rows, "Access vercel/api")).toBe("github:issues:read");
     expect(valueOf(rows, "Git access")).toBe("git:write");
     expect(valueOf(rows, "Resources")).toBe("6 vCPUs");
-    expect(valueOf(rows, "Configuration")).toBe("command-line flags");
+    expect(valueOf(rows, "Configuration")).toBeUndefined();
+    expect(rows.every((row) => !!row.note)).toBe(true);
   });
 
   test("keeps commit credit and the API actor as separate fields", () => {
@@ -105,7 +106,7 @@ describe("review contents", () => {
       vcpusExplicit: false,
       missingBounds: [],
     });
-    expect(rows.find((row) => row.label === "Commit credit")?.note).toBe(
+    expect(rows.find((row) => row.label === "Commit credit")?.note).toContain(
       "no effect without Git write access",
     );
     expect(valueOf(rows, "Git access")).toBe("git:read");
@@ -186,13 +187,14 @@ describe("review contents", () => {
 });
 
 describe("rendering", () => {
-  test("aligns labels and indents notes", () => {
+  test("aligns setting, value and provenance columns", () => {
     const text = renderReview([
       { label: "Team", value: "acme" },
       { label: "Git access", value: "git:write", note: "default" },
     ]);
-    expect(text).toContain("  Team        acme\n");
-    expect(text).toContain("└ default");
+    expect(text).toMatch(/Team\s+acme\s+not specified/);
+    expect(text).toMatch(/Git access\s+git:write\s+default/);
+    expect(text).not.toContain("└");
   });
 });
 

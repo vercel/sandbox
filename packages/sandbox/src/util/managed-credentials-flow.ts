@@ -1,4 +1,5 @@
 import { CliError } from "./cli-error";
+import type { ScopeProvenance } from "./infer-scope";
 import {
   type BoundsLookup,
   type MissingBound,
@@ -51,6 +52,7 @@ export interface FlowContext {
   }) => string;
   team: string;
   project: string;
+  scopeProvenance?: ScopeProvenance;
   sandboxName?: string;
   vcpus: number;
   vcpusExplicit: boolean;
@@ -104,6 +106,8 @@ export async function runManagedCredentialsFlow(options: {
   let scope: ScopeOverrides = {};
   let team = context.team;
   let project = context.project;
+  const edited = new Set<EditableField>();
+  let preservedPresetGitAccess = false;
 
   const recoveryCommand = () =>
     scope.team !== undefined && scope.project === undefined
@@ -177,7 +181,24 @@ export async function runManagedCredentialsFlow(options: {
     const rows = buildReview({
       config: resolved.config,
       originLabel: resolved.originLabel,
-      provenance: resolved.provenance,
+      provenance: {
+        ...resolved.provenance,
+        ...(preservedPresetGitAccess
+          ? { gitAccess: "github-access" as const }
+          : {}),
+        team:
+          scope.team !== undefined
+            ? "edited during review"
+            : (context.scopeProvenance?.team ?? "provided scope"),
+        project:
+          scope.project !== undefined
+            ? "edited during review"
+            : scope.team !== undefined
+              ? "not selected for the edited team"
+              : (context.scopeProvenance?.project ?? "provided scope"),
+      },
+      ...(resolved.actor ? { actor: resolved.actor } : {}),
+      edited: [...edited],
       team,
       project,
       ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
@@ -297,6 +318,10 @@ export async function runManagedCredentialsFlow(options: {
       }),
     );
     if (!applied) continue;
+    if (decision.field === "actions" && overrides.githubAccess !== undefined)
+      preservedPresetGitAccess = true;
+    edited.add(decision.field);
+    if (decision.field === "team") edited.delete("project");
     ({ overrides, scope } = applied);
     team = scope.team ?? context.team;
     // After a team correction the previous project is gone rather than

@@ -73,6 +73,9 @@ export async function prepareManagedCredentials(options: {
     context: {
       team: context.teamSlug ?? context.team,
       project: context.projectSlug ?? context.project,
+      ...(context.scopeProvenance
+        ? { scopeProvenance: context.scopeProvenance }
+        : {}),
       ...(options.sandboxName ? { sandboxName: options.sandboxName } : {}),
       vcpus,
       vcpusExplicit: options.vcpus !== undefined,

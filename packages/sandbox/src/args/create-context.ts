@@ -2,6 +2,7 @@ import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { createScope, scope } from "./scope";
+import type { ScopeProvenance } from "../util/infer-scope";
 import { createTokenOption } from "./auth";
 import {
   executionOptions,
@@ -36,6 +37,7 @@ export type CreateContext = Parsed<typeof scope> & {
   creation: ManagedCredentialsTransport;
   creationRequested: boolean;
   mode: ExecutionMode;
+  scopeProvenance?: ScopeProvenance;
   yes: boolean;
   dryRun: boolean;
   managed?: ResolvedManagedCredentials;
@@ -126,12 +128,16 @@ export function createContext({
           managedOptions.credentialsFromConfigFile !== undefined
             ? await resolveManagedCredentials(managedOptions, { token: "" })
             : undefined;
+        let scopeProvenance: ScopeProvenance | undefined;
         const auth = createScope(
           createTokenOption(
             !creationRequested && mode.interactive && !dryRun,
             dryRun,
           ),
           dryRun,
+          (provenance) => {
+            scopeProvenance = provenance;
+          },
         );
         const result = await auth.parse(context);
         if (result._tag === "error") {
@@ -173,6 +179,7 @@ export function createContext({
             creation: managed ? toTransport(managed.config) : {},
             creationRequested,
             mode,
+            ...(scopeProvenance ? { scopeProvenance } : {}),
             yes: run.yes,
             dryRun,
             ...(managed
