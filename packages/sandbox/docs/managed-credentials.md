@@ -11,9 +11,9 @@ Read-only clones require API support for `source.credentials: "read"`.
 Configuration reuse requires the API to return the original request metadata.
 This CLI change does not deploy either backend contract.
 
-Only GitHub is supported today. The `--credentials-github-*` naming is deliberately
-forge-neutral so NPM, AI Gateway, and Linear credentials can join the same
-prefix later.
+Only GitHub is supported today. GitHub-specific flags use the
+`--credentials-github-*` namespace. Other providers can use their own namespace
+without changing these flags.
 
 ## Contents
 
