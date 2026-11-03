@@ -187,7 +187,7 @@ export const create = cmd.command({
       const launcher = agent ? agents[agent] : undefined;
       if (snapshot !== undefined && creation.source !== undefined) {
         throw new CliError(
-          "--snapshot cannot be combined with a managed credentials source. Remove --snapshot, or drop the --credentials-* options.",
+          "--snapshot cannot be combined with a managed credentials source. Remove --snapshot, or drop the --credentials-github-* options.",
         );
       }
       const source =

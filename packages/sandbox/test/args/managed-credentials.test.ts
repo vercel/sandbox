@@ -20,17 +20,17 @@ describe("managed credential arguments", () => {
   });
   test("parses explicit rights and independent identities", async () => {
     const args = await cmd.run(parser, [
-      "--credentials-repo",
+      "--credentials-github-repo",
       "o/r",
-      "--credentials-action",
+      "--credentials-github-action",
       "issues:read",
-      "--credentials-action",
+      "--credentials-github-action",
       "issues:comment",
-      "--credentials-commit-as",
+      "--credentials-github-commit-as",
       "Ada <ada@example.com>",
-      "--credentials-act-as",
+      "--credentials-github-act-as",
       "42",
-      "--credentials-no-write",
+      "--credentials-github-no-write",
       "--dry-run",
     ]);
     expect(args).toMatchObject({
@@ -43,8 +43,11 @@ describe("managed credential arguments", () => {
     });
   });
   test.each([
-    ["--credentials-persist-configuration", ""],
-    ["--credentials-persist-configuration=./config.json", "./config.json"],
+    ["--credentials-github-persist-configuration", ""],
+    [
+      "--credentials-github-persist-configuration=./config.json",
+      "./config.json",
+    ],
   ])("parses %s", async (flag, expected) => {
     expect(
       (await cmd.run(parser, [flag])).credentialsPersistConfiguration,
@@ -53,10 +56,10 @@ describe("managed credential arguments", () => {
   test("rejects repeated persistence and space-separated paths", async () => {
     for (const argv of [
       [
-        "--credentials-persist-configuration",
-        "--credentials-persist-configuration",
+        "--credentials-github-persist-configuration",
+        "--credentials-github-persist-configuration",
       ],
-      ["--credentials-persist-configuration", "./config.json"],
+      ["--credentials-github-persist-configuration", "./config.json"],
     ]) {
       expect((await cmd.runSafely(parser, argv))._tag).toBe("error");
     }

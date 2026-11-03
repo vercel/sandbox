@@ -71,16 +71,16 @@ const replacedValues = new Set([
   "team",
   "project",
   "vcpus",
-  "credentials-repo",
-  "credentials-action",
-  "credentials-act-as",
-  "credentials-commit-as",
-  "credentials-from-config-file",
-  "credentials-from-sandbox",
+  "credentials-github-repo",
+  "credentials-github-action",
+  "credentials-github-act-as",
+  "credentials-github-commit-as",
+  "credentials-github-from-config-file",
+  "credentials-github-from-sandbox",
 ]);
 const replacedFlags = new Set([
   "enable-managed-credentials",
-  "credentials-no-write",
+  "credentials-github-no-write",
   "yes",
 ]);
 
@@ -142,7 +142,7 @@ export function renderManagedCredentialsRetryCommand(options: {
     ...explicit.map(shellQuote),
     ...(direct
       ? direct.map(shellQuote)
-      : ['--credentials-from-config-file="$SANDBOX_RETRY_CONFIG"']),
+      : ['--credentials-github-from-config-file="$SANDBOX_RETRY_CONFIG"']),
     ...retainedArguments(invocation.args),
   ];
   const command = parts.join(" ");
@@ -219,15 +219,15 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
       return;
   }
   return [
-    `--credentials-repo=${source.repo}`,
-    ...apiActions.map((action) => `--credentials-action=${action}`),
-    `--credentials-act-as=${group.actAs}`,
+    `--credentials-github-repo=${source.repo}`,
+    ...apiActions.map((action) => `--credentials-github-action=${action}`),
+    `--credentials-github-act-as=${group.actAs}`,
     ...(config.commitAs
       ? [
-          `--credentials-commit-as=${config.commitAs.name} <${config.commitAs.email}>`,
+          `--credentials-github-commit-as=${config.commitAs.name} <${config.commitAs.email}>`,
         ]
       : []),
-    ...(readOnly ? ["--credentials-no-write"] : []),
+    ...(readOnly ? ["--credentials-github-no-write"] : []),
   ];
 }
 
