@@ -1,5 +1,5 @@
 import * as cmd from "cmd-ts";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createScope } from "../../src/args/scope";
 import { createTokenOption } from "../../src/args/auth";
 import { withFreshAuthRetry } from "../../src/util/fresh-auth-retry";
@@ -14,6 +14,7 @@ vi.mock("@vercel/sandbox/dist/auth/index.js", async (original) => ({
   ...(await original<typeof Auth>()),
   inferScope: vi.fn(),
 }));
+beforeEach(() => vi.clearAllMocks());
 afterEach(() => vi.unstubAllEnvs());
 const parser = cmd.command({
   name: "readonly",
@@ -27,10 +28,24 @@ test("dry-run uses explicit scope without refresh", async () => {
   ).toMatchObject({ token: "t", team: "team", project: "project" });
   expect(withFreshAuthRetry).not.toHaveBeenCalled();
 });
-test("dry-run refuses remote default-project creation", async () => {
+test("dry-run discovers existing default scope without refresh or creation", async () => {
   vi.stubEnv("VERCEL_OIDC_TOKEN", "");
-  expect((await cmd.runSafely(parser, ["--token=t"]))._tag).toBe("error");
-  expect(Auth.inferScope).not.toHaveBeenCalled();
+  vi.mocked(Auth.inferScope).mockResolvedValue({
+    teamId: "team_default",
+    projectId: "vercel-sandbox-default-project",
+    created: false,
+  });
+  const result = await cmd.run(parser, ["--token=t"]);
+  expect(result.scope).toMatchObject({
+    token: "t",
+    team: "team_default",
+    project: "vercel-sandbox-default-project",
+  });
+  expect(Auth.inferScope).toHaveBeenCalledExactlyOnceWith({
+    token: "t",
+    teamId: undefined,
+    readOnly: true,
+  });
   expect(withFreshAuthRetry).not.toHaveBeenCalled();
 });
 test.each([

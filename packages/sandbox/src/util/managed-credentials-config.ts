@@ -26,7 +26,7 @@ export type GithubApiAction = (typeof GITHUB_API_CREDENTIAL_ACTIONS)[number];
 export type CredentialAction = GitAction | GithubApiAction;
 
 /**
- * The API actions a bare `--enable-managed-credentials` requests.
+ * The API actions a bare `--enable-github-credentials` requests.
  *
  * Supplying any `--credentials-github-action` replaces this set rather than adding to
  * it, so an explicit narrow request is never silently widened.

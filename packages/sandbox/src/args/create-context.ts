@@ -137,7 +137,7 @@ export function createContext({
         if (result._tag === "error") {
           if (json || creationRequested || dryRun)
             throw new CliError(
-              "Can't resolve authentication, team, or project. Pass --token, --scope and --project, or use existing local project/OIDC context. Dry-run never refreshes credentials or creates a project.",
+              "Can't resolve authentication, team, or project. Use a saved login with an existing Sandbox default project, local project/OIDC context, or explicit --token, --scope and --project. Dry-run never refreshes credentials or creates a project.",
               {
                 reason: "missing_context",
                 data: { required: ["--token", "--scope", "--project"] },

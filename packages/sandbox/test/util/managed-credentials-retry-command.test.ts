@@ -132,7 +132,7 @@ async function capture(
   const captureParser: ArgParser<RetryInvocation> = {
     register(registration) {
       options.register?.(registration);
-      for (const key of ["yes", "rm", "json", "enable-managed-credentials"])
+      for (const key of ["yes", "rm", "json", "enable-github-credentials"])
         registration.forceFlagLongNames.add(key);
       for (const key of ["y", "i", "t"])
         registration.forceFlagShortNames.add(key);
@@ -568,7 +568,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
       appName: "vercel sandbox",
       command: "run",
       args: [
-        "--enable-managed-credentials",
+        "--enable-github-credentials",
         "--scope",
         "old-team",
         "--team=alias",

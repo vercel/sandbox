@@ -46,14 +46,8 @@ export async function inferScope({
     return { owner: projectJson.orgId, project: projectJson.projectId };
   }
 
-  if (readOnly) {
-    throw new Error(
-      "Dry-run cannot create a default project. Pass --scope and --project, link a local project, or provide an OIDC token with scope claims.",
-    );
-  }
-
-  debug("trying to infer scope from API token", { team });
-  const fromToken = await inferFromToken(token, team);
+  debug("trying to infer scope from API token", { team, readOnly });
+  const fromToken = await inferFromToken(token, team, readOnly);
   debug("Using scope from API token", fromToken);
   return fromToken;
 }
@@ -79,10 +73,15 @@ async function inferFromJwt(jwt: string) {
   return { _tag: "OIDC" as const, ...JwtSchema.parse(body) };
 }
 
-async function inferFromToken(token: string, requestedTeam?: string) {
+async function inferFromToken(
+  token: string,
+  requestedTeam?: string,
+  readOnly = false,
+) {
   const { teamId, teamSlug, projectId, projectSlug } = await Auth.inferScope({
     token,
     teamId: requestedTeam,
+    ...(readOnly ? { readOnly: true } : {}),
   });
   return {
     owner: teamId,

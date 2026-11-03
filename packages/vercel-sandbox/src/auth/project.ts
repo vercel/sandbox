@@ -42,7 +42,10 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
 
 /** Status codes that mean "this team can't be used, try the next one". */
 function isSkippableTeamError(e: unknown): boolean {
-  return e instanceof NotOk && (e.response.statusCode === 402 || e.response.statusCode === 403);
+  return (
+    e instanceof NotOk &&
+    (e.response.statusCode === 402 || e.response.statusCode === 403)
+  );
 }
 
 /**
@@ -60,9 +63,10 @@ function isSkippableTeamError(e: unknown): boolean {
  * @param opts.token - Vercel API authentication token.
  * @param opts.teamId - Optional team slug. If omitted, candidate teams are resolved automatically.
  * @param opts.cwd - Optional directory to search for `.vercel/project.json`. Defaults to `process.cwd()`.
+ * @param opts.readOnly - Discover existing scope only. Never create a default project.
  * @returns The resolved scope with `projectId`, `teamId`, and whether the project was `created`.
  *
- * @throws {NotOk} If the API returns an error other than 404 when checking the project.
+ * @throws {NotOk} If scope lookup fails, or a default project is missing in read-only mode.
  *
  * @example
  * ```ts
@@ -74,6 +78,7 @@ export async function inferScope(opts: {
   token: string;
   teamId?: string;
   cwd?: string;
+  readOnly?: boolean;
 }): Promise<{
   projectId: string;
   teamId: string;
@@ -92,7 +97,7 @@ export async function inferScope(opts: {
   }
 
   if (opts.teamId) {
-    return tryTeam(opts.token, opts.teamId);
+    return tryTeam(opts.token, opts.teamId, opts.readOnly);
   }
 
   const userData = await fetchApi({
@@ -104,7 +109,7 @@ export async function inferScope(opts: {
   // 1. Try defaultTeamId first
   if (defaultTeamId) {
     try {
-      const result = await tryTeam(opts.token, defaultTeamId);
+      const result = await tryTeam(opts.token, defaultTeamId, opts.readOnly);
       // Resolve team slug (best-effort)
       try {
         const team = await fetchApi({
@@ -124,9 +129,7 @@ export async function inferScope(opts: {
   let next: number | null = null;
   do {
     const endpoint: string =
-      next === null
-        ? "/v2/teams?limit=20"
-        : `/v2/teams?limit=20&until=${next}`;
+      next === null ? "/v2/teams?limit=20" : `/v2/teams?limit=20&until=${next}`;
     const page = await fetchApi({ token: opts.token, endpoint }).then(
       TeamsSchema.parse,
     );
@@ -142,11 +145,17 @@ export async function inferScope(opts: {
 
     const bestHobbyTeam =
       hobbyOwnerTeams.find((t) => t.slug === username) ??
-      hobbyOwnerTeams.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+      hobbyOwnerTeams.sort(
+        (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
+      )[0];
 
     if (bestHobbyTeam && bestHobbyTeam.id !== defaultTeamId) {
       try {
-        const result = await tryTeam(opts.token, bestHobbyTeam.id);
+        const result = await tryTeam(
+          opts.token,
+          bestHobbyTeam.id,
+          opts.readOnly,
+        );
         return { ...result, teamSlug: bestHobbyTeam.slug };
       } catch (e) {
         if (!isSkippableTeamError(e)) throw e;
@@ -156,7 +165,7 @@ export async function inferScope(opts: {
 
   // 3. Fall back to username as personal team
   try {
-    const result = await tryTeam(opts.token, username);
+    const result = await tryTeam(opts.token, username, opts.readOnly);
     return { ...result, teamSlug: username };
   } catch (e) {
     if (!isSkippableTeamError(e)) throw e;
@@ -178,6 +187,7 @@ export async function inferScope(opts: {
 async function tryTeam(
   token: string,
   teamId: string,
+  readOnly = false,
 ): Promise<{ projectId: string; teamId: string; created: boolean }> {
   const teamParam = teamId.startsWith("team_")
     ? `teamId=${encodeURIComponent(teamId)}`
@@ -190,7 +200,7 @@ async function tryTeam(
       endpoint: `/v2/projects/${encodeURIComponent(DEFAULT_PROJECT_NAME)}?${teamParam}`,
     });
   } catch (e) {
-    if (!(e instanceof NotOk) || e.response.statusCode !== 404) {
+    if (!(e instanceof NotOk) || e.response.statusCode !== 404 || readOnly) {
       throw e;
     }
 

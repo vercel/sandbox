@@ -14,7 +14,7 @@ const project = cmd.option({
   long: "project",
   type: { ...cmd.optional(cmd.string), displayName: "my-project" },
   description:
-    "The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN.",
+    "The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the account's Sandbox default project.",
 });
 
 /** Parser for the `--team` option. */
@@ -27,7 +27,7 @@ const scopeParser = cmd.option({
   long: "scope",
   type: { ...cmd.optional(cmd.string), displayName: "my-team" },
   description:
-    "The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team]",
+    "The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the signed-in account's team. [alias: --team]",
 });
 
 /** Parser for the `--scope` option that falls back to `--team` if not provided. */

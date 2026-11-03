@@ -32,11 +32,26 @@ without changing these flags.
 
 ## Quick start
 
-Run from inside a GitHub repository, with `gh` logged in:
+Sign in with `vercel login`, then run from inside a GitHub repository:
 
 ```sh
-vercel sandbox create --enable-managed-credentials
+vercel sandbox create --enable-github-credentials
 ```
+
+You do not need `--scope` and `--project` when the CLI can discover them. OIDC
+claims and the linked local project take precedence. Otherwise, the CLI uses
+the signed-in account to find the team and `vercel-sandbox-default-project`.
+
+Preview that same configuration without creating anything:
+
+```sh
+vercel sandbox create --enable-github-credentials --dry-run
+```
+
+The preview uses saved credentials and read-only API lookups. It never logs in,
+refreshes a token, or creates a missing default project. If no default project
+exists, link an existing project or create the default project separately.
+Normal creation retains its existing default-project setup behavior.
 
 That one flag selects the complete default experience: the repository, clone
 source, commit credit, and GitHub API actor are inferred, the default API
@@ -263,7 +278,7 @@ Overriding API actions with `--credentials-github-action` never changes Git acce
 vercel sandbox create --credentials-github-action issues:read
 
 # Full default API access, read-only clone
-vercel sandbox create --enable-managed-credentials --credentials-github-no-write
+vercel sandbox create --enable-github-credentials --credentials-github-no-write
 ```
 
 Workflow-file write access is never requested by default.
@@ -352,10 +367,10 @@ See [`managed-credentials.example.json`](./managed-credentials.example.json).
 
 ```sh
 # Writes $PWD/<sbx_id>-credentials.json
-vercel sandbox create --enable-managed-credentials --credentials-github-persist-configuration
+vercel sandbox create --enable-github-credentials --credentials-github-persist-configuration
 
 # Writes an explicit path
-vercel sandbox create --enable-managed-credentials \
+vercel sandbox create --enable-github-credentials \
   --credentials-github-persist-configuration=./widgets-credentials.json
 ```
 
@@ -438,7 +453,7 @@ missing input or a missing permission. `--silent` does not suppress the review
 or bypass consent.
 
 One approval covers creation and the clearly displayed project-policy
-additions. `--enable-managed-credentials` selects defaults; it is not itself
+additions. `--enable-github-credentials` selects defaults; it is not itself
 approval.
 
 Success writes one JSON document to stdout with `sandbox.name`, `session.id`,
@@ -450,7 +465,9 @@ failures exit 1, cancellation exits 130.
 With `--json`, `--dry-run` writes `outcome: "dry_run"` and the resolved configuration.
 It can read account and Sandbox metadata through the API. It never refreshes
 credentials, starts login, creates a default project, or writes a configuration file.
-Scope must come from explicit flags, local project configuration, or OIDC claims.
+Scope can come from explicit flags, local project configuration, OIDC claims, or
+read-only lookup of the signed-in account's existing default Sandbox project.
+Login alone cannot select a project that does not exist.
 
 `run` and `sh` accept the same creation inputs but not `--dry-run`, which does
 not produce a sandbox to run in. `exec`, `connect`, and `fork` do not accept
@@ -469,7 +486,7 @@ node packages/sandbox/bin/sandbox.mjs create --help
 Preview a configuration without creating anything:
 
 ```sh
-node packages/sandbox/bin/sandbox.mjs create --enable-managed-credentials --dry-run
+node packages/sandbox/bin/sandbox.mjs create --enable-github-credentials --dry-run
 ```
 
 Use the built binary by its full path to keep another directory as the working

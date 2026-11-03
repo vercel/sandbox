@@ -80,7 +80,7 @@ const replacedValues = new Set([
   "credentials-github-from-sandbox",
 ]);
 const replacedFlags = new Set([
-  "enable-managed-credentials",
+  "enable-github-credentials",
   "credentials-github-no-write",
   "yes",
 ]);

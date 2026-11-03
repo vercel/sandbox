@@ -159,7 +159,7 @@ export function assertCompatibleOptions(
     !hasManagedCredentialsRequest(options)
   ) {
     throw new CliError(
-      "--credentials-github-persist-configuration saves a managed-credentials configuration, but none was requested. Add --enable-managed-credentials, or one of the other --credentials-github-* options.",
+      "--credentials-github-persist-configuration saves a managed-credentials configuration, but none was requested. Add --enable-github-credentials, or one of the other --credentials-github-* options.",
     );
   }
 
@@ -187,7 +187,7 @@ export function assertCompatibleOptions(
 
   if (explicitSource && options.enableManagedCredentials === true) {
     throw new CliError(
-      `--enable-managed-credentials selects the inferred defaults, which would contradict ${explicitSource}. Drop the enable flag; the configuration already enables managed credentials.`,
+      `--enable-github-credentials selects the inferred defaults, which would contradict ${explicitSource}. Drop the enable flag; the configuration already enables managed credentials.`,
     );
   }
 

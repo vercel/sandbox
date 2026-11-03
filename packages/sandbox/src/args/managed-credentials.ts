@@ -185,7 +185,7 @@ export const managedCredentialOptions = {
     },
   },
   enableManagedCredentials: cmd.flag({
-    long: "enable-managed-credentials",
+    long: "enable-github-credentials",
     type: cmd.optional(cmd.boolean),
     description:
       "Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental)",
