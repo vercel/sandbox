@@ -47,7 +47,7 @@ export interface PreparedManagedCredentials {
   teamOverride?: string;
   /** Project the review displayed, when the user corrected it. */
   projectOverride?: string;
-  vcpus: number;
+  vcpus?: number;
 }
 
 /**
@@ -64,7 +64,12 @@ export async function prepareManagedCredentials(options: {
   const { context } = options;
   if (!context.managed || !context.managedOptions) return undefined;
 
-  const vcpus = options.vcpus ?? MANAGED_CREDENTIALS_VCPUS;
+  const npmOnly =
+    context.managed.config.credentials.npm === true &&
+    !context.managed.config.source &&
+    context.managed.config.credentials.github.length === 0;
+  const vcpus =
+    options.vcpus ?? (npmOnly ? undefined : MANAGED_CREDENTIALS_VCPUS);
 
   const result = await runManagedCredentialsFlow({
     initial: context.managed,
@@ -158,7 +163,9 @@ export function reportDryRun(options: {
         ...(prepared
           ? {
               managedCredentials: prepared.config,
-              resources: { vcpus: prepared.vcpus },
+              ...(prepared.vcpus !== undefined
+                ? { resources: { vcpus: prepared.vcpus } }
+                : {}),
             }
           : {}),
       }) + "\n",

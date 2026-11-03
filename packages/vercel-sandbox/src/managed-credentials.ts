@@ -37,16 +37,22 @@ export type ManagedGitAction = (typeof MANAGED_GIT_ACTIONS)[number];
  */
 export type ManagedSourceCredentials = true | "read";
 
+type GitHubCredentialRequests = {
+  repositories: string[];
+  actions: (typeof GITHUB_API_CREDENTIAL_ACTIONS)[number][];
+  actAs?: string;
+}[];
+
 /** @hidden */
 export interface ManagedCredentialOptions {
   /** @hidden */
   commitAs?: { name: string; email: string };
   /** @hidden */
-  credentials?: {
-    github: {
-      repositories: string[];
-      actions: (typeof GITHUB_API_CREDENTIAL_ACTIONS)[number][];
-      actAs?: string;
-    }[];
-  };
+  credentials?:
+    | {
+        /** Use the team's NPM_TOKEN or NPM_RC Shared Environment Variables. */
+        npm: true;
+        github?: GitHubCredentialRequests;
+      }
+    | { npm?: never; github: GitHubCredentialRequests };
 }

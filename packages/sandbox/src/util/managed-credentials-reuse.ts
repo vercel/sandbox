@@ -24,7 +24,8 @@ export interface SandboxCredentialSnapshot {
   };
   commitAs?: { name: string; email: string };
   credentials?: {
-    github: {
+    npm?: true;
+    github?: {
       repositories: string[];
       actions: string[];
       actAs?: string | number;
@@ -156,6 +157,9 @@ export function toConfig(
         }
       : {}),
     ...(snapshot.commitAs ? { commitAs: snapshot.commitAs } : {}),
-    credentials: { github: groups },
+    credentials: {
+      ...(snapshot.credentials?.npm ? { npm: true } : {}),
+      github: groups,
+    },
   };
 }

@@ -80,6 +80,7 @@ const replacedValues = new Set([
 ]);
 const replacedFlags = new Set([
   "enable-managed-credentials",
+  "npm-credentials",
   "credentials-no-write",
   "yes",
 ]);
@@ -121,7 +122,7 @@ export function renderManagedCredentialsRetryCommand(options: {
   config: ManagedCredentialsConfig;
   team: string;
   project: string;
-  vcpus: number;
+  vcpus?: number;
   invocation?: RetryInvocation;
 }): string {
   const { config, team, project, vcpus } = options;
@@ -133,7 +134,7 @@ export function renderManagedCredentialsRetryCommand(options: {
   const explicit = [
     `--scope=${team}`,
     `--project=${project}`,
-    `--vcpus=${vcpus}`,
+    ...(vcpus !== undefined ? [`--vcpus=${vcpus}`] : []),
   ];
   const direct = directFlags(config);
   const parts = [
@@ -178,6 +179,14 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
   const source = config.source;
   const groups = config.credentials.github;
   if (
+    config.credentials.npm &&
+    !source &&
+    !config.commitAs &&
+    groups.length === 0
+  ) {
+    return ["--npm-credentials"];
+  }
+  if (
     !source ||
     source.revision !== undefined ||
     source.depth !== undefined ||
@@ -219,6 +228,7 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
       return;
   }
   return [
+    ...(config.credentials.npm ? ["--npm-credentials"] : []),
     `--credentials-repo=${source.repo}`,
     ...apiActions.map((action) => `--credentials-action=${action}`),
     `--credentials-act-as=${group.actAs}`,

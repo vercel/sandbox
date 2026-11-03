@@ -1,4 +1,4 @@
-import type { ManagedSourceCredentials } from "@vercel/sandbox";
+import type { ManagedSourceCredentials, Sandbox } from "@vercel/sandbox";
 import { CliError } from "./cli-error";
 import {
   type GithubApiAction,
@@ -28,13 +28,9 @@ export interface ManagedCredentialsTransport {
     credentials?: ManagedSourceCredentials;
   };
   commitAs?: { name: string; email: string };
-  credentials?: {
-    github: {
-      repositories: string[];
-      actions: GithubApiAction[];
-      actAs?: string;
-    }[];
-  };
+  credentials?: NonNullable<
+    Parameters<typeof Sandbox.create>[0]
+  >["credentials"];
 }
 
 /**
@@ -99,7 +95,10 @@ export function toTransport(
     transport.commitAs = config.commitAs;
   }
 
-  transport.credentials = { github: toApiGroups(config) };
+  const github = toApiGroups(config);
+  transport.credentials = config.credentials.npm
+    ? { npm: true, ...(github.length > 0 ? { github } : {}) }
+    : { github };
   return transport;
 }
 

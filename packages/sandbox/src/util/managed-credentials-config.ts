@@ -188,8 +188,15 @@ export const configSchema = z
       .strict()
       .optional(),
     credentials: z
-      .object({ github: z.array(githubGroup).max(MAX_REPOSITORIES) })
-      .strict(),
+      .object({
+        npm: z.literal(true).optional(),
+        github: z.array(githubGroup).max(MAX_REPOSITORIES).optional(),
+      })
+      .strict()
+      .refine((value) => value.npm === true || value.github !== undefined, {
+        message: "Specify npm: true or a github array.",
+      })
+      .transform((value) => ({ ...value, github: value.github ?? [] })),
   })
   .strict();
 
@@ -323,6 +330,7 @@ export function serializeConfig(config: ManagedCredentialsConfig): string {
   if (config.source) ordered.source = config.source;
   if (config.commitAs) ordered.commitAs = config.commitAs;
   ordered.credentials = {
+    ...(config.credentials.npm ? { npm: true } : {}),
     github: config.credentials.github.map((group) => ({
       repo: group.repo,
       actions: group.actions,

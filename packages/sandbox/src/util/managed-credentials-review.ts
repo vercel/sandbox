@@ -27,7 +27,7 @@ export interface ReviewInput {
   team: string;
   project: string;
   sandboxName?: string;
-  vcpus: number;
+  vcpus?: number;
   vcpusExplicit: boolean;
   missingBounds: readonly MissingBound[];
 }
@@ -95,6 +95,14 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     }
   }
 
+  if (config.credentials.npm) {
+    rows.push({
+      label: "npm credentials",
+      value: "Use the team's stored credentials to install private packages",
+      note: "Credential values stay outside the sandbox",
+    });
+  }
+
   const sourceGit = config.source
     ? gitAccessFor(config, config.source.repo)
     : undefined;
@@ -154,10 +162,13 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
 
   rows.push({
     label: "Resources",
-    value: `${input.vcpus} vCPUs`,
+    value:
+      input.vcpus === undefined ? "default allocation" : `${input.vcpus} vCPUs`,
     ...(input.vcpusExplicit
       ? { note: "from --vcpus" }
-      : { note: "managed-credentials default" }),
+      : input.vcpus !== undefined
+        ? { note: "managed-credentials default" }
+        : {}),
   });
 
   rows.push({ label: "Configuration", value: safeText(input.originLabel) });

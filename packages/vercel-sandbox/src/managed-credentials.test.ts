@@ -1,10 +1,60 @@
 import { describe, expect, it, vi } from "vitest";
 import { Sandbox } from "./sandbox.js";
 import { APIError } from "./api-client/api-error.js";
+import { ManagedCredentialsResponseValidator } from "./api-client/validators.js";
 
 const auth = { token: "test-token", teamId: "team_123", projectId: "prj_123" };
 
 describe("managed credential transport", () => {
+  it("preserves npm-only session request metadata when the API reports it", () => {
+    expect(
+      ManagedCredentialsResponseValidator.parse({ credentials: { npm: true } }),
+    ).toEqual({ credentials: { npm: true } });
+  });
+  it.each([undefined, "node24" as const])(
+    "sends npm-only credentials with runtime %s",
+    async (runtime) => {
+      const mockFetch = vi.fn<typeof fetch>(
+        async () => new Response("{}", { status: 403 }),
+      );
+      await expect(
+        Sandbox.create({
+          ...auth,
+          runtime,
+          credentials: { npm: true },
+          fetch: mockFetch,
+        }),
+      ).rejects.toBeInstanceOf(APIError);
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(String(url)).toContain(
+        runtime ? "/v2/sandboxes" : "/v3/sandboxes",
+      );
+      expect(JSON.parse(String(init?.body)).credentials).toEqual({ npm: true });
+      expect(mockFetch).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("sends npm alongside GitHub credentials", async () => {
+    const mockFetch = vi.fn<typeof fetch>(
+      async () => new Response("{}", { status: 403 }),
+    );
+    const credentials = {
+      npm: true as const,
+      github: [
+        {
+          repositories: ["acme/widgets"],
+          actions: ["github:issues:read" as const],
+        },
+      ],
+    };
+    await expect(
+      Sandbox.create({ ...auth, credentials, fetch: mockFetch }),
+    ).rejects.toBeInstanceOf(APIError);
+    expect(
+      JSON.parse(String(mockFetch.mock.calls[0][1]?.body)).credentials,
+    ).toEqual(credentials);
+  });
+
   it("carries the new names through the SDK and API client without legacy aliases", async () => {
     const mockFetch = vi.fn<typeof fetch>(
       async () => new Response("{}", { status: 403 }),

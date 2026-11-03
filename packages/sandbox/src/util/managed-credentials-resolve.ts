@@ -34,6 +34,7 @@ import { readJsonPayload } from "./managed-credentials-payload";
  */
 export interface ManagedCredentialsOptions {
   enableManagedCredentials?: boolean;
+  npmCredentials?: boolean;
   credentialsRepo?: string;
   credentialsActions: string[];
   credentialsCommitAs?: string;
@@ -72,6 +73,7 @@ export function hasManagedCredentialsRequest(
   options: ManagedCredentialsOptions,
 ): boolean {
   return (
+    options.npmCredentials === true ||
     options.enableManagedCredentials === true ||
     options.credentialsFromConfigFile !== undefined ||
     options.credentialsFromSandbox !== undefined ||
@@ -113,7 +115,10 @@ export interface ResolveContext {
  * named and refused with the alternative spelled out.
  */
 function assertCompatibleOptions(options: ManagedCredentialsOptions): void {
-  const direct = suppliedDirectFlags(options);
+  const direct = [
+    ...suppliedDirectFlags(options),
+    ...(options.npmCredentials ? ["--npm-credentials"] : []),
+  ];
 
   // Persisting only says where to write a configuration. On its own it would
   // otherwise exit successfully having written nothing.
@@ -222,6 +227,18 @@ async function resolveFromFlags(
   context: ResolveContext,
 ): Promise<ResolvedManagedCredentials> {
   const provenance: ConfigProvenance = {};
+  if (
+    options.npmCredentials &&
+    !options.enableManagedCredentials &&
+    suppliedDirectFlags(options).length === 0
+  ) {
+    return {
+      config: parseConfig({ credentials: { npm: true } }),
+      origin: "flags",
+      originLabel: "command-line flags",
+      provenance,
+    };
+  }
 
   // --- Repository -----------------------------------------------------
   let repo = options.credentialsRepo;
@@ -337,6 +354,7 @@ async function resolveFromFlags(
     source: { repo },
     ...(commitAs ? { commitAs } : {}),
     credentials: {
+      ...(options.npmCredentials ? { npm: true } : {}),
       github: [
         {
           repo,

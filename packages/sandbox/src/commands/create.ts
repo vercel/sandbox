@@ -283,11 +283,12 @@ export const create = cmd.command({
       }
       const managedCreation = prepared?.transport ?? creation;
 
-      const resources = prepared
-        ? { vcpus: prepared.vcpus }
-        : vcpus
-          ? { vcpus }
-          : undefined;
+      const resources =
+        prepared?.vcpus !== undefined
+          ? { vcpus: prepared.vcpus }
+          : vcpus
+            ? { vcpus }
+            : undefined;
       const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
       const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
       const spinner =
@@ -490,6 +491,20 @@ export const create = cmd.command({
             : error instanceof StyledError && error.cause instanceof APIError
               ? error.cause
               : undefined;
+        if (
+          apiError?.response.status === 422 &&
+          (apiError.json as { error?: { code?: unknown } } | undefined)?.error
+            ?.code === "npm_credentials_not_found"
+        ) {
+          throw new CliError(
+            "No npm credentials are configured for this team. Add NPM_TOKEN or NPM_RC as a Shared Environment Variable for the selected team, then retry.",
+            {
+              reason: "npm_credentials_not_found",
+              json: mode.json,
+              userActionRequired: true,
+            },
+          );
+        }
         const rejected =
           apiError !== undefined && apiError.response.status < 500;
         const unknownOutcome = creationAttempted && !createdName && !rejected;

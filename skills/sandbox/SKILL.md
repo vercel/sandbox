@@ -912,6 +912,35 @@ await sandbox.extendTimeout(ms("5m"));
 // New total: 15 minutes
 ```
 
+## Install private npm packages
+
+Use `--npm-credentials` on `sandbox create`, `sandbox run`, or `sandbox sh` to
+use the selected team's stored npm credentials. This bare flag requests
+`credentials: { npm: true }`; it does not take a token or a `true` argument.
+Credential values stay outside the sandbox.
+
+Prerequisites: authenticate with Vercel, select the team/project, configure
+`NPM_TOKEN` or `NPM_RC` as a team Shared Environment Variable, and use a
+project with managed npm credentials enabled. npm-only usage requires no GitHub
+repository or identity.
+
+```bash
+sandbox create --npm-credentials --name private-packages
+sandbox sh --npm-credentials
+sandbox create --npm-credentials --dry-run
+```
+
+The CLI shows the access request before creation. Pass `--yes` in scripts after
+reviewing it. For `sandbox run`, put `--npm-credentials` before the `--` that
+separates the command to run. The flag configures access; copy your project
+into the sandbox and run `npm install` to install dependencies.
+
+In the SDK, pass `credentials: { npm: true }` to `Sandbox.create()`. Combine the
+CLI flag with `--enable-managed-credentials` only when GitHub access is also
+wanted. npm-only requests keep normal resource defaults. On
+`npm_credentials_not_found`, configure the selected team's Shared Environment
+Variable and retry; never copy its value into the sandbox.
+
 ## Authentication
 
 ### Vercel OIDC Token (Recommended)
