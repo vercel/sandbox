@@ -21,7 +21,7 @@ describe("telemetry", () => {
   );
 
   function sentEvents(): Array<Record<string, string>> {
-    const init = fetchMock.mock.calls[0]?.[1];
+    const init = fetchMock.mock.calls.at(-1)?.[1];
     return JSON.parse(String(init?.body));
   }
 
@@ -177,5 +177,133 @@ describe("telemetry", () => {
     expect(sentEvents()).toContainEqual(
       expect.objectContaining({ key: "embedded", value: "vercel sandbox" }),
     );
+  });
+
+  describe("scope slugs", () => {
+    function lookupResponse(body: unknown, status = 200) {
+      fetchMock.mockImplementationOnce(
+        async () => new Response(JSON.stringify(body), { status }),
+      );
+    }
+
+    it("keeps slugs out of the id fields", async () => {
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("my-team");
+      telemetry.updateProjectId("my-app");
+      telemetry.track("subcommand", "list");
+      await telemetry.flush();
+
+      const events = sentEvents();
+      expect(fetchMock).toHaveBeenCalledOnce();
+      for (const event of events) {
+        expect(event.team_id).toBe("NO_TEAM_ID");
+        expect(event.project_id).toBeNull();
+      }
+      expect(events).toContainEqual(
+        expect.objectContaining({ key: "team_slug", value: "my-team" }),
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({ key: "project_slug", value: "my-app" }),
+      );
+    });
+
+    it("records each slug once across repeated scope updates", async () => {
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("my-team");
+      telemetry.updateTeamId("my-team");
+      await telemetry.flush();
+
+      const slugs = sentEvents().filter((event) => event.key === "team_slug");
+      expect(slugs).toHaveLength(1);
+    });
+
+    it("resolves slugs to ids before sending", async () => {
+      lookupResponse({ id: "prj_abc", accountId: "team_abc" });
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("my-team");
+      telemetry.updateProjectId("my-app");
+      telemetry.resolveScopeIds("token");
+      telemetry.track("subcommand", "list");
+      await telemetry.flush();
+
+      const [lookupUrl, lookupInit] = fetchMock.mock.calls[0]!;
+      expect(lookupUrl).toBe(
+        "https://vercel.com/api/v9/projects/my-app?slug=my-team",
+      );
+      expect(new Headers(lookupInit?.headers).get("authorization")).toBe(
+        "Bearer token",
+      );
+      for (const event of sentEvents()) {
+        expect(event.team_id).toBe("team_abc");
+        expect(event.project_id).toBe("prj_abc");
+      }
+    });
+
+    it("looks up a project slug under a team id", async () => {
+      lookupResponse({ id: "prj_abc", accountId: "team_123" });
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("team_123");
+      telemetry.updateProjectId("my-app");
+      telemetry.resolveScopeIds("token");
+      await telemetry.flush();
+
+      expect(fetchMock.mock.calls[0]![0]).toBe(
+        "https://vercel.com/api/v9/projects/my-app?teamId=team_123",
+      );
+      expect(sentEvents()[0]).toMatchObject({ project_id: "prj_abc" });
+    });
+
+    it("leaves ids unset when the lookup fails", async () => {
+      lookupResponse({ error: { code: "not_found" } }, 404);
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("my-team");
+      telemetry.updateProjectId("my-app");
+      telemetry.resolveScopeIds("token");
+      await telemetry.flush();
+
+      expect(sentEvents()[0]).toMatchObject({
+        team_id: "NO_TEAM_ID",
+        project_id: null,
+      });
+    });
+
+    it("ignores a personal account id from the lookup", async () => {
+      lookupResponse({ id: "prj_abc", accountId: "user_abc" });
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("my-name");
+      telemetry.updateProjectId("my-app");
+      telemetry.resolveScopeIds("token");
+      await telemetry.flush();
+
+      expect(sentEvents()[0]).toMatchObject({
+        team_id: "NO_TEAM_ID",
+        project_id: "prj_abc",
+      });
+    });
+
+    it("skips the lookup when the scope is already ids", async () => {
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("team_123");
+      telemetry.updateProjectId("prj_123");
+      telemetry.resolveScopeIds("token");
+      telemetry.track("subcommand", "list");
+      await telemetry.flush();
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(sentEvents().map((event) => event.key)).not.toContain(
+        "team_slug",
+      );
+    });
+
+    it("skips the lookup when telemetry is disabled", async () => {
+      vi.stubEnv("VERCEL_SANDBOX_TELEMETRY_DISABLED", "1");
+      const telemetry = new Telemetry();
+      telemetry.updateTeamId("my-team");
+      telemetry.updateProjectId("my-app");
+      telemetry.resolveScopeIds("token");
+      await telemetry.flush();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 });

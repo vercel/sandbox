@@ -11,6 +11,7 @@ import { detectAgentName } from "./agent";
 const debug = createDebugger("sandbox:telemetry");
 
 const BRIDGE_URL = "https://telemetry.vercel.com/api/sandbox-cli/v1/events";
+const API_URL = "https://vercel.com/api";
 const FLUSH_TIMEOUT_MS = 1_500;
 
 interface Event {
@@ -89,6 +90,9 @@ export class Telemetry {
   private readonly sessionId = randomUUID();
   private teamId = "NO_TEAM_ID";
   private projectId: string | undefined;
+  private teamSlug: string | undefined;
+  private projectSlug: string | undefined;
+  private scopeLookup: Promise<void> | undefined;
   private embedded = false;
 
   get enabled(): boolean {
@@ -113,12 +117,67 @@ export class Telemetry {
     this.events.push({ id: randomUUID(), event_time: Date.now(), key, value });
   }
 
+  /**
+   * `--scope` and `--project` accept slugs, which must never land in the id
+   * fields: they are recorded under `team_slug` / `project_slug` instead.
+   */
   updateTeamId(teamId: string | undefined): void {
-    if (teamId) this.teamId = teamId;
+    if (!teamId) return;
+    if (teamId.startsWith("team_")) {
+      this.teamId = teamId;
+    } else if (teamId !== this.teamSlug) {
+      this.teamSlug = teamId;
+      this.track("team_slug", teamId);
+    }
   }
 
   updateProjectId(projectId: string | undefined): void {
-    if (projectId) this.projectId = projectId;
+    if (!projectId) return;
+    if (projectId.startsWith("prj_")) {
+      this.projectId = projectId;
+    } else if (projectId !== this.projectSlug) {
+      this.projectSlug = projectId;
+      this.track("project_slug", projectId);
+    }
+  }
+
+  /**
+   * The sandbox API accepts slugs and never returns ids, so when the scope
+   * was given as slugs, look the ids up once. This runs alongside the
+   * command; flush waits for it within its usual time budget.
+   */
+  resolveScopeIds(token: string | undefined): void {
+    if (this.scopeLookup || !token) return;
+    if (!this.teamSlug && !this.projectSlug) return;
+    if (!this.enabled && !this.isDebug) return;
+
+    const project = this.projectSlug ?? this.projectId;
+    const team = this.teamSlug
+      ? `slug=${encodeURIComponent(this.teamSlug)}`
+      : `teamId=${encodeURIComponent(this.teamId)}`;
+    if (!project) return;
+
+    this.scopeLookup = fetch(
+      `${API_URL}/v9/projects/${encodeURIComponent(project)}?${team}`,
+      {
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(FLUSH_TIMEOUT_MS),
+      },
+    )
+      .then(async (response) => {
+        if (!response.ok) {
+          debug("scope lookup responded with %d", response.status);
+          return;
+        }
+        const { id, accountId } = (await response.json()) as {
+          id?: string;
+          accountId?: string;
+        };
+        // accountId is a user id for personal accounts; only take team ids.
+        if (id?.startsWith("prj_")) this.projectId = id;
+        if (accountId?.startsWith("team_")) this.teamId = accountId;
+      })
+      .catch((error) => debug("failed to resolve scope ids: %o", error));
   }
 
   /**
@@ -160,6 +219,16 @@ export class Telemetry {
   async flush(): Promise<void> {
     if (this.events.length === 0) return;
 
+    const deadline = AbortSignal.timeout(FLUSH_TIMEOUT_MS);
+    if (this.scopeLookup) {
+      await Promise.race([
+        this.scopeLookup,
+        new Promise((resolve) =>
+          deadline.addEventListener("abort", resolve, { once: true }),
+        ),
+      ]);
+    }
+
     const events = this.events.map((event) => ({
       ...event,
       team_id: this.teamId,
@@ -192,7 +261,7 @@ export class Telemetry {
             "x-sandbox-cli-session-id": this.sessionId,
           },
           body: JSON.stringify(events),
-          signal: AbortSignal.timeout(FLUSH_TIMEOUT_MS),
+          signal: deadline,
         },
       );
       debug("telemetry bridge responded with %d", response.status);

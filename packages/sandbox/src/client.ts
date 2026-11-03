@@ -82,6 +82,7 @@ function scopeField(params: unknown, field: string): string | undefined {
 function updateScope(params: unknown): void {
   telemetry.updateTeamId(scopeField(params, "teamId"));
   telemetry.updateProjectId(scopeField(params, "projectId"));
+  telemetry.resolveScopeIds(scopeField(params, "token"));
 }
 
 function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {
