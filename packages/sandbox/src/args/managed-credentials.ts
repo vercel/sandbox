@@ -145,7 +145,7 @@ export const managedCredentialOptions = {
     long: "npm-credentials",
     type: cmd.optional(cmd.boolean),
     description:
-      "Use your team's stored npm credentials to install private packages. Credentials stay outside the sandbox. (experimental)",
+      "Use your team's stored npm credentials to install private packages. Credentials stay outside the sandbox.",
   }),
   enableManagedCredentials: cmd.flag({
     long: "enable-managed-credentials",
