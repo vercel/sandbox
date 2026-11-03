@@ -74,7 +74,7 @@ export async function readVercelGithubLink(options: {
 
 function lookupFailure() {
   return new CliError(
-    "Could not resolve the GitHub account linked to Vercel. Pass --credentials-act-as explicitly or log in with gh.",
+    "Could not resolve the GitHub account linked to Vercel. Pass --credentials-github-act-as explicitly or log in with gh.",
     { reason: "identity_lookup_failed" },
   );
 }
