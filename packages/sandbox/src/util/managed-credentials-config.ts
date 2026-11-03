@@ -28,7 +28,7 @@ export type CredentialAction = GitAction | GithubApiAction;
 /**
  * The API actions a bare `--enable-managed-credentials` requests.
  *
- * Supplying any `--credentials-action` replaces this set rather than adding to
+ * Supplying any `--credentials-github-action` replaces this set rather than adding to
  * it, so an explicit narrow request is never silently widened.
  */
 export const DEFAULT_API_ACTIONS: readonly GithubApiAction[] = [
@@ -76,10 +76,10 @@ export function isApiAction(
 }
 
 /**
- * Short names for the GitHub API actions `--credentials-action` accepts.
+ * Short names for the GitHub API actions `--credentials-github-action` accepts.
  *
  * Git access is not in this list: it is requested with
- * `--credentials-no-write` rather than as an action, so advertising
+ * `--credentials-github-no-write` rather than as an action, so advertising
  * `git:write` here would suggest a second way to ask for it.
  */
 export const ACCEPTED_API_ACTION_NAMES: readonly string[] =
@@ -313,10 +313,10 @@ export function hasInertCommitAs(config: ManagedCredentialsConfig): boolean {
 }
 
 /**
- * Serialize a configuration for `--credentials-persist-configuration`.
+ * Serialize a configuration for `--credentials-github-persist-configuration`.
  *
  * The output round-trips through {@link parseConfig}, so a persisted file can
- * be replayed with `--credentials-from-config-file`.
+ * be replayed with `--credentials-github-from-config-file`.
  */
 export function serializeConfig(config: ManagedCredentialsConfig): string {
   const ordered: Record<string, unknown> = {};
