@@ -40,7 +40,8 @@ vercel sandbox create --enable-managed-credentials
 That one flag selects the complete default experience: the repository, clone
 source, commit credit, and GitHub API actor are inferred, the default API
 action set is requested, and Git write access is included. The CLI shows the
-whole proposal and asks once before creating anything.
+whole proposal before asking for approval. In interactive use, it asks again if
+the project has no Bounds.
 
 A bare `vercel sandbox create` is unchanged. Running inside a Git repository is
 never on its own a request for repository access.
