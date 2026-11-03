@@ -21,7 +21,7 @@ export function parseCommitAs(value: string): CommitIdentity {
     !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(match[2])
   ) {
     throw new CliError(
-      '--credentials-commit-as expects "Name <email@example.com>".',
+      '--credentials-github-commit-as expects "Name <email@example.com>".',
     );
   }
   return { name: match[1].trim(), email: match[2] };
