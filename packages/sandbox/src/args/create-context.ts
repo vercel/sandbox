@@ -24,6 +24,10 @@ import {
 } from "../util/managed-credentials-transport";
 import { loadConfigFromSandbox } from "../util/managed-credentials-reuse";
 import { fetchSandboxCredentialSnapshot } from "../util/managed-credentials-client";
+import {
+  captureRetryInvocation,
+  type RetryInvocation,
+} from "../util/managed-credentials-retry-command";
 
 type Parsed<T> = T extends ArgParser<infer Value> ? Value : never;
 export type CreateContext = Parsed<typeof scope> & {
@@ -36,6 +40,8 @@ export type CreateContext = Parsed<typeof scope> & {
   managed?: ResolvedManagedCredentials;
   managedOptions?: ManagedCredentialsOptions;
   persistConfiguration?: string;
+  /** Original invocation for an editable rejected-proposal command. */
+  retryInvocation?: RetryInvocation;
 };
 
 /** Resolve the proposal without granting access or performing creation. */
@@ -166,7 +172,13 @@ export function createContext({
             mode,
             yes: run.yes,
             dryRun,
-            ...(managed ? { managed, managedOptions } : {}),
+            ...(managed
+              ? {
+                  managed,
+                  managedOptions,
+                  retryInvocation: captureRetryInvocation(context),
+                }
+              : {}),
             ...(managedOptions.credentialsPersistConfiguration !== undefined
               ? {
                   persistConfiguration:

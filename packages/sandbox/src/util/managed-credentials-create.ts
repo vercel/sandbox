@@ -12,6 +12,7 @@ import {
 } from "./managed-credentials-resolve";
 import { loadConfigFromSandbox } from "./managed-credentials-reuse";
 import { fetchSandboxCredentialSnapshot } from "./managed-credentials-client";
+import { renderManagedCredentialsRetryCommand } from "./managed-credentials-retry-command";
 import {
   toTransport,
   type ManagedCredentialsTransport,
@@ -78,6 +79,16 @@ export async function prepareManagedCredentials(options: {
       json: context.mode.json,
       yes: context.yes,
       dryRun: context.dryRun,
+      renderCommand: (proposal) =>
+        renderManagedCredentialsRetryCommand({
+          ...proposal,
+          vcpus,
+          invocation: context.retryInvocation ?? {
+            appName: context.appName ?? "sandbox",
+            command: "create",
+            args: options.sandboxName ? [`--name=${options.sandboxName}`] : [],
+          },
+        }),
       reresolve: (overrides: ManagedCredentialsOptions, scope) =>
         reresolve({ context, overrides, scope }),
     },
