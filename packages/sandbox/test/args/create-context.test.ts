@@ -1,6 +1,8 @@
 import * as cmd from "cmd-ts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createContext } from "../../src/args/create-context";
+import { prepareManagedCredentials } from "../../src/util/managed-credentials-create";
+import { CliError } from "../../src/util/cli-error";
 import { getVercelToken, getVercelOidcToken } from "@vercel/oidc";
 import { getAuth } from "@vercel/sandbox/dist/auth/index.js";
 vi.mock("@vercel/sandbox/dist/auth/index.js", async (original) => ({
@@ -59,6 +61,57 @@ test("bare interactive dry-run does not use normal authentication", async () => 
     else Reflect.deleteProperty(process.stderr, "isTTY");
   }
 });
+test.each(["sandbox", "vercel sandbox"])(
+  "includes the explicit rejected command for %s",
+  async (appName) => {
+    let context: Awaited<ReturnType<typeof parser.handler>> | undefined;
+    const leaf = cmd.command({
+      name: "create",
+      args: { scope: createContext() },
+      handler: (args) => {
+        context = args.scope;
+      },
+    });
+    const root = cmd.subcommands({ name: appName, cmds: { create: leaf } });
+    await cmd.run(root, [
+      "create",
+      "--scope=team",
+      "--project=project",
+      "--json",
+      "--credentials-repo=acme/widgets",
+      "--credentials-action=issues:read",
+      "--credentials-commit-as=Grace Hopper <grace@example.com>",
+      "--credentials-act-as=42",
+      "--token=secret-test-token",
+    ]);
+    if (!context)
+      throw new Error("The parser did not produce a creation context");
+    try {
+      await prepareManagedCredentials({ context, vcpus: 8 });
+      throw new Error("Expected confirmation to be required");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CliError);
+      const failure = error as CliError;
+      expect(failure.options.reason).toBe("confirmation_required");
+      const command = (failure.options.data as { command?: string }).command;
+      expect(command).toBeTypeOf("string");
+      expect(command).toContain(`${appName} create `);
+      expect(command).toContain("--scope=team");
+      expect(command).toContain("--project=project");
+      expect(command).toContain("--vcpus=8");
+      expect(command).toContain("--credentials-repo=acme/widgets");
+      expect(command).toContain("--credentials-action=github:issues:read");
+      expect(command).toContain("--credentials-act-as=42");
+      expect(command).toContain(
+        "--credentials-commit-as=Grace Hopper <grace@example.com>",
+      );
+      expect(command).not.toContain("secret-test-token");
+      expect(command).not.toContain("--yes");
+      expect(command).not.toContain("create create");
+    }
+  },
+);
+
 test("invalid configuration is rejected before authentication", async () => {
   await expect(
     cmd.run(parser, [

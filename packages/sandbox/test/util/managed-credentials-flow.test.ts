@@ -177,6 +177,151 @@ describe("policy additions", () => {
 });
 
 describe("interactive review", () => {
+  test.each(["n", ""])(
+    "prints an editable command when rejecting with %j",
+    async (answer) => {
+      const { input, output } = scripted([answer]);
+      const chunks: string[] = [];
+      output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+      const command =
+        "sandbox create --scope=team --project=project --credentials-repo=vercel/api";
+      const renderCommand = vi.fn().mockReturnValue(command);
+      await expect(
+        runManagedCredentialsFlow({
+          initial: resolved(),
+          managedOptions,
+          context: baseContext({
+            interactive: true,
+            input,
+            output,
+            renderCommand,
+          }),
+        }),
+      ).rejects.toMatchObject({
+        options: { reason: "canceled", exitCode: 130, data: { command } },
+      });
+      expect(renderCommand).toHaveBeenCalledExactlyOnceWith({
+        config: configFor(),
+        team: "jacks-projects",
+        project: "api",
+      });
+      expect(chunks.join("")).toContain(
+        `Edit this command and run it again:\n\n${command}\n`,
+      );
+    },
+  );
+
+  test("prints the corrected proposal rather than the original guess", async () => {
+    const { input, output } = scripted([
+      "e",
+      "repository",
+      "acme/widgets",
+      "n",
+    ]);
+    const renderCommand = vi
+      .fn()
+      .mockReturnValue("sandbox create --credentials-repo=acme/widgets");
+    const reresolve = vi.fn().mockResolvedValue(resolved("acme/widgets"));
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          interactive: true,
+          input,
+          output,
+          renderCommand,
+          reresolve,
+        }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "canceled" } });
+    expect(renderCommand).toHaveBeenCalledExactlyOnceWith({
+      config: configFor("acme/widgets"),
+      team: "jacks-projects",
+      project: "api",
+    });
+  });
+
+  test("prints a recovery command when the input closes", async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk: Buffer) => {
+      chunks.push(chunk.toString());
+      if (chunk.toString().includes("(c/e/N)")) setImmediate(() => input.end());
+    });
+    const command = "sandbox create --credentials-repo=vercel/api";
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          interactive: true,
+          input,
+          output,
+          renderCommand: () => command,
+        }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "canceled", exitCode: 130 } });
+    expect(chunks.join("")).toContain(command);
+  });
+
+  test("does not invent a command for an incomplete corrected scope", async () => {
+    const { input, output } = scripted(["e", "team", "other-team", "", "n"]);
+    const renderCommand = vi.fn();
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          interactive: true,
+          input,
+          output,
+          renderCommand,
+        }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "canceled" } });
+    expect(renderCommand).not.toHaveBeenCalled();
+  });
+
+  test("includes the explicit command in machine-readable consent errors", async () => {
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+    const command = "sandbox create --credentials-repo=vercel/api";
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({
+          json: true,
+          output,
+          renderCommand: () => command,
+        }),
+      }),
+    ).rejects.toMatchObject({
+      options: {
+        reason: "confirmation_required",
+        json: true,
+        data: { command },
+      },
+    });
+    expect(chunks.join("")).toBe("");
+  });
+
+  test.each([{ yes: true }, { dryRun: true }])(
+    "does not render a rejected command on success: %j",
+    async (mode) => {
+      const renderCommand = vi.fn();
+      await runManagedCredentialsFlow({
+        initial: resolved(),
+        managedOptions,
+        context: baseContext({ ...mode, renderCommand }),
+      });
+      expect(renderCommand).not.toHaveBeenCalled();
+    },
+  );
+
   test("creating approves the proposal", async () => {
     const { input, output } = scripted(["c"]);
     const result = await runManagedCredentialsFlow({
