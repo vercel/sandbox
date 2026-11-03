@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { CliError } from "../../src/util/cli-error";
+import { GITHUB_API_CREDENTIAL_ACTIONS } from "@vercel/sandbox";
 
 const {
   mockCreate,
@@ -176,6 +177,39 @@ describe("create with managed credentials", () => {
       expect(mockInferRepository).not.toHaveBeenCalled();
       expect(mockInferActor).not.toHaveBeenCalled();
     });
+  });
+
+  describe("GitHub access presets", () => {
+    test.each(["read", "write"] as const)(
+      "sends the resolved %s permissions for the inferred repository",
+      async (level) => {
+        await createWith([`--github-access=${level}`, "--yes", "--silent"]);
+        expect(mockCreate).toHaveBeenCalledOnce();
+        const params = mockCreate.mock.calls[0][0];
+        expect(params.source).toMatchObject({
+          type: "git",
+          url: "https://github.com/vercel/api.git",
+          credentials: level === "read" ? "read" : true,
+        });
+        expect(params.credentials.github[0].repositories).toEqual([
+          "vercel/api",
+        ]);
+        expect(params.credentials.github[0].actions).toEqual(
+          level === "read"
+            ? [
+                "github:pull-request:get",
+                "github:issues:read",
+                "github:labels:read",
+                "github:ci-status:read",
+              ]
+            : [...GITHUB_API_CREDENTIAL_ACTIONS],
+        );
+        if (level === "read") {
+          expect(params.commitAs).toBeUndefined();
+          expect(mockInferCommitIdentity).not.toHaveBeenCalled();
+        } else expect(params.commitAs).toBeDefined();
+      },
+    );
   });
 
   describe("opt-in defaults", () => {

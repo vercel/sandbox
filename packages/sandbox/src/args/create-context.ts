@@ -13,6 +13,7 @@ import {
   type ExecutionMode,
 } from "../util/execution-mode";
 import {
+  assertCompatibleOptions,
   hasManagedCredentialsRequest,
   resolveManagedCredentials,
   type ManagedCredentialsOptions,
@@ -111,6 +112,8 @@ export function createContext({
           managedCredentialOptions,
           context,
         );
+        // Reject incompatible flags before reading payloads or resolving auth.
+        assertCompatibleOptions(managedOptions);
         const creationRequested = hasManagedCredentialsRequest(managedOptions);
         const dryRun = run.dryRun === true;
         const mode = await resolveExecutionMode({

@@ -395,6 +395,11 @@ async function applyEdit(options: {
         );
         return undefined;
       }
+      if (overrides.githubAccess !== undefined) {
+        // Replace the API preset without restoring the default Git write access.
+        overrides.credentialsNoWrite = overrides.githubAccess === "read";
+        delete overrides.githubAccess;
+      }
       overrides.credentialsActions = actions;
       break;
     }

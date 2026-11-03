@@ -106,15 +106,21 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     value: sourceGit ?? "none",
     ...(sourceGit === "git:write"
       ? {
-          note: inferredGit
-            ? "default for a managed source; clone, fetch, pull, and push"
-            : "clone, fetch, pull, and push",
+          note:
+            input.provenance.gitAccess === "github-access"
+              ? "from --github-access=write: clone, fetch, pull, and push"
+              : inferredGit
+                ? "default for a managed source; clone, fetch, pull, and push"
+                : "clone, fetch, pull, and push",
         }
       : sourceGit === "git:read"
         ? {
-            note: inferredGit
-              ? "read-only clone, from --credentials-github-no-write"
-              : "read-only clone",
+            note:
+              input.provenance.gitAccess === "github-access"
+                ? "read-only clone, from --github-access=read"
+                : inferredGit
+                  ? "read-only clone, from --credentials-github-no-write"
+                  : "read-only clone",
           }
         : {}),
   });

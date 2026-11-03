@@ -18,6 +18,7 @@ without changing these flags.
 ## Contents
 
 - [Quick start](#quick-start)
+- [GitHub access presets](#github-access-presets)
 - [How a request is assembled](#how-a-request-is-assembled)
 - [Inference](#inference)
 - [Review, edit, approve](#review-edit-approve)
@@ -40,10 +41,45 @@ vercel sandbox create --enable-managed-credentials
 That one flag selects the complete default experience: the repository, clone
 source, commit credit, and GitHub API actor are inferred, the default API
 action set is requested, and Git write access is included. The CLI shows the
-whole proposal and asks once before creating anything.
+whole proposal before asking for approval. In interactive use, it asks again if
+the project has no Bounds.
 
 A bare `vercel sandbox create` is unchanged. Running inside a Git repository is
 never on its own a request for repository access.
+
+## GitHub access presets
+
+A preset is a fixed permission set. Use `--github-access` to select one for the
+inferred repository:
+
+```sh
+vercel sandbox create --github-access=read
+vercel sandbox create --github-access=write
+```
+
+| Preset  | Git access  | GitHub API actions                                                 |
+| ------- | ----------- | ------------------------------------------------------------------ |
+| `read`  | `git:read`  | `pull-request:get`, `issues:read`, `labels:read`, `ci-status:read` |
+| `write` | `git:write` | All 11 currently supported GitHub API actions                      |
+
+Each preset replaces the default API action set. It selects both Git and API
+permissions, but never adds workflow-file write access. The sets do not expand
+automatically when the SDK adds an action.
+
+Use `--credentials-github-repo` to select a different repository. The read preset
+does not infer a commit name or email. Do not combine
+`--credentials-github-commit-as` with `--github-access=read`.
+
+Do not combine `--github-access` with `--credentials-github-action`,
+`--credentials-github-from-config-file`, `--credentials-github-from-sandbox`, or
+`--credentials-github-no-write`. Choose a preset, explicit flags, or a complete
+configuration instead. Conflicts are rejected before authentication or file
+input.
+
+If you edit the API actions during review, the CLI preserves the selected Git
+access and replaces the preset with explicit actions. Rejected commands use the
+resolved permissions, not the compact preset, so editing the command does not
+add defaults.
 
 ## How a request is assembled
 
@@ -210,16 +246,17 @@ project, the CLI does not print an incomplete command.
 
 ## Git access and commit credit
 
-Git permission is decided **independently** of the API action set:
+Explicit `--credentials-github-action` flags change API access only.
+`--github-access` selects both Git and API access:
 
-- Git write (`git:write`) is the default for a managed source.
+- Without a preset, Git write (`git:write`) is the default for a managed source.
 - `--credentials-github-no-write` requests a read-only clone (`git:read`) instead. It
   does not remove requested API permissions and does not turn API writes into
   reads.
 - A read-only configuration omits the inferred commit credit entirely, since
   the sandbox cannot make commits.
 
-Overriding the API actions never changes Git access:
+Overriding API actions with `--credentials-github-action` never changes Git access:
 
 ```sh
 # Narrower API access, Git write unchanged

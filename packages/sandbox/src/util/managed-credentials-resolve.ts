@@ -25,6 +25,11 @@ import {
 import { inferActor } from "./managed-credentials-actor";
 import { inferRepository } from "./managed-credentials-repository";
 import { readJsonPayload } from "./managed-credentials-payload";
+import {
+  GITHUB_ACCESS_LEVELS,
+  GITHUB_ACCESS_PRESETS,
+  type GithubAccess,
+} from "./managed-credentials-github-access";
 
 /**
  * Raw managed-credentials options as parsed from the command line.
@@ -33,6 +38,7 @@ import { readJsonPayload } from "./managed-credentials-payload";
  * supplied, matching the specified "explicit file path or a bare flag".
  */
 export interface ManagedCredentialsOptions {
+  githubAccess?: GithubAccess;
   enableManagedCredentials?: boolean;
   credentialsRepo?: string;
   credentialsActions: string[];
@@ -46,6 +52,7 @@ export interface ManagedCredentialsOptions {
 
 /** Direct flags that describe a single repository's access. */
 const DIRECT_FLAGS = [
+  ["githubAccess", "--github-access"],
   ["credentialsRepo", "--credentials-github-repo"],
   ["credentialsActions", "--credentials-github-action"],
   ["credentialsCommitAs", "--credentials-github-commit-as"],
@@ -84,6 +91,7 @@ export interface ConfigProvenance {
   repository?: "explicit" | "git-remote" | "config";
   commitAs?: IdentitySource | "profile-fallback" | "config" | "omitted";
   actor?: IdentitySource | "config" | "unresolved";
+  gitAccess?: "github-access";
 }
 
 export interface ResolvedManagedCredentials extends ResolvedConfig {
@@ -112,7 +120,36 @@ export interface ResolveContext {
  * permission sets. The specification rules that out, so each combination is
  * named and refused with the alternative spelled out.
  */
-function assertCompatibleOptions(options: ManagedCredentialsOptions): void {
+export function assertCompatibleOptions(
+  options: ManagedCredentialsOptions,
+): void {
+  if (options.githubAccess !== undefined) {
+    if (
+      !(GITHUB_ACCESS_LEVELS as readonly string[]).includes(
+        options.githubAccess,
+      )
+    ) {
+      throw new CliError("--github-access expects read or write.");
+    }
+    if (options.credentialsActions.length > 0) {
+      throw new CliError(
+        "--github-access cannot be combined with --credentials-github-action. Choose the preset or explicit actions.",
+      );
+    }
+    if (options.credentialsNoWrite !== undefined) {
+      throw new CliError(
+        "--github-access already selects Git access. Do not combine it with --credentials-github-no-write.",
+      );
+    }
+    if (
+      options.githubAccess === "read" &&
+      options.credentialsCommitAs !== undefined
+    ) {
+      throw new CliError(
+        "--github-access=read requests read-only Git access. Remove --credentials-github-commit-as or request write access.",
+      );
+    }
+  }
   const direct = suppliedDirectFlags(options);
 
   // Persisting only says where to write a configuration. On its own it would
@@ -249,18 +286,24 @@ async function resolveFromFlags(
   // --- API actions ----------------------------------------------------
   // Supplied actions replace the defaults outright. Appending the omitted
   // defaults would widen a deliberately narrow request.
-  const apiActions =
-    options.credentialsActions.length > 0
+  const preset =
+    options.githubAccess !== undefined
+      ? GITHUB_ACCESS_PRESETS[options.githubAccess]
+      : undefined;
+  const apiActions: GithubApiAction[] = preset
+    ? [...preset.apiActions]
+    : options.credentialsActions.length > 0
       ? parseActions(options.credentialsActions)
       : [...DEFAULT_API_ACTIONS];
 
-  // --- Git access -----------------------------------------------------
-  // Git permission is decided independently of the API action set, so
-  // overriding actions never changes it. `--credentials-github-no-write` downgrades
-  // write to read without touching API actions.
-  const gitAction: CredentialAction = options.credentialsNoWrite
-    ? "git:read"
-    : "git:write";
+  // Explicit API actions leave Git access unchanged. A preset selects both.
+  const gitAction: CredentialAction = preset
+    ? preset.gitAction
+    : options.credentialsNoWrite
+      ? "git:read"
+      : "git:write";
+  const readOnly = gitAction === "git:read";
+  if (preset) provenance.gitAccess = "github-access";
 
   // --- GitHub API actor -------------------------------------------------
   // Resolved before the commit identity so its profile metadata is available
@@ -288,14 +331,14 @@ async function resolveFromFlags(
   // --- Commit identity -------------------------------------------------
   let commitAs: CommitIdentity | undefined;
   if (options.credentialsCommitAs !== undefined) {
-    if (options.credentialsNoWrite) {
+    if (readOnly) {
       throw new CliError(
         "--credentials-github-commit-as has no effect with --credentials-github-no-write, which requests read-only Git access. Drop one of the two.",
       );
     }
     commitAs = parseCommitAs(options.credentialsCommitAs);
     provenance.commitAs = "explicit";
-  } else if (options.credentialsNoWrite) {
+  } else if (readOnly) {
     // A read-only configuration omits the inferred commit identity entirely,
     // so review never implies commits the Sandbox cannot make.
     provenance.commitAs = "omitted";

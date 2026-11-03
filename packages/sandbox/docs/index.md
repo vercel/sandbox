@@ -139,6 +139,7 @@ Options:
       pair    = { "key"?: matcher, "value"?: matcher }
     A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
     Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
+    --github-access <read|write>                       Select read-only or read/write Git and GitHub API access. Do not combine with explicit actions, configuration sources, or --credentials-github-no-write. (experimental) [optional]
     --credentials-github-repo <REPOSITORY>             GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental) [optional]
     --credentials-github-action <ACTION>               GitHub API action to request. Repeat the flag to add actions; supplying any replaces the default set (issues:read, issues:comment, pull-request:create). Accepted: pull-request:create, pull-request:get, pull-request:update, pull-request:comment, issues:read, issues:create, issues:update, issues:comment, labels:read, labels:write, ci-status:read. (experimental)
     --credentials-github-commit-as <IDENTITY>          Commit credit for managed Git pushes, as "Name <email>". Defaults to the effective local Git configuration. (experimental) [optional]
@@ -231,6 +232,7 @@ Options:
       pair    = { "key"?: matcher, "value"?: matcher }
     A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
     Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
+    --github-access <read|write>                       Select read-only or read/write Git and GitHub API access. Do not combine with explicit actions, configuration sources, or --credentials-github-no-write. (experimental) [optional]
     --credentials-github-repo <REPOSITORY>             GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental) [optional]
     --credentials-github-action <ACTION>               GitHub API action to request. Repeat the flag to add actions; supplying any replaces the default set (issues:read, issues:comment, pull-request:create). Accepted: pull-request:create, pull-request:get, pull-request:update, pull-request:comment, issues:read, issues:create, issues:update, issues:comment, labels:read, labels:write, ci-status:read. (experimental)
     --credentials-github-commit-as <IDENTITY>          Commit credit for managed Git pushes, as "Name <email>". Defaults to the effective local Git configuration. (experimental) [optional]
@@ -330,6 +332,7 @@ Options:
       pair    = { "key"?: matcher, "value"?: matcher }
     A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
     Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
+    --github-access <read|write>                       Select read-only or read/write Git and GitHub API access. Do not combine with explicit actions, configuration sources, or --credentials-github-no-write. (experimental) [optional]
     --credentials-github-repo <REPOSITORY>             GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental) [optional]
     --credentials-github-action <ACTION>               GitHub API action to request. Repeat the flag to add actions; supplying any replaces the default set (issues:read, issues:comment, pull-request:create). Accepted: pull-request:create, pull-request:get, pull-request:update, pull-request:comment, issues:read, issues:create, issues:update, issues:comment, labels:read, labels:write, ci-status:read. (experimental)
     --credentials-github-commit-as <IDENTITY>          Commit credit for managed Git pushes, as "Name <email>". Defaults to the effective local Git configuration. (experimental) [optional]

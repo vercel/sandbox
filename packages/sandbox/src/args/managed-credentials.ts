@@ -2,6 +2,7 @@ import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { ACCEPTED_API_ACTION_NAMES } from "../util/managed-credentials-config";
+import { GITHUB_ACCESS_LEVELS } from "../util/managed-credentials-github-access";
 
 /** A parsed `--long[=value]` node, as produced by cmd-ts's parser. */
 interface LongOptionNode {
@@ -133,6 +134,16 @@ export function optionalValueFlag(config: {
   };
 }
 
+const githubAccess = cmd.option({
+  long: "github-access",
+  type: {
+    ...cmd.optional(cmd.oneOf([...GITHUB_ACCESS_LEVELS])),
+    displayName: "read|write",
+  },
+  description:
+    "Select read-only or read/write Git and GitHub API access. Do not combine with explicit actions, configuration sources, or --credentials-github-no-write. (experimental)",
+});
+
 /**
  * The `--credentials-github-*` option surface.
  *
@@ -140,6 +151,39 @@ export function optionalValueFlag(config: {
  * namespace without changing the meaning of these options.
  */
 export const managedCredentialOptions = {
+  githubAccess: {
+    ...githubAccess,
+    register() {
+      // Enum values cannot begin with a dash. Keep a following flag separate.
+    },
+    async parse(context: Parameters<typeof githubAccess.parse>[0]) {
+      // cmd-ts otherwise treats a valueless optional option as absent.
+      const missing = context.nodes.filter(
+        (node) =>
+          node.type === "longOption" &&
+          node.key === "github-access" &&
+          !context.visitedNodes.has(node) &&
+          (node.value === undefined ||
+            !(GITHUB_ACCESS_LEVELS as readonly string[]).includes(
+              node.value.node.raw,
+            )),
+      );
+      if (missing.length > 0) {
+        return {
+          _tag: "error" as const,
+          error: {
+            errors: [
+              {
+                nodes: missing,
+                message: "--github-access requires read or write.",
+              },
+            ],
+          },
+        };
+      }
+      return githubAccess.parse(context);
+    },
+  },
   enableManagedCredentials: cmd.flag({
     long: "enable-managed-credentials",
     type: cmd.optional(cmd.boolean),

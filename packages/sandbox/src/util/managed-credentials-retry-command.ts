@@ -67,6 +67,7 @@ function appendOption(
 // Only options that describe the resolved proposal are replaced. Persistence
 // describes a requested output, not access, and must survive a retry.
 const replacedValues = new Set([
+  "github-access",
   "scope",
   "team",
   "project",
