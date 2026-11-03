@@ -136,9 +136,8 @@ export function optionalValueFlag(config: {
 /**
  * The `--credentials-github-*` option surface.
  *
- * The naming stays forge-neutral on purpose: NPM, AI Gateway, and Linear
- * credentials are expected to join the same prefix later, so nothing here
- * says "github".
+ * These flags configure GitHub credentials. Other providers can use their own
+ * namespace without changing the meaning of these options.
  */
 export const managedCredentialOptions = {
   enableManagedCredentials: cmd.flag({
