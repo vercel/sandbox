@@ -160,11 +160,8 @@ export const create = cmd.command({
       deleteEvictedSnapshots,
     } = input;
     const { creation, mode } = scope;
-    // Filled in once the managed-credentials review has settled, since a
-    // correction there changes which team and project everything downstream —
-    // the creation call, follow-up commands, and printed hints — refers to.
-    let effectiveTeam = scope.team;
-    let effectiveProject = scope.project;
+    const effectiveTeam = scope.team;
+    const effectiveProject = scope.project;
     const authScope = () => ({
       token: scope.token,
       team: effectiveTeam,
@@ -261,19 +258,12 @@ export const create = cmd.command({
       const persistent = !nonPersistent;
 
       // Review and approve managed credentials before anything is created.
-      // The proposal can be corrected here, so its approved configuration — not
-      // the one parsed from the flags — is what gets sent.
+      // Approval always refers to this exact parsed proposal.
       const prepared = await prepareManagedCredentials({
         context: scope,
         ...(name !== undefined ? { sandboxName: name } : {}),
         ...(vcpus !== undefined ? { vcpus } : {}),
       });
-      if (prepared?.teamOverride !== undefined) {
-        effectiveTeam = prepared.teamOverride;
-      }
-      if (prepared?.projectOverride !== undefined) {
-        effectiveProject = prepared.projectOverride;
-      }
       // A dry run never creates a sandbox, mutates policy, or writes files —
       // including when no managed credentials were requested, so the flag is
       // safe to add to any `create` invocation.

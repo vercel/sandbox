@@ -201,7 +201,7 @@ describe("preset resolution", () => {
   });
 });
 
-describe("review and correction", () => {
+describe("review and command recovery", () => {
   test.each(["read", "write"] as const)(
     "a rejected %s command expands the preset into explicit flags",
     async (level) => {
@@ -233,43 +233,50 @@ describe("review and correction", () => {
   );
 
   test.each(["read", "write"] as const)(
-    "editing a %s preset's actions preserves its Git choice",
+    "rejecting a %s preset prints the expanded permissions without another question",
     async (level) => {
-      const ctx = context();
-      const initial = await resolveManagedCredentials(options(level), ctx);
-      const io = scripted(["e", "actions", "issues:read", "c"]);
-      const reresolve = vi.fn(
-        async (corrected: ManagedCredentialsOptions) =>
-          (await resolveManagedCredentials(corrected, ctx))!,
+      const initial = await resolveManagedCredentials(
+        options(level),
+        context(),
       );
-      const result = await runManagedCredentialsFlow({
-        initial: initial!,
-        managedOptions: options(level),
-        context: {
-          ...io,
-          reresolve,
-          team: "team_review",
-          project: "prj_review",
-          vcpus: 6,
-          vcpusExplicit: false,
-          interactive: true,
-          json: false,
-          yes: false,
-          dryRun: false,
-        },
-      });
-      expect(result.config.credentials.github[0].actions).toEqual([
-        "github:issues:read",
-        `git:${level}`,
-      ]);
-      expect(reresolve).toHaveBeenCalledWith(
-        expect.objectContaining({
-          credentialsNoWrite: level === "read",
-          credentialsActions: ["issues:read"],
+      const io = scripted(["n"]);
+      const chunks: string[] = [];
+      io.output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+      await expect(
+        runManagedCredentialsFlow({
+          initial: initial!,
+          context: {
+            ...io,
+            team: "team_review",
+            project: "prj_review",
+            vcpus: 6,
+            vcpusExplicit: false,
+            interactive: true,
+            json: false,
+            yes: false,
+            dryRun: false,
+            renderCommand: (proposal) =>
+              renderManagedCredentialsRetryCommand({
+                ...proposal,
+                vcpus: 6,
+                invocation: {
+                  appName: "sandbox",
+                  command: "create",
+                  args: [`--github-access=${level}`],
+                },
+              }),
+          },
         }),
-        expect.anything(),
+      ).rejects.toMatchObject({
+        options: { reason: "canceled", exitCode: 130 },
+      });
+      const text = chunks.join("");
+      expect(text).toContain("--credentials-github-action=github:issues:read");
+      expect(text.includes("--credentials-github-no-write")).toBe(
+        level === "read",
       );
-      expect(reresolve.mock.calls[0][0].githubAccess).toBeUndefined();
+      expect(text).not.toContain("Which value");
+      expect(text).not.toContain("--yes");
     },
   );
 });

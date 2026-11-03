@@ -6,12 +6,6 @@ import {
   persistConfiguration,
   resolvePersistPath,
 } from "./managed-credentials-persist";
-import {
-  resolveManagedCredentials,
-  type ManagedCredentialsOptions,
-} from "./managed-credentials-resolve";
-import { loadConfigFromSandbox } from "./managed-credentials-reuse";
-import { fetchSandboxCredentialSnapshot } from "./managed-credentials-client";
 import { renderManagedCredentialsRetryCommand } from "./managed-credentials-retry-command";
 import { hasProjectBounds } from "./managed-credentials-project-bounds";
 import {
@@ -39,15 +33,6 @@ export interface PreparedManagedCredentials {
   transport: ManagedCredentialsTransport;
   /** The approved logical configuration, for persistence. */
   config: ManagedCredentialsConfig;
-  /**
-   * Team the review displayed, when the user corrected it.
-   *
-   * Creation must use this rather than the originally resolved scope, so the
-   * sandbox lands in the team the approval referred to.
-   */
-  teamOverride?: string;
-  /** Project the review displayed, when the user corrected it. */
-  projectOverride?: string;
   vcpus: number;
 }
 
@@ -63,13 +48,12 @@ export async function prepareManagedCredentials(options: {
   vcpus?: number;
 }): Promise<PreparedManagedCredentials | undefined> {
   const { context } = options;
-  if (!context.managed || !context.managedOptions) return undefined;
+  if (!context.managed) return undefined;
 
   const vcpus = options.vcpus ?? MANAGED_CREDENTIALS_VCPUS;
 
   const result = await runManagedCredentialsFlow({
     initial: context.managed,
-    managedOptions: context.managedOptions,
     context: {
       team: context.teamSlug ?? context.team,
       project: context.projectSlug ?? context.project,
@@ -114,59 +98,14 @@ export async function prepareManagedCredentials(options: {
             args: options.sandboxName ? [`--name=${options.sandboxName}`] : [],
           },
         }),
-      reresolve: (overrides: ManagedCredentialsOptions, scope) =>
-        reresolve({ context, overrides, scope }),
     },
   });
 
   return {
     transport: toTransport(result.config),
     config: result.config,
-    ...(result.scopeOverrides.team !== undefined
-      ? { teamOverride: result.scopeOverrides.team }
-      : {}),
-    ...(result.scopeOverrides.project !== undefined
-      ? { projectOverride: result.scopeOverrides.project }
-      : {}),
     vcpus,
   };
-}
-
-/**
- * Re-run inference after a review correction.
- *
- * The whole proposal is rebuilt from the corrected inputs, so inference that
- * depended on an edited value is redone rather than carried over.
- */
-async function reresolve(options: {
-  context: CreateContext;
-  overrides: ManagedCredentialsOptions;
-  scope: { team?: string; project?: string };
-}) {
-  const team = options.scope.team ?? options.context.team;
-  const project = options.scope.project ?? options.context.project;
-  const resolved = await resolveManagedCredentials(options.overrides, {
-    token: options.context.token,
-    teamId: team,
-    loadFromSandbox: (selector) =>
-      loadConfigFromSandbox({
-        selector,
-        fetchSnapshot: (params) =>
-          fetchSandboxCredentialSnapshot({
-            ...params,
-            token: options.context.token,
-            teamId: team,
-            projectId: project,
-            dryRun: options.context.dryRun,
-          }),
-      }),
-  });
-  if (!resolved) {
-    throw new CliError(
-      "The corrected values no longer request managed credentials.",
-    );
-  }
-  return resolved;
 }
 
 /** Print the dry-run outcome and exit without creating anything. */

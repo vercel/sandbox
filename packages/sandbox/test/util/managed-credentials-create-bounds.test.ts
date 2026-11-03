@@ -61,7 +61,6 @@ test.each([
         config,
         team,
         project,
-        scopeOverrides: {},
         missingBounds: [],
         boundsApproved: false,
       };

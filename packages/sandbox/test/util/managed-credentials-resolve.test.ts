@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   hasManagedCredentialsRequest,
-  invalidatedBy,
   parseActions,
   resolveManagedCredentials,
   type ManagedCredentialsOptions,
@@ -29,11 +28,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("request detection", () => {
-  test("actor invalidation includes profile-derived commit credit", () => {
-    expect(invalidatedBy("actAs")).toContain("commitAs");
-    expect(invalidatedBy("team")).toContain("commitAs");
-  });
-  test("re-resolving an actor recomputes profile credit, not the previous proposal", async () => {
+  test("a new invocation recomputes profile credit for the selected actor", async () => {
     const ctx = context({
       inferCommitIdentityImpl: vi.fn().mockResolvedValue(undefined),
       inferActorImpl: vi
@@ -516,21 +511,5 @@ describe("conflicting inputs", () => {
         context(),
       ),
     ).rejects.toThrow(/requires a file path/);
-  });
-});
-
-describe("dependency invalidation", () => {
-  test("editing the repository invalidates the inferred commit identity", () => {
-    expect(invalidatedBy("repository")).toContain("commitAs");
-  });
-
-  test("editing the team invalidates the project and actor", () => {
-    expect(invalidatedBy("team")).toEqual(
-      expect.arrayContaining(["project", "actAs"]),
-    );
-  });
-
-  test("editing an action set invalidates nothing else", () => {
-    expect(invalidatedBy("actions")).toEqual([]);
   });
 });

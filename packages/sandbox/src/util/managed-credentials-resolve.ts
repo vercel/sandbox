@@ -453,47 +453,4 @@ export function parseActions(values: readonly string[]): GithubApiAction[] {
   return actions;
 }
 
-/** Fields a review correction may change, in dependency order. */
-export const EDITABLE_FIELDS = [
-  "team",
-  "project",
-  "repository",
-  "actions",
-  "commitAs",
-  "actAs",
-] as const;
-
-export type EditableField = (typeof EDITABLE_FIELDS)[number];
-
-/**
- * Fields whose inference depends on another field.
- *
- * Editing a team, project, repository, identity, or action set invalidates the
- * dependent inferences and the permission check, so the proposal is recomputed
- * before approval rather than patched in place.
- */
-export const FIELD_DEPENDENTS: Record<EditableField, readonly EditableField[]> =
-  {
-    team: ["project", "actAs"],
-    project: [],
-    repository: ["commitAs"],
-    actions: [],
-    commitAs: [],
-    actAs: ["commitAs"],
-  };
-
-/** Every field invalidated by editing `field`, including transitive ones. */
-export function invalidatedBy(field: EditableField): EditableField[] {
-  const seen = new Set<EditableField>();
-  const walk = (current: EditableField) => {
-    for (const dependent of FIELD_DEPENDENTS[current]) {
-      if (seen.has(dependent)) continue;
-      seen.add(dependent);
-      walk(dependent);
-    }
-  };
-  walk(field);
-  return [...seen];
-}
-
 export type { ConfigOrigin };

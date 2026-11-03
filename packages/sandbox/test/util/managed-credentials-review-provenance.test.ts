@@ -94,20 +94,26 @@ describe("complete review provenance", () => {
     );
   });
 
-  test("attributes corrections to review edits rather than command-line flags", () => {
-    const proposal = {
-      ...input(),
-      edited: ["repository", "actions", "actAs", "commitAs"] as const,
-    };
-    const rows = buildReview(proposal);
-    for (const label of [
-      "Source",
-      "Access acme/widgets",
-      "API actor",
-      "Commit credit",
+  test("attributes a corrected invocation to its explicit flags", () => {
+    const proposal = input();
+    const rows = buildReview({
+      ...proposal,
+      provenance: {
+        ...proposal.provenance,
+        repository: "explicit",
+        actor: "explicit",
+        actions: "explicit",
+        commitAs: "explicit",
+      },
+    });
+    for (const [label, flag] of [
+      ["Source", "--credentials-github-repo"],
+      ["Access acme/widgets", "--credentials-github-action"],
+      ["API actor", "--credentials-github-act-as"],
+      ["Commit credit", "--credentials-github-commit-as"],
     ])
-      expect(rows.find((row) => row.label === label)?.note).toContain(
-        "edited during review",
+      expect(rows.find((row) => row.label === label)?.note).toBe(
+        `from ${flag}`,
       );
   });
 

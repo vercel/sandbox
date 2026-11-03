@@ -21,7 +21,7 @@ without changing these flags.
 - [GitHub access presets](#github-access-presets)
 - [How a request is assembled](#how-a-request-is-assembled)
 - [Inference](#inference)
-- [Review, edit, approve](#review-edit-approve)
+- [Review and approve](#review-and-approve)
 - [Git access and commit credit](#git-access-and-commit-credit)
 - [Configuration files](#configuration-files)
 - [Reusing a configuration](#reusing-a-configuration)
@@ -91,41 +91,36 @@ Do not combine `--github-access` with `--credentials-github-action`,
 configuration instead. Conflicts are rejected before authentication or file
 input.
 
-If you edit the API actions during review, the CLI preserves the selected Git
-access and replaces the preset with explicit actions. Rejected commands use the
-resolved permissions, not the compact preset, so editing the command does not
-add defaults.
+To change API actions, reject the proposal and edit the printed command. Rejected
+commands expand presets into explicit permissions and preserve the selected Git
+access. Running the printed command does not add inferred defaults.
 
 ## How a request is assembled
 
-```
-                 ┌──────────────────────────┐
-  flags ────────▶│                          │
-                 │        inference         │──▶ proposed configuration
-  local git ────▶│  (repo, commitAs, actor) │              │
-  gh / Vercel ──▶│                          │              │
-                 └──────────────────────────┘              │
-                                                            ▼
-  --credentials-github-from-config-file ──┐              ┌──────────────────┐
-                                   ├────────────▶ │  review screen   │
-  --credentials-github-from-sandbox ──────┘              │ Create/Edit/Cancel│
-     (explicit: no defaults added)                └──────────────────┘
-                                                      │         │
-                                            edit ◀────┘         ▼ create
-                                       (re-infer and             │
-                                        re-check policy)         ▼
-                                                        ┌──────────────────┐
-                                                        │  Sandbox.create  │
-                                                        └──────────────────┘
-                                                                 │
-                                                                 ▼
-                                   --credentials-github-persist-configuration
-                                        writes the configuration as JSON
+```text
+flags / Git / gh / Vercel account
+             |
+             v
+     complete proposal <--- configuration file or copied Sandbox
+             |
+             v
+    Create this sandbox? (y/n)
+         |              |
+         n              y
+         |              |
+ print explicit      check project Bounds
+ flags and exit      (ask again if none)
+                        |
+                        v
+                  Sandbox.create
+                        |
+                        v
+              optional configuration save
 ```
 
-Editing any value re-runs the inference that depended on it and recomputes the
-permission check, so an approval always refers to what will actually be
-created.
+Rejecting a proposal prints the exact explicit-flags command. Edit that command
+and run it again to preview a new proposal. There is no interactive editing menu.
+Approval refers only to the proposal shown by that invocation.
 
 ## Inference
 
@@ -176,13 +171,13 @@ Commit credit and the API actor are separate fields, shown separately in the
 review. Git `user.name` and `user.email` are caller-supplied metadata — not
 proof of GitHub identity, and not proof of permission.
 
-## Review, edit, approve
+## Review and approve
 
 The review uses three columns: the setting, its value, and where the value came
 from. Every field has a source, including the team, project, API permissions,
 API actor, Git access, commit credit, and resource allocation. Sources identify
-explicit flags, linked configuration, token claims, account defaults, or review
-edits. Long values wrap within their column without hiding requested rights.
+explicit flags, linked configuration, token claims, account defaults, or imported
+configuration. Long values wrap within their column without hiding requested rights.
 
 Each repository's API access has one actor row with a GitHub username. The request
 still uses its original authorization selector, including a numeric ID when available.
@@ -191,13 +186,15 @@ If a numeric selector has no matching username metadata, the review shows
 ID as a username. Configuration input sources appear in the source column rather
 than as a separate Sandbox setting.
 
-Answer `c` to create, `e` to correct a value, or anything else to cancel.
-Cancelling happens before any sandbox, grant, policy change, or local file is
-written. An empty answer cancels.
+The creation prompt is:
 
-Correctable values: team, project, repository, actions, commit credit, and API
-actor. Correcting the team discards a project that was linked for the previous
-team.
+```text
+Create this sandbox? (y/n)
+```
+
+Answer `y` or `yes` to approve. Answer `n`, press Enter, or give another answer to
+cancel. Cancellation prints the full explicit-flags command and exits 130 before
+Sandbox creation. To change a value, edit that command and run it again.
 
 ### Confirm a project with no Bounds
 
@@ -231,8 +228,8 @@ backend change that treats no Bounds as no project-wide limit is separate.
 ### Reject and correct the command
 
 If you reject a complete proposal, the CLI prints its full explicit-flags command
-to stderr. Edit that command and run it again. The command uses the latest
-reviewed values, including any corrections, rather than the original guesses.
+to stderr. Edit that command and run it again. The command uses the exact
+reviewed values rather than repeating the original guesses.
 
 For example, rejecting an inferred proposal can print:
 
@@ -265,8 +262,7 @@ available for other inputs. It does not read permissions from the original
 configuration file or Sandbox again.
 
 In JSON mode, a consent-required error includes the command in `data.command`.
-No extra plain text is added to JSON output. If a corrected team still needs a
-project, the CLI does not print an incomplete command.
+No extra plain text is added to JSON output. The command retains the reviewed team and project.
 
 ## Git access and commit credit
 

@@ -10,11 +10,7 @@ import {
   describeMissingBounds,
   type MissingBound,
 } from "./managed-credentials-bounds";
-import type {
-  ConfigProvenance,
-  EditableField,
-} from "./managed-credentials-resolve";
-import { EDITABLE_FIELDS } from "./managed-credentials-resolve";
+import type { ConfigProvenance } from "./managed-credentials-resolve";
 import type { InferredActor } from "./managed-credentials-identity";
 
 /** Strip control and bidirectional characters before display. */
@@ -26,7 +22,6 @@ export interface ReviewInput {
   originLabel: string;
   provenance: ConfigProvenance;
   actor?: InferredActor;
-  edited?: readonly EditableField[];
   team: string;
   project: string;
   sandboxName?: string;
@@ -52,10 +47,7 @@ export interface ReviewRow {
  */
 export function buildReview(input: ReviewInput): ReviewRow[] {
   const { config, provenance } = input;
-  const edited = new Set(input.edited);
   const origin = `from ${safeText(input.originLabel || "the resolved configuration")}`;
-  const source = (field: EditableField, inferred: string) =>
-    edited.has(field) ? "edited during review" : inferred;
   const rows: ReviewRow[] = [
     {
       label: "Team",
@@ -79,16 +71,13 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       value: config.source
         ? safeText(config.source.repo)
         : "none (no repository cloned)",
-      note: source(
-        "repository",
-        !config.source
-          ? "no clone requested"
-          : provenance.repository === "git-remote"
-            ? "inferred from the local Git remote"
-            : provenance.repository === "explicit"
-              ? "from --credentials-github-repo"
-              : origin,
-      ),
+      note: !config.source
+        ? "no clone requested"
+        : provenance.repository === "git-remote"
+          ? "inferred from the local Git remote"
+          : provenance.repository === "explicit"
+            ? "from --credentials-github-repo"
+            : origin,
     },
   ];
   if (config.source?.revision)
@@ -122,12 +111,9 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     rows.push({
       label: `Access ${safeText(group.repo)}`,
       value: api.length ? api.join(", ") : "no GitHub API actions",
-      note: source(
-        "actions",
-        api.length
-          ? actionSource
-          : `${origin}; explicitly empty; defaults are not added`,
-      ),
+      note: api.length
+        ? actionSource
+        : `${origin}; explicitly empty; defaults are not added`,
     });
     if (api.length) {
       actorRows++;
@@ -137,12 +123,10 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
             ? "API actor"
             : `API actor ${safeText(group.repo)}`,
         value: displayActor(group.actAs, input.actor),
-        note: source(
-          "actAs",
+        note:
           group.actAs === undefined
             ? `backend default; no actor set in ${safeText(input.originLabel)}`
             : actorSource,
-        ),
       });
     }
   }
@@ -192,7 +176,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       ? `${safeText(config.commitAs.name)} <${safeText(config.commitAs.email)}>`
       : "none",
     note:
-      source("commitAs", creditSource) +
+      creditSource +
       (hasInertCommitAs(config) ? "; no effect without Git write access" : ""),
   });
   rows.push({
@@ -293,73 +277,15 @@ function wrapReviewCell(text: string, width: number): string[] {
   return lines;
 }
 
-export type ReviewDecision =
-  | { action: "create" }
-  | { action: "cancel" }
-  | { action: "edit"; field: EditableField };
+export type ReviewDecision = { action: "create" } | { action: "cancel" };
 
-const FIELD_PROMPTS: Record<EditableField, string> = {
-  team: "team",
-  project: "project",
-  repository: "repository",
-  actions: "GitHub API actions",
-  commitAs: "commit credit",
-  actAs: "GitHub API actor",
-};
-
-/**
- * Ask the user to create, edit, or cancel.
- *
- * Cancellation happens before any write, and the default on an empty answer is
- * to cancel rather than to create.
- */
+/** Ask once. Anything other than y/yes cancels before creation. */
 export async function promptReviewDecision(options: {
-  /** Fields this proposal's origin allows correcting. */
-  editable?: readonly EditableField[];
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
 }): Promise<ReviewDecision> {
-  const answer = await question(
-    "Create this sandbox, edit a value, or cancel? (c/e/N) ",
-    options,
-  );
-  const normalized = answer.trim().toLowerCase();
-  if (/^(c|create|y|yes)$/.test(normalized)) return { action: "create" };
-  if (/^(e|edit)$/.test(normalized)) {
-    const field = await promptField(
-      options.editable ?? EDITABLE_FIELDS,
-      options,
-    );
-    return field ? { action: "edit", field } : { action: "cancel" };
-  }
-  return { action: "cancel" };
-}
-
-async function promptField(
-  editable: readonly EditableField[],
-  options: {
-    input?: NodeJS.ReadableStream;
-    output?: NodeJS.WritableStream;
-  },
-): Promise<EditableField | undefined> {
-  const list = editable
-    .map((field, index) => `    ${index + 1}. ${FIELD_PROMPTS[field]}`)
-    .join("\n");
-  const answer = await question(
-    `  Which value?\n${list}\n  Enter a number or name: `,
-    options,
-  );
-  const normalized = answer.trim().toLowerCase();
-  if (!normalized) return undefined;
-  const byIndex = Number(normalized);
-  if (Number.isInteger(byIndex) && byIndex >= 1 && byIndex <= editable.length) {
-    return editable[byIndex - 1];
-  }
-  return editable.find(
-    (field) =>
-      field.toLowerCase() === normalized ||
-      FIELD_PROMPTS[field].toLowerCase() === normalized,
-  );
+  const answer = await question("Create this sandbox? (y/n) ", options);
+  return { action: /^(y|yes)$/i.test(answer.trim()) ? "create" : "cancel" };
 }
 
 /** Ask one free-text question, cancelling on EOF or SIGINT. */
