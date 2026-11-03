@@ -11,13 +11,13 @@ Read-only clones require API support for `source.credentials: "read"`.
 Configuration reuse requires the API to return the original request metadata.
 This CLI change does not deploy either backend contract.
 
-Only GitHub is supported today. The `--credentials-*` naming is deliberately
-forge-neutral so NPM, AI Gateway, and Linear credentials can join the same
-prefix later.
+Use `--npm-credentials` for private npm packages. Use the `--credentials-*`
+flags below for Git and GitHub access. You can combine them.
 
 ## Contents
 
 - [Quick start](#quick-start)
+- [Install private npm packages](#install-private-npm-packages)
 - [How a request is assembled](#how-a-request-is-assembled)
 - [Inference](#inference)
 - [Review, edit, approve](#review-edit-approve)
@@ -44,6 +44,52 @@ whole proposal and asks once before creating anything.
 
 A bare `vercel sandbox create` is unchanged. Running inside a Git repository is
 never on its own a request for repository access.
+
+## Install private npm packages
+
+Add `--npm-credentials` when creating a sandbox to use your team's stored npm
+credentials. The flag takes no argument and sends `credentials: { npm: true }`
+to the Sandbox API. Credential values stay outside the sandbox.
+
+Your team must have `NPM_TOKEN` or `NPM_RC` configured as a Shared Environment
+Variable, and managed npm credentials must be enabled for the project. The
+CLI uses the selected team and project; it does not read a local npm token.
+
+```sh
+sandbox create --npm-credentials --name private-packages
+```
+
+Review and approve the request. You can then copy your project into the
+sandbox and run `npm install`. The flag configures access; it does not copy
+local files or install dependencies.
+
+To open a shell in a new sandbox with this access:
+
+```sh
+sandbox sh --npm-credentials
+```
+
+For `sandbox run`, pass the flag before `--`. Replace `@acme/private-package`
+with a private package your team's credentials can read:
+
+```sh
+sandbox run --npm-credentials --yes -- npm install @acme/private-package
+```
+
+npm-only requests do not require a Git repository, `gh`, or a GitHub identity.
+To request both npm and inferred GitHub access, pass `--npm-credentials` and
+`--enable-managed-credentials`. The latter continues to select only GitHub
+access on its own.
+
+For scripts, add `--yes` to approve the request. To inspect the configuration
+without creating a sandbox, use `sandbox create --npm-credentials --dry-run`.
+If credentials are missing, configure `NPM_TOKEN` or `NPM_RC` for the selected
+team and retry. Project feature availability is checked by the API.
+
+Configuration files can use `{ "credentials": { "npm": true } }`. When using
+`--credentials-from-config-file` or `--credentials-from-sandbox`, specify npm
+in that configuration instead of combining it with `--npm-credentials`.
+Configuration reuse requires the API to report npm in the saved request metadata.
 
 ## How a request is assembled
 
@@ -329,7 +375,7 @@ and permissions are rechecked for the new sandbox and target context.
 
 ## Resources
 
-Managed-credential creations default to **6 vCPUs**. This is a workaround, not
+Git/GitHub managed-credential creations default to **6 vCPUs**. This is a workaround, not
 a performance choice: that size does not come from the warm pool, and managed
 Git initialization currently fails on warm-pool instances. A default-capacity
 creation (`sandbox-2cpu-4gb`) failed to clone a private repository with
@@ -337,7 +383,7 @@ creation (`sandbox-2cpu-4gb`) failed to clone a private repository with
 successfully with a read-only Git grant.
 
 An explicit `--vcpus` takes precedence, and the review shows the effective
-allocation. Ordinary creation defaults are unchanged.
+allocation. npm-only requests use the ordinary creation defaults.
 
 ## Safety rules
 

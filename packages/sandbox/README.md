@@ -27,6 +27,17 @@ sandbox --help # View all commands
 
 Learn more about the CLI in the [documentation](https://vercel.com/docs/vercel-sandbox/cli-reference).
 
+### Install private npm packages
+
+Use `sandbox create --npm-credentials` to give a new sandbox access to your
+team's private npm packages. The flag takes no argument. Your team must first
+configure `NPM_TOKEN` or `NPM_RC` as a Shared Environment Variable, and the
+project must have managed npm credentials enabled.
+
+The flag also works with `sandbox run` and `sandbox sh`. See
+[managed npm credentials](docs/managed-credentials.md#install-private-npm-packages)
+for setup and examples.
+
 ### Agents
 
 ```bash

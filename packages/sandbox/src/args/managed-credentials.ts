@@ -141,6 +141,12 @@ export function optionalValueFlag(config: {
  * says "github".
  */
 export const managedCredentialOptions = {
+  npmCredentials: cmd.flag({
+    long: "npm-credentials",
+    type: cmd.optional(cmd.boolean),
+    description:
+      "Use your team's stored npm credentials to install private packages. Credentials stay outside the sandbox. (experimental)",
+  }),
   enableManagedCredentials: cmd.flag({
     long: "enable-managed-credentials",
     type: cmd.optional(cmd.boolean),

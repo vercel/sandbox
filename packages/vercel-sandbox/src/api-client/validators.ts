@@ -148,13 +148,16 @@ export const ManagedCredentialsResponseValidator = z.object({
   commitAs: z.object({ name: z.string(), email: z.string() }).optional(),
   credentials: z
     .object({
-      github: z.array(
-        z.object({
-          repositories: z.array(z.string()),
-          actions: z.array(z.string()),
-          actAs: z.union([z.string(), z.number()]).optional(),
-        }),
-      ),
+      npm: z.literal(true).optional(),
+      github: z
+        .array(
+          z.object({
+            repositories: z.array(z.string()),
+            actions: z.array(z.string()),
+            actAs: z.union([z.string(), z.number()]).optional(),
+          }),
+        )
+        .optional(),
     })
     .optional(),
 });

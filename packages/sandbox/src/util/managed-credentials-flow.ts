@@ -50,7 +50,7 @@ export interface FlowContext {
   team: string;
   project: string;
   sandboxName?: string;
-  vcpus: number;
+  vcpus?: number;
   vcpusExplicit: boolean;
   interactive: boolean;
   json: boolean;
@@ -219,7 +219,8 @@ export async function runManagedCredentialsFlow(options: {
     // input combination that is rejected outright, so only the scope is
     // correctable for those origins.
     const editable: readonly EditableField[] =
-      resolved.origin === "flags"
+      resolved.origin === "flags" &&
+      (resolved.config.source || resolved.config.credentials.github.length > 0)
         ? EDITABLE_FIELDS
         : (["team", "project"] as const);
 

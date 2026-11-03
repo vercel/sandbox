@@ -29,7 +29,8 @@ export interface ManagedCredentialsTransport {
   };
   commitAs?: { name: string; email: string };
   credentials?: {
-    github: {
+    npm?: true;
+    github?: {
       repositories: string[];
       actions: GithubApiAction[];
       actAs?: string;
@@ -99,7 +100,11 @@ export function toTransport(
     transport.commitAs = config.commitAs;
   }
 
-  transport.credentials = { github: toApiGroups(config) };
+  const github = toApiGroups(config);
+  transport.credentials = {
+    ...(config.credentials.npm ? { npm: true as const } : {}),
+    ...(!config.credentials.npm || github.length > 0 ? { github } : {}),
+  };
   return transport;
 }
 

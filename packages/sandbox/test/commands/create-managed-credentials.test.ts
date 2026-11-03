@@ -128,6 +128,164 @@ describe("create with managed credentials", () => {
     });
   });
 
+  describe("npm credentials", () => {
+    test("creates with a bare npm flag without Git inference or resource overrides", async () => {
+      mockInferRepository.mockResolvedValue(undefined);
+      mockInferActor.mockResolvedValue(undefined);
+      mockInferCommitIdentity.mockResolvedValue(undefined);
+      await createWith(["--npm-credentials", "--yes", "--silent"]);
+      const params = mockCreate.mock.calls[0][0];
+      expect(params.credentials).toEqual({ npm: true });
+      expect(params.source).toBeUndefined();
+      expect(params.commitAs).toBeUndefined();
+      expect(params.resources).toBeUndefined();
+      expect(mockInferRepository).not.toHaveBeenCalled();
+      expect(mockInferActor).not.toHaveBeenCalled();
+      expect(mockInferCommitIdentity).not.toHaveBeenCalled();
+      expect(errText()).toContain("npm credentials");
+      expect(errText()).toContain("private packages");
+    });
+
+    test("combines npm with explicit GitHub access", async () => {
+      await createWith([
+        "--npm-credentials",
+        "--credentials-repo=vercel/api",
+        "--yes",
+        "--silent",
+      ]);
+      expect(mockCreate.mock.calls[0][0]).toMatchObject({
+        credentials: { npm: true, github: [{ repositories: ["vercel/api"] }] },
+        resources: { vcpus: 6 },
+      });
+    });
+
+    test("keeps npm explicit and honors an explicit resource choice", async () => {
+      await createWith(["--npm-credentials", "--vcpus=4", "--yes", "--silent"]);
+      expect(mockCreate.mock.calls[0][0].resources).toEqual({ vcpus: 4 });
+    });
+
+    test("explains missing team npm credentials without echoing the server response", async () => {
+      const { APIError } = await import("@vercel/sandbox");
+      const { StyledError } = await import("../../src/error");
+      mockCreate.mockRejectedValue(
+        new StyledError(
+          "server detail",
+          new APIError(new Response("", { status: 422 }), {
+            json: {
+              error: {
+                code: "npm_credentials_not_found",
+                message: "private response detail",
+              },
+            },
+          }),
+        ),
+      );
+      await expect(
+        createWith(["--npm-credentials", "--yes", "--json"]),
+      ).rejects.toMatchObject({
+        message:
+          "No npm credentials are configured for this team. Add NPM_TOKEN or NPM_RC as a Shared Environment Variable for the selected team, then retry.",
+        options: {
+          reason: "npm_credentials_not_found",
+          json: true,
+          userActionRequired: true,
+        },
+      });
+      expect(mockCreate).toHaveBeenCalledOnce();
+    });
+
+    test("requires consent before granting npm access", async () => {
+      await expect(
+        createWith(["--npm-credentials", "--non-interactive"]),
+      ).rejects.toMatchObject({ options: { reason: "confirmation_required" } });
+      expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    test("shows npm in dry-run JSON without creating a sandbox", async () => {
+      await createWith(["--npm-credentials", "--dry-run", "--json"]);
+      const result = JSON.parse(stdout.mock.calls.flat().join(""));
+      expect(result.managedCredentials.credentials.npm).toBe(true);
+      expect(result.resources).toBeUndefined();
+      expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    test("persists npm and replays the file without Git defaults", async () => {
+      const path = join(directory, "npm.json");
+      await createWith([
+        "--npm-credentials",
+        `--credentials-persist-configuration=${path}`,
+        "--yes",
+        "--silent",
+      ]);
+      expect(JSON.parse(await readFile(path, "utf8")).credentials.npm).toBe(
+        true,
+      );
+      mockCreate.mockClear();
+      await createWith([
+        `--credentials-from-config-file=${path}`,
+        "--yes",
+        "--silent",
+      ]);
+      expect(mockCreate.mock.calls[0][0].credentials).toEqual({ npm: true });
+      expect(mockInferRepository).not.toHaveBeenCalled();
+    });
+
+    test("does not merge the flag into an explicit configuration", async () => {
+      const path = join(directory, "npm.json");
+      await writeFile(path, JSON.stringify({ credentials: { npm: true } }));
+      await expect(
+        createWith([
+          "--npm-credentials",
+          `--credentials-from-config-file=${path}`,
+          "--yes",
+        ]),
+      ).rejects.toThrow("cannot be combined");
+      expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    test("passes npm credentials through an interactive sh", async () => {
+      const mode = await import("../../src/util/execution-mode");
+      vi.spyOn(mode, "resolveExecutionMode").mockResolvedValue({
+        interactive: true,
+        json: false,
+      });
+      const remove = vi.fn();
+      mockCreate.mockResolvedValue({
+        name: "npm-shell",
+        interactivePort: 8443,
+        routes: [],
+        delete: remove,
+        currentSession: () => ({ sessionId: "sbx_npm", status: "running" }),
+      });
+      const { sh } = await import("../../src/commands/sh");
+      await cmd.run(sh, [
+        "--scope=team",
+        "--project=project",
+        "--npm-credentials",
+        "--yes",
+        "--rm",
+      ]);
+      expect(mockCreate.mock.calls[0][0].credentials).toEqual({ npm: true });
+      expect(mockExec).toHaveBeenCalledOnce();
+      expect(remove).toHaveBeenCalledOnce();
+    });
+
+    test("passes npm credentials through run before running the command", async () => {
+      const { run } = await import("../../src/commands/run");
+      await cmd.run(run, [
+        "--scope=team",
+        "--project=project",
+        "--npm-credentials",
+        "--yes",
+        "--",
+        "npm",
+        "install",
+      ]);
+      expect(mockCreate.mock.calls[0][0].credentials).toEqual({ npm: true });
+      expect(mockExec).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("opt-in defaults", () => {
     test("sends the inferred source, identity, actions, and six vCPUs", async () => {
       await createWith(["--enable-managed-credentials", "--yes", "--silent"]);

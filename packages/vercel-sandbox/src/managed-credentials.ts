@@ -43,7 +43,9 @@ export interface ManagedCredentialOptions {
   commitAs?: { name: string; email: string };
   /** @hidden */
   credentials?: {
-    github: {
+    /** Use the team's NPM_TOKEN or NPM_RC Shared Environment Variables. */
+    npm?: true;
+    github?: {
       repositories: string[];
       actions: (typeof GITHUB_API_CREDENTIAL_ACTIONS)[number][];
       actAs?: string;
