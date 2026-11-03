@@ -17,7 +17,7 @@ export async function inferActor(options: {
     const parsed = githubActor.safeParse(options.explicit.trim());
     if (!parsed.success)
       throw new CliError(
-        "--credentials-act-as expects a GitHub username or numeric user ID.",
+        "--credentials-github-act-as expects a GitHub username or numeric user ID.",
       );
     return {
       actAs: parsed.data,

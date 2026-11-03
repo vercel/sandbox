@@ -357,7 +357,7 @@ describe("unbounded project confirmation", () => {
         }
       });
       const command =
-        "sandbox create --scope=jacks-projects --project=api --credentials-repo=vercel/api --credentials-actions=issues:read,git:write --credentials-act-as=@scubbo --credentials-commit-as='Jack Jackson <scubbojj@gmail.com>'";
+        "sandbox create --scope=jacks-projects --project=api --credentials-github-repo=vercel/api --credentials-github-actions=issues:read,git:write --credentials-github-act-as=@scubbo --credentials-github-commit-as='Jack Jackson <scubbojj@gmail.com>'";
       const renderCommand = vi.fn().mockReturnValue(command);
       const hasProjectBounds = vi.fn().mockResolvedValue(false);
       await expect(
@@ -507,7 +507,7 @@ describe("interactive review", () => {
       const chunks: string[] = [];
       output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
       const command =
-        "sandbox create --scope=team --project=project --credentials-repo=vercel/api";
+        "sandbox create --scope=team --project=project --credentials-github-repo=vercel/api";
       const renderCommand = vi.fn().mockReturnValue(command);
       await expect(
         runManagedCredentialsFlow({
@@ -543,7 +543,7 @@ describe("interactive review", () => {
     ]);
     const renderCommand = vi
       .fn()
-      .mockReturnValue("sandbox create --credentials-repo=acme/widgets");
+      .mockReturnValue("sandbox create --credentials-github-repo=acme/widgets");
     const reresolve = vi.fn().mockResolvedValue(resolved("acme/widgets"));
     await expect(
       runManagedCredentialsFlow({
@@ -573,7 +573,7 @@ describe("interactive review", () => {
       chunks.push(chunk.toString());
       if (chunk.toString().includes("(c/e/N)")) setImmediate(() => input.end());
     });
-    const command = "sandbox create --credentials-repo=vercel/api";
+    const command = "sandbox create --credentials-github-repo=vercel/api";
     await expect(
       runManagedCredentialsFlow({
         initial: resolved(),
@@ -611,7 +611,7 @@ describe("interactive review", () => {
     const output = new PassThrough();
     const chunks: string[] = [];
     output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
-    const command = "sandbox create --credentials-repo=vercel/api";
+    const command = "sandbox create --credentials-github-repo=vercel/api";
     await expect(
       runManagedCredentialsFlow({
         initial: resolved(),

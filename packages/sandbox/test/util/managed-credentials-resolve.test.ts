@@ -186,7 +186,7 @@ describe("inferred single-repository defaults", () => {
   });
 });
 
-describe("--credentials-no-write", () => {
+describe("--credentials-github-no-write", () => {
   test("downgrades Git write to read without touching API actions", async () => {
     const resolved = await resolveManagedCredentials(
       options({
@@ -234,7 +234,7 @@ describe("--credentials-no-write", () => {
         }),
         context(),
       ),
-    ).rejects.toThrow(/no effect with --credentials-no-write/);
+    ).rejects.toThrow(/no effect with --credentials-github-no-write/);
   });
 });
 
@@ -352,7 +352,7 @@ describe("identity resolution", () => {
   });
 });
 
-describe("--credentials-action validation", () => {
+describe("--credentials-github-action validation", () => {
   test("rejects comma-separated lists", () => {
     expect(() => parseActions(["issues:read,issues:comment"])).toThrow(
       /one action per flag/,
@@ -369,8 +369,10 @@ describe("--credentials-action validation", () => {
     expect(() => parseActions(["issues:delete"])).toThrow(/Unsupported/);
   });
 
-  test("points Git actions at --credentials-no-write", () => {
-    expect(() => parseActions(["git:read"])).toThrow(/--credentials-no-write/);
+  test("points Git actions at --credentials-github-no-write", () => {
+    expect(() => parseActions(["git:read"])).toThrow(
+      /--credentials-github-no-write/,
+    );
   });
 });
 
