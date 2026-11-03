@@ -56,13 +56,13 @@ const fs = require("node:fs");
 delete process.env.TMPDIR;
 (async () => {
   const args = process.argv.slice(1);
-  const configArg = args.find(arg => arg.startsWith("--credentials-from-config-file="));
-  const configPath = configArg?.slice("--credentials-from-config-file=".length);
+  const configArg = args.find(arg => arg.startsWith("--credentials-github-from-config-file="));
+  const configPath = configArg?.slice("--credentials-github-from-config-file=".length);
   let config, configMode, regularFile, networkPolicy;
   if (configPath && configPath !== "-") {
     require("tsx/cjs");
     const { readJsonPayload } = require(process.env.SANDBOX_RETRY_PAYLOAD_READER);
-    config = await readJsonPayload(configPath, "--credentials-from-config-file");
+    config = await readJsonPayload(configPath, "--credentials-github-from-config-file");
     const stat = fs.statSync(configPath);
     configMode = stat.mode & 511;
     regularFile = stat.isFile();
@@ -194,11 +194,11 @@ describe("captureRetryInvocation", () => {
         "request-header",
       ]);
       const flags = [...registration.forceOptionLongNames].filter(
-        (key) => !replaced.has(key) && !key.startsWith("credentials-"),
+        (key) => !replaced.has(key) && !key.startsWith("credentials-github-"),
       );
       const argv = flags.flatMap((key, i) => [
         `--${key}`,
-        `--credentials-repo=value-${i}`,
+        `--credentials-github-repo=value-${i}`,
       ]);
       const invocation = await capture([command, ...argv], {
         command,
@@ -418,7 +418,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
           "console.log(1)",
         ],
       });
-      expect(command).not.toContain("--credentials-from-config-file=-");
+      expect(command).not.toContain("--credentials-github-from-config-file=-");
       const policy = { allow: ["example.com"] };
       const replayed = replay(command, {}, shell, JSON.stringify(policy));
       expect(replayed.config).toEqual(config);
@@ -479,11 +479,11 @@ describe("renderManagedCredentialsRetryCommand", () => {
       "--scope=team_corrected",
       "--project=prj_corrected",
       "--vcpus=4",
-      "--credentials-repo=acme/widgets",
-      "--credentials-action=github:issues:read",
-      "--credentials-action=github:pull-request:create",
-      "--credentials-act-as=12345",
-      "--credentials-commit-as=Jack O'Neil <jack@example.com>",
+      "--credentials-github-repo=acme/widgets",
+      "--credentials-github-action=github:issues:read",
+      "--credentials-github-action=github:pull-request:create",
+      "--credentials-github-act-as=12345",
+      "--credentials-github-commit-as=Jack O'Neil <jack@example.com>",
     ]);
     expect(input).toBe("");
     expect(command).not.toContain("--yes");
@@ -517,10 +517,12 @@ describe("renderManagedCredentialsRetryCommand", () => {
       }
       const replayed = replay(render(config));
       expect(replayed.input).toBe("");
-      expect(replayed.args).toContain(`--credentials-act-as=${actAs}`);
-      expect(replayed.args).not.toContain("--credentials-from-config-file=-");
+      expect(replayed.args).toContain(`--credentials-github-act-as=${actAs}`);
+      expect(replayed.args).not.toContain(
+        "--credentials-github-from-config-file=-",
+      );
       const args = replayed.args.filter((arg) =>
-        arg.startsWith("--credentials-"),
+        arg.startsWith("--credentials-github-"),
       );
       const parser = cmd.command({
         name: "create",
@@ -553,12 +555,12 @@ describe("renderManagedCredentialsRetryCommand", () => {
     delete config.commitAs;
     config.credentials.github[0].actions = ["git:read", "github:issues:read"];
     const { args } = replay(render(config));
-    expect(args).toContain("--credentials-no-write");
-    expect(args).toContain("--credentials-action=github:issues:read");
-    expect(args.some((arg) => arg.startsWith("--credentials-commit-as"))).toBe(
-      false,
-    );
-    expect(args).not.toContain("--credentials-from-config-file=-");
+    expect(args).toContain("--credentials-github-no-write");
+    expect(args).toContain("--credentials-github-action=github:issues:read");
+    expect(
+      args.some((arg) => arg.startsWith("--credentials-github-commit-as")),
+    ).toBe(false);
+    expect(args).not.toContain("--credentials-github-from-config-file=-");
   });
 
   test("replaces old managed/context flags, preserves unrelated flags and positional delimiters", () => {
@@ -573,17 +575,17 @@ describe("renderManagedCredentialsRetryCommand", () => {
         "--project=old-project",
         "--vcpus",
         "1",
-        "--credentials-repo=old/repo",
-        "--credentials-action",
+        "--credentials-github-repo=old/repo",
+        "--credentials-github-action",
         "issues:comment",
-        "--credentials-act-as=999",
-        "--credentials-commit-as",
+        "--credentials-github-act-as=999",
+        "--credentials-github-commit-as",
         "Old <old@example.com>",
-        "--credentials-no-write=false",
-        "--credentials-from-config-file",
+        "--credentials-github-no-write=false",
+        "--credentials-github-from-config-file",
         "mutable.json",
-        "--credentials-from-sandbox=sbx_old",
-        "--credentials-persist-configuration=out.json",
+        "--credentials-github-from-sandbox=sbx_old",
+        "--credentials-github-persist-configuration=out.json",
         "--yes",
         "-iy",
         "--yes=false",
@@ -597,7 +599,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
         "echo",
         "--yes",
         "--scope=child",
-        "--credentials-action=child",
+        "--credentials-github-action=child",
       ],
     };
     const before = structuredClone(invocation);
@@ -609,9 +611,11 @@ describe("renderManagedCredentialsRetryCommand", () => {
       "echo",
       "--yes",
       "--scope=child",
-      "--credentials-action=child",
+      "--credentials-github-action=child",
     ]);
-    expect(args).toContain("--credentials-persist-configuration=out.json");
+    expect(args).toContain(
+      "--credentials-github-persist-configuration=out.json",
+    );
     expect(args).toContain("-i");
     expect(args).toContain("keep name");
     expect(args).toContain("--timeout=5m");
@@ -664,7 +668,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
       "-abc=x",
       "--",
       "",
-      "--credentials-no-write",
+      "--credentials-github-no-write",
     ];
     expect(
       replay(
@@ -675,9 +679,9 @@ describe("renderManagedCredentialsRetryCommand", () => {
 
   test.each([
     ["--workdir", "--scope=directory-name"],
-    ["--mount", "--credentials-repo=drive:/data"],
+    ["--mount", "--credentials-github-repo=drive:/data"],
     ["--name", "--yes"],
-    ["--tag", "--credentials-action=tag-value"],
+    ["--tag", "--credentials-github-action=tag-value"],
   ])(
     "keeps the option-looking value attached to the actual CLI option %s",
     (flag, value) => {
@@ -876,7 +880,11 @@ describe("renderManagedCredentialsRetryCommand", () => {
       const command = render(config, {
         appName: "sandbox",
         command: "sh",
-        args: ["--credentials-from-sandbox=sbx_mutable", "--yes", "--rm"],
+        args: [
+          "--credentials-github-from-sandbox=sbx_mutable",
+          "--yes",
+          "--rm",
+        ],
       });
       const replayed = replay(command);
       expect(replayed.args).toEqual([
@@ -884,7 +892,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
         "--scope=team_corrected",
         "--project=prj_corrected",
         "--vcpus=4",
-        `--credentials-from-config-file=${replayed.configPath}`,
+        `--credentials-github-from-config-file=${replayed.configPath}`,
         "--rm",
       ]);
       expect(replayed.config).toEqual(config);
@@ -892,7 +900,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
       expect(replayed.configMode).toBe(0o600);
       expect(replayed.input).toBe("");
       expect(command).not.toContain("sbx_mutable");
-      expect(command).not.toContain("--credentials-action");
+      expect(command).not.toContain("--credentials-github-action");
       expect(command).not.toContain("--yes");
       expect(config).toEqual(before);
     },

@@ -7,11 +7,11 @@ import {
 } from "./managed-credentials-config";
 
 /**
- * Resolve where `--credentials-persist-configuration` should write.
+ * Resolve where `--credentials-github-persist-configuration` should write.
  *
  * With no path, the file is `$PWD/<sbx_id>-credentials.json`, where `<sbx_id>`
  * is the `sbx_*` session identifier the creation response returned — the same
- * identifier `--credentials-from-sandbox` accepts. A relative explicit path is
+ * identifier `--credentials-github-from-sandbox` accepts. A relative explicit path is
  * resolved against the working directory.
  */
 export function resolvePersistPath(options: {
@@ -23,7 +23,7 @@ export function resolvePersistPath(options: {
   if (options.requested === "") {
     if (!/^sbx_[A-Za-z0-9]+$/.test(options.sandboxId)) {
       throw new CliError(
-        "Can't name the configuration file: the creation response did not include an sbx_* identifier. Re-run with an explicit --credentials-persist-configuration PATH.",
+        "Can't name the configuration file: the creation response did not include an sbx_* identifier. Re-run with an explicit --credentials-github-persist-configuration PATH.",
         { reason: "persist_failed" },
       );
     }
@@ -34,7 +34,7 @@ export function resolvePersistPath(options: {
   // write fail with a confusing EISDIR rather than a clear message.
   if (/[\\/]$/.test(options.requested)) {
     throw new CliError(
-      "--credentials-persist-configuration expects a file path, not a directory.",
+      "--credentials-github-persist-configuration expects a file path, not a directory.",
       { reason: "persist_failed" },
     );
   }
@@ -50,7 +50,7 @@ export interface PersistResult {
 
 /**
  * Write the configuration so it round-trips through
- * `--credentials-from-config-file`.
+ * `--credentials-github-from-config-file`.
  *
  * Uses an exclusive create so an existing file is never silently overwritten;
  * the user is told the path and asked to move it or choose another. Failures
@@ -73,7 +73,7 @@ export async function persistConfiguration(options: {
     const code = (error as NodeJS.ErrnoException | undefined)?.code;
     if (code === "EEXIST") {
       throw new CliError(
-        `Can't write the configuration: ${options.path} already exists. Move it or pass a different --credentials-persist-configuration path.`,
+        `Can't write the configuration: ${options.path} already exists. Move it or pass a different --credentials-github-persist-configuration path.`,
         { reason: "persist_failed", data: { path: options.path } },
       );
     }
