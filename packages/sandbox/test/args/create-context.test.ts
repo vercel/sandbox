@@ -78,10 +78,10 @@ test.each(["sandbox", "vercel sandbox"])(
       "--scope=team",
       "--project=project",
       "--json",
-      "--credentials-repo=acme/widgets",
-      "--credentials-action=issues:read",
-      "--credentials-commit-as=Grace Hopper <grace@example.com>",
-      "--credentials-act-as=42",
+      "--credentials-github-repo=acme/widgets",
+      "--credentials-github-action=issues:read",
+      "--credentials-github-commit-as=Grace Hopper <grace@example.com>",
+      "--credentials-github-act-as=42",
       "--token=secret-test-token",
     ]);
     if (!context)
@@ -99,11 +99,13 @@ test.each(["sandbox", "vercel sandbox"])(
       expect(command).toContain("--scope=team");
       expect(command).toContain("--project=project");
       expect(command).toContain("--vcpus=8");
-      expect(command).toContain("--credentials-repo=acme/widgets");
-      expect(command).toContain("--credentials-action=github:issues:read");
-      expect(command).toContain("--credentials-act-as=42");
+      expect(command).toContain("--credentials-github-repo=acme/widgets");
       expect(command).toContain(
-        "--credentials-commit-as=Grace Hopper <grace@example.com>",
+        "--credentials-github-action=github:issues:read",
+      );
+      expect(command).toContain("--credentials-github-act-as=42");
+      expect(command).toContain(
+        "--credentials-github-commit-as=Grace Hopper <grace@example.com>",
       );
       expect(command).not.toContain("secret-test-token");
       expect(command).not.toContain("--yes");
@@ -115,7 +117,7 @@ test.each(["sandbox", "vercel sandbox"])(
 test("invalid configuration is rejected before authentication", async () => {
   await expect(
     cmd.run(parser, [
-      "--credentials-from-config-file=/nonexistent/sandbox-config.json",
+      "--credentials-github-from-config-file=/nonexistent/sandbox-config.json",
     ]),
   ).rejects.toThrow("Can't read");
   expect(getVercelToken).not.toHaveBeenCalled();
