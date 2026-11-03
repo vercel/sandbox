@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { readProjectConfiguration } from "./project-configuration";
 import createDebugger from "debug";
+import type { AuthHeadersProvider } from "@vercel/sandbox";
 import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 
 const debug = createDebugger("sandbox:scope");
@@ -21,9 +22,11 @@ export type InferredScope = {
 
 export async function inferScope({
   token,
+  getAuthHeaders,
   team,
 }: {
   token: string;
+  getAuthHeaders?: AuthHeadersProvider;
   team?: string;
 }): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
@@ -45,7 +48,7 @@ export async function inferScope({
   }
 
   debug("trying to infer scope from API token", { team });
-  const fromToken = await inferFromToken(token, team);
+  const fromToken = await inferFromToken(token, getAuthHeaders, team);
   debug("Using scope from API token", fromToken);
   return fromToken;
 }
@@ -71,9 +74,14 @@ async function inferFromJwt(jwt: string) {
   return { _tag: "OIDC" as const, ...JwtSchema.parse(body) };
 }
 
-async function inferFromToken(token: string, requestedTeam?: string) {
+async function inferFromToken(
+  token: string,
+  getAuthHeaders: AuthHeadersProvider | undefined,
+  requestedTeam?: string,
+) {
   const { teamId, teamSlug, projectId, projectSlug } = await Auth.inferScope({
     token,
+    getAuthHeaders,
     teamId: requestedTeam,
   });
   return {

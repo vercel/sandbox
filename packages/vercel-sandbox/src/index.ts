@@ -30,6 +30,7 @@ export type {
 } from "./command.js";
 export { StreamError } from "./api-client/api-error.js";
 export { APIError } from "./api-client/api-error.js";
+export type { AuthHeadersProvider } from "./api-client/auth-headers.js";
 export { FileSystem } from "./filesystem.js";
 export { defineSandboxProxy } from "./proxy.js";
 export {

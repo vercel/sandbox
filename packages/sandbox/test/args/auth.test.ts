@@ -49,6 +49,41 @@ describe("token", () => {
     delete process.env.VERCEL_OIDC_TOKEN;
   });
 
+  describe("with getAuthHeaders from createApp", () => {
+    async function runWithProvider() {
+      const { setAuthHeadersProvider } = await import(
+        "../../src/auth-headers.ts"
+      );
+      setAuthHeadersProvider(() => ({ authorization: "DPoP vca_token" }));
+      const { token } = await import("../../src/args/auth.ts");
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+      return cmd.run(command, []);
+    }
+
+    test("resolves to no token, without looking one up", async () => {
+      process.env.VERCEL_OIDC_TOKEN = "existing-oidc-token";
+
+      const result = await runWithProvider();
+
+      expect(result.token).toBe("");
+      expect(mockGetVercelOidcToken).not.toHaveBeenCalled();
+      expect(mockGetVercelCliToken).not.toHaveBeenCalled();
+      expect(mockLogin).not.toHaveBeenCalled();
+    });
+
+    test("still uses VERCEL_AUTH_TOKEN when set", async () => {
+      process.env.VERCEL_AUTH_TOKEN = "env-auth-token";
+
+      const result = await runWithProvider();
+
+      expect(result.token).toBe("env-auth-token");
+    });
+  });
+
   describe("environment variable fallbacks", () => {
     test("uses VERCEL_AUTH_TOKEN when set", async () => {
       process.env.VERCEL_AUTH_TOKEN = "env-auth-token";

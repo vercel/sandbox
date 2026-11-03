@@ -2,6 +2,7 @@ import { token } from "./auth";
 import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import { inferScope } from "../util/infer-scope";
+import { authHeadersFor } from "../auth-headers";
 import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
@@ -109,6 +110,7 @@ export const scope: ArgParser<{
         const scope = await withFreshAuthRetry(() =>
           inferScope({
             token: t.value,
+            getAuthHeaders: authHeadersFor(t.value),
             team: teamId.value,
           }),
         );
