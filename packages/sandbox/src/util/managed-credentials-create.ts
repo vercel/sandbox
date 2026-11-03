@@ -13,6 +13,7 @@ import {
 import { loadConfigFromSandbox } from "./managed-credentials-reuse";
 import { fetchSandboxCredentialSnapshot } from "./managed-credentials-client";
 import { renderManagedCredentialsRetryCommand } from "./managed-credentials-retry-command";
+import { hasProjectBounds } from "./managed-credentials-project-bounds";
 import {
   toTransport,
   type ManagedCredentialsTransport,
@@ -79,6 +80,17 @@ export async function prepareManagedCredentials(options: {
       json: context.mode.json,
       yes: context.yes,
       dryRun: context.dryRun,
+      hasProjectBounds: ({ team, project }) => {
+        const originalTeam = team === context.team || team === context.teamSlug;
+        return hasProjectBounds({
+          token: context.token,
+          team: team === context.teamSlug ? context.team : team,
+          project:
+            originalTeam && project === context.projectSlug
+              ? context.project
+              : project,
+        });
+      },
       renderCommand: (proposal) =>
         renderManagedCredentialsRetryCommand({
           ...proposal,
