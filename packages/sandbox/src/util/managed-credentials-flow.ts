@@ -41,6 +41,12 @@ export interface FlowContext {
   readBounds?: (
     scope: Required<ScopeOverrides>,
   ) => Promise<BoundsLookup | undefined>;
+  /** Render the latest proposal as an editable command, without performing it. */
+  renderCommand?: (proposal: {
+    config: ManagedCredentialsConfig;
+    team: string;
+    project: string;
+  }) => string;
   team: string;
   project: string;
   sandboxName?: string;
@@ -96,6 +102,38 @@ export async function runManagedCredentialsFlow(options: {
   let scope: ScopeOverrides = {};
   let team = context.team;
   let project = context.project;
+
+  const recoveryCommand = () =>
+    scope.team !== undefined && scope.project === undefined
+      ? undefined
+      : context.renderCommand?.({ config: resolved.config, team, project });
+  const showRecoveryCommand = (command: string | undefined) => {
+    if (command && !context.json) {
+      write(`\n  Edit this command and run it again:\n\n${command}\n\n`);
+    }
+  };
+  const cancel = (): never => {
+    const command = recoveryCommand();
+    showRecoveryCommand(command);
+    throw new CliError("Sandbox creation canceled.", {
+      reason: "canceled",
+      exitCode: 130,
+      json: context.json,
+      ...(command ? { data: { command } } : {}),
+    });
+  };
+  const withCancellation = async <T>(
+    operation: () => Promise<T>,
+  ): Promise<T> => {
+    try {
+      return await operation();
+    } catch (error) {
+      if (error instanceof CliError && error.options.reason === "canceled") {
+        cancel();
+      }
+      throw error;
+    }
+  };
 
   for (;;) {
     const missingBounds =
@@ -153,6 +191,8 @@ export async function runManagedCredentialsFlow(options: {
     }
 
     if (!context.interactive) {
+      const command = recoveryCommand();
+      showRecoveryCommand(command);
       throw new CliError(
         missingBounds.length > 0
           ? "Creating this sandbox requests managed access and would raise the project-wide ceiling. Review the proposal and pass --yes only after approval."
@@ -165,6 +205,7 @@ export async function runManagedCredentialsFlow(options: {
             team,
             project,
             effects: rows.map((row) => `${row.label}: ${row.value}`),
+            ...(command ? { command } : {}),
             ...(missingBounds.length > 0
               ? { policyAdditions: missingBounds }
               : {}),
@@ -182,20 +223,16 @@ export async function runManagedCredentialsFlow(options: {
         ? EDITABLE_FIELDS
         : (["team", "project"] as const);
 
-    const decision: ReviewDecision = await promptReviewDecision({
-      editable,
-      ...(context.input ? { input: context.input } : {}),
-      ...(context.output ? { output: context.output } : {}),
-    });
+    const decision: ReviewDecision = await withCancellation(() =>
+      promptReviewDecision({
+        editable,
+        ...(context.input ? { input: context.input } : {}),
+        ...(context.output ? { output: context.output } : {}),
+      }),
+    );
 
-    if (decision.action === "cancel") {
-      // Cancelling happens before any Sandbox, Grant, policy change, or local
-      // file is written.
-      throw new CliError("Sandbox creation canceled.", {
-        reason: "canceled",
-        exitCode: 130,
-      });
-    }
+    // Rejection reports the proposal, but never approves or performs it.
+    if (decision.action === "cancel") return cancel();
 
     if (decision.action === "create") {
       if (scope.team !== undefined && scope.project === undefined) {
@@ -214,14 +251,16 @@ export async function runManagedCredentialsFlow(options: {
       };
     }
 
-    const applied = await applyEdit({
-      field: decision.field,
-      overrides,
-      scope,
-      write,
-      ...(context.input ? { input: context.input } : {}),
-      ...(context.output ? { output: context.output } : {}),
-    });
+    const applied = await withCancellation(() =>
+      applyEdit({
+        field: decision.field,
+        overrides,
+        scope,
+        write,
+        ...(context.input ? { input: context.input } : {}),
+        ...(context.output ? { output: context.output } : {}),
+      }),
+    );
     if (!applied) continue;
     ({ overrides, scope } = applied);
     team = scope.team ?? context.team;
