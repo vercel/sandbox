@@ -139,6 +139,46 @@ Correctable values: team, project, repository, actions, commit credit, and API
 actor. Correcting the team discards a project that was linked for the previous
 team.
 
+### Reject and correct the command
+
+If you reject a complete proposal, the CLI prints its full explicit-flags command
+to stderr. Edit that command and run it again. The command uses the latest
+reviewed values, including any corrections, rather than the original guesses.
+
+For example, rejecting an inferred proposal can print:
+
+```sh
+vercel sandbox create \
+  --scope=team_example \
+  --project=prj_example \
+  --vcpus=6 \
+  --credentials-repo=acme/widgets \
+  --credentials-action=github:issues:read \
+  --credentials-action=github:issues:comment \
+  --credentials-action=github:pull-request:create \
+  --credentials-act-as=42 \
+  '--credentials-commit-as=Grace Hopper <grace@example.com>'
+```
+
+The output preserves `create`, `run`, or `sh`, along with the original command
+arguments. It does not add `--yes`, so running it still requires approval.
+Rejection exits with code 130 and creates no sandbox, grant, policy change, or
+local file.
+
+Tokens, environment values, and request-header values use required environment
+variable placeholders instead of their original values. Set those variables
+before running the printed command. Do not paste secrets into shared logs.
+
+If direct flags cannot express the configuration, the output includes its
+resolved JSON and a temporary-file command. Only running that command creates the
+private temporary file. The command removes that file on exit and leaves stdin
+available for other inputs. It does not read permissions from the original
+configuration file or Sandbox again.
+
+In JSON mode, a consent-required error includes the command in `data.command`.
+No extra plain text is added to JSON output. If a corrected team still needs a
+project, the CLI does not print an incomplete command.
+
 ## Git access and commit credit
 
 Git permission is decided **independently** of the API action set:
