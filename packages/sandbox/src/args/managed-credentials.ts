@@ -58,7 +58,7 @@ const optionalString = (
  * a flag — which stops `--flag next-arg` from swallowing the next argument —
  * and reads the value only from the `--flag=VALUE` form. That is the usual
  * convention for optional-value flags (`git log --decorate[=short]`), and it
- * keeps `--credentials-persist-configuration` unambiguous when it is the last
+ * keeps `--credentials-github-persist-configuration` unambiguous when it is the last
  * argument on the line.
  *
  * Returns `undefined` when absent and `""` for the bare flag, so callers can
@@ -134,7 +134,7 @@ export function optionalValueFlag(config: {
 }
 
 /**
- * The `--credentials-*` option surface.
+ * The `--credentials-github-*` option surface.
  *
  * The naming stays forge-neutral on purpose: NPM, AI Gateway, and Linear
  * credentials are expected to join the same prefix later, so nothing here
@@ -148,46 +148,46 @@ export const managedCredentialOptions = {
       "Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental)",
   }),
   credentialsRepo: optionalString(
-    "credentials-repo",
+    "credentials-github-repo",
     "REPOSITORY",
     "GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental)",
   ),
   credentialsActions: cmd.multioption({
-    long: "credentials-action",
+    long: "credentials-github-action",
     type: cmd.array({ ...cmd.string, displayName: "ACTION" }),
     description: `GitHub API action to request. Repeat the flag to add actions; supplying any replaces the default set (issues:read, issues:comment, pull-request:create). Accepted: ${ACCEPTED_API_ACTION_NAMES.join(", ")}. (experimental)`,
   }),
   credentialsCommitAs: optionalString(
-    "credentials-commit-as",
+    "credentials-github-commit-as",
     "IDENTITY",
     'Commit credit for managed Git pushes, as "Name <email>". Defaults to the effective local Git configuration. (experimental)',
   ),
   credentialsActAs: optionalString(
-    "credentials-act-as",
+    "credentials-github-act-as",
     "USER",
     "GitHub username or numeric user ID to act as for API requests. Defaults to the active gh account, then the GitHub account linked to Vercel. (experimental)",
   ),
   credentialsNoWrite: cmd.flag({
-    long: "credentials-no-write",
+    long: "credentials-github-no-write",
     type: cmd.optional(cmd.boolean),
     description:
       "Request a read-only clone (git:read) instead of Git write access. Leaves requested API actions unchanged. (experimental)",
   }),
   credentialsFromConfigFile: optionalString(
-    "credentials-from-config-file",
+    "credentials-github-from-config-file",
     "FILE",
     "Read a complete managed-credentials configuration from a JSON file; - reads stdin. Supports multiple repositories and identities. (experimental)",
   ),
   credentialsFromSandbox: optionalString(
-    "credentials-from-sandbox",
+    "credentials-github-from-sandbox",
     "SELECTOR",
     "Reuse the managed-credentials configuration of an existing sandbox, by name or sbx_* identifier. Copies configuration only, never approval. (experimental)",
   ),
   credentialsPersistConfiguration: optionalValueFlag({
-    long: "credentials-persist-configuration",
+    long: "credentials-github-persist-configuration",
     displayName: "FILE",
     description:
-      "After a successful creation, write the configuration as JSON for --credentials-from-config-file. Without =FILE, writes $PWD/<sbx_id>-credentials.json. (experimental)",
+      "After a successful creation, write the configuration as JSON for --credentials-github-from-config-file. Without =FILE, writes $PWD/<sbx_id>-credentials.json. (experimental)",
   }),
 };
 
