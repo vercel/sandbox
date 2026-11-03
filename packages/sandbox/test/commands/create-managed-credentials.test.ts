@@ -219,7 +219,7 @@ describe("create with managed credentials", () => {
 
     test("direct flags activate without a separate enable flag", async () => {
       await createWith([
-        "--credentials-action=issues:read",
+        "--credentials-github-action=issues:read",
         "--yes",
         "--silent",
       ]);
@@ -236,8 +236,8 @@ describe("create with managed credentials", () => {
 
     test("supplied actions replace the defaults", async () => {
       await createWith([
-        "--credentials-action=labels:read",
-        "--credentials-action=labels:write",
+        "--credentials-github-action=labels:read",
+        "--credentials-github-action=labels:write",
         "--yes",
         "--silent",
       ]);
@@ -248,7 +248,7 @@ describe("create with managed credentials", () => {
 
     test("Git write stays the default when actions are overridden", async () => {
       await createWith([
-        "--credentials-action=issues:read",
+        "--credentials-github-action=issues:read",
         "--yes",
         "--silent",
       ]);
@@ -258,7 +258,7 @@ describe("create with managed credentials", () => {
 
     test("an explicit commit identity overrides local Git configuration", async () => {
       await createWith([
-        "--credentials-commit-as=Jack Jackson <myotheremail@scubbo.org>",
+        "--credentials-github-commit-as=Jack Jackson <myotheremail@scubbo.org>",
         "--yes",
         "--silent",
       ]);
@@ -273,7 +273,11 @@ describe("create with managed credentials", () => {
         actAs: "123456",
         source: "explicit",
       });
-      await createWith(["--credentials-act-as=123456", "--yes", "--silent"]);
+      await createWith([
+        "--credentials-github-act-as=123456",
+        "--yes",
+        "--silent",
+      ]);
       expect(mockInferActor).toHaveBeenCalledWith(
         expect.objectContaining({ explicit: "123456" }),
       );
@@ -284,7 +288,7 @@ describe("create with managed credentials", () => {
 
     test("an explicit repository overrides the local remote", async () => {
       await createWith([
-        "--credentials-repo=acme/widgets",
+        "--credentials-github-repo=acme/widgets",
         "--yes",
         "--silent",
       ]);
@@ -295,11 +299,11 @@ describe("create with managed credentials", () => {
     });
   });
 
-  describe("--credentials-no-write", () => {
+  describe("--credentials-github-no-write", () => {
     test("requests a read-only clone and sends no commit metadata", async () => {
       await createWith([
         "--enable-managed-credentials",
-        "--credentials-no-write",
+        "--credentials-github-no-write",
         "--yes",
         "--silent",
       ]);
@@ -310,9 +314,9 @@ describe("create with managed credentials", () => {
 
     test("keeps requested API actions as writes", async () => {
       await createWith([
-        "--credentials-action=issues:comment",
-        "--credentials-action=pull-request:create",
-        "--credentials-no-write",
+        "--credentials-github-action=issues:comment",
+        "--credentials-github-action=pull-request:create",
+        "--credentials-github-no-write",
         "--yes",
         "--silent",
       ]);
@@ -387,7 +391,7 @@ describe("create with managed credentials", () => {
       });
 
       await createWith([
-        `--credentials-from-config-file=${path}`,
+        `--credentials-github-from-config-file=${path}`,
         "--yes",
         "--silent",
       ]);
@@ -418,7 +422,7 @@ describe("create with managed credentials", () => {
     test("an empty github array acquires no default actions", async () => {
       const path = await writeConfig({ credentials: { github: [] } });
       await createWith([
-        `--credentials-from-config-file=${path}`,
+        `--credentials-github-from-config-file=${path}`,
         "--yes",
         "--silent",
       ]);
@@ -429,7 +433,7 @@ describe("create with managed credentials", () => {
     test("does not consult local Git or gh for an explicit configuration", async () => {
       const path = await writeConfig({ credentials: { github: [] } });
       await createWith([
-        `--credentials-from-config-file=${path}`,
+        `--credentials-github-from-config-file=${path}`,
         "--yes",
         "--silent",
       ]);
@@ -441,8 +445,8 @@ describe("create with managed credentials", () => {
       const path = await writeConfig({ credentials: { github: [] } });
       await expect(
         createWith([
-          `--credentials-from-config-file=${path}`,
-          "--credentials-action=issues:read",
+          `--credentials-github-from-config-file=${path}`,
+          "--credentials-github-action=issues:read",
           "--yes",
         ]),
       ).rejects.toThrow(/cannot be combined with/);
@@ -453,7 +457,7 @@ describe("create with managed credentials", () => {
       const path = join(directory, "bad.json");
       await writeFile(path, "{ not json", "utf8");
       await expect(
-        createWith([`--credentials-from-config-file=${path}`, "--yes"]),
+        createWith([`--credentials-github-from-config-file=${path}`, "--yes"]),
       ).rejects.toThrow(/valid UTF-8 JSON/);
       expect(mockCreate).not.toHaveBeenCalled();
     });
@@ -486,7 +490,7 @@ describe("create with managed credentials", () => {
       });
 
       await createWith([
-        "--credentials-from-sandbox=sbx_132456789",
+        "--credentials-github-from-sandbox=sbx_132456789",
         "--yes",
         "--silent",
       ]);
@@ -512,7 +516,7 @@ describe("create with managed credentials", () => {
         }),
       });
       await createWith([
-        "--credentials-from-sandbox=my-sandbox",
+        "--credentials-github-from-sandbox=my-sandbox",
         "--yes",
         "--silent",
       ]);
@@ -526,7 +530,7 @@ describe("create with managed credentials", () => {
         currentSession: () => ({ sessionId: "sbx_source", status: "stopped" }),
       });
       await expect(
-        createWith(["--credentials-from-sandbox=plain", "--yes"]),
+        createWith(["--credentials-github-from-sandbox=plain", "--yes"]),
       ).rejects.toThrow(/does not report a managed-credentials configuration/);
       expect(mockCreate).not.toHaveBeenCalled();
     });
@@ -538,7 +542,7 @@ describe("create with managed credentials", () => {
       try {
         await createWith([
           "--enable-managed-credentials",
-          "--credentials-persist-configuration",
+          "--credentials-github-persist-configuration",
           "--yes",
           "--silent",
         ]);
@@ -574,7 +578,7 @@ describe("create with managed credentials", () => {
       const path = join(directory, "explicit.json");
       await createWith([
         "--enable-managed-credentials",
-        `--credentials-persist-configuration=${path}`,
+        `--credentials-github-persist-configuration=${path}`,
         "--yes",
         "--silent",
       ]);
@@ -587,7 +591,7 @@ describe("create with managed credentials", () => {
       const path = join(directory, "round-trip.json");
       await createWith([
         "--enable-managed-credentials",
-        `--credentials-persist-configuration=${path}`,
+        `--credentials-github-persist-configuration=${path}`,
         "--yes",
         "--silent",
       ]);
@@ -595,7 +599,7 @@ describe("create with managed credentials", () => {
 
       mockCreate.mockClear();
       await createWith([
-        `--credentials-from-config-file=${path}`,
+        `--credentials-github-from-config-file=${path}`,
         "--yes",
         "--silent",
       ]);
@@ -613,7 +617,7 @@ describe("create with managed credentials", () => {
       await expect(
         createWith([
           "--enable-managed-credentials",
-          `--credentials-persist-configuration=${path}`,
+          `--credentials-github-persist-configuration=${path}`,
           "--yes",
           "--silent",
         ]),
@@ -631,7 +635,7 @@ describe("create with managed credentials", () => {
       // Otherwise the command would succeed having written nothing.
       await expect(
         createWith([
-          `--credentials-persist-configuration=${join(directory, "x.json")}`,
+          `--credentials-github-persist-configuration=${join(directory, "x.json")}`,
           "--yes",
           "--silent",
         ]),
@@ -645,7 +649,7 @@ describe("create with managed credentials", () => {
       await expect(
         createWith([
           "--enable-managed-credentials",
-          "--credentials-persist-configuration",
+          "--credentials-github-persist-configuration",
           join(directory, "out.json"),
           "--yes",
         ]),
@@ -656,11 +660,11 @@ describe("create with managed credentials", () => {
     test("still reports a repeated option by name", async () => {
       await expect(
         createWith([
-          "--credentials-repo=acme/one",
-          "--credentials-repo=acme/two",
+          "--credentials-github-repo=acme/one",
+          "--credentials-github-repo=acme/two",
           "--yes",
         ]),
-      ).rejects.toThrow(/--credentials-repo/);
+      ).rejects.toThrow(/--credentials-github-repo/);
     });
 
     test("does not write a file when creation fails", async () => {
@@ -669,7 +673,7 @@ describe("create with managed credentials", () => {
       await expect(
         createWith([
           "--enable-managed-credentials",
-          `--credentials-persist-configuration=${path}`,
+          `--credentials-github-persist-configuration=${path}`,
           "--yes",
           "--silent",
         ]),
@@ -683,7 +687,7 @@ describe("create with managed credentials", () => {
       const path = join(directory, "dry.json");
       await createWith([
         "--enable-managed-credentials",
-        `--credentials-persist-configuration=${path}`,
+        `--credentials-github-persist-configuration=${path}`,
         "--dry-run",
         "--yes",
       ]);
@@ -759,7 +763,7 @@ describe("create with managed credentials", () => {
           "--project=project",
           "--rm",
           "--yes",
-          `--credentials-from-config-file=${path}`,
+          `--credentials-github-from-config-file=${path}`,
         ]),
       ).rejects.toThrow("interactive");
       expect(mockCreate).not.toHaveBeenCalled();

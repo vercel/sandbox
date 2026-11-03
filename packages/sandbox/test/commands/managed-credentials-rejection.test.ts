@@ -70,10 +70,10 @@ test.each(
       "--scope=team",
       "--project=project",
       "--token=secret-rejection-test-token",
-      "--credentials-repo=acme/widgets",
-      "--credentials-action=issues:read",
-      "--credentials-commit-as=Grace Hopper <grace@example.com>",
-      "--credentials-act-as=42",
+      "--credentials-github-repo=acme/widgets",
+      "--credentials-github-action=issues:read",
+      "--credentials-github-commit-as=Grace Hopper <grace@example.com>",
+      "--credentials-github-act-as=42",
       "--vcpus=8",
     ];
     if (name === "run") args.push("--", "node", "-e", "console.log('hello')");
@@ -92,9 +92,11 @@ test.each(
       expect(command).toContain("--scope=team");
       expect(command).toContain("--project=project");
       expect(command).toContain("--vcpus=8");
-      expect(command).toContain("--credentials-repo=acme/widgets");
-      expect(command).toContain("--credentials-action=github:issues:read");
-      expect(command).toContain("--credentials-act-as=42");
+      expect(command).toContain("--credentials-github-repo=acme/widgets");
+      expect(command).toContain(
+        "--credentials-github-action=github:issues:read",
+      );
+      expect(command).toContain("--credentials-github-act-as=42");
       expect(command).not.toContain("--yes");
       expect(command).not.toContain("secret-rejection-test-token");
       if (name === "run") {
