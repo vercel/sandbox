@@ -2,6 +2,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import type { CreateContext } from "../../src/args/create-context";
 import type { FlowContext } from "../../src/util/managed-credentials-flow";
 import { parseConfig } from "../../src/util/managed-credentials-config";
+import { CliError } from "../../src/util/cli-error";
 import { prepareManagedCredentials } from "../../src/util/managed-credentials-create";
 
 const { lookup, flow } = vi.hoisted(() => ({ lookup: vi.fn(), flow: vi.fn() }));
@@ -70,6 +71,32 @@ test.each([
       token: "existing-token",
       team: expectedTeam,
       project: expectedProject,
+    });
+  },
+);
+
+test.each([false, true])(
+  "policy errors retain the requested JSON mode: %s",
+  async (json) => {
+    lookup.mockRejectedValue(
+      new CliError("Project Bounds could not be read.", {
+        reason: "policy_unknown",
+        exitCode: 1,
+      }),
+    );
+    flow.mockImplementation(async (options: { context: FlowContext }) => {
+      await options.context.hasProjectBounds!({
+        team: "example",
+        project: "widgets",
+      });
+    });
+    const ctx = context();
+    ctx.mode = { interactive: false, json };
+    ctx.yes = true;
+    await expect(
+      prepareManagedCredentials({ context: ctx }),
+    ).rejects.toMatchObject({
+      options: { reason: "policy_unknown", exitCode: 1, json },
     });
   },
 );

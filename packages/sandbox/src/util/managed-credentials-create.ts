@@ -80,16 +80,26 @@ export async function prepareManagedCredentials(options: {
       json: context.mode.json,
       yes: context.yes,
       dryRun: context.dryRun,
-      hasProjectBounds: ({ team, project }) => {
+      hasProjectBounds: async ({ team, project }) => {
         const originalTeam = team === context.team || team === context.teamSlug;
-        return hasProjectBounds({
-          token: context.token,
-          team: team === context.teamSlug ? context.team : team,
-          project:
-            originalTeam && project === context.projectSlug
-              ? context.project
-              : project,
-        });
+        try {
+          return await hasProjectBounds({
+            token: context.token,
+            team: team === context.teamSlug ? context.team : team,
+            project:
+              originalTeam && project === context.projectSlug
+                ? context.project
+                : project,
+          });
+        } catch (error) {
+          if (error instanceof CliError) {
+            throw new CliError(error.message, {
+              ...error.options,
+              json: context.mode.json,
+            });
+          }
+          throw error;
+        }
       },
       renderCommand: (proposal) =>
         renderManagedCredentialsRetryCommand({
