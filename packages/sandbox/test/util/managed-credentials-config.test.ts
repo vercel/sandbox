@@ -43,7 +43,7 @@ describe("action names", () => {
     expect(canonicalAction("github:repo:admin")).toBeUndefined();
   });
 
-  test("does not advertise Git actions as --credentials-action values", () => {
+  test("does not advertise Git actions as --credentials-github-action values", () => {
     expect(ACCEPTED_API_ACTION_NAMES).not.toContain("git:write");
     expect(ACCEPTED_API_ACTION_NAMES).toContain("issues:read");
   });
