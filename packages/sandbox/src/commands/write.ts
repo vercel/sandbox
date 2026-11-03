@@ -15,8 +15,7 @@ const fileMode = cmd.extendType(cmd.string, {
 
 export const write = cmd.command({
   name: "write",
-  description:
-    "Write stdin to a file in a sandbox, replacing it if it exists.",
+  description: "Write stdin to a file in a sandbox, replacing it if it exists.",
   args: {
     file: cmd.positional({
       displayName: "name:path",

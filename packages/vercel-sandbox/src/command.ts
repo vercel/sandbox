@@ -121,12 +121,6 @@ export class Command {
   private stdinOffset: number | null = null;
 
   /**
-   * Set once a response lacks `bytesWritten`, meaning the sandbox predates
-   * stdin offsets and a request can't be safely resent.
-   */
-  private stdinOffsetsUnsupported = false;
-
-  /**
    * Set when the command was started with a `Readable` for stdin.
    * @internal
    */
@@ -454,10 +448,11 @@ export class Command {
             sessionId: this.sessionId,
             commandId: this.cmd.id,
             data,
-            offset: this.requestOffset(),
+            offset: this.stdinOffset ?? 0,
             abortSignal: opts?.abortSignal,
           });
-          this.confirmStdin(bytesWritten, data.length);
+          this.stdinOffset =
+            bytesWritten ?? (this.stdinOffset ?? 0) + data.length;
           sentChunks++;
         }
       } catch (err) {
@@ -485,7 +480,7 @@ export class Command {
       await client.writeCommandStdin({
         sessionId: this.sessionId,
         commandId: this.cmd.id,
-        offset: this.requestOffset(),
+        offset: this.stdinOffset ?? 0,
         close: true,
         abortSignal: opts?.abortSignal,
       });
@@ -499,21 +494,10 @@ export class Command {
       commandId: this.cmd.id,
       abortSignal,
     });
-    this.stdinOffsetsUnsupported = bytesWritten === undefined;
-    this.stdinOffset = bytesWritten ?? 0;
-  }
-
-  private requestOffset() {
-    return this.stdinOffsetsUnsupported ? undefined : (this.stdinOffset ?? 0);
-  }
-
-  private confirmStdin(bytesWritten: number | undefined, length: number) {
     if (bytesWritten === undefined) {
-      this.stdinOffsetsUnsupported = true;
-      this.stdinOffset = (this.stdinOffset ?? 0) + length;
-    } else {
-      this.stdinOffset = bytesWritten;
+      throw new Error("The API did not report the bytes written to stdin.");
     }
+    this.stdinOffset = bytesWritten;
   }
 
   private enqueueStdin(

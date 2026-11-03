@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.7.1
+sandbox 4.11.1
 
 ▲ sandbox [options] <command>
 
@@ -20,6 +20,11 @@ Commands:
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
     stop           <name> [...name]            Stop the current session of one or more sandboxes
+    extend         <name> <num UNIT>           Add time to a running session without changing its default timeout
+    commands                                   Inspect and control commands in a running sandbox session
+    domain         <name> <port>               Print the public domain for a port in a running sandbox
+    users                                      Create users and run commands as a user
+    groups                                     Create shared groups and manage membership
     rm | remove    <name> [...name]            Permanently remove one or more sandboxes
     run            <command> [...args]         Create and run a command in a sandbox
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
@@ -98,31 +103,49 @@ Create and run a command in a sandbox
 
 Options:
 
-    --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
-    --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
-    --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
-    --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
-    --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
-    --env <key=value>, -e=<key=value>          Environment variables to set for the command
-    --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
-    --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
-    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
-    --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
-    --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
-    --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"
+    --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
+    --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
+    --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
+    --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>                   Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>                       Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>                  Environment variables to set for the command
+    --tag <key=value>, -t=<key=value>                  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <drive:path[:mode]>                        Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
+    --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
+    --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
+    --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --delete-evicted-snapshots <true|false>            When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
+    --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
-    --workdir, -w <str>                        The working directory to run the command in [optional]
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
+    --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
+    --workdir, -w <str>                                The working directory to run the command in [optional]
 
 Flags:
 
@@ -160,30 +183,48 @@ Create a sandbox in the specified account and project.
 
 Options:
 
-    --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
-    --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
-    --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
-    --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
-    --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
-    --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
-    --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
-    --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
-    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
-    --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
-    --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
-    --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"
+    --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
+    --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
+    --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
+    --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>                   Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>                       Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>                  Default environment variables for sandbox commands
+    --tag <key=value>, -t=<key=value>                  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <drive:path[:mode]>                        Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
+    --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
+    --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
+    --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --delete-evicted-snapshots <true|false>            When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
+    --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
+    --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
 
 Flags:
 
@@ -200,7 +241,7 @@ Auth & Scope:
 
 Arguments:
 
-    [agent]  Open a coding agent in a new sandbox (opencode, claude, pi, codex) [optional]
+    [agent]  Open a coding agent in a new sandbox (opencode, claude, pi, codex, fx) [optional]
 
 Examples:
 
@@ -228,30 +269,48 @@ Create a sandbox and start an interactive shell
 
 Options:
 
-    --name <str>                               A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                        Deprecated. Use --image instead. [optional]
-    --image <str>                              A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
-    --timeout <num UNIT>                       The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
-    --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
-    --snapshot, -s <snapshot_id>               Start the sandbox from a snapshot ID [optional]
-    --env <key=value>, -e=<key=value>          Default environment variables for sandbox commands
-    --tag <key=value>, -t=<key=value>          Key-value tags to associate with the sandbox (e.g. --tag env=staging)
-    --mount <drive:path[:mode]>                Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
-    --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
-    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
-    --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
-    --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
-    --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"
+    --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
+    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
+    --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
+    --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
+    --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>                   Publish sandbox port(s) to DOMAIN.vercel.run
+    --snapshot, -s <snapshot_id>                       Start the sandbox from a snapshot ID [optional]
+    --env <key=value>, -e=<key=value>                  Default environment variables for sandbox commands
+    --tag <key=value>, -t=<key=value>                  Key-value tags to associate with the sandbox (e.g. --tag env=staging)
+    --mount <drive:path[:mode]>                        Attach a drive to the sandbox. Format: "drive:/path[:snapshot|read-write]".
+    --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
+    --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
+    --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --delete-evicted-snapshots <true|false>            When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
+    --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
+    --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
 
 Flags:
 
@@ -282,26 +341,44 @@ Arguments:
 
 Options:
 
-    --name <str>                               A user-chosen name for the forked sandbox. Must be unique per project. [optional]
-    --timeout <num UNIT>                       Override the maximum sandbox duration (inherited from source if omitted). Example: 5m, 30m [optional]
-    --vcpus <COUNT>                            Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
-    --publish-port <PORT>, -p=<PORT>           Publish sandbox port(s) to DOMAIN.vercel.run
-    --env <key=value>, -e=<key=value>          Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).
-    --tag <key=value>, -t=<key=value>          Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).
-    --region <REGION>                          Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
-    --failover-regions <REGION,...|none>       Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
-    --network-id <NETWORK_ID>                  Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
-    --snapshot-expiration <DURATION|none>      Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --keep-last-snapshots <COUNT>              Keep only the N most recent snapshots of this sandbox (1-10). [optional]
-    --keep-last-snapshots-for <DURATION|none>  Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
-    --delete-evicted-snapshots <true|false>    When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
-    --network-policy <MODE>                    Network policy mode: "allow-all" or "deny-all"
+    --name <str>                                       A user-chosen name for the forked sandbox. Must be unique per project. [optional]
+    --timeout <num UNIT>                               Override the maximum sandbox duration (inherited from source if omitted). Example: 5m, 30m [optional]
+    --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
+    --publish-port <PORT>, -p=<PORT>                   Publish sandbox port(s) to DOMAIN.vercel.run
+    --env <key=value>, -e=<key=value>                  Environment variables to set on the fork. When provided, fully replaces the env vars copied from the source (no per-key merge).
+    --tag <key=value>, -t=<key=value>                  Key-value tags to associate with the fork. When provided, fully replaces the tags copied from the source (no per-key merge).
+    --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
+    --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
+    --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
+    --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
+    --delete-evicted-snapshots <true|false>            When "true" (the default), evicted snapshots are deleted immediately; when "false", they keep the default expiration. [optional]
+    --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
       - allow-all: sandbox can access any website/domain
       - deny-all: sandbox has no network access
-    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr for custom policies. [optional]
-    --allowed-domain <str>                     Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
-    --allowed-cidr <str>                       CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
-    --denied-cidr <str>                        CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
+    --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
 
 Flags:
 
@@ -347,6 +424,8 @@ Flags:
     --sudo               Give extended privileges to the command. [optional]
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
+    --detach             Start the command and print its ID without waiting for it to finish. [optional]
+    --stdin              Forward local stdin, or keep detached stdin open for later writes. [optional]
     --tty, -t            Allocate a tty for an interactive command. This is a no-op. [optional]
     --help, -h           show help [optional]
 
@@ -376,6 +455,433 @@ Arguments:
 
     <name>     A sandbox name to stop
     [...name]  More sandboxes to stop
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox extend`
+
+```
+extend
+
+▲ sandbox extend [options]
+
+Add time to a running session without changing its default timeout
+
+Arguments:
+
+    <name>      Sandbox name with a running session
+    <num UNIT>  Time to add, for example 5m or 1h
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+
+Examples:
+
+– Add 30 minutes
+
+  $ sandbox extend my-sandbox 30m
+```
+
+## `sandbox commands`
+
+```
+sandbox commands
+
+▲ sandbox commands [options] <command>
+
+For command help, run `sandbox commands <command> --help`
+
+Commands:
+
+    get          <name> <command-id>  Show the status of a command in the current session
+    logs         <name> <command-id>  Stream a command's stdout and stderr
+    wait         <name> <command-id>  Wait for a command to finish and return its exit code
+    kill         <name> <command-id>  Stop a running command without stopping its sandbox
+    write        <name> <command-id>  Write piped bytes to a command started with --detach --stdin. Wait for each write to finish before starting another, including from other CLI processes.
+    close-stdin  <name> <command-id>  Send EOF to a command started with --detach --stdin
+    output       <name> <command-id>  Wait for a command to finish, then print its text output (not binary-safe). Use sandbox commands logs to stream output while it runs.
+```
+
+## `sandbox commands get`
+
+```
+get
+
+▲ sandbox commands get [options]
+
+Show the status of a command in the current session
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands logs`
+
+```
+logs
+
+▲ sandbox commands logs [options]
+
+Stream a command's stdout and stderr
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands wait`
+
+```
+wait
+
+▲ sandbox commands wait [options]
+
+Wait for a command to finish and return its exit code
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands kill`
+
+```
+kill
+
+▲ sandbox commands kill [options]
+
+Stop a running command without stopping its sandbox
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Options:
+
+    --signal <value>  Signal to send (default SIGTERM) [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands write`
+
+```
+write
+
+▲ sandbox commands write [options]
+
+Write piped bytes to a command started with --detach --stdin. Wait for each write to finish before starting another, including from other CLI processes.
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands close-stdin`
+
+```
+close-stdin
+
+▲ sandbox commands close-stdin [options]
+
+Send EOF to a command started with --detach --stdin
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox commands output`
+
+```
+output
+
+▲ sandbox commands output [options]
+
+Wait for a command to finish, then print its text output (not binary-safe). Use sandbox commands logs to stream output while it runs.
+
+Arguments:
+
+    <name>        Sandbox with a running session
+    <command-id>  ID returned by sandbox exec --detach
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Options:
+
+    --stream <value>  Output stream to print (default both) [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox domain`
+
+```
+domain
+
+▲ sandbox domain [options]
+
+Print the public domain for a port in a running sandbox
+
+Arguments:
+
+    <name>    The name of the sandbox
+    <number>  Published port number
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox users`
+
+```
+sandbox users
+
+▲ sandbox users [options] <command>
+
+For command help, run `sandbox users <command> --help`
+
+Commands:
+
+    create  <name> <username>                      Create a Linux user with an isolated home directory
+    exec    <name> <username> <command> [...args]  Run a command as a Linux user
+```
+
+## `sandbox users create`
+
+```
+create
+
+▲ sandbox users create [options]
+
+Create a Linux user with an isolated home directory
+
+Arguments:
+
+    <name>      The name of the sandbox
+    <username>  Linux user name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox users exec`
+
+```
+exec
+
+▲ sandbox users exec [options]
+
+Run a command as a Linux user
+
+Arguments:
+
+    <name>      The name of the sandbox
+    <username>  Linux user name
+    <command>   Executable
+    [...args]   Command arguments
+
+Options:
+
+    --workdir, -w <str>                Working directory (defaults to the user's home) [optional]
+    --env <key=value>, -e=<key=value>  Environment variables for the command
+    --timeout <num UNIT>               Maximum command duration [optional]
+
+Flags:
+
+    --detach    Start the command and print its ID without waiting [optional]
+    --stdin     Forward local stdin, or keep detached stdin open for later writes [optional]
+    --help, -h  show help [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+```
+
+## `sandbox groups`
+
+```
+sandbox groups
+
+▲ sandbox groups [options] <command>
+
+For command help, run `sandbox groups <command> --help`
+
+Commands:
+
+    create       <name> <groupname>             Create a Linux group and its shared directory
+    add-user     <name> <groupname> <username>  Add a user to a group
+    remove-user  <name> <groupname> <username>  Remove a user from a group
+```
+
+## `sandbox groups create`
+
+```
+create
+
+▲ sandbox groups create [options]
+
+Create a Linux group and its shared directory
+
+Arguments:
+
+    <name>       The name of the sandbox
+    <groupname>  Linux group name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox groups add-user`
+
+```
+add-user
+
+▲ sandbox groups add-user [options]
+
+Add a user to a group
+
+Arguments:
+
+    <name>       The name of the sandbox
+    <groupname>  Linux group name
+    <username>   Linux user name
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
+## `sandbox groups remove-user`
+
+```
+remove-user
+
+▲ sandbox groups remove-user [options]
+
+Remove a user from a group
+
+Arguments:
+
+    <name>       The name of the sandbox
+    <groupname>  Linux group name
+    <username>   Linux user name
 
 Auth & Scope:
 
@@ -501,7 +1007,6 @@ Options:
 
     --workdir, -w <str>                The working directory to run the command in [optional]
     --env <key=value>, -e=<key=value>  Environment variables to set for the command
-    --timeout <num UNIT>               Maximum duration to wait for the command (e.g. 30s, 5m). On expiry the process is killed with SIGKILL. Cannot be combined with --interactive. [optional]
 
 Auth & Scope:
 
@@ -574,6 +1079,35 @@ Commands:
     rm | delete    <name> [...name]  Delete one or more drives.
 ```
 
+## `sandbox drives get-or-create`
+
+```
+get-or-create
+
+▲ sandbox drives get-or-create [options]
+
+Create a drive if it does not already exist, or retrieve it.
+
+Arguments:
+
+    <name>  Drive name to create or retrieve
+
+Options:
+
+    --max-size <SIZE>  Maximum drive size, e.g. 200GiB or 2TiB (bytes if no unit). Fixed after creation. If omitted, a default of 1 TiB is used (1 GiB for Hobby). [optional]
+    --region <REGION>  Region where the drive is created. [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+```
+
 ## `sandbox drives fork`
 
 ```
@@ -612,7 +1146,7 @@ Commands:
 
     list                      <name>                    Display the current configuration of a sandbox
     vcpus                     <name> <COUNT>            Update the vCPU count of a sandbox
-    timeout                   <name> <num UNIT>         Update the timeout of a sandbox (will be applied to all new sessions)
+    timeout                   <name> <num UNIT>         Set the timeout for new sessions; a higher value extends a running session
     persistent                <name> <true|false>       Enable or disable automatic restore of the filesystem between sessions
     region                    <name> <REGION>           Update the region of a sandbox (will be applied to all new sessions)
     failover-regions          <name> <REGION,...|none>  Update the failover regions of a sandbox (replaces the existing list)
@@ -627,6 +1161,69 @@ Commands:
     current-snapshot          <name> <snapshot_id>      Update the current snapshot of a sandbox
     ports                     <name>                    Update the published ports of a sandbox. Replaces all existing published ports.
     tags                      <name>                    Update the tags of a sandbox. Replaces all existing tags with the provided tags.
+```
+
+## `sandbox config network-policy`
+
+```
+network-policy
+
+▲ sandbox config network-policy [options]
+
+Update the network policy of a sandbox
+
+Arguments:
+
+    <name>  The name of the sandbox
+
+Options:
+
+    --network-policy <MODE>                            Network policy mode: "allow-all" or "deny-all"
+      - allow-all: sandbox can access any website/domain
+      - deny-all: sandbox has no network access
+    Omit this option and use --allowed-domain / --allowed-cidr / --denied-cidr / --request-header / --request-header-from-env / --network-policy-file for custom policies. [optional]
+    --allowed-domain <str>                             Domain to allow traffic to (creates a custom network policy). Supports "*" for wildcards for a segment (e.g. '*.vercel.com', 'www.*.com'). If used as the first segment, will match any subdomain.
+    --allowed-cidr <str>                               CIDR to allow traffic to (creates a custom network policy). Takes precedence over 'allowed-domain'.
+    --denied-cidr <str>                                CIDR to deny traffic to (creates a custom network policy). Takes precedence over allowed domains/CIDRs.
+    --request-header <domain:header=value>             Set an HTTP request header on outbound requests to a domain (creates a custom network policy). Format "domain:header=value". The value is everything after the "=", so it may contain ":" and "=". The value appears in the command line, where other processes on the machine can read it, so use --request-header-from-env for a secret. The domain is allowed implicitly. Add --allowed-domain '*' to keep every other domain allowed. Supports the same wildcards as --allowed-domain.
+    --request-header-from-env <domain:header=ENV_VAR>  Like --request-header, but read the value from an environment variable, so a secret stays out of the command line. Format "domain:header=ENV_VAR".
+    --network-policy-file <FILE>                       Read the whole network policy from a JSON file (use - for stdin). Use it for rules the other flags cannot express, such as a header limited to some HTTP methods. Reading the file or stdin keeps secrets out of the command line. Cannot be combined with the other network policy flags.
+    The file holds the SDK's NetworkPolicy as JSON. Keys marked ? are optional; unknown keys are rejected.
+      policy  = "allow-all" | "deny-all"
+              | { "allow"?: ["<domain>", ...] | { "<domain>": [rule, ...] },
+                  "subnets"?: { "allow"?: ["<CIDR>", ...], "deny"?: ["<CIDR>", ...] } }
+      rule    = { "match"?: match, plus exactly one action:
+                  "transform": [{ "headers"?: { "<name>": "<value>" } }]
+                  "forwardURL": "https://<proxy>"
+                  "response": { "statusCode": 200-599, "headers"?: { "<name>": "<value>" },
+                                "body"?: "<text>", "contentType"?: "<type>" } }
+      match   = { "path"?: matcher, "method"?: ["GET", ...],
+                  "queryString"?: [pair, ...], "headers"?: [pair, ...] }
+      matcher = { "exact": "<s>" } | { "startsWith": "<s>" } | { "regex": "<RE2>" }
+      pair    = { "key"?: matcher, "value"?: matcher }
+    A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
+    Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
+    --mode <MODE>                                      Alias for --network-policy. [optional]
+
+Auth & Scope:
+
+    --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
+    --project <my-project>  The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [optional]
+    --scope <my-team>       The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team] [optional]
+
+Flags:
+
+    --help, -h  show help [optional]
+
+Examples:
+
+– Set an Authorization header from an environment variable and allow every other domain
+
+  $ NPM_AUTH="Bearer $NPM_TOKEN" sandbox config network-policy my-sandbox --allowed-domain '*' --request-header-from-env registry.npmjs.org:authorization=NPM_AUTH
+
+– Set a header whose value is not secret
+
+  $ sandbox config network-policy my-sandbox --allowed-domain '*' --request-header api.example.com:x-source=ci
 ```
 
 ## `sandbox config network-id`

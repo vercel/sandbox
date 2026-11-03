@@ -1,7 +1,9 @@
 # Vercel Sandbox
 
-Vercel Sandbox allows you to run arbitrary code in isolated, ephemeral Linux
-VMs. View the documentation [here](https://vercel.com/docs/vercel-sandbox).
+Vercel Sandbox allows you to run arbitrary code in isolated Linux microVMs.
+Sandboxes are persistent by default: the filesystem is snapshotted when a
+session stops and restored when it resumes. View the documentation
+[here](https://vercel.com/docs/vercel-sandbox).
 
 ## Packages
 
@@ -158,7 +160,7 @@ recreate an API client using OIDC or environment credentials when needed.
 
 ## Limitations
 
-- Max resources: 8 vCPUs on Hobby/Pro, 32 vCPUs on Enterprise. You will get 2048 MB of memory per vCPU.
+- Max resources: 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise. You will get 2048 MB of memory per vCPU.
 - Sandboxes have a maximum duration of 24 hours for Pro/Enterprise and 45 minutes for Hobby,
   with a default of 5 minutes. This can be configured using the `timeout` option of `Sandbox.create()`.
 

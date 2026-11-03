@@ -1752,6 +1752,11 @@ export class Sandbox implements ExecutionContext {
    * When `timeout` is increased and a session is currently running, the running
    * session's deadline is also extended.
    *
+   * When `networkPolicy` is provided and a session is active, the policy is
+   * applied to that session before saving the configuration and tags. If applying
+   * the policy fails, the update rejects without saving tags. These operations
+   * are not atomic.
+   *
    * `region` and `failoverRegions` apply to the next session; the currently
    * running session keeps the region it started in. Pass an empty
    * `failoverRegions` array to remove all failover regions.
@@ -1795,6 +1800,32 @@ export class Sandbox implements ExecutionContext {
       };
     }
 
+    // Apply the new timeout to the currently running session (only if it is a
+    // positive increment).
+    if (params.timeout !== undefined && this.session?.status === "running") {
+      const increment = params.timeout - this.session.timeout;
+      if (increment > 0) {
+        try {
+          await this.session.extendTimeout(increment, opts);
+        } catch (err) {
+          if (!isSandboxStoppedError(err) && !isSandboxStoppingError(err)) {
+            throw err;
+          }
+        }
+      }
+    }
+
+    if (
+      params.networkPolicy !== undefined &&
+      this.session &&
+      this.session.status !== "stopped" &&
+      this.session.status !== "stopping" &&
+      this.session.status !== "aborted" &&
+      this.session.status !== "failed"
+    ) {
+      await this.session.update({ networkPolicy: params.networkPolicy }, opts);
+    }
+
     // Update the sandbox config. This config will be used on the next session.
     const response = await client.updateSandbox({
       name: this.sandbox.name,
@@ -1817,36 +1848,6 @@ export class Sandbox implements ExecutionContext {
     this.sandbox = response.json.sandbox;
     if (params.ports !== undefined && response.json.routes) {
       this.session?.updateRoutes(response.json.routes);
-    }
-
-    // Apply the new timeout to the currently running session (only if it is a
-    // positive increment).
-    if (params.timeout !== undefined && this.session?.status === "running") {
-      const increment = params.timeout - this.session.timeout;
-      if (increment > 0) {
-        try {
-          await this.session.extendTimeout(increment, opts);
-        } catch (err) {
-          if (!isSandboxStoppedError(err) && !isSandboxStoppingError(err)) {
-            throw err;
-          }
-        }
-      }
-    }
-
-    // Update the current session config. This only applies to network policy.
-    if (params.networkPolicy) {
-      try {
-        return await this.session?.update(
-          { networkPolicy: params.networkPolicy },
-          opts,
-        );
-      } catch (err) {
-        if (isSandboxStoppedError(err) || isSandboxStoppingError(err)) {
-          return;
-        }
-        throw err;
-      }
     }
   }
 

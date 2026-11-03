@@ -1,5 +1,37 @@
 # @vercel/sandbox
 
+## 3.9.1
+
+### Patch Changes
+
+- Update README intro to reflect persistent-by-default sandboxes. ([#408](https://github.com/vercel/sandbox/pull/408))
+
+## 3.9.0
+
+### Patch Changes
+
+- Apply network policy changes to active sessions before saving configuration and tags, and surface live policy failures so tags cannot incorrectly indicate that a failed policy update succeeded. ([#400](https://github.com/vercel/sandbox/pull/400))
+
+  Skip live network policy updates for sessions that are already stopping so configuration can still be saved for the next session.
+
+- Stdin writes now always send an offset, and a timed-out write that reports no progress is treated as stalled. ([#381](https://github.com/vercel/sandbox/pull/381))
+
+## 3.8.0
+
+### Minor Changes
+
+- Add a new `onStart` hook on `sandbox.runCommand({ ... })` to be notified when a command is started when not using `detached: true` ([#384](https://github.com/vercel/sandbox/pull/384))
+
+## 3.7.0
+
+### Minor Changes
+
+- Add opt-in stdin for commands. Pass `stdin: true` to a detached `runCommand`, then use `command.writeStdin(data)` and `command.closeStdin()` while it runs, or pass a `Readable` such as `process.stdin` to have it piped to the command. ([#365](https://github.com/vercel/sandbox/pull/365))
+
+### Patch Changes
+
+- Update `@vercel/oidc` to v4. ([#375](https://github.com/vercel/sandbox/pull/375))
+
 ## 3.6.1
 
 ### Patch Changes

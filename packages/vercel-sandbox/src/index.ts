@@ -13,10 +13,7 @@ export {
   type NetworkTransformer,
 } from "./session.js";
 export type { SerializedSandbox } from "./sandbox.js";
-export {
-  SandboxUser,
-  SandboxUserAlreadyExistsError,
-} from "./sandbox-user.js";
+export { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 export type { ExecutionContext } from "./execution-context.js";
 export { DEFAULT_SANDBOX_REGION } from "./constants.js";
 export type { SandboxRegion } from "./constants.js";
@@ -35,6 +32,10 @@ export { StreamError } from "./api-client/api-error.js";
 export { APIError } from "./api-client/api-error.js";
 export { FileSystem } from "./filesystem.js";
 export { defineSandboxProxy } from "./proxy.js";
+export {
+  parseNetworkPolicy,
+  NetworkPolicyParseError,
+} from "./utils/network-policy.js";
 export type {
   InvalidRequestProxyHandler,
   ProxyMeta,

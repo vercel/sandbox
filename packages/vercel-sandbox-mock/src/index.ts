@@ -27,6 +27,8 @@ export {
   StreamError,
   APIError,
   defineSandboxProxy,
+  parseNetworkPolicy,
+  NetworkPolicyParseError,
 } from "@vercel/sandbox";
 export type {
   NetworkPolicy,

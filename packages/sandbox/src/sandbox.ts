@@ -1,16 +1,16 @@
 import { run, setDefaultHelpFormatter } from "cmd-ts";
 import { app } from "./app";
 import dotenv from "dotenv-flow";
-import { printTopLevelError } from "./util/format-error";
 import { steerShCommand } from "./util/steer-sh";
 import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 import { telemetry } from "./telemetry";
 
-dotenv.config({
-  silent: true,
-});
-
-async function main() {
+// Called by bin/sandbox.mjs. tsdown can make lazy-loaded command chunks import
+// this entry, so it must not run anything on import (test/bundle.test.ts).
+export async function main() {
+  dotenv.config({
+    silent: true,
+  });
   setDefaultHelpFormatter(vercelFormatter);
 
   const argv = process.argv.slice(2);
@@ -18,15 +18,14 @@ async function main() {
 
   try {
     steerShCommand(argv);
-    await run(app(), argv);
+    await run(await app(argv), argv);
     telemetry.trackExitCode(0);
     await telemetry.flush();
   } catch (e) {
     telemetry.trackExitCode(1);
     await telemetry.flush();
+    const { printTopLevelError } = await import("./util/format-error");
     await printTopLevelError(e);
     process.exit(1);
   }
 }
-
-main();

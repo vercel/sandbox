@@ -109,21 +109,6 @@ async function readStdinTimeout(response: Response) {
   };
 }
 
-async function probeStdinBytesWritten(
-  send: (body: Record<string, unknown>) => Promise<Response>,
-) {
-  try {
-    const response = await send({});
-    if (!response.ok) {
-      await response.body?.cancel();
-      return undefined;
-    }
-    return (await parseStdinResponse(response)).bytesWritten;
-  } catch {
-    return undefined;
-  }
-}
-
 interface Claims {
   owner_id: string;
   project_id?: string;
@@ -1039,8 +1024,7 @@ export class APIClient extends BaseClient {
       if (resendable && canRetry && status === 504) {
         maybeApplied = true;
         const timeout = await readStdinTimeout(response);
-        const written =
-          timeout.bytesWritten ?? (await probeStdinBytesWritten(send));
+        const written = timeout.bytesWritten;
         if (written !== undefined && written > lastWritten) {
           lastWritten = written;
           stalledTimeouts = 0;

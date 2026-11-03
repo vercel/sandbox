@@ -5,18 +5,21 @@ import {
   RefreshAccessTokenFailedError,
 } from "@vercel/oidc";
 
-const { mockGetAuth, mockGetVercelCliToken, mockGetVercelOidcToken, mockLogin } =
-  vi.hoisted(() => ({
-    mockGetAuth: vi.fn(),
-    mockGetVercelCliToken: vi.fn(),
-    mockGetVercelOidcToken: vi.fn(),
-    mockLogin: vi.fn(),
-  }));
+const {
+  mockGetAuth,
+  mockGetVercelCliToken,
+  mockGetVercelOidcToken,
+  mockLogin,
+} = vi.hoisted(() => ({
+  mockGetAuth: vi.fn(),
+  mockGetVercelCliToken: vi.fn(),
+  mockGetVercelOidcToken: vi.fn(),
+  mockLogin: vi.fn(),
+}));
 
 vi.mock("@vercel/oidc", async () => {
-  const actual = await vi.importActual<typeof import("@vercel/oidc")>(
-    "@vercel/oidc",
-  );
+  const actual =
+    await vi.importActual<typeof import("@vercel/oidc")>("@vercel/oidc");
   return {
     ...actual,
     getVercelToken: mockGetVercelCliToken,

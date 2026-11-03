@@ -3,12 +3,11 @@ import { app } from "./app";
 import { telemetry } from "./telemetry";
 
 export function createApp(opts: { withoutAuth: boolean; appName: string }) {
-  const instance = app(opts);
   return {
     async run(args: string[]) {
       await telemetry.trackInvocation({ appName: opts.appName, argv: args });
       try {
-        await runCmd(instance, args);
+        await runCmd(await app(args, opts), args);
         telemetry.trackExitCode(0);
       } catch (error) {
         telemetry.trackExitCode(1);

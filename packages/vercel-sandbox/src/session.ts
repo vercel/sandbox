@@ -41,8 +41,7 @@ export interface SerializedSession {
   routes: SandboxRouteData[];
 }
 
-/** @inline */
-export interface RunCommandParams {
+interface RunCommandParamsBase {
   /**
    * The command to execute
    */
@@ -101,6 +100,21 @@ export interface RunCommandParams {
    */
   timeoutMs?: number;
 }
+
+/** @inline */
+export type RunCommandParams = RunCommandParamsBase &
+  (
+    | { onStart?: never }
+    | {
+        detached?: false;
+        /**
+         * The onStart hook is called as soon as the command is started, before it exits.
+         * This hook is awaited before `runCommand` resolves and is useful to be notified
+         * as soon as a command is started.
+         */
+        onStart?: (command: Command) => void | Promise<void>;
+      }
+  );
 
 /**
  * Pipes stdin for a command the caller is waiting on, killing the command if
@@ -499,19 +513,21 @@ export class Session implements ExecutionContext {
         signal: params.signal,
       });
 
-      const finished = await waitWithStdinPipe(
+      const command = new Command({
+        client,
+        sessionId: this.session.id,
+        cmd: commandStream.command,
+      });
+      const commandFinished = waitWithStdinPipe(
         commandStream.finished,
-        stdinStream &&
-          pipeStdinOrKill(
-            new Command({
-              client,
-              sessionId: this.session.id,
-              cmd: commandStream.command,
-            }),
-            stdinStream,
-            params.signal,
-          ),
+        stdinStream && pipeStdinOrKill(command, stdinStream, params.signal),
       );
+      if (params.onStart) {
+        // The command can fail while the callback is pending or after it throws.
+        commandFinished.catch(() => {});
+        await params.onStart(command);
+      }
+      const finished = await commandFinished;
 
       return new CommandFinished({
         client,

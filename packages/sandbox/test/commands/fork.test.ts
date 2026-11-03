@@ -1,5 +1,8 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import * as cmd from "cmd-ts";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const { mockFork, mockGet } = vi.hoisted(() => ({
   mockFork: vi.fn(),
@@ -35,7 +38,10 @@ describe("fork command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFork.mockResolvedValue(fakeSandbox);
-    mockGet.mockResolvedValue({ status: "stopped", currentSnapshotId: "snap_1" });
+    mockGet.mockResolvedValue({
+      status: "stopped",
+      currentSnapshotId: "snap_1",
+    });
     process.env.VERCEL_AUTH_TOKEN = "tok";
   });
 
@@ -60,7 +66,10 @@ describe("fork command", () => {
   });
 
   test("warns on stderr when the source is running, and still forks", async () => {
-    mockGet.mockResolvedValue({ status: "running", currentSnapshotId: undefined });
+    mockGet.mockResolvedValue({
+      status: "running",
+      currentSnapshotId: undefined,
+    });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const { fork } = await import("../../src/commands/fork.ts");
@@ -188,6 +197,54 @@ describe("fork command", () => {
     expect(call.region).toBeUndefined();
     expect(call.failoverRegions).toBeUndefined();
     expect(call.networkId).toBeUndefined();
+  });
+
+  test("sends the policy from --network-policy-file", async () => {
+    const policy = {
+      allow: {
+        "registry.npmjs.org": [
+          {
+            match: { method: ["GET", "HEAD"] },
+            transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+          },
+        ],
+      },
+    };
+    const path = join(mkdtempSync(join(tmpdir(), "policy-")), "policy.json");
+    writeFileSync(path, JSON.stringify(policy));
+    const { fork } = await import("../../src/commands/fork.ts");
+    await cmd.run(fork, [
+      "my-source",
+      "--network-policy-file",
+      path,
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockFork.mock.calls[0][0].networkPolicy).toEqual(policy);
+  });
+
+  test("sends a request header policy", async () => {
+    const { fork } = await import("../../src/commands/fork.ts");
+    await cmd.run(fork, [
+      "my-source",
+      "--request-header",
+      "registry.npmjs.org:authorization=Bearer npm_abc==",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockFork.mock.calls[0][0].networkPolicy).toEqual({
+      allow: {
+        "registry.npmjs.org": [
+          {
+            transform: [{ headers: { authorization: "Bearer npm_abc==" } }],
+          },
+        ],
+      },
+    });
   });
 
   test("fails when the source positional is missing", async () => {

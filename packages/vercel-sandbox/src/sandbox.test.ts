@@ -289,6 +289,36 @@ describe("update timeout", () => {
   });
 });
 
+describe("update network policy", () => {
+  it("saves configuration without applying a live policy to a stopping session", async () => {
+    const metadata = makeSandboxMetadata();
+    const updateSandbox = vi.fn(async () => ({
+      json: { sandbox: metadata },
+    }));
+    const updateNetworkPolicy = vi.fn().mockRejectedValue(
+      new APIError(new Response(null, { status: 422 }), {
+        json: { error: { code: "sandbox_stopping" } },
+      }),
+    );
+    const sandbox = new Sandbox({
+      client: { updateSandbox, updateNetworkPolicy } as unknown as APIClient,
+      routes: [],
+      sandbox: metadata,
+      session: { id: "sbx_123", status: "stopping" } as any,
+      projectId: "test-project",
+    });
+    const params = {
+      networkPolicy: "deny-all" as const,
+      tags: { policyHash: "new" },
+    };
+
+    await sandbox.update(params);
+
+    expect(updateNetworkPolicy).not.toHaveBeenCalled();
+    expect(updateSandbox).toHaveBeenCalledWith(expect.objectContaining(params));
+  });
+});
+
 describe("expiresAt", () => {
   it("computes the deadline from startedAt + timeout for a running session", () => {
     const sandbox = new Sandbox({

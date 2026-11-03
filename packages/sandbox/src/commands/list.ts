@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { DEFAULT_SANDBOX_REGION, Sandbox } from "@vercel/sandbox";
 import { sandboxClient } from "../client";
@@ -23,9 +24,7 @@ function formatImage(image: string): string {
 }
 
 export const list = cmd.command({
-  name: "list",
-  aliases: ["ls"],
-  description: "List all sandboxes for the specified account and project.",
+  ...commandMetadata.list,
   args: {
     all: cmd.flag({
       long: "all",

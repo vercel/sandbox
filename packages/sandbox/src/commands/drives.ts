@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { subcommands } from "cmd-ts";
 import { Listr } from "listr2";
@@ -85,7 +86,7 @@ const getOrCreate = cmd.command({
     maxSize: cmd.option({
       long: "max-size",
       description:
-        "Maximum drive size in bytes. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
+        "Maximum drive size, e.g. 200GiB or 2TiB (bytes if no unit). Fixed after creation. If omitted, a default of 1 TiB is used (1 GiB for Hobby).",
       type: cmd.optional(driveMaxSize),
     }),
     region: cmd.option({
@@ -113,7 +114,7 @@ const getOrCreate = cmd.command({
     })();
 
     process.stderr.write("✅ Drive " + chalk.cyan(drive.name) + " ready.\n");
-    printDriveSummary(drive);
+    printDriveSummary(drive, { showSizeHint: maxSize === undefined });
   },
 });
 
@@ -153,7 +154,7 @@ const fork = cmd.command({
     process.stderr.write(
       "✅ Drive " + chalk.cyan(forkedDrive.name) + " created.\n",
     );
-    printDriveSummary(forkedDrive, parent);
+    printDriveSummary(forkedDrive, { parentDriveName: parent });
   },
 });
 
@@ -205,8 +206,7 @@ const remove = cmd.command({
 });
 
 export const drives = subcommands({
-  name: "drives",
-  description: "Manage sandbox drives",
+  ...commandMetadata.drives,
   cmds: {
     list,
     "get-or-create": getOrCreate,
@@ -215,7 +215,16 @@ export const drives = subcommands({
   },
 });
 
-function printDriveSummary(drive: Drive, parentDriveName?: string) {
+function printDriveSummary(
+  drive: Drive,
+  {
+    parentDriveName,
+    showSizeHint = false,
+  }: {
+    parentDriveName?: string;
+    showSizeHint?: boolean;
+  } = {},
+) {
   if (parentDriveName) {
     process.stderr.write(
       chalk.dim("   │ ") + "forked from: " + chalk.cyan(parentDriveName) + "\n",
@@ -228,6 +237,9 @@ function printDriveSummary(drive: Drive, parentDriveName?: string) {
     chalk.dim("   │ ") +
       "max size: " +
       chalk.cyan(formatBytes(drive.maxSize)) +
+      (showSizeHint
+        ? chalk.dim(" (set with --max-size at creation, fixed afterwards)")
+        : "") +
       "\n",
   );
   process.stderr.write(

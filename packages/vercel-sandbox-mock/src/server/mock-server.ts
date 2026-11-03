@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Executor } from "./executor.js";
+import { Executor, type RunArgs } from "./executor.js";
 import { handlersToCustomCommands } from "../handlers.js";
 import type { CommandHandler } from "../handlers.js";
 import { apiError, empty, json } from "./http.js";
@@ -85,6 +85,20 @@ interface CreateBody {
   source?: { type: "git" | "tarball" | "snapshot"; snapshotId?: string };
 }
 
+/**
+ * A command started with `attachStdin`. just-bash takes stdin up front, so
+ * writes are buffered and the command runs once stdin is closed.
+ */
+interface PendingCommand {
+  run: RunArgs;
+  executor: Executor;
+  stdin: Buffer[];
+  bytesWritten: number;
+  closed: boolean;
+  done: Promise<void>;
+  settle: () => void;
+}
+
 interface CreateDriveBody {
   projectId: string;
   region?: string;
@@ -110,6 +124,7 @@ export class MockServer {
   #snapshots = new Map<string, SnapshotRecord>();
   #drives = new Map<string, DriveRecord>();
   #commands = new Map<string, CommandRecord>();
+  #pending = new Map<string, PendingCommand>();
   /** FS persisted across stop→resume, keyed by sandbox name. */
   #disks = new Map<string, SnapshotFileEntry[]>();
 
@@ -136,6 +151,7 @@ export class MockServer {
     this.#sessions.clear();
     this.#snapshots.clear();
     this.#drives.clear();
+    for (const id of this.#pending.keys()) this.#killPending(id, 9);
     this.#commands.clear();
     this.#disks.clear();
     this.#runtimeHandlers = [];
@@ -536,6 +552,7 @@ export class MockServer {
     if (session.status === "running") {
       session.status = "stopped";
       session.stoppedAt = Date.now();
+      this.#killSessionCommands(session.id);
       await session.executor.stop();
     }
     this.#sandboxes.delete(name);
@@ -643,6 +660,7 @@ export class MockServer {
       session.activeCpuDurationMs = 0;
       session.networkTransfer = { ingress: 0, egress: 0 };
       session.updatedAt = Date.now();
+      this.#killSessionCommands(session.id);
       await session.executor.stop();
     }
     const record = this.#sandboxes.get(session.sandboxName);
@@ -715,16 +733,22 @@ export class MockServer {
       return this.#runCommand(session, init);
 
     const cmdId = sub[0];
+    if (sub[1] === "stdin" && method === "POST") {
+      return this.#writeStdin(cmdId, init);
+    }
     if (sub[1] === "kill" && method === "POST") {
       const command = this.#commands.get(cmdId);
       if (!command)
         return apiError(404, "not_found", `Command not found: ${cmdId}`);
+      const { signal } = readJson<{ signal?: number }>(init);
+      this.#killPending(cmdId, signal ?? 15);
       return json({ command: commandPayload(command) });
     }
     if (sub[1] === "logs" && method === "GET") {
       const command = this.#commands.get(cmdId);
       if (!command)
         return apiError(404, "not_found", `Command not found: ${cmdId}`);
+      await this.#untilFinished(cmdId, init?.signal);
       return ndjson(logLines(command));
     }
     if (sub.length === 1 && method === "GET") {
@@ -732,6 +756,7 @@ export class MockServer {
       if (!command)
         return apiError(404, "not_found", `Command not found: ${cmdId}`);
       const finished = url.searchParams.get("wait") === "true";
+      if (finished) await this.#untilFinished(cmdId, init?.signal);
       return json({ command: commandPayload(command, { finished }) });
     }
     return apiError(404, "not_found", `No route for ${method} ${url.pathname}`);
@@ -752,42 +777,204 @@ export class MockServer {
       sudo?: boolean;
       wait?: boolean;
       logs?: boolean;
+      attachStdin?: boolean;
     }>(init);
 
-    const result = await session.executor.run({
+    const run: RunArgs = {
       command: body.command,
       args: body.args ?? [],
       cwd: body.cwd,
       env: body.env,
       sudo: body.sudo,
-    });
-
+    };
     const command: CommandRecord = {
       id: newId("cmd"),
       sessionId: session.id,
       name: body.command,
       args: body.args ?? [],
       cwd: body.cwd ?? session.cwd,
-      startedAt: result.startedAt,
-      exitCode: result.exitCode,
-      durationMs: result.durationMs,
-      stdout: result.stdout,
-      stderr: result.stderr,
+      startedAt: Date.now(),
+      exitCode: null,
+      stdout: "",
+      stderr: "",
     };
+
+    if (body.attachStdin) {
+      let settle!: () => void;
+      const done = new Promise<void>((resolve) => (settle = resolve));
+      this.#pending.set(command.id, {
+        run,
+        executor: session.executor,
+        stdin: [],
+        bytesWritten: 0,
+        closed: false,
+        done,
+        settle,
+      });
+    } else {
+      const result = await session.executor.run(run);
+      command.startedAt = result.startedAt;
+      command.exitCode = result.exitCode;
+      command.durationMs = result.durationMs;
+      command.stdout = result.stdout;
+      command.stderr = result.stderr;
+    }
     this.#commands.set(command.id, command);
 
     if (!body.wait) {
-      // Detached: report the (already finished) command as a plain JSON body.
       return json({ command: commandPayload(command) });
     }
 
     // wait: stream command chunk → optional logs → finished chunk as NDJSON.
-    const lines: unknown[] = [
-      { command: { ...commandPayload(command), exitCode: null } },
-    ];
-    if (body.logs) lines.push(...logLines(command));
-    lines.push({ command: commandPayload(command, { finished: true }) });
-    return ndjson(lines);
+    const started = { command: { ...commandPayload(command), exitCode: null } };
+    const rest = async () => {
+      await this.#pending.get(command.id)?.done;
+      const lines: unknown[] = body.logs ? logLines(command) : [];
+      lines.push({ command: commandPayload(command, { finished: true }) });
+      return lines;
+    };
+    return ndjson([started], rest());
+  }
+
+  /**
+   * Mirrors the real API: `offset` is where `data` starts in the stdin
+   * stream, bytes before `bytesWritten` are skipped, and an offset past it is
+   * rejected. Commands without stdin have always exited by now.
+   */
+  #writeStdin(cmdId: string, init?: RequestInit): Response {
+    const command = this.#commands.get(cmdId);
+    if (!command)
+      return apiError(404, "not_found", `Command not found: ${cmdId}`);
+    const pending = this.#pending.get(cmdId);
+    if (!pending) {
+      return apiError(
+        404,
+        "command_not_found_or_exited",
+        "The command has already exited.",
+      );
+    }
+
+    const body = readJson<{ data?: string; offset?: number; close?: boolean }>(
+      init,
+    );
+    const offset = body.offset;
+    if (
+      offset !== undefined &&
+      !(Number.isSafeInteger(offset) && offset >= 0)
+    ) {
+      return apiError(
+        400,
+        "bad_request",
+        "offset must be a non-negative integer.",
+      );
+    }
+    const data = Buffer.from(body.data ?? "", "base64");
+    if (data.toString("base64") !== (body.data ?? "")) {
+      return apiError(400, "bad_request", "data must be valid base64.");
+    }
+
+    const mismatch = () =>
+      apiError(
+        409,
+        "command_stdin_offset_mismatch",
+        `offset ${offset} does not match the ${pending.bytesWritten} bytes written.`,
+      );
+    const closed = () =>
+      apiError(
+        400,
+        "command_stdin_unavailable",
+        "The command's stdin is already closed.",
+      );
+
+    if (offset !== undefined && offset > pending.bytesWritten)
+      return mismatch();
+    const skip =
+      offset === undefined
+        ? 0
+        : Math.min(pending.bytesWritten - offset, data.length);
+    const unwritten = data.subarray(skip);
+    if (unwritten.length > 0) {
+      if (pending.closed) return closed();
+      pending.stdin.push(unwritten);
+      pending.bytesWritten += unwritten.length;
+    }
+
+    if (body.close) {
+      if (
+        offset !== undefined &&
+        offset + data.length !== pending.bytesWritten
+      ) {
+        return mismatch();
+      }
+      if (!pending.closed) {
+        pending.closed = true;
+        void this.#runPending(command, pending);
+      } else if (offset === undefined) {
+        return closed();
+      }
+    }
+
+    return json({
+      command: commandPayload(command),
+      bytesWritten: pending.bytesWritten,
+    });
+  }
+
+  async #runPending(
+    command: CommandRecord,
+    pending: PendingCommand,
+  ): Promise<void> {
+    let result: Pick<CommandRecord, "stdout" | "stderr" | "exitCode">;
+    try {
+      result = await pending.executor.run({
+        ...pending.run,
+        stdin: Buffer.concat(pending.stdin),
+      });
+    } catch (error) {
+      result = { stdout: "", stderr: `${String(error)}\n`, exitCode: 1 };
+    }
+    if (this.#pending.get(command.id) !== pending) return;
+    command.stdout = result.stdout;
+    command.stderr = result.stderr;
+    command.exitCode = result.exitCode;
+    command.durationMs = Date.now() - command.startedAt;
+    this.#pending.delete(command.id);
+    pending.settle();
+  }
+
+  /** Waits for a command waiting on stdin to finish, rejecting like `fetch` on abort. */
+  #untilFinished(cmdId: string, signal?: AbortSignal | null): Promise<void> {
+    const done = this.#pending.get(cmdId)?.done;
+    if (!done || !signal) return done ?? Promise.resolve();
+    signal.throwIfAborted();
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+      void done.then(() => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Ends a stdin command as if it got `signal`. A handler that is already
+   * running can't be interrupted, so its result is discarded instead.
+   */
+  #killPending(cmdId: string, signal: number): void {
+    const pending = this.#pending.get(cmdId);
+    const command = this.#commands.get(cmdId);
+    if (!pending || !command) return;
+    command.exitCode = 128 + signal;
+    command.durationMs = Date.now() - command.startedAt;
+    this.#pending.delete(cmdId);
+    pending.settle();
+  }
+
+  #killSessionCommands(sessionId: string): void {
+    for (const [id, command] of this.#commands) {
+      if (command.sessionId === sessionId) this.#killPending(id, 9);
+    }
   }
 
   // ---- filesystem ----------------------------------------------------------

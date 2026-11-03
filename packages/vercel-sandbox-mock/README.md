@@ -100,6 +100,9 @@ from a live sandbox:
   isolation between users. `id -un` reports `vercel-sandbox`.
 - **Command output is buffered**, not streamed live — `logs()` emits after the
   command finishes.
+- **Stdin is buffered too.** `writeStdin()`, `closeStdin()` and
+  `stdin: Readable` work, but the command only runs once stdin is closed, so
+  it can't respond to input as it arrives (e.g. an MCP request/response loop).
 - **Coreutils and shell semantics** follow just-bash: 32-bit arithmetic, no job
   control (`&`), and a different command set than the production image.
 - **Network access** is disabled; stub network-dependent commands with

@@ -188,10 +188,9 @@ describe("Command stdin", () => {
     json({ error: { code: "failed" } }, status);
 
   /**
-   * Stands in for the API: applies offsets the way the real one does, and
-   * omits `bytesWritten` like a sandbox that predates offsets when `legacy`.
+   * Stands in for the API: applies offsets the way the real one does.
    */
-  function createStdinServer(options: { legacy?: boolean } = {}) {
+  function createStdinServer() {
     const state = { data: Buffer.alloc(0), closed: false };
     const handler = async (_url: unknown, init: RequestInit) => {
       const body = JSON.parse(init.body as string);
@@ -201,7 +200,7 @@ describe("Command stdin", () => {
       if (state.closed && (chunk.length > 0 || body.close)) {
         return failure(400);
       }
-      if (options.legacy || body.offset === undefined) {
+      if (body.offset === undefined) {
         state.data = Buffer.concat([state.data, chunk]);
       } else if (body.offset > state.data.length) {
         return failure(409);
@@ -213,10 +212,7 @@ describe("Command stdin", () => {
         }
       }
       if (body.close) state.closed = true;
-      return json({
-        command: cmdData,
-        ...(!options.legacy && { bytesWritten: state.data.length }),
-      });
+      return json({ command: cmdData, bytesWritten: state.data.length });
     };
     return Object.assign(state, { handler });
   }
@@ -261,6 +257,15 @@ describe("Command stdin", () => {
   it("encodes strings as UTF-8", async () => {
     await cmd.writeStdin("héllo");
     expect(dataBodies()).toEqual([{ data: b64("héllo"), offset: 0 }]);
+  });
+
+  it("fails without writing when the API doesn't report the bytes written", async () => {
+    mockFetch.mockResolvedValueOnce(json({ command: cmdData }));
+
+    await expect(cmd.writeStdin("a")).rejects.toThrow(
+      "did not report the bytes written",
+    );
+    expect(dataBodies()).toEqual([]);
   });
 
   it("skips empty writes", async () => {
@@ -455,35 +460,6 @@ describe("Command stdin", () => {
       response: { status: 409 },
     });
     expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  describe("on a sandbox without stdin offsets", () => {
-    beforeEach(() => {
-      server = createStdinServer({ legacy: true });
-      mockFetch = vi.fn(server.handler);
-      cmd = createCommand();
-    });
-
-    it("writes without an offset", async () => {
-      await cmd.writeStdin("a");
-      await cmd.writeStdin("b");
-      await cmd.closeStdin();
-
-      expect(dataBodies()).toEqual([
-        { data: b64("a") },
-        { data: b64("b") },
-        { close: true },
-      ]);
-    });
-
-    it("does not resend, and rejects later writes after a network error", async () => {
-      await cmd.writeStdin("a");
-      mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
-
-      await expect(cmd.writeStdin("b")).rejects.toThrow("fetch failed");
-      await expect(cmd.writeStdin("c")).rejects.toThrow("unknown state");
-      expect(server.data.toString()).toBe("a");
-    });
   });
 
   it("aborts a write that is still waiting for its turn", async () => {

@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { subcommands } from "cmd-ts";
 import { Listr } from "listr2";
@@ -356,8 +357,7 @@ const tree = cmd.command({
 });
 
 export const snapshots = subcommands({
-  name: "snapshots",
-  description: "Manage sandbox snapshots",
+  ...commandMetadata.snapshots,
   cmds: {
     list,
     get,

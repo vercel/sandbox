@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import chalk from "chalk";
 import {
@@ -53,8 +54,7 @@ const disableCommand = cmd.command({
 });
 
 export const telemetryCommand = cmd.subcommands({
-  name: "telemetry",
-  description: "Manage telemetry collection status",
+  ...commandMetadata.telemetry,
   cmds: {
     status: statusCommand,
     enable: enableCommand,

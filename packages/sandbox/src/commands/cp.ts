@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import { sandboxClient } from "../client";
 import * as cmd from "cmd-ts";
 import { sandboxName } from "../args/sandbox-name";
@@ -75,9 +76,7 @@ const localOrRemote = cmd.extendType(cmd.string, {
 });
 
 export const cp = cmd.command({
-  name: "copy",
-  description: "Copy files between your local filesystem and a remote sandbox",
-  aliases: ["cp"],
+  ...commandMetadata.copy,
   args: {
     source: cmd.positional({
       displayName: `src`,

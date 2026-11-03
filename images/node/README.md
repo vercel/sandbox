@@ -9,7 +9,7 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ## Packages
 
-- Node.js 22.23.2, 24.19.0, or 26.7.0 (depending on the image tag), with
+- Node.js 22.23.4, 24.22.1, or 26.12.1 (depending on the image tag), with
   `npm`, `npx` and `corepack`
 - `pnpm` 11
 - `git`

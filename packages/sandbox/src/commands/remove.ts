@@ -1,3 +1,4 @@
+import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { Listr } from "listr2";
 import { sandboxName } from "../args/sandbox-name";
@@ -5,9 +6,7 @@ import { scope } from "../args/scope";
 import { sandboxClient } from "../client";
 
 export const remove = cmd.command({
-  name: "remove",
-  aliases: ["rm"],
-  description: "Permanently remove one or more sandboxes",
+  ...commandMetadata.remove,
   args: {
     sandboxName: cmd.positional({
       type: sandboxName,

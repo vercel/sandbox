@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import {
   Sandbox as RealSandbox,
@@ -648,6 +649,32 @@ describe("sandbox compat", () => {
       const result = await sandbox().runCommand("echo", ["meta"]);
       expect(typeof result.cmdId).toBe("string");
       expect(result.cmdId.length).toBeGreaterThan(0);
+    });
+  });
+
+  describeBoth("stdin", ({ sandbox }) => {
+    test("writeStdin + closeStdin -> cat echoes the input", async () => {
+      const cmd = await sandbox().runCommand({
+        cmd: "cat",
+        detached: true,
+        stdin: true,
+      });
+      await cmd.writeStdin("line one\n");
+      await cmd.writeStdin("line two\n");
+      await cmd.closeStdin();
+      const result = await cmd.wait();
+      expect(result.exitCode).toBe(0);
+      expect(await result.stdout()).toBe("line one\nline two\n");
+    });
+
+    test("stdin: Readable -> read sees the first line", async () => {
+      const result = await sandbox().runCommand({
+        cmd: "sh",
+        args: ["-c", 'read line; echo "got $line"'],
+        stdin: Readable.from(["hello\n", "ignored\n"]),
+      });
+      expect(result.exitCode).toBe(0);
+      expect(await result.stdout()).toBe("got hello\n");
     });
   });
 
