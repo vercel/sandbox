@@ -1062,7 +1062,19 @@ sandbox stop <name>
 sandbox connect <name>
 
 # Copy files
-sandbox cp local-file.txt <name>:/vercel/sandbox/
+sandbox cp local-file.txt <name>:/vercel/sandbox/local-file.txt
+sandbox cp -r ./my-app <name>:/vercel/sandbox/app    # Directory: contents of ./my-app land in /app
+sandbox cp -r <name>:/vercel/sandbox/dist ./dist     # And back
+# Recursive copies preserve empty directories, symlinks, and permissions.
+# Windows downloads reject filenames containing backslashes or colons.
+
+# Read and write single files (handy for coding agents)
+sandbox read <name>:/vercel/sandbox/package.json     # Raw bytes to stdout
+sandbox write <name>:/vercel/sandbox/index.js < ./index.js
+sandbox write --mode 755 <name>:/vercel/sandbox/run.sh <<'EOF'
+#!/bin/sh
+npm test
+EOF
 
 # Start a command and retrieve its ID for later inspection
 sandbox exec --detach <name> -- npm run dev

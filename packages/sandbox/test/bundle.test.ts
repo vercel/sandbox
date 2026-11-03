@@ -57,6 +57,25 @@ function run(args: string[]) {
 }
 
 describe("built package", () => {
+  test.each(["read", "cat", "write"])(
+    "loads the %s file command in the published binary",
+    (command) => {
+      const { status, output } = run([
+        path.join(outRoot, "bin/sandbox.mjs"),
+        command,
+        "--help",
+      ]);
+
+      expect(status).toBe(0);
+      expect(output).toContain("<name:path>");
+      expect(output).toContain(
+        command === "write"
+          ? "Write stdin to a file in a sandbox"
+          : "Print a file from a sandbox to stdout.",
+      );
+    },
+  );
+
   test("createApp() parses only the arguments passed to run()", () => {
     const host = path.join(outRoot, "host.mjs");
     writeFileSync(

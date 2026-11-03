@@ -12,6 +12,8 @@ export const commandLoaders: Record<CommandName, () => Promise<CliCommand>> = {
   fork: () => import("./commands/fork").then(({ fork }) => fork),
   config: () => import("./commands/config").then(({ config }) => config),
   copy: () => import("./commands/cp").then(({ cp }) => cp),
+  read: () => import("./commands/read").then(({ read }) => read),
+  write: () => import("./commands/write").then(({ write }) => write),
   exec: () => import("./commands/exec").then(({ exec }) => exec),
   connect: () => import("./commands/connect").then(({ connect }) => connect),
   stop: () => import("./commands/stop").then(({ stop }) => stop),
@@ -93,6 +95,10 @@ export const app = async (
       {
         description: "Execute command in an existing sandbox",
         command: `${appName} exec <name> -- npm test`,
+      },
+      {
+        description: "Read and write files in an existing sandbox",
+        command: `${appName} read <name>:/vercel/sandbox/package.json`,
       },
     ],
   });

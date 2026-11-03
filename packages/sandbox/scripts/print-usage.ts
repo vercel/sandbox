@@ -31,6 +31,8 @@ const docs = {
   "sandbox groups add-user": "groups add-user --help",
   "sandbox groups remove-user": "groups remove-user --help",
   "sandbox copy": "copy --help",
+  "sandbox read": "read --help",
+  "sandbox write": "write --help",
   "sandbox connect": "connect --help",
   "sandbox snapshot": "snapshot --help",
   "sandbox snapshots": "snapshots --help",
