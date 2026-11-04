@@ -349,6 +349,17 @@ describe("FileSystem", () => {
       });
     });
 
+    it("throws EEXIST when destination is a non-empty directory on filesystems returning EEXIST", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult("", 1, "mv: cannot move '/dir1' to '/dir2': File exists"),
+      );
+      await expect(fs.rename("/dir1", "/dir2")).rejects.toMatchObject({
+        code: "EEXIST",
+        syscall: "rename",
+        path: "/dir1",
+      });
+    });
+
     it("throws EISDIR when destination is a directory but source is not", async () => {
       sandbox.runCommand.mockResolvedValue(
         mockCommandResult(

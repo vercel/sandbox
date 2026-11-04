@@ -567,6 +567,9 @@ export class FileSystem {
       if (stderr.includes("Directory not empty")) {
         throw fsError("ENOTEMPTY", "directory not empty", "rename", oldPath);
       }
+      if (stderr.includes("File exists")) {
+        throw fsError("EEXIST", "file already exists", "rename", oldPath);
+      }
       if (
         stderr.includes("cannot overwrite directory") &&
         stderr.includes("with non-directory")
