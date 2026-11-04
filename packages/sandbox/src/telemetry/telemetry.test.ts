@@ -306,4 +306,51 @@ describe("telemetry", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });
+
+  describe("user id", () => {
+    it("sends the caller's user id on every event", async () => {
+      fetchMock.mockImplementationOnce(
+        async () => new Response(JSON.stringify({ user: { id: "user_abc" } })),
+      );
+      const telemetry = new Telemetry();
+      telemetry.resolveUserId("token");
+      telemetry.resolveUserId("token");
+      telemetry.track("subcommand", "list");
+      telemetry.track("exit_code", "0");
+      await telemetry.flush();
+
+      const [lookupUrl, lookupInit] = fetchMock.mock.calls[0]!;
+      expect(lookupUrl).toBe("https://vercel.com/api/v2/user");
+      expect(new Headers(lookupInit?.headers).get("authorization")).toBe(
+        "Bearer token",
+      );
+      // One lookup, then the bridge.
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      for (const event of sentEvents()) {
+        expect(event.user_id).toBe("user_abc");
+      }
+    });
+
+    it("sends a null user id when the lookup fails", async () => {
+      fetchMock.mockImplementationOnce(
+        async () => new Response(null, { status: 403 }),
+      );
+      const telemetry = new Telemetry();
+      telemetry.resolveUserId("token");
+      telemetry.track("subcommand", "list");
+      await telemetry.flush();
+
+      expect(sentEvents()[0]).toMatchObject({ user_id: null });
+    });
+
+    it("skips the lookup without a token", async () => {
+      const telemetry = new Telemetry();
+      telemetry.resolveUserId(undefined);
+      telemetry.track("subcommand", "list");
+      await telemetry.flush();
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(sentEvents()[0]).toMatchObject({ user_id: null });
+    });
+  });
 });

@@ -24,6 +24,13 @@ describe("fetchWithUserAgent", () => {
       }),
   );
 
+  // Telemetry also looks up the caller's user id; pick the SDK's own request.
+  function sdkRequestInit() {
+    return fetchMock.mock.calls.find(
+      ([url]) => !String(url).endsWith("/v2/user"),
+    )?.[1];
+  }
+
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("AI_AGENT", "test-agent");
@@ -42,7 +49,7 @@ describe("fetchWithUserAgent", () => {
       .catch(() => undefined);
 
     expect(fetchMock).toHaveBeenCalled();
-    const init = fetchMock.mock.calls[0]?.[1];
+    const init = sdkRequestInit();
     const userAgent = new Headers(init?.headers).get("user-agent") ?? "";
 
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
@@ -60,7 +67,7 @@ describe("fetchWithUserAgent", () => {
       .list({ token: "fake", teamId: "team_fake", projectId: "prj_fake" })
       .catch(() => undefined);
 
-    const init = fetchMock.mock.calls[0]?.[1];
+    const init = sdkRequestInit();
     const userAgent = new Headers(init?.headers).get("user-agent") ?? "";
 
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
