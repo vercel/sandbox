@@ -6,7 +6,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       build-essential curl libarchive-tools pkg-config \
-      libbz2-dev libffi-dev liblzma-dev libmpdec-dev libncurses-dev libreadline-dev \
+      libbz2-dev libdb-dev libffi-dev liblzma-dev libmpdec-dev libncurses-dev libreadline-dev \
       libsqlite3-dev libssl-dev libzstd-dev uuid-dev zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
@@ -17,7 +17,7 @@ RUN curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYT
     mkdir /tmp/python && \
     bsdtar -xJf /tmp/python.tar.xz --strip-components=1 -C /tmp/python && \
     cd /tmp/python && \
-    ./configure --prefix=/usr/local --with-ensurepip=install && \
+    ./configure --prefix=/usr/local --with-ensurepip=install --disable-test-modules && \
     make -j "$(nproc)" && \
     make install && \
     ln -s python3 /usr/local/bin/python && \
@@ -30,13 +30,13 @@ ENV HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      git libbz2-1.0 libffi8 liblzma5 libmpdec4 libncursesw6 libreadline8t64 \
-      libsqlite3-0 libssl3t64 libuuid1 libzstd1 zlib1g && \
+      git libbz2-1.0 libdb5.3t64 libffi8 liblzma5 libmpdec4 libncursesw6 libreadline8t64 \
+      libsqlite3-0 libssl3t64 libuuid1 libzstd1 media-types netbase tzdata zlib1g && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local /usr/local
 
-RUN python -m pip install --no-cache-dir uv && \
+RUN python -m pip install --no-cache-dir packaging setuptools wheel uv && \
     chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel
@@ -51,7 +51,9 @@ RUN git --version && \
     python -c "import platform; assert platform.python_version() == '${PYTHON_VERSION}'" && \
     python3 --version && \
     "python${PYTHON_VERSION%.*}" --version && \
-    python -c "import _decimal, bz2, ctypes, curses, lzma, readline, sqlite3, ssl, uuid, zlib; from compression import zstd" && \
+    python -c "import _decimal, bz2, ctypes, curses, dbm.ndbm, lzma, readline, sqlite3, ssl, uuid, zlib; from compression import zstd" && \
+    python -c "import packaging, setuptools, wheel; from zoneinfo import ZoneInfo; ZoneInfo('America/New_York'); import socket; assert socket.getservbyname('https', 'tcp') == 443; from pathlib import Path; assert Path('/etc/mime.types').is_file()" && \
+    python -c "from importlib.util import find_spec; assert find_spec('test') is None; assert find_spec('_testcapi') is None" && \
     pip --version && \
     pip3 --version && \
     uv --version && \
