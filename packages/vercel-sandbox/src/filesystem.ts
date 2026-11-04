@@ -556,7 +556,7 @@ export class FileSystem {
     options?: { signal?: AbortSignal },
   ): Promise<void> {
     "use step";
-    const result = await this.sandbox.runCommand("mv", [oldPath, newPath], {
+    const result = await this.sandbox.runCommand("mv", ["-T", oldPath, newPath], {
       signal: options?.signal,
     });
     if (result.exitCode !== 0) {
@@ -564,7 +564,27 @@ export class FileSystem {
       if (stderr.includes("No such file or directory")) {
         throw fsError("ENOENT", "no such file or directory", "rename", oldPath);
       }
-      throw fsError("EACCES", stderr.trim(), "rename", oldPath);
+      if (stderr.includes("Directory not empty")) {
+        throw fsError("ENOTEMPTY", "directory not empty", "rename", oldPath);
+      }
+      if (
+        stderr.includes("cannot overwrite directory") &&
+        stderr.includes("with non-directory")
+      ) {
+        throw fsError(
+          "EISDIR",
+          "illegal operation on a directory",
+          "rename",
+          oldPath,
+        );
+      }
+      if (
+        stderr.includes("cannot overwrite non-directory") &&
+        stderr.includes("with directory")
+      ) {
+        throw fsError("ENOTDIR", "not a directory", "rename", oldPath);
+      }
+      throw fsError("EACCES", stderr.trim() || "permission denied", "rename", oldPath);
     }
   }
 

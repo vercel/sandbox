@@ -317,14 +317,77 @@ describe("FileSystem", () => {
   });
 
   describe("rename", () => {
-    it("renames a file", async () => {
+    it("renames a file with -T (no target directory)", async () => {
       sandbox.runCommand.mockResolvedValue(mockCommandResult(""));
       await fs.rename("/old.txt", "/new.txt");
       expect(sandbox.runCommand).toHaveBeenCalledWith(
         "mv",
-        ["/old.txt", "/new.txt"],
+        ["-T", "/old.txt", "/new.txt"],
         expect.any(Object),
       );
+    });
+
+    it("throws ENOENT when file does not exist", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult("", 1, "mv: cannot stat '/missing.txt': No such file or directory"),
+      );
+      await expect(fs.rename("/missing.txt", "/new.txt")).rejects.toMatchObject({
+        code: "ENOENT",
+        syscall: "rename",
+        path: "/missing.txt",
+      });
+    });
+
+    it("throws ENOTEMPTY when destination is a non-empty directory", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult("", 1, "mv: cannot move '/dir1' to '/dir2': Directory not empty"),
+      );
+      await expect(fs.rename("/dir1", "/dir2")).rejects.toMatchObject({
+        code: "ENOTEMPTY",
+        syscall: "rename",
+        path: "/dir1",
+      });
+    });
+
+    it("throws EISDIR when destination is a directory but source is not", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult(
+          "",
+          1,
+          "mv: cannot overwrite directory '/dir' with non-directory",
+        ),
+      );
+      await expect(fs.rename("/file.txt", "/dir")).rejects.toMatchObject({
+        code: "EISDIR",
+        syscall: "rename",
+        path: "/file.txt",
+      });
+    });
+
+    it("throws ENOTDIR when destination is a non-directory but source is a directory", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult(
+          "",
+          1,
+          "mv: cannot overwrite non-directory '/file.txt' with directory",
+        ),
+      );
+      await expect(fs.rename("/dir", "/file.txt")).rejects.toMatchObject({
+        code: "ENOTDIR",
+        syscall: "rename",
+        path: "/dir",
+      });
+    });
+
+    it("throws EACCES on permission denied", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult("", 1, "mv: cannot move '/src' to '/dst': Permission denied"),
+      );
+      await expect(fs.rename("/src", "/dst")).rejects.toMatchObject({
+        code: "EACCES",
+        syscall: "rename",
+        path: "/src",
+      });
     });
   });
 
