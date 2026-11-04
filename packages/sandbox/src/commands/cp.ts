@@ -51,26 +51,6 @@ export const parseLocalOrRemotePath = async (input: string) => {
 type CopyPath = Awaited<ReturnType<typeof parseLocalOrRemotePath>>;
 type RemotePath = Extract<CopyPath, { type: "remote" }>;
 
-/** Parse a `SANDBOX_NAME:PATH` argument, rejecting local paths. */
-export const parseRemotePath = async (input: string): Promise<RemotePath> => {
-  const parsed = await parseLocalOrRemotePath(input);
-  if (parsed.type !== "remote") {
-    throw new Error(
-      [
-        `Expected a sandbox path, got "${input}".`,
-        `${chalk.bold("hint:")} Use the format SANDBOX_NAME:PATH (e.g., my-sandbox:/vercel/sandbox/file.txt).`,
-      ].join("\n"),
-    );
-  }
-  return parsed;
-};
-
-export const remotePath = cmd.extendType(cmd.string, {
-  displayName: "name:path",
-  description: "A file in a sandbox, as SANDBOX_NAME:PATH",
-  from: parseRemotePath,
-});
-
 const localOrRemote = cmd.extendType(cmd.string, {
   from: parseLocalOrRemotePath,
 });

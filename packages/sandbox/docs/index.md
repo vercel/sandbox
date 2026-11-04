@@ -59,7 +59,7 @@ Examples:
 
 – Read and write files in an existing sandbox
 
-  $ sandbox read <name>:/vercel/sandbox/package.json
+  $ sandbox read <name> /vercel/sandbox/package.json
 ```
 
 ## `sandbox list`
@@ -931,7 +931,8 @@ Print a file from a sandbox to stdout.
 
 Arguments:
 
-    <name:path>  The file to read, as SANDBOX_NAME:PATH
+    <name>  The name of the sandbox
+    <path>  The path of the file to read
 
 Auth & Scope:
 
@@ -955,7 +956,8 @@ Write stdin to a file in a sandbox, replacing it if it exists.
 
 Arguments:
 
-    <name:path>  The file to write, as SANDBOX_NAME:PATH
+    <name>  The name of the sandbox
+    <path>  The path of the file to write
 
 Options:
 
@@ -975,13 +977,13 @@ Examples:
 
 – Write a file from a heredoc
 
-  $ sandbox write my-sandbox:/vercel/sandbox/hello.js <<'EOF'
+  $ sandbox write my-sandbox /vercel/sandbox/hello.js <<'EOF'
 console.log("hello");
 EOF
 
 – Upload a local file
 
-  $ sandbox write my-sandbox:/vercel/sandbox/app.js < ./app.js
+  $ sandbox write my-sandbox /vercel/sandbox/app.js < ./app.js
 ```
 
 ## `sandbox connect`
