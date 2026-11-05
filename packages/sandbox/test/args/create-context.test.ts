@@ -4,6 +4,10 @@ import { createContext } from "../../src/args/create-context";
 import { prepareManagedCredentials } from "../../src/util/managed-credentials-create";
 import { CliError } from "../../src/util/cli-error";
 import { getVercelToken } from "@vercel/oidc";
+import { fetchSandboxCredentialSnapshot } from "../../src/util/managed-credentials-client";
+vi.mock("../../src/util/managed-credentials-client", () => ({
+  fetchSandboxCredentialSnapshot: vi.fn(),
+}));
 vi.mock("@vercel/oidc", async (original) => ({
   ...(await original<typeof import("@vercel/oidc")>()),
   getVercelToken: vi.fn(),
@@ -119,3 +123,29 @@ test.each([
     )._tag,
   ).toBe("error");
 });
+
+test.each([false, true])(
+  "reuse lookup failures are safe CLI errors (JSON: %s)",
+  async (json) => {
+    vi.mocked(fetchSandboxCredentialSnapshot).mockRejectedValueOnce(
+      new Error("private-response-canary"),
+    );
+    const error = await cmd
+      .run(parser, [
+        "--scope=team",
+        "--project=project",
+        "--credentials-github-from-sandbox=source",
+        ...(json ? ["--json"] : []),
+      ])
+      .catch((error) => error);
+    expect(error).toBeInstanceOf(CliError);
+    expect(error.options).toMatchObject({
+      reason: "configuration_lookup_failed",
+      exitCode: 1,
+      json,
+    });
+    expect(error.message).not.toContain("private-response-canary");
+    expect(error.cause).toBeUndefined();
+    expect(fetchSandboxCredentialSnapshot).toHaveBeenCalledOnce();
+  },
+);

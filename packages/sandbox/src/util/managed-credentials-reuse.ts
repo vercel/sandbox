@@ -46,7 +46,15 @@ export async function loadConfigFromSandbox(options: {
     selector: string,
   ) => Promise<SandboxCredentialSnapshot | undefined>;
 }): Promise<ManagedCredentialsConfig> {
-  const snapshot = await options.fetchSnapshot(options.selector);
+  let snapshot: SandboxCredentialSnapshot | undefined;
+  try {
+    snapshot = await options.fetchSnapshot(options.selector);
+  } catch {
+    throw new CliError(
+      "Could not read the source Sandbox's managed-credential configuration. Check the Sandbox name, team, project, and credentials.",
+      { reason: "configuration_lookup_failed", exitCode: 1 },
+    );
+  }
 
   if (!snapshot) {
     throw new CliError(

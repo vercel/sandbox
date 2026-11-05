@@ -403,30 +403,33 @@ describe("create with managed credentials", () => {
       expect(stdout).not.toHaveBeenCalled();
     });
 
-    test("does not suggest retrying creation after an uncertain server error", async () => {
-      mockCreate.mockRejectedValue(
-        new APIError(new Response(null, { status: 502 }), {
-          json: {
-            error: {
-              code: "private-response-canary",
-              message: "private-response-canary",
+    test.each([200, 201, 204, 502])(
+      "does not suggest retrying creation after an unreadable HTTP %s response",
+      async (status) => {
+        mockCreate.mockRejectedValue(
+          new APIError(new Response(null, { status }), {
+            json: {
+              error: {
+                code: "private-response-canary",
+                message: "private-response-canary",
+              },
             },
-          },
-        }),
-      );
-      const error = await createWith([
-        "--credentials-github-action=git:write",
-        "--yes",
-        "--json",
-      ]).catch((error) => error);
-      expect(error.options.reason).toBe("unknown_outcome");
-      expect(error.message).toContain(
-        "Inspect the sandbox list before retrying",
-      );
-      expect(error.options.data).not.toHaveProperty("apiCode");
-      expect(error.message).not.toContain("private-response-canary");
-      expect(mockCreate).toHaveBeenCalledOnce();
-    });
+          }),
+        );
+        const error = await createWith([
+          "--credentials-github-action=git:write",
+          "--yes",
+          "--json",
+        ]).catch((error) => error);
+        expect(error.options.reason).toBe("unknown_outcome");
+        expect(error.message).toContain(
+          "Inspect the sandbox list before retrying",
+        );
+        expect(error.options.data).not.toHaveProperty("apiCode");
+        expect(error.message).not.toContain("private-response-canary");
+        expect(mockCreate).toHaveBeenCalledOnce();
+      },
+    );
 
     test("run never resumes an existing sandbox to change its credentials", async () => {
       const { run } = await import("../../src/commands/run");

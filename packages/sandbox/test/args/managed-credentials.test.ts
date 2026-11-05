@@ -54,3 +54,14 @@ describe("managed credential arguments", () => {
     expect((await cmd.runSafely(parser, [flag, "value"]))._tag).toBe("error");
   });
 });
+
+test.each([
+  "credentials-github-repo",
+  "credentials-github-act-as",
+  "credentials-github-from-config-file",
+  "credentials-github-from-sandbox",
+  "credentials-github-persist-configuration",
+])("--%s requires a nonempty value when present", async (flag) => {
+  for (const args of [[`--${flag}`], [`--${flag}=`]])
+    expect((await cmd.runSafely(parser, args))._tag).toBe("error");
+});

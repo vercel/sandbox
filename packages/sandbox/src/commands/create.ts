@@ -452,7 +452,9 @@ export const create = cmd.command({
         // file, unwrapped and formatted again.
         const apiError = error instanceof APIError ? error : undefined;
         const rejected =
-          apiError !== undefined && apiError.response.status < 500;
+          apiError !== undefined &&
+          apiError.response.status >= 400 &&
+          apiError.response.status < 500;
         const unknownOutcome = creationAttempted && !createdName && !rejected;
         const rejection = describeCreationRejection(apiError);
         throw new CliError(

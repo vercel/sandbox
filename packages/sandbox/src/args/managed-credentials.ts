@@ -5,12 +5,35 @@ const optionalString = (
   long: string,
   displayName: string,
   description: string,
-) =>
-  cmd.option({
+) => {
+  const option = cmd.option({
     long,
     description,
     type: { ...cmd.optional(cmd.string), displayName },
   });
+  return {
+    ...option,
+    async parse(context: Parameters<typeof option.parse>[0]) {
+      const node = context.nodes.find(
+        (node) => node.type === "longOption" && node.key === long,
+      );
+      if (
+        node?.type === "longOption" &&
+        (!node.value || node.value.node.raw === "")
+      ) {
+        return {
+          _tag: "error" as const,
+          error: {
+            errors: [
+              { nodes: [node], message: `--${long} requires ${displayName}.` },
+            ],
+          },
+        };
+      }
+      return option.parse(context);
+    },
+  };
+};
 
 /**
  * The `--credentials-github-*` option surface.

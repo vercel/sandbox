@@ -28,4 +28,6 @@ A project with no Bounds warns and requires a second confirmation.
 
 The SDK gains managed Git and GitHub API credential request contracts and
 optional nonsecret session request metadata, and no longer retries creation, so
-an uncertain response cannot produce a duplicate Sandbox or grant.
+an uncertain response cannot produce a duplicate Sandbox or grant. Unreadable
+successful responses require inspection before retrying. Credential flags reject
+missing values, and configuration-reuse lookup errors preserve JSON output.
