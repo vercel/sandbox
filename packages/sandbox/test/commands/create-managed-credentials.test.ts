@@ -730,6 +730,15 @@ describe("create with managed credentials", () => {
       expect(errText()).toContain("Dry run");
     });
 
+    test("--yes hides the proposal but keeps the dry-run outcome", async () => {
+      await createWith(["--enable-github-credentials", "--dry-run", "--yes"]);
+      expect(errText()).toContain("Dry run");
+      expect(errText()).not.toContain("Managed credentials for this sandbox");
+      expect(errText()).not.toContain("vercel/api");
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(mockHasProjectBounds).not.toHaveBeenCalled();
+    });
+
     test("shows the proposal without requiring approval", async () => {
       await createWith(["--enable-github-credentials", "--dry-run"]);
       expect(mockCreate).not.toHaveBeenCalled();
@@ -768,9 +777,10 @@ describe("create with managed credentials", () => {
       expect(stdout).not.toHaveBeenCalled();
     });
 
-    test("--silent does not suppress the proposal", async () => {
+    test("--yes suppresses the proposal even with --silent", async () => {
       await createWith(["--enable-github-credentials", "--silent", "--yes"]);
-      expect(errText()).toContain("Managed credentials for this sandbox");
+      expect(errText()).toBe("");
+      expect(mockCreate).toHaveBeenCalledOnce();
     });
   });
 

@@ -213,7 +213,10 @@ prints the editable command described below. The Sandbox still receives only
 the rights shown in the proposal. No Bounds does not automatically give that
 Sandbox every permission.
 
-The `--yes` option accepts both confirmations, but the warning still appears.
+The `--yes` option skips the parameter review and accepts both confirmations.
+It does not disable the Bounds check or hide warnings and errors. With
+`--yes --dry-run`, the CLI also skips the review but still reports the dry-run
+outcome. Without `--yes`, the parameter review is unchanged.
 With `--json --yes`, the warning is one JSON object on stderr, with
 `reason: "project_has_no_bounds"`. The created result on stdout is unchanged.
 
@@ -454,7 +457,7 @@ Also enforced:
 
 `--json`, CI, piped input, and `--non-interactive` never prompt. In those modes
 a managed-credentials request needs `--yes`, which grants consent — never a
-missing input or a missing permission. `--silent` does not suppress the review
+missing input or a missing permission. `--silent` alone does not suppress the review
 or bypass consent.
 
 One approval covers creation and the clearly displayed project-policy

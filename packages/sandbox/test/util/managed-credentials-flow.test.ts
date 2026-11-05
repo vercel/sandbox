@@ -66,6 +66,83 @@ const baseContext = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+describe("--yes review output", () => {
+  test.each([
+    { interactive: false, dryRun: false },
+    { interactive: true, dryRun: false },
+    { interactive: false, dryRun: true },
+    { interactive: true, dryRun: true },
+  ])(
+    "omits guessed parameters (interactive: $interactive, dry-run: $dryRun)",
+    async ({ interactive, dryRun }) => {
+      const output = new PassThrough();
+      const chunks: string[] = [];
+      output.on("data", (chunk) => chunks.push(chunk.toString()));
+      const hasProjectBounds = vi.fn().mockResolvedValue(true);
+      const result = await runManagedCredentialsFlow({
+        initial: resolved(),
+        context: baseContext({
+          yes: true,
+          interactive,
+          dryRun,
+          output,
+          hasProjectBounds,
+        }),
+      });
+      expect(result.config).toEqual(configFor());
+      expect(chunks.join("")).toBe("");
+      expect(hasProjectBounds).toHaveBeenCalledTimes(dryRun ? 0 : 1);
+    },
+  );
+
+  test("keeps project-wide policy warnings without printing the parameter review", async () => {
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk) => chunks.push(chunk.toString()));
+    await runManagedCredentialsFlow({
+      initial: resolved(),
+      context: baseContext({
+        yes: true,
+        output,
+        readBounds: vi
+          .fn()
+          .mockResolvedValue({
+            status: "known",
+            bounds: [{ repo: "other/repository", actions: ["git:read"] }],
+          }),
+      }),
+    });
+    const text = chunks.join("");
+    expect(text).toContain("raises the project-wide ceiling");
+    expect(text).not.toContain("Managed credentials for this sandbox");
+    expect(text).not.toContain("Setting");
+    expect(text).not.toContain("vercel/api");
+    expect(text).not.toContain("shown above");
+  });
+
+  test("an unreadable project policy still stops --yes without a parameter dump", async () => {
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk) => chunks.push(chunk.toString()));
+    const hasProjectBounds = vi
+      .fn()
+      .mockRejectedValue(
+        new CliError("Cannot read Bounds", { reason: "policy_unknown" }),
+      );
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        context: baseContext({ yes: true, output, hasProjectBounds }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "policy_unknown" } });
+    expect(chunks.join("")).toBe("");
+    expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+      team: "jacks-projects",
+      project: "api",
+    });
+  });
+});
+
 describe("non-interactive consent", () => {
   test("refuses to create without --yes", async () => {
     await expect(
@@ -203,10 +280,12 @@ describe("unbounded project confirmation", () => {
       });
       expect(io.text()).toContain("This project has no Bounds");
       expect(io.text()).toContain(
-        "The Sandbox still receives only the rights shown above",
+        "The Sandbox still receives only the requested rights",
       );
       expect(io.text()).not.toContain("Continue without project Bounds?");
       expect(io.text()).not.toContain("Create this sandbox?");
+      expect(io.text()).not.toContain("Managed credentials for this sandbox");
+      expect(io.text()).not.toContain("Setting");
     },
   );
 
@@ -228,7 +307,7 @@ describe("unbounded project confirmation", () => {
         status: "warning",
         reason: "project_has_no_bounds",
         message: expect.stringContaining(
-          "The Sandbox still receives only the rights shown above",
+          "The Sandbox still receives only the requested rights",
         ),
         team: "jacks-projects",
         project: "api",

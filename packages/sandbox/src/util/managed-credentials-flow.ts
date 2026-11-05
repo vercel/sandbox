@@ -105,12 +105,16 @@ export async function runManagedCredentialsFlow(options: {
     missingBounds,
   });
   if (!context.json) {
-    write(
-      `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
-    );
+    if (!context.yes) {
+      write(
+        `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
+      );
+    }
     if (missingBounds.length)
       write(
-        "  Approving also raises the project-wide ceiling shown above for every member of the project.\n\n",
+        context.yes
+          ? "  Approving also raises the project-wide ceiling for every member of the project.\n\n"
+          : "  Approving also raises the project-wide ceiling shown above for every member of the project.\n\n",
       );
   }
 
@@ -160,7 +164,10 @@ export async function runManagedCredentialsFlow(options: {
     !(await context.hasProjectBounds({ team, project }))
   ) {
     const message =
-      "This project has no Bounds. There is no project-wide limit on managed-credential access. The Sandbox still receives only the rights shown above.";
+      "This project has no Bounds. There is no project-wide limit on managed-credential access. " +
+      (context.yes
+        ? "The Sandbox still receives only the requested rights."
+        : "The Sandbox still receives only the rights shown above.");
     if (context.json)
       write(
         `${JSON.stringify({ status: "warning", reason: "project_has_no_bounds", message, team, project })}\n`,
