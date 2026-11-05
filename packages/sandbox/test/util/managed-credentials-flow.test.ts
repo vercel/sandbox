@@ -95,29 +95,6 @@ describe("--yes review output", () => {
     },
   );
 
-  test("keeps project-wide policy warnings without printing the parameter review", async () => {
-    const output = new PassThrough();
-    const chunks: string[] = [];
-    output.on("data", (chunk) => chunks.push(chunk.toString()));
-    await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({
-        yes: true,
-        output,
-        readBounds: vi.fn().mockResolvedValue({
-          status: "known",
-          bounds: [{ repo: "other/repository", actions: ["git:read"] }],
-        }),
-      }),
-    });
-    const text = chunks.join("");
-    expect(text).toContain("raises the project-wide ceiling");
-    expect(text).not.toContain("Managed credentials for this sandbox");
-    expect(text).not.toContain("Setting");
-    expect(text).not.toContain("vercel/api");
-    expect(text).not.toContain("shown above");
-  });
-
   test("an unreadable project policy still stops --yes without a parameter dump", async () => {
     const output = new PassThrough();
     const chunks: string[] = [];
@@ -255,7 +232,6 @@ describe("unbounded project confirmation", () => {
     async (interactive) => {
       const io = capture([]);
       const hasProjectBounds = vi.fn().mockResolvedValue(false);
-      const readBounds = vi.fn().mockResolvedValue(undefined);
       await runManagedCredentialsFlow({
         initial: resolved(),
         context: baseContext({
@@ -263,14 +239,9 @@ describe("unbounded project confirmation", () => {
           yes: true,
           ...io,
           hasProjectBounds,
-          readBounds,
         }),
       });
       expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
-        team: "jacks-projects",
-        project: "api",
-      });
-      expect(readBounds).toHaveBeenCalledExactlyOnceWith({
         team: "jacks-projects",
         project: "api",
       });
@@ -360,62 +331,6 @@ describe("unbounded project confirmation", () => {
       expect(io.text()).not.toContain("Continue without project Bounds?");
     },
   );
-});
-
-describe("policy additions", () => {
-  const readBounds = vi.fn().mockResolvedValue({
-    status: "known",
-    bounds: [{ repo: "other/repo", actions: [] }],
-  });
-
-  test("reports missing bounds and requires explicit approval", async () => {
-    await expect(
-      runManagedCredentialsFlow({
-        initial: resolved(),
-        context: baseContext({ readBounds }),
-      }),
-    ).rejects.toThrow(/raise the project-wide ceiling/);
-  });
-
-  test("--yes covers the displayed policy additions", async () => {
-    const output = new PassThrough();
-    const chunks: string[] = [];
-    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
-    await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({ readBounds, yes: true, output }),
-    });
-    expect(chunks.join("")).toContain("raises the project-wide ceiling");
-  });
-
-  test("proposes nothing when there is no policy source to read", async () => {
-    const output = new PassThrough();
-    const chunks: string[] = [];
-    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
-    await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({
-        yes: true,
-        output,
-        readBounds: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
-    expect(chunks.join("")).not.toContain("project-wide ceiling");
-  });
-
-  test("refuses to propose additions from an unreadable policy", async () => {
-    await expect(
-      runManagedCredentialsFlow({
-        initial: resolved(),
-        context: baseContext({
-          yes: true,
-          readBounds: vi
-            .fn()
-            .mockResolvedValue({ status: "unknown", reason: "HTTP 503" }),
-        }),
-      }),
-    ).rejects.toThrow(/does not treat an unreadable policy as empty/);
-  });
 });
 
 describe("interactive review", () => {

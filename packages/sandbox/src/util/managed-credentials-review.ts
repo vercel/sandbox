@@ -5,10 +5,6 @@ import {
   repositoryGroups,
   sourceRepository,
 } from "./managed-credentials-config";
-import {
-  describeMissingBounds,
-  type MissingBound,
-} from "./managed-credentials-bounds";
 import type { ConfigProvenance } from "./managed-credentials-resolve";
 import type { InferredActor } from "./managed-credentials-identity";
 import { isScopeId } from "./scope-display";
@@ -27,7 +23,6 @@ export interface ReviewInput {
   sandboxName?: string;
   vcpus: number;
   vcpusExplicit: boolean;
-  missingBounds: readonly MissingBound[];
 }
 
 export interface ReviewRow {
@@ -167,12 +162,6 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     value: `${input.vcpus} vCPUs`,
     note: input.vcpusExplicit ? "from --vcpus" : "managed-credentials default",
   });
-  for (const line of describeMissingBounds(input.missingBounds))
-    rows.push({
-      label: "Policy addition",
-      value: safeText(line),
-      note: "policy comparison; raises the project-wide ceiling for everyone in the project",
-    });
   return rows;
 }
 

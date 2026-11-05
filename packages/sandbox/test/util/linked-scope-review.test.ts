@@ -149,7 +149,6 @@ test.each([PROJECT, "Qm" + "a".repeat(44)])(
       project,
       vcpus: 6,
       vcpusExplicit: false,
-      missingBounds: [],
     });
     expect(rows.find((row) => row.label === "Team")).toMatchObject({
       value: TEAM,

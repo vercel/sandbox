@@ -32,7 +32,6 @@ const review = (overrides: Record<string, unknown> = {}) =>
     project: "api",
     vcpus: 6,
     vcpusExplicit: false,
-    missingBounds: [],
     ...overrides,
   });
 
@@ -113,7 +112,6 @@ describe("review contents", () => {
       project: "p",
       vcpus: 6,
       vcpusExplicit: false,
-      missingBounds: [],
     });
     expect(valueOf(rows, "Access vercel/api")).toBe("git:write");
     expect(
@@ -140,19 +138,9 @@ describe("review contents", () => {
       project: "p",
       vcpus: 6,
       vcpusExplicit: false,
-      missingBounds: [],
     });
     expect(valueOf(rows, "Access acme/one")).toBe("github:issues:read");
     expect(valueOf(rows, "Access acme/two")).toBe("github:pull-request:create");
-  });
-
-  test("shows proposed project-wide additions as project-wide", () => {
-    const rows = review({
-      missingBounds: [{ repo: "vercel/api", actions: ["github:issues:read"] }],
-    });
-    const addition = rows.find((row) => row.label === "Policy addition");
-    expect(addition?.value).toContain("project-wide");
-    expect(addition?.note).toMatch(/everyone in the project/);
   });
 
   test("strips control characters from displayed values", () => {
@@ -170,7 +158,6 @@ describe("review contents", () => {
       project: "p",
       vcpus: 6,
       vcpusExplicit: false,
-      missingBounds: [],
     });
     expect(valueOf(rows, "Team")).toBe("team");
     expect(valueOf(rows, "Commit credit")).toBe("AdaEvil <ada@example.com>");
@@ -209,7 +196,6 @@ const input = () => ({
   project: "widgets",
   vcpus: 6,
   vcpusExplicit: false,
-  missingBounds: [],
 });
 
 describe("complete review provenance", () => {

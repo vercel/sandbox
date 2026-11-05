@@ -7,16 +7,16 @@ import { create } from "../../src/commands/create";
 import type { Sandbox } from "@vercel/sandbox";
 import type { ManagedCredentialsConfig } from "../../src/util/managed-credentials-config";
 
-const { createSandbox, readBounds, inferActor } = vi.hoisted(() => ({
+const { createSandbox, hasBounds, inferActor } = vi.hoisted(() => ({
   createSandbox: vi.fn(),
-  readBounds: vi.fn(),
+  hasBounds: vi.fn(),
   inferActor: vi.fn(),
 }));
 vi.mock("../../src/client", () => ({
   sandboxClient: { create: createSandbox },
 }));
 vi.mock("../../src/util/managed-credentials-project-bounds", () => ({
-  hasProjectBounds: readBounds,
+  hasProjectBounds: hasBounds,
 }));
 vi.mock("../../src/util/managed-credentials-actor", () => ({ inferActor }));
 vi.mock("../../src/util/check-latest-version", () => ({
@@ -35,7 +35,7 @@ beforeEach(async () => {
     vi.fn(async () => new Response(null, { status: 403 })),
   );
   directory = await mkdtemp(join(tmpdir(), "sandbox-api-config-"));
-  readBounds.mockResolvedValue(true);
+  hasBounds.mockResolvedValue(true);
   createSandbox.mockResolvedValue({
     name: "configured",
     interactivePort: 8443,
@@ -139,7 +139,7 @@ test("rejects duplicate repository entries just as the API schema does", async (
   await writeFile(input, JSON.stringify(document));
   await expect(invoke(input)).rejects.toThrow(/Duplicate repositories/);
   expect(createSandbox).not.toHaveBeenCalled();
-  expect(readBounds).not.toHaveBeenCalled();
+  expect(hasBounds).not.toHaveBeenCalled();
 });
 
 test("rejects CLI-only repo aliases instead of accepting a second JSON schema", async () => {
@@ -157,5 +157,5 @@ test("rejects CLI-only repo aliases instead of accepting a second JSON schema", 
     /Invalid managed credentials configuration/,
   );
   expect(createSandbox).not.toHaveBeenCalled();
-  expect(readBounds).not.toHaveBeenCalled();
+  expect(hasBounds).not.toHaveBeenCalled();
 });

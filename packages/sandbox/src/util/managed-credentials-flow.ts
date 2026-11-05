@@ -1,10 +1,5 @@
 import { CliError } from "./cli-error";
 import type { ScopeProvenance } from "./infer-scope";
-import {
-  type BoundsLookup,
-  type MissingBound,
-  calculateMissingBounds,
-} from "./managed-credentials-bounds";
 import type { ManagedCredentialsConfig } from "./managed-credentials-config";
 import type { ResolvedManagedCredentials } from "./managed-credentials-resolve";
 import {
@@ -22,8 +17,6 @@ export interface ReviewScope {
 export interface FlowContext extends ReviewScope {
   /** Review labels only, never policy/API/recovery selectors. */
   displayScope: ReviewScope;
-  /** Optional read-only coverage calculation. */
-  readBounds?: (scope: ReviewScope) => Promise<BoundsLookup | undefined>;
   /** Check for project Bounds only after the proposal is approved. */
   hasProjectBounds?: (scope: ReviewScope) => Promise<boolean>;
   /** Render the exact proposal as a command without executing or approving it. */
@@ -81,11 +74,6 @@ export async function runManagedCredentialsFlow(options: {
     }
   };
 
-  const missingBounds = await resolveBounds(
-    context,
-    { team, project },
-    resolved.config,
-  );
   // --yes makes the review invisible, and the only other reader of the rows is
   // the consent error --yes cannot reach. Do not build a table nobody sees.
   const rows = context.yes
@@ -104,20 +92,11 @@ export async function runManagedCredentialsFlow(options: {
         ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
         vcpus: context.vcpus,
         vcpusExplicit: context.vcpusExplicit,
-        missingBounds,
       });
-  if (!context.json) {
-    if (!context.yes) {
-      write(
-        `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
-      );
-    }
-    if (missingBounds.length)
-      write(
-        context.yes
-          ? "  Approving also raises the project-wide ceiling for every member of the project.\n\n"
-          : "  Approving also raises the project-wide ceiling shown above for every member of the project.\n\n",
-      );
+  if (!context.json && !context.yes) {
+    write(
+      `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
+    );
   }
 
   if (context.dryRun) return;
@@ -126,9 +105,7 @@ export async function runManagedCredentialsFlow(options: {
     const command = recoveryCommand();
     showRecoveryCommand(command);
     throw new CliError(
-      missingBounds.length
-        ? "Creating this sandbox requests managed access and would raise the project-wide ceiling. Review the proposal and pass --yes only after approval."
-        : "Creating this sandbox requests managed access. Review the proposal and pass --yes only after approval.",
+      "Creating this sandbox requests managed access. Review the proposal and pass --yes only after approval.",
       {
         reason: "confirmation_required",
         json: context.json,
@@ -138,7 +115,6 @@ export async function runManagedCredentialsFlow(options: {
           project,
           effects: rows.map((row) => `${row.label}: ${row.value}`),
           ...(command ? { command } : {}),
-          ...(missingBounds.length ? { policyAdditions: missingBounds } : {}),
         },
       },
     );
@@ -179,15 +155,4 @@ export async function runManagedCredentialsFlow(options: {
       if (!/^(y|yes)$/i.test(answer.trim())) cancel();
     }
   }
-}
-
-async function resolveBounds(
-  context: FlowContext,
-  scope: ReviewScope,
-  config: ManagedCredentialsConfig,
-): Promise<MissingBound[]> {
-  if (!context.readBounds) return [];
-  const lookup = await context.readBounds(scope);
-  // An absent policy source is not an empty policy. The server enforces it.
-  return lookup ? calculateMissingBounds(config, lookup) : [];
 }
