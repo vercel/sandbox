@@ -45,12 +45,20 @@ export const snapshotClient: Pick<
   "get" | "list" | "tree"
 > = {
   list: (params) =>
-    withErrorHandling(() =>
-      Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
-    ),
-  get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Snapshot.list({ fetch: fetchWithUserAgent, ...params });
+    }),
+  get: (params) =>
+    withErrorHandling(() => {
+      updateScope(params);
+      return Snapshot.get({ ...params });
+    }),
   tree: (params) =>
-    withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Snapshot.tree({ fetch: fetchWithUserAgent, ...params });
+    }),
 };
 
 export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
@@ -58,15 +66,20 @@ export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
   delete(drive: Drive): Promise<void>;
 } = {
   get: (params) =>
-    withErrorHandling(() => Drive.get({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Drive.get({ fetch: fetchWithUserAgent, ...params });
+    }),
   getOrCreate: (params) =>
-    withErrorHandling(() =>
-      Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params });
+    }),
   list: (params) =>
-    withErrorHandling(() =>
-      Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+    }),
   delete: (drive) => withErrorHandling(() => drive.delete()),
   fork: (drive, params) => withErrorHandling(() => drive.fork(params)),
 };

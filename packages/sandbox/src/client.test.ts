@@ -12,8 +12,8 @@ vi.mock("xdg-app-paths", () => ({
   }),
 }));
 
-import { sandboxClient } from "./client";
-import { writeTelemetryConfig } from "./telemetry";
+import { driveClient, sandboxClient, snapshotClient } from "./client";
+import { telemetry, writeTelemetryConfig } from "./telemetry";
 
 describe("fetchWithUserAgent", () => {
   const fetchMock = vi.fn(
@@ -75,3 +75,32 @@ describe("fetchWithUserAgent", () => {
     expect(userAgent).not.toContain(" agent/");
   });
 });
+
+describe("scope attribution", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["snapshots list", () => snapshotClient.list(scope)],
+    ["drives list", () => driveClient.list(scope)],
+  ])("records team and project ids for %s", async (_name, run) => {
+    const teamId = vi.spyOn(telemetry, "updateTeamId");
+    const projectId = vi.spyOn(telemetry, "updateProjectId");
+
+    await run().catch(() => undefined);
+
+    expect(teamId).toHaveBeenCalledWith("team_fake");
+    expect(projectId).toHaveBeenCalledWith("prj_fake");
+  });
+});
+
+const scope = { token: "fake", teamId: "team_fake", projectId: "prj_fake" };
