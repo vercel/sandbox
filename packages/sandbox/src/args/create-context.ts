@@ -19,10 +19,6 @@ import {
 } from "../util/managed-credentials-resolve";
 import { loadConfigFromSandbox } from "../util/managed-credentials-reuse";
 import { fetchSandboxCredentialSnapshot } from "../util/managed-credentials-client";
-import {
-  captureRetryInvocation,
-  type RetryInvocation,
-} from "../util/managed-credentials-retry-command";
 
 type Parsed<T> = T extends ArgParser<infer Value> ? Value : never;
 export type CreateContext = Parsed<typeof scope> & {
@@ -34,8 +30,8 @@ export type CreateContext = Parsed<typeof scope> & {
   managed?: ResolvedManagedCredentials;
   managedOptions?: ManagedCredentialsOptions;
   persistConfiguration?: string;
-  /** Original invocation for an editable rejected-proposal command. */
-  retryInvocation?: RetryInvocation;
+  /** Replaying an explicit token must not silently select another login. */
+  hasExplicitToken?: boolean;
 };
 
 /** Resolve the proposal without granting access or performing creation. */
@@ -157,18 +153,26 @@ export function createContext({
           _tag: "ok",
           value: {
             ...result.value,
-            appName: context.hotPath?.includes("vercel sandbox")
-              ? "vercel sandbox"
-              : "sandbox",
+            appName:
+              context.hotPath?.includes("vercel sandbox") ||
+              (context.hotPath?.[0] === "vercel" &&
+                context.hotPath?.[1] === "sandbox")
+                ? "vercel sandbox"
+                : "sandbox",
             creationRequested,
             mode,
             ...(scopeProvenance ? { scopeProvenance } : {}),
             yes: run.yes,
+            hasExplicitToken: context.nodes.some(
+              (node) =>
+                node.type === "longOption" &&
+                node.key === "token" &&
+                node.value !== undefined,
+            ),
             ...(managed
               ? {
                   managed,
                   managedOptions,
-                  retryInvocation: captureRetryInvocation(context),
                 }
               : {}),
             ...(managedOptions.credentialsPersistConfiguration !== undefined

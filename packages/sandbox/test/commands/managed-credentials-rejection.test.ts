@@ -40,11 +40,15 @@ vi.mock("../../src/telemetry/agent", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("VERCEL_AUTH_TOKEN", "saved-auth-canary");
   mockDecision.mockResolvedValue({ action: "cancel" });
   mockHasProjectBounds.mockResolvedValue(true);
   mockBoundsAnswer.mockResolvedValue("n");
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
 test.each(
   (["create", "run", "sh"] as const).flatMap((name) => [
@@ -69,14 +73,28 @@ test.each(
       name,
       "--scope=team",
       "--project=project",
-      "--token=secret-rejection-test-token",
+      ...(name === "run" && rejectAt === "proposal"
+        ? []
+        : name === "create"
+          ? ["--token", "secret-rejection-test-token"]
+          : ["--token=secret-rejection-test-token"]),
       "--credentials-github-repo=acme/widgets",
       "--credentials-github-action=issues:read",
       "--credentials-github-action=git:write",
       "--credentials-github-act-as=42",
       "--vcpus=8",
+      "--env=PRIVATE_ENV=env-secret-canary",
+      "--request-header=example.com:Authorization=header-secret-canary",
+      "--credentials-github-persist-configuration=./not-written.json",
     ];
-    if (name === "run") args.push("--", "node", "-e", "console.log('hello')");
+    if (name === "run")
+      args.push(
+        "--",
+        "node",
+        "-e",
+        "console.log('hello')",
+        "--token=child-token-canary",
+      );
     try {
       await cmd.run(root, args);
       throw new Error("Expected the proposal to be rejected");
@@ -88,7 +106,7 @@ test.each(
         exitCode: 130,
       });
       const command = (failure.options.data as { command: string }).command;
-      expect(command).toContain(`vercel sandbox ${name} `);
+      expect(command).toMatch(/^vercel sandbox create /);
       expect(command).toContain("--scope=team");
       expect(command).toContain("--project=project");
       expect(command).toContain("--vcpus=8");
@@ -100,9 +118,23 @@ test.each(
       expect(command).toContain("--credentials-github-act-as=42");
       expect(command).not.toContain("--yes");
       expect(command).not.toContain("secret-rejection-test-token");
-      if (name === "run") {
-        expect(command).toContain("-- node -e ");
-        expect(command).toContain("console.log");
+      if (name === "run" && rejectAt === "proposal")
+        expect(command).not.toContain("--token");
+      else
+        expect(command).toContain(
+          '--token="${VERCEL_AUTH_TOKEN:?Set VERCEL_AUTH_TOKEN to the original Vercel token}"',
+        );
+      for (const omitted of [
+        "--env",
+        "--request-header",
+        "--credentials-github-persist-configuration",
+        "env-secret-canary",
+        "header-secret-canary",
+        "console.log",
+        "child-token-canary",
+        "saved-auth-canary",
+      ]) {
+        expect(command).not.toContain(omitted);
       }
       expect(stderr.mock.calls.flat().join("")).toContain(command);
     }

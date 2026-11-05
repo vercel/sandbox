@@ -112,21 +112,8 @@ export async function prepareManagedCredentials(options: {
           team: context.teamSlug ?? context.team,
           project: context.projectSlug ?? context.project,
           vcpus,
-          invocation: context.retryInvocation ?? {
-            appName: context.appName ?? "sandbox",
-            command: "create",
-            args: options.sandboxName
-              ? [
-                  {
-                    kind: "option",
-                    dash: "--",
-                    keys: "name",
-                    value: options.sandboxName,
-                    inline: true,
-                  },
-                ]
-              : [],
-          },
+          hasExplicitToken: context.hasExplicitToken,
+          appName: context.appName,
         }),
     },
   });

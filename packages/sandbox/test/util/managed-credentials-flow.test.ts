@@ -330,7 +330,7 @@ describe("interactive review", () => {
       });
       expect(renderCommand).toHaveBeenCalledExactlyOnceWith(configFor());
       expect(chunks.join("")).toContain(
-        `Edit this command and run it again:\n\n${command}\n`,
+        `Re-add other creation options if needed.\n\n${command}\n`,
       );
     },
   );

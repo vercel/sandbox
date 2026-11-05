@@ -222,9 +222,8 @@ created result on stdout is unchanged.
 
 ### Reject and correct the command
 
-Cancelling prints the proposal's full explicit-flags command to stderr. Edit it
-and run it again. The command uses the exact reviewed values rather than
-repeating the original guesses:
+Cancelling prints a `create` command with the reviewed credentials, team,
+project, and vCPU count to stderr. Edit those values and run it again:
 
 ```sh
 vercel sandbox create \
@@ -239,13 +238,15 @@ vercel sandbox create \
   --credentials-github-act-as=42
 ```
 
-The output preserves `create`, `run`, or `sh`, along with the original command
-arguments. It does not add `--yes`, so running it still requires approval.
-Rejection creates no sandbox, grant, policy change, or local file.
+The output always uses `create`, even after `run` or `sh`. It omits the original
+child command and other creation options, including names, environment values,
+network options, and configuration output paths. Add any options you need.
+It does not add `--yes`, so running it still requires approval. Rejection creates
+no Sandbox, Grant, policy change, or local file.
 
-Tokens, environment values, and request-header values use required environment
-variable placeholders instead of their original values. Set those variables
-before running the printed command. Do not paste secrets into shared logs.
+If the original command used `--token`, the output requires `VERCEL_AUTH_TOKEN`
+to contain that same Vercel token. The placeholder prevents silent use of another
+login. The output never contains the token value. Do not paste secrets into logs.
 
 If direct flags cannot express the configuration, the output includes its
 resolved JSON and a temporary-file command. Only running that command creates the

@@ -49,7 +49,9 @@ export async function runManagedCredentialsFlow(options: {
   const recoveryCommand = () => context.renderCommand?.(resolved.config);
   const showRecoveryCommand = (command: string | undefined) => {
     if (command && !context.json)
-      write(`\n  Edit this command and run it again:\n\n${command}\n\n`);
+      write(
+        `\n  Edit this credentials command and run it again.\n  Re-add other creation options if needed.\n\n${command}\n\n`,
+      );
   };
   const cancel = (): never => {
     const command = recoveryCommand();
