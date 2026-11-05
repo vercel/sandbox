@@ -23,9 +23,6 @@ vi.mock("../../src/client", () => ({
   sandboxClient: { create: createSandbox },
 }));
 vi.mock("../../src/commands/login", () => ({ login: { handler: login } }));
-vi.mock("../../src/util/current-team", () => ({
-  readVercelCurrentTeam: () => undefined,
-}));
 vi.mock("../../src/util/project-configuration", () => ({
   readProjectConfiguration: () => undefined,
 }));

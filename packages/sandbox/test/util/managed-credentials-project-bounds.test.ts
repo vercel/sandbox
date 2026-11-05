@@ -542,212 +542,28 @@ describe("review regressions: exact teams and server project selectors", () => {
   );
 });
 
-describe("read errors, auth boundaries, and aborts", () => {
-  test.each([301, 302, 307, 308, 400, 401, 403, 404, 429, 500, 503])(
-    "rejects HTTP %i at either endpoint without redirects, retries, or auth fallback",
-    async (status) => {
-      for (const failAt of [0, 1, 2]) {
-        const fetch = fetchWith(
-          ...[project, page([], "next")].slice(0, failAt),
-        );
-        fetch.mockResolvedValueOnce(
-          new Response("private response with account details", {
-            status,
-            headers: { Location: "https://untrusted.example/login" },
-          }),
-        );
-        const error = await policyUnknown(
-          hasProjectBounds({ ...scope, fetch }),
-        );
-        expect(error.message).not.toMatch(
-          /private response|account details|untrusted/,
-        );
-        expect(fetch).toHaveBeenCalledTimes(failAt + 1);
-        expect(inferScope).not.toHaveBeenCalled();
-        expect(globalThis.fetch).not.toHaveBeenCalled();
-        for (const [input, init] of fetch.mock.calls) {
-          expect(new URL(String(input)).origin).toBe("https://vercel.com");
-          expect(init).toMatchObject({
-            method: "GET",
-            redirect: "error",
-            credentials: "omit",
-          });
-          expect(init?.headers).toEqual({ Authorization: `Bearer ${token}` });
-          expect(init?.body).toBeUndefined();
-        }
-      }
-    },
-  );
+// Transport permutations belong to vercel-api.test.ts. Here, verify the
+// policy boundary: an unreadable response is never interpreted as no Bounds.
+test.each([
+  async () => new Response(token, { status: 403 }),
+  async () => new Response(token),
+  async () => {
+    throw new Error(token);
+  },
+])("sanitizes an unreadable policy without auth fallback", async (fail) => {
+  const fetch = vi.fn<typeof globalThis.fetch>(fail);
+  const error = await policyUnknown(hasProjectBounds({ ...scope, fetch }));
+  expect(error.message).not.toContain(token);
+  expect(error.cause).toBeUndefined();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(inferScope).not.toHaveBeenCalled();
+  expect(globalThis.fetch).not.toHaveBeenCalled();
+});
 
-  test.each([0, 1, 2])("rejects invalid JSON at request %i", async (failAt) => {
-    const fetch = fetchWith(...[project, page([], "next")].slice(0, failAt));
-    fetch.mockResolvedValueOnce(new Response("secret-invalid-json"));
-    const error = await policyUnknown(hasProjectBounds({ ...scope, fetch }));
-    expect(error.message).not.toContain("secret-invalid-json");
-    expect(fetch).toHaveBeenCalledTimes(failAt + 1);
-  });
-
-  test.each([0, 1, 2])(
-    "sanitizes transport errors at request %i",
-    async (failAt) => {
-      const fetch = fetchWith(...[project, page([], "next")].slice(0, failAt));
-      fetch.mockRejectedValueOnce(
-        new Error(`Authorization: Bearer ${token}; private-account`),
-      );
-      const error = await policyUnknown(hasProjectBounds({ ...scope, fetch }));
-      expect(error.message).not.toMatch(
-        /Authorization|private-token|private-account/,
-      );
-      expect(error.cause).toBeUndefined();
-      expect(fetch).toHaveBeenCalledTimes(failAt + 1);
-    },
-  );
-
-  test.each([201, 202, 204, 206, 304])(
-    "rejects unexpected response status %i",
-    async (status) => {
-      for (const failAt of [0, 1]) {
-        const fetch = fetchWith(...[project].slice(0, failAt));
-        fetch.mockResolvedValueOnce(new Response(null, { status }));
-        await policyUnknown(hasProjectBounds({ ...scope, fetch }));
-        expect(fetch).toHaveBeenCalledTimes(failAt + 1);
-      }
-    },
-  );
-
-  test.each([0, 1])(
-    "rejects an unexpectedly followed redirect at request %i",
-    async (failAt) => {
-      const response = json(failAt === 0 ? project : page());
-      Object.defineProperty(response, "redirected", { value: true });
-      const fetch = fetchWith(...[project].slice(0, failAt));
-      fetch.mockResolvedValueOnce(response);
-      await policyUnknown(hasProjectBounds({ ...scope, fetch }));
-      expect(fetch).toHaveBeenCalledTimes(failAt + 1);
-    },
-  );
-
-  test("uses only GETs and the supplied auth without scope inference or mutation", async () => {
-    const fetch = fetchWith(project, page([], "next"), page([bound]));
-    await expect(hasProjectBounds({ ...scope, fetch })).resolves.toBe(true);
-    for (const [input, init] of fetch.mock.calls) {
-      expect(new URL(String(input)).origin).toBe("https://vercel.com");
-      expect(init).toMatchObject({
-        method: "GET",
-        redirect: "error",
-        credentials: "omit",
-      });
-      expect(init?.headers).toEqual({ Authorization: `Bearer ${token}` });
-      expect(init?.body).toBeUndefined();
-      expect(init?.signal).toBeInstanceOf(AbortSignal);
-    }
-    expect(inferScope).not.toHaveBeenCalled();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-  });
-
-  test("uses standard global fetch if no test transport is supplied", async () => {
-    const fetch = fetchWith(project, page());
-    vi.stubGlobal("fetch", fetch);
-    await expect(hasProjectBounds(scope)).resolves.toBe(false);
-    expect(fetch).toHaveBeenCalledTimes(2);
-  });
-
-  test("a pre-aborted signal prevents all requests", async () => {
-    const controller = new AbortController();
-    controller.abort(new Error("private-abort-reason"));
-    const fetch = fetchWith(project, page());
-    const error = await policyUnknown(
-      hasProjectBounds({ ...scope, fetch, signal: controller.signal }),
-    );
-    expect(error.message).not.toContain("private-abort-reason");
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  test("caller cancellation aborts a request without waiting for an unresponsive transport", async () => {
-    const controller = new AbortController();
-    const fetch = vi
-      .fn<typeof globalThis.fetch>()
-      .mockImplementation(() => new Promise(() => {}));
-    const result = policyUnknown(
-      hasProjectBounds({ ...scope, fetch, signal: controller.signal }),
-    );
-    expect(fetch).toHaveBeenCalledTimes(1);
-    controller.abort();
-    await result;
-    expect(fetch.mock.calls[0][1]?.signal?.aborted).toBe(true);
-  });
-
-  test.each([false, true])(
-    "a 10s total deadline bounds fetch even with caller signal=%s",
-    async (withSignal) => {
-      vi.useFakeTimers();
-      const fetch = vi
-        .fn<typeof globalThis.fetch>()
-        .mockImplementation(() => new Promise(() => {}));
-      const result = policyUnknown(
-        hasProjectBounds({
-          ...scope,
-          fetch,
-          ...(withSignal ? { signal: new AbortController().signal } : {}),
-        }),
-      );
-      await vi.advanceTimersByTimeAsync(10_000);
-      await result;
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(fetch.mock.calls[0][1]?.signal?.aborted).toBe(true);
-      expect(vi.getTimerCount()).toBe(0);
-    },
-  );
-
-  test("the deadline includes reading the response body and prevents later requests", async () => {
-    vi.useFakeTimers();
-    let finishJson!: (value: unknown) => void;
-    const response = json(project);
-    vi.spyOn(response, "json").mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishJson = resolve;
-        }),
-    );
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(response);
-    const result = policyUnknown(hasProjectBounds({ ...scope, fetch }));
-    await vi.advanceTimersByTimeAsync(10_000);
-    await result;
-    finishJson(project);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  test("the deadline is shared across project resolution and every Bounds page", async () => {
-    vi.useFakeTimers();
-    const fetch = vi.fn<typeof globalThis.fetch>();
-    fetch.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve(json(project)), 4_000);
-        }),
-    );
-    fetch.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve(json(page([], "next"))), 4_000);
-        }),
-    );
-    fetch.mockImplementationOnce(() => new Promise(() => {}));
-    const result = policyUnknown(hasProjectBounds({ ...scope, fetch }));
-    await vi.advanceTimersByTimeAsync(10_000);
-    await result;
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch.mock.calls[2][1]?.signal?.aborted).toBe(true);
-  });
-
-  test("cleans up its deadline on success and failure", async () => {
-    vi.useFakeTimers();
-    await expect(
-      hasProjectBounds({ ...scope, fetch: fetchWith(project, page()) }),
-    ).resolves.toBe(false);
-    expect(vi.getTimerCount()).toBe(0);
-    await policyUnknown(hasProjectBounds({ ...scope, fetch: fetchWith({}) }));
-    expect(vi.getTimerCount()).toBe(0);
-  });
+test("a total deadline still reports policy_unknown", async () => {
+  vi.useFakeTimers();
+  const fetch = vi.fn<typeof globalThis.fetch>(() => new Promise(() => {}));
+  const result = policyUnknown(hasProjectBounds({ ...scope, fetch }));
+  await vi.advanceTimersByTimeAsync(10_000);
+  await result;
 });

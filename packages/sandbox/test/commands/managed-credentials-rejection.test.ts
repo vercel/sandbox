@@ -114,6 +114,7 @@ test.each(
         token: "secret-rejection-test-token",
         team: "team",
         project: "project",
+        api: { run: expect.any(Function) },
       });
       expect(mockBoundsAnswer).toHaveBeenCalledWith(
         "Continue without project Bounds? (y/N) ",

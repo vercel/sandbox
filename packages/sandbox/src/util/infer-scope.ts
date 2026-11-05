@@ -2,7 +2,6 @@ import { z } from "zod/v4";
 import { readProjectConfiguration } from "./project-configuration";
 import createDebugger from "debug";
 import * as Auth from "@vercel/sandbox/dist/auth/index.js";
-import { readVercelCurrentTeam } from "./current-team";
 
 const debug = createDebugger("sandbox:scope");
 
@@ -24,7 +23,7 @@ export type InferredScope = {
   /** Human-readable team slug for display */
   ownerSlug?: string;
   /** Display metadata, never authorization. */
-  source?: "oidc" | "project-config" | "vercel-cli" | "account-default";
+  source?: "oidc" | "project-config" | "account-default";
 };
 
 export async function inferScope({
@@ -58,14 +57,10 @@ export async function inferScope({
     };
   }
 
-  const selectedTeam = team === undefined ? readVercelCurrentTeam() : undefined;
-  debug("trying to infer scope from API token", {
-    team: team ?? selectedTeam,
-    readOnly,
-  });
-  const fromToken = await inferFromToken(token, team ?? selectedTeam, readOnly);
+  debug("trying to infer scope from API token", { team, readOnly });
+  const fromToken = await inferFromToken(token, team, readOnly);
   debug("Using scope from API token", fromToken);
-  return selectedTeam ? { ...fromToken, source: "vercel-cli" } : fromToken;
+  return fromToken;
 }
 
 const JwtSchema = z

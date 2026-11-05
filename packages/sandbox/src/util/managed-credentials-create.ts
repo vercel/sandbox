@@ -9,6 +9,7 @@ import {
 import { renderManagedCredentialsRetryCommand } from "./managed-credentials-retry-command";
 import { hasProjectBounds } from "./managed-credentials-project-bounds";
 import { resolveScopeDisplay } from "./scope-display";
+import { createVercelApi } from "./vercel-api";
 
 /**
  * vCPU allocation for managed-credentials creations.
@@ -51,6 +52,7 @@ export async function prepareManagedCredentials(options: {
   if (!context.managed) return undefined;
 
   const vcpus = options.vcpus ?? MANAGED_CREDENTIALS_VCPUS;
+  const api = createVercelApi({ token: context.token });
   // Labels for the review table only. The selected IDs below stay the sole
   // authority for policy reads and for the API, and the token never changes.
   // A --yes run never shows the table, so skip both metadata GETs.
@@ -66,6 +68,7 @@ export async function prepareManagedCredentials(options: {
           project: context.project,
           teamSlug: context.teamSlug,
           projectSlug: context.projectSlug,
+          api,
         });
 
   await runManagedCredentialsFlow({
@@ -90,6 +93,7 @@ export async function prepareManagedCredentials(options: {
             token: context.token,
             team,
             project,
+            api,
           });
         } catch (error) {
           if (error instanceof CliError) {

@@ -5,9 +5,6 @@ import { createTokenOption } from "../../src/args/auth";
 import { readProjectConfiguration } from "../../src/util/project-configuration";
 import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 
-vi.mock("../../src/util/current-team", () => ({
-  readVercelCurrentTeam: () => undefined,
-}));
 vi.mock("../../src/util/project-configuration", () => ({
   readProjectConfiguration: vi.fn(),
 }));

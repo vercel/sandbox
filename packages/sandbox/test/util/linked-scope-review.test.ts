@@ -108,6 +108,7 @@ test("linked IDs display looked-up names without changing API selectors, provena
     token: "existing-token",
     team: TEAM,
     project: PROJECT,
+    api: { run: expect.any(Function) },
   });
   expect(prepared?.config).toEqual(config);
   expect(ctx).toEqual(original);
@@ -135,6 +136,7 @@ test("unreadable names retain IDs with a note and do not bypass an unreadable Bo
     token: "existing-token",
     team: TEAM,
     project: PROJECT,
+    api: { run: expect.any(Function) },
   });
 });
 

@@ -13,6 +13,8 @@ applies explicit flags on top with `--credentials-github-*` options, and shows
 the resolved access, identities, and provenance for confirmation before anything
 is created. Rejecting prints the equivalent explicit-flags command so the
 proposal can be edited and rerun; `--yes` approves without the review.
+The CLI reuses its existing team and project selection. It does not read the
+team selected by `vercel switch`.
 
 Configurations are read from and persisted to API-shaped JSON files
 (`source.type`, `source.url`, `credentials.github[].repositories`), and can be

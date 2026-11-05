@@ -89,7 +89,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox run`
@@ -173,7 +173,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Arguments:
 
@@ -257,7 +257,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Arguments:
 
@@ -352,7 +352,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox fork`
@@ -420,7 +420,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Examples:
 
@@ -468,7 +468,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox stop`
@@ -489,7 +489,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -514,7 +514,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -565,7 +565,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -590,7 +590,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -615,7 +615,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -640,7 +640,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Options:
 
@@ -669,7 +669,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -694,7 +694,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -719,7 +719,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Options:
 
@@ -748,7 +748,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -788,7 +788,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -827,7 +827,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox groups`
@@ -864,7 +864,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -890,7 +890,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -916,7 +916,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -946,7 +946,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox read`
@@ -966,7 +966,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -994,7 +994,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -1041,7 +1041,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox snapshot`
@@ -1071,7 +1071,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 ```
 
 ## `sandbox snapshots`
@@ -1130,7 +1130,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -1155,7 +1155,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -1238,7 +1238,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -1273,7 +1273,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 
@@ -1298,7 +1298,7 @@ Auth & Scope:
 
     --token <pat_or_oidc>   A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process. [optional]
     --project <my-project>  The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project. [optional]
-    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team] [optional]
+    --scope <my-team>       The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team] [optional]
 
 Flags:
 

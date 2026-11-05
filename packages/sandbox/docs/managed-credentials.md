@@ -46,11 +46,9 @@ A bare `vercel sandbox create` is unchanged. Running inside a Git repository is
 never on its own a request for repository access.
 
 `--scope` and `--project` are optional when the CLI can discover them. Explicit
-flags win; otherwise OIDC claims and the linked local project take precedence,
-then the team saved by `vercel switch`, then the account default. Within that
-team the CLI selects `vercel-sandbox-default-project`. A failed lookup for the
-saved team stops the command rather than selecting another team. `vercel switch`
-does not select a project; use `--project` or a local project link for that.
+flags win. Otherwise, the CLI uses OIDC claims, the linked local project, or its
+existing account-based selection. It does not read the team selected by
+`vercel switch`. Use `--scope` to select a team and `--project` to select a project.
 
 Preview the same configuration without creating anything:
 

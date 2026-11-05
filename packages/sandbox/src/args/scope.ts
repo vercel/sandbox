@@ -27,7 +27,7 @@ const scopeParser = cmd.option({
   long: "scope",
   type: { ...cmd.optional(cmd.string), displayName: "my-team" },
   description:
-    "The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team]",
+    "The scope/team to associate with the command. Defaults to OIDC claims, the linked project, or the account default. [alias: --team]",
 });
 
 /** Parser for the `--scope` option that falls back to `--team` if not provided. */
@@ -139,16 +139,13 @@ export function createScope(
               ? "from OIDC token claims"
               : scope.source === "project-config"
                 ? "from .vercel/project.json"
-                : scope.source === "vercel-cli"
-                  ? "from vercel switch"
-                  : scope.source === "account-default"
-                    ? "inferred from Vercel account"
-                    : "from scope inference";
+                : scope.source === "account-default"
+                  ? "inferred from Vercel account"
+                  : "from scope inference";
           if (inferTeam) provenance.team = inferredFrom;
           if (inferProject)
             provenance.project =
-              scope.source === "account-default" ||
-              scope.source === "vercel-cli"
+              scope.source === "account-default"
                 ? "default Sandbox project"
                 : inferredFrom;
         } catch (err) {

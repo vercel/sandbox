@@ -7,9 +7,6 @@ import * as Auth from "@vercel/sandbox/dist/auth/index.js";
 vi.mock("../../src/util/fresh-auth-retry", () => ({
   withFreshAuthRetry: vi.fn(),
 }));
-vi.mock("../../src/util/current-team", () => ({
-  readVercelCurrentTeam: () => undefined,
-}));
 vi.mock("../../src/util/project-configuration", () => ({
   readProjectConfiguration: () => undefined,
 }));

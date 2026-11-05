@@ -63,6 +63,7 @@ test("reads Bounds for the selected IDs, never the review labels", async () => {
     token: "existing-token",
     team: "team_Original",
     project: "prj_Original",
+    api: { run: expect.any(Function) },
   });
 });
 

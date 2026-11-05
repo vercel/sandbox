@@ -216,46 +216,15 @@ describe("display-only names", () => {
 });
 
 describe("untrusted metadata", () => {
-  const failures: [string, () => Promise<Response>][] = [
-    ["403", async () => new Response(TOKEN, { status: 403 })],
-    ["404", async () => new Response(TOKEN, { status: 404 })],
-    [
-      "network error",
-      async () => {
-        throw new Error(TOKEN);
-      },
-    ],
-    ["bad JSON", async () => new Response(TOKEN)],
-    ["empty JSON", async () => response(null)],
-    ["array JSON", async () => response([teamMetadata, projectMetadata])],
-    ["error body", async () => response({ error: { message: TOKEN } })],
-    [
-      "redirected response",
-      async () =>
-        ({
-          status: 200,
-          redirected: true,
-          json: async () => ({ ...teamMetadata, ...projectMetadata }),
-        }) as Response,
-    ],
-  ];
-
-  test.each(failures)(
-    "%s returns only original selectors without remote diagnostics",
-    async (_name, fail) => {
-      const error = vi.spyOn(console, "error").mockImplementation(() => {});
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const log = vi.spyOn(console, "log").mockImplementation(() => {});
-      const fetch = vi.fn<typeof globalThis.fetch>(fail);
-      const result = await resolveScopeDisplay(options(fetch));
-      expect(result).toEqual(ORIGINAL_SCOPE);
-      expect(JSON.stringify(result)).not.toContain(TOKEN);
-      expect(error).not.toHaveBeenCalled();
-      expect(warn).not.toHaveBeenCalled();
-      expect(log).not.toHaveBeenCalled();
-      expect(fetch).toHaveBeenCalledTimes(2);
-    },
-  );
+  // HTTP, JSON and deadline permutations are owned by vercel-api.test.ts.
+  test("does not display or log private transport errors", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockRejectedValue(new Error(TOKEN));
+    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
+    expect(error).not.toHaveBeenCalled();
+  });
 
   test.each(["team", "project"] as const)(
     "keeps the other name when %s metadata fails",
@@ -273,44 +242,16 @@ describe("untrusted metadata", () => {
     },
   );
 
-  test.each([
-    { ...teamMetadata, id: "team_another" },
-    { slug: "selected-team" },
-    { ...teamMetadata, slug: undefined },
-    { ...teamMetadata, slug: 42 },
-    { team: teamMetadata },
-  ])("rejects missing or mismatched team metadata (%j)", async (body) => {
-    const fetch = vi
-      .fn<typeof globalThis.fetch>()
-      .mockResolvedValue(response(body));
-    expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
-        projectSlug: "project-hint",
-      }),
-    ).toEqual({ team: ORIGINAL_SCOPE.team, project: "project-hint" });
+  test("mismatched metadata retains the original selectors", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
+      response(
+        requestUrl(input) === TEAM_URL
+          ? { ...teamMetadata, id: "team_another" }
+          : { ...projectMetadata, accountId: "team_another" },
+      ),
+    );
+    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
   });
-
-  test.each([
-    { ...projectMetadata, id: "prj_another" },
-    { ...projectMetadata, accountId: "team_another" },
-    { ...projectMetadata, accountId: undefined },
-    { ...projectMetadata, name: undefined },
-    { ...projectMetadata, name: 42 },
-    { accountId: TEAM, name: "selected-project" },
-  ])(
-    "rejects missing, mismatched, or unowned project metadata (%j)",
-    async (body) => {
-      const fetch = vi
-        .fn<typeof globalThis.fetch>()
-        .mockResolvedValue(response(body));
-      expect(
-        await resolveScopeDisplay({ ...options(fetch), teamSlug: "team-hint" }),
-      ).toEqual({ team: "team-hint", project: ORIGINAL_SCOPE.project });
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(requestUrl(fetch.mock.calls[0][0])).toBe(PROJECT_URL);
-    },
-  );
 
   test.each([
     "",
@@ -354,19 +295,6 @@ describe("untrusted metadata", () => {
     });
     expect(fetch).not.toHaveBeenCalled();
   });
-
-  test("does not read error response bodies", async () => {
-    const json = vi.fn(async () => {
-      throw new Error(TOKEN);
-    });
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue({
-      status: 403,
-      redirected: false,
-      json,
-    } as unknown as Response);
-    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
-    expect(json).not.toHaveBeenCalled();
-  });
 });
 
 describe("project ID with a selected team slug", () => {
@@ -389,14 +317,6 @@ describe("project ID with a selected team slug", () => {
       `https://vercel.com/api/v9/projects/${PROJECT}?slug=selected-team`,
     );
     expect(requestUrl(fetch.mock.calls[1][0])).toBe(TEAM_URL);
-    for (const [, init] of fetch.mock.calls) {
-      expect(init).toMatchObject({
-        method: "GET",
-        credentials: "omit",
-        redirect: "error",
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
-    }
     expect(input.team).toBe("selected-team");
     expect(input.teamSlug).toBe("different-display-hint");
   });
