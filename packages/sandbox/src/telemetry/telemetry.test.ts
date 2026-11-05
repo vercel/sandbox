@@ -343,6 +343,30 @@ describe("telemetry", () => {
       expect(sentEvents()[0]).toMatchObject({ user_id: null });
     });
 
+    it("still sends events when the lookup stalls", async () => {
+      // A lookup that only ends when its own timeout aborts it.
+      fetchMock.mockImplementationOnce(
+        (_url, init) =>
+          new Promise((_resolve, reject) =>
+            init?.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason),
+            ),
+          ),
+      );
+      const telemetry = new Telemetry();
+      telemetry.resolveUserId("token");
+      telemetry.track("subcommand", "list");
+
+      const started = Date.now();
+      await telemetry.flush();
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const bridgeInit = fetchMock.mock.calls[1]![1];
+      expect(bridgeInit?.signal?.aborted).toBe(false);
+      expect(Date.now() - started).toBeLessThan(1_000);
+      expect(sentEvents()[0]).toMatchObject({ user_id: null });
+    });
+
     it("skips the lookup without a token", async () => {
       const telemetry = new Telemetry();
       telemetry.resolveUserId(undefined);

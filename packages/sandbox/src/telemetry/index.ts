@@ -13,6 +13,9 @@ const debug = createDebugger("sandbox:telemetry");
 const BRIDGE_URL = "https://telemetry.vercel.com/api/sandbox-cli/v1/events";
 const API_URL = "https://vercel.com/api";
 const FLUSH_TIMEOUT_MS = 1_500;
+// Identity lookups get only part of the flush budget so the bridge POST
+// always has time to send, with null ids if a lookup is still running.
+const LOOKUP_TIMEOUT_MS = 500;
 
 interface Event {
   id: string;
@@ -145,7 +148,7 @@ export class Telemetry {
   /**
    * The sandbox API accepts slugs and never returns ids, so when the scope
    * was given as slugs, look the ids up once. This runs alongside the
-   * command; flush waits for it within its usual time budget.
+   * command; flush waits up to LOOKUP_TIMEOUT_MS for it.
    */
   resolveScopeIds(token: string | undefined): void {
     if (!this.teamSlug && !this.projectSlug) return;
@@ -192,7 +195,7 @@ export class Telemetry {
       name,
       fetch(`${API_URL}${path}`, {
         headers: { authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(FLUSH_TIMEOUT_MS),
+        signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
       })
         .then(async (response) => {
           if (!response.ok) {
@@ -246,12 +249,14 @@ export class Telemetry {
 
     const deadline = AbortSignal.timeout(FLUSH_TIMEOUT_MS);
     if (this.lookups.size > 0) {
+      let timer: NodeJS.Timeout | undefined;
       await Promise.race([
         Promise.all(this.lookups.values()),
-        new Promise((resolve) =>
-          deadline.addEventListener("abort", resolve, { once: true }),
-        ),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, LOOKUP_TIMEOUT_MS);
+        }),
       ]);
+      clearTimeout(timer);
     }
 
     const events = this.events.map((event) => ({
