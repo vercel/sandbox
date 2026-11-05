@@ -3,7 +3,8 @@ import { APIError } from "./api-error.js";
 import { z, ZodType } from "zod";
 import { array } from "../utils/array.js";
 import { withRetry, type RequestOptions } from "./with-retry.js";
-import { Agent } from "undici";
+import { type Agent, fetch as undiciFetch } from "undici";
+import { createHttpAgent } from "./http-agent.js";
 
 export interface RequestParams extends RequestInit {
   headers?: Record<string, string>;
@@ -13,9 +14,30 @@ export interface RequestParams extends RequestInit {
   retry?: Partial<RetryOptions>;
 }
 
-const DEFAULT_AGENT = new Agent({
-  bodyTimeout: 0, // disable body timeout to allow long logs streaming
-});
+const DEFAULT_AGENT = createHttpAgent();
+
+/**
+ * The runtime's `fetch` as it was when this module loaded. Used to detect
+ * whether `globalThis.fetch` has since been replaced (by a test stub, MSW,
+ * an APM agent, ...), in which case we keep honoring the replacement.
+ */
+const INITIAL_GLOBAL_FETCH = globalThis.fetch;
+
+/**
+ * Resolves the fetch implementation used when none is injected.
+ *
+ * By default we use undici's own `fetch`, from the same undici version as
+ * {@link DEFAULT_AGENT}. Passing a userland undici Agent to the runtime's
+ * built-in `fetch` mixes two undici versions (Node's bundled one and ours),
+ * which is only loosely compatible. If `globalThis.fetch` was replaced after
+ * this module loaded, use the replacement so interception keeps working.
+ */
+function resolveDefaultFetch(): typeof globalThis.fetch {
+  if (globalThis.fetch !== INITIAL_GLOBAL_FETCH) {
+    return globalThis.fetch;
+  }
+  return undiciFetch as unknown as typeof globalThis.fetch;
+}
 
 /**
  * A base API client that provides a convenience wrapper for fetching where
@@ -35,7 +57,7 @@ export class BaseClient {
     token?: string;
     fetch?: typeof globalThis.fetch;
   }) {
-    this.fetch = withRetry(params.fetch ?? globalThis.fetch);
+    this.fetch = withRetry(params.fetch ?? resolveDefaultFetch());
     this.baseUrl = params.baseUrl;
     this.debug = params.debug ?? process.env.DEBUG_FETCH === "true";
     this.token = params.token;
