@@ -11,7 +11,11 @@ import { detectAgentName } from "./agent";
 const debug = createDebugger("sandbox:telemetry");
 
 const BRIDGE_URL = "https://telemetry.vercel.com/api/sandbox-cli/v1/events";
+const API_URL = "https://vercel.com/api";
 const FLUSH_TIMEOUT_MS = 1_500;
+// Identity lookups get only part of the flush budget so the bridge POST
+// always has time to send, with null ids if a lookup is still running.
+const LOOKUP_TIMEOUT_MS = 500;
 
 interface Event {
   id: string;
@@ -89,6 +93,10 @@ export class Telemetry {
   private readonly sessionId = randomUUID();
   private teamId = "NO_TEAM_ID";
   private projectId: string | undefined;
+  private teamSlug: string | undefined;
+  private projectSlug: string | undefined;
+  private userId: string | undefined;
+  private lookups = new Map<string, Promise<void>>();
   private embedded = false;
 
   get enabled(): boolean {
@@ -113,12 +121,91 @@ export class Telemetry {
     this.events.push({ id: randomUUID(), event_time: Date.now(), key, value });
   }
 
+  /**
+   * `--scope` and `--project` accept slugs, which must never land in the id
+   * fields: they are recorded under `team_slug` / `project_slug` instead.
+   */
   updateTeamId(teamId: string | undefined): void {
-    if (teamId) this.teamId = teamId;
+    if (!teamId) return;
+    if (teamId.startsWith("team_")) {
+      this.teamId = teamId;
+    } else if (teamId !== this.teamSlug) {
+      this.teamSlug = teamId;
+      this.track("team_slug", teamId);
+    }
   }
 
   updateProjectId(projectId: string | undefined): void {
-    if (projectId) this.projectId = projectId;
+    if (!projectId) return;
+    if (projectId.startsWith("prj_")) {
+      this.projectId = projectId;
+    } else if (projectId !== this.projectSlug) {
+      this.projectSlug = projectId;
+      this.track("project_slug", projectId);
+    }
+  }
+
+  /**
+   * The sandbox API accepts slugs and never returns ids, so when the scope
+   * was given as slugs, look the ids up once. This runs alongside the
+   * command; flush waits up to LOOKUP_TIMEOUT_MS for it.
+   */
+  resolveScopeIds(token: string | undefined): void {
+    if (!this.teamSlug && !this.projectSlug) return;
+
+    const project = this.projectSlug ?? this.projectId;
+    const team = this.teamSlug
+      ? `slug=${encodeURIComponent(this.teamSlug)}`
+      : `teamId=${encodeURIComponent(this.teamId)}`;
+    if (!project) return;
+
+    this.lookup(
+      "scope",
+      token,
+      `/v9/projects/${encodeURIComponent(project)}?${team}`,
+      (body: { id?: string; accountId?: string }) => {
+        // accountId is a user id for personal accounts; only take team ids.
+        if (body.id?.startsWith("prj_")) this.projectId = body.id;
+        if (body.accountId?.startsWith("team_")) this.teamId = body.accountId;
+      },
+    );
+  }
+
+  /**
+   * Looks up the caller's user id once, the same id the Vercel CLI sends as
+   * `userId`, so standalone runs have a per-user identity too.
+   */
+  resolveUserId(token: string | undefined): void {
+    this.lookup("user", token, "/v2/user", (body: { user?: { id?: string } }) => {
+      this.userId = body.user?.id;
+    });
+  }
+
+  /** Runs each named API lookup at most once per invocation. */
+  private lookup<T>(
+    name: string,
+    token: string | undefined,
+    path: string,
+    apply: (body: T) => void,
+  ): void {
+    if (!token || this.lookups.has(name)) return;
+    if (!this.enabled && !this.isDebug) return;
+
+    this.lookups.set(
+      name,
+      fetch(`${API_URL}${path}`, {
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            debug("%s lookup responded with %d", name, response.status);
+            return;
+          }
+          apply((await response.json()) as T);
+        })
+        .catch((error) => debug("%s lookup failed: %o", name, error)),
+    );
   }
 
   /**
@@ -160,11 +247,24 @@ export class Telemetry {
   async flush(): Promise<void> {
     if (this.events.length === 0) return;
 
+    const deadline = AbortSignal.timeout(FLUSH_TIMEOUT_MS);
+    if (this.lookups.size > 0) {
+      let timer: NodeJS.Timeout | undefined;
+      await Promise.race([
+        Promise.all(this.lookups.values()),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, LOOKUP_TIMEOUT_MS);
+        }),
+      ]);
+      clearTimeout(timer);
+    }
+
     const events = this.events.map((event) => ({
       ...event,
       team_id: this.teamId,
       session_id: this.sessionId,
       project_id: this.projectId ?? null,
+      user_id: this.userId ?? null,
       // Set by the Vercel CLI's sandbox wrapper so events from embedded runs
       // can join the Vercel CLI's own invocation-grained telemetry.
       vercel_cli_invocation_id: process.env.VERCEL_CLI_INVOCATION_ID ?? null,
@@ -192,7 +292,7 @@ export class Telemetry {
             "x-sandbox-cli-session-id": this.sessionId,
           },
           body: JSON.stringify(events),
-          signal: AbortSignal.timeout(FLUSH_TIMEOUT_MS),
+          signal: deadline,
         },
       );
       debug("telemetry bridge responded with %d", response.status);
