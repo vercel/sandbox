@@ -31,12 +31,6 @@ export async function inferActor(options: {
       actAs: gh.id !== undefined ? String(gh.id) : `@${gh.login}`,
       login: gh.login,
       source: "gh",
-      profile: {
-        login: gh.login,
-        ...(gh.name ? { name: gh.name } : {}),
-        ...(gh.email ? { email: gh.email } : {}),
-        ...(gh.id !== undefined ? { id: String(gh.id) } : {}),
-      },
     };
   const link = await (options.readVercel ?? readVercelGithubLink)({
     token: options.token,
@@ -48,6 +42,5 @@ export async function inferActor(options: {
     actAs: link.id ?? `@${link.login}`,
     ...(link.login ? { login: link.login } : {}),
     source: "vercel-account-link",
-    profile: link,
   };
 }

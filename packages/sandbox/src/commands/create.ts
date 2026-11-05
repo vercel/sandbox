@@ -27,7 +27,6 @@ import { agentNames, agents } from "./agents";
 import { CliError } from "../util/cli-error";
 import { describeCreationRejection } from "../util/create-rejection";
 import { APIError } from "@vercel/sandbox";
-import { StyledError } from "../error";
 import {
   MANAGED_CREDENTIALS_VCPUS,
   prepareManagedCredentials,
@@ -160,7 +159,8 @@ export const create = cmd.command({
       keepLastSnapshotsFor,
       deleteEvictedSnapshots,
     } = input;
-    const { creation, mode } = scope;
+    const { mode } = scope;
+    const requested = scope.managed?.config;
     const effectiveTeam = scope.team;
     const effectiveProject = scope.project;
     const authScope = () => ({
@@ -183,13 +183,13 @@ export const create = cmd.command({
         __printConnectHint?: boolean;
       };
       const launcher = agent ? agents[agent] : undefined;
-      if (snapshot !== undefined && creation.source !== undefined) {
+      if (snapshot !== undefined && requested?.source !== undefined) {
         throw new CliError(
           "--snapshot cannot be combined with a managed credentials source. Remove --snapshot, or drop the --credentials-github-* options.",
         );
       }
       const source =
-        creation.source ??
+        requested?.source ??
         (snapshot
           ? { type: "snapshot" as const, snapshotId: snapshot }
           : undefined);
@@ -272,7 +272,6 @@ export const create = cmd.command({
         reportDryRun({ context: scope, ...(prepared ? { prepared } : {}) });
         return undefined;
       }
-      const managedCreation = prepared?.transport ?? creation;
 
       const resources = prepared
         ? { vcpus: prepared.vcpus }
@@ -286,7 +285,7 @@ export const create = cmd.command({
           ? undefined
           : ora("Creating sandbox...").start();
       const managedSource = prepared
-        ? (prepared.transport.source ??
+        ? (prepared.config.source ??
           (source?.type === "snapshot" ? source : undefined))
         : source;
       const sourceOptions =
@@ -303,8 +302,8 @@ export const create = cmd.command({
           token: scope.token,
           ports,
           ...sourceOptions,
-          commitAs: managedCreation.commitAs,
-          credentials: managedCreation.credentials,
+          commitAs: prepared?.config.commitAs,
+          credentials: prepared?.config.credentials,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -475,12 +474,10 @@ export const create = cmd.command({
           json: mode.json,
         });
       if (mode.json || scope.creationRequested) {
-        const apiError =
-          error instanceof APIError
-            ? error
-            : error instanceof StyledError && error.cause instanceof APIError
-              ? error.cause
-              : undefined;
+        // sandboxClient.create leaves APIError unformatted so the outcome is
+        // classified once, here, rather than formatted, spilled to a temporary
+        // file, unwrapped and formatted again.
+        const apiError = error instanceof APIError ? error : undefined;
         const rejected =
           apiError !== undefined && apiError.response.status < 500;
         const unknownOutcome = creationAttempted && !createdName && !rejected;

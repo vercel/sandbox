@@ -2,7 +2,6 @@ import { createInterface } from "node:readline";
 import { CliError } from "./cli-error";
 import {
   type ManagedCredentialsConfig,
-  hasInertCommitAs,
   repositoryGroups,
   sourceRepository,
 } from "./managed-credentials-config";
@@ -165,9 +164,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
         : writingGroups.length
           ? "from each repository's GitHub actor"
           : "none",
-    note:
-      creditSource +
-      (hasInertCommitAs(config) ? "; no effect without Git write access" : ""),
+    note: creditSource,
   });
   rows.push({
     label: "Resources",

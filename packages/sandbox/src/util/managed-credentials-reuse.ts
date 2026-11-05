@@ -6,8 +6,6 @@ import {
   parseConfig,
 } from "./managed-credentials-config";
 
-const SANDBOX_ID = /^sbx_[A-Za-z0-9]+$/;
-
 /**
  * The managed-credential request the API reports for an existing Sandbox.
  *
@@ -33,11 +31,6 @@ export interface SandboxCredentialSnapshot {
   };
 }
 
-/** Whether a selector is an `sbx_*` identifier or a Sandbox name. */
-export function selectorKind(selector: string): "id" | "name" {
-  return SANDBOX_ID.test(selector) ? "id" : "name";
-}
-
 /**
  * Look up a Sandbox's managed-credential configuration.
  *
@@ -49,16 +42,11 @@ export function selectorKind(selector: string): "id" | "name" {
 export async function loadConfigFromSandbox(options: {
   selector: string;
   /** Read-only metadata fetch; must not resume the Sandbox. */
-  fetchSnapshot: (params: {
-    selector: string;
-    kind: "id" | "name";
-  }) => Promise<SandboxCredentialSnapshot | undefined>;
+  fetchSnapshot: (
+    selector: string,
+  ) => Promise<SandboxCredentialSnapshot | undefined>;
 }): Promise<ManagedCredentialsConfig> {
-  const kind = selectorKind(options.selector);
-  const snapshot = await options.fetchSnapshot({
-    selector: options.selector,
-    kind,
-  });
+  const snapshot = await options.fetchSnapshot(options.selector);
 
   if (!snapshot) {
     throw new CliError(

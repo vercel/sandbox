@@ -50,7 +50,7 @@ test("bare interactive dry-run does not use normal authentication", async () => 
       "--project=project",
     ]);
     expect(result.dryRun).toBe(true);
-    expect(result.creation).toEqual({});
+    expect(result.managed).toBeUndefined();
     expect(result.token).toBe("stored-read-only");
     expect(getVercelToken).not.toHaveBeenCalled();
     expect(getVercelOidcToken).not.toHaveBeenCalled();

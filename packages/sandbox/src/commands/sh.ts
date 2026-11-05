@@ -9,7 +9,7 @@ import { defaultShell } from "../interactive-shell/default-shell";
 
 const args = {
   ...omit(createArgs, "connect"),
-  scope: createContext({ allowJson: false }),
+  scope: createContext({ allowJson: false, allowDryRun: false }),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the shell exits.",
@@ -25,8 +25,6 @@ export const sh = cmd.command({
         "An interactive shell cannot share stdin with a configuration payload or run in non-interactive mode. Create the sandbox first, then use sandbox exec from a terminal.",
       );
     }
-    if (rest.scope.dryRun)
-      throw new CliError("--dry-run is only supported by sandbox create.");
     if (!removeAfterUse) {
       return create.handler({
         ...rest,

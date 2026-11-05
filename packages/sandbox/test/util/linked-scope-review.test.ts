@@ -38,7 +38,6 @@ function context(): CreateContext {
     token: "existing-token",
     team: TEAM,
     project: PROJECT,
-    creation: config,
     creationRequested: true,
     mode: { interactive: true, json: false },
     yes: false,
@@ -110,7 +109,7 @@ test("linked IDs display looked-up names without changing API selectors, provena
     team: TEAM,
     project: PROJECT,
   });
-  expect(prepared?.transport).toEqual(config);
+  expect(prepared?.config).toEqual(config);
   expect(ctx).toEqual(original);
   expect(requests).toHaveLength(2);
 });
@@ -156,7 +155,7 @@ test("JSON dry-run keeps the original selectors and does not fetch display metad
   ctx.mode = { interactive: false, json: true };
   ctx.dryRun = true;
   const prepared = await prepareManagedCredentials({ context: ctx });
-  expect(prepared?.transport).toEqual(config);
+  expect(prepared?.config).toEqual(config);
   expect(ctx.team).toBe(TEAM);
   expect(ctx.project).toBe(PROJECT);
   expect(output).toBe("");

@@ -6,10 +6,33 @@ import {
   repositoryUrl,
 } from "./managed-credentials-config";
 
+/**
+ * One argument as the parser understood it.
+ *
+ * Keeping the parsed unit — rather than flattening to strings and matching
+ * them with regular expressions again — means the association between an
+ * option and its value survives. The parser already knows which options take a
+ * value, so recovery never has to keep its own list of them in sync, and a
+ * value that merely looks like a flag cannot be mistaken for one.
+ */
+export type RetryArgument =
+  /** `--key`, `--key=value`, `-k`, or a `-abc` cluster. `inline` is the `=` form. */
+  | {
+      kind: "option";
+      dash: "--" | "-";
+      keys: string;
+      value?: string;
+      inline?: boolean;
+    }
+  /** A bare argument, including everything the child command receives. */
+  | { kind: "positional"; raw: string }
+  /** The `--` that hands the rest of the line to the child command. */
+  | { kind: "separator" };
+
 export type RetryInvocation = {
   appName: "sandbox" | "vercel sandbox";
   command: "create" | "run" | "sh";
-  args: string[];
+  args: RetryArgument[];
 };
 
 /** Capture parser inputs, not process.argv or the parser's remaining inputs. */
@@ -27,7 +50,7 @@ export function captureRetryInvocation(context: ParseContext): RetryInvocation {
   // already have been parsed by the time createContext captures the invocation.
   const breadcrumbs = path.slice(1);
   let breadcrumb = 0;
-  const args: string[] = [];
+  const args: RetryArgument[] = [];
   for (const node of context.nodes) {
     if (
       breadcrumb < breadcrumbs.length &&
@@ -41,32 +64,39 @@ export function captureRetryInvocation(context: ParseContext): RetryInvocation {
     if (node.type === "shortOptions") {
       // Rest arguments can include clusters meaningful to the child command.
       // Keep them intact; only the final option can have a parsed value.
-      appendOption(
-        args,
-        `-${node.options.map((option) => option.key).join("")}`,
-        node.options[node.options.length - 1]?.value,
+      args.push(
+        option(
+          "-",
+          node.options.map((entry) => entry.key).join(""),
+          node.options[node.options.length - 1]?.value,
+        ),
       );
-    } else if (node.type === "longOption" || node.type === "shortOption") {
-      appendOption(
-        args,
-        `${node.type === "longOption" ? "--" : "-"}${node.key}`,
-        node.value,
-      );
+    } else if (node.type === "longOption") {
+      args.push(option("--", node.key, node.value));
+    } else if (node.type === "shortOption") {
+      args.push(option("-", node.key, node.value));
+    } else if (node.type === "forcePositional") {
+      args.push({ kind: "separator" });
     } else {
-      args.push(node.raw);
+      args.push({ kind: "positional", raw: node.raw });
     }
   }
   return { appName, command, args };
 }
 
-function appendOption(
-  args: string[],
-  flag: string,
+function option(
+  dash: "--" | "-",
+  keys: string,
   value?: { delimiter: { raw: string }; node: { raw: string } },
-) {
-  if (!value) args.push(flag);
-  else if (value.delimiter.raw === "=") args.push(`${flag}=${value.node.raw}`);
-  else args.push(flag, value.node.raw);
+): RetryArgument {
+  if (!value) return { kind: "option", dash, keys };
+  return {
+    kind: "option",
+    dash,
+    keys,
+    value: value.node.raw,
+    inline: value.delimiter.raw === "=",
+  };
 }
 
 // Only options that describe the resolved proposal are replaced. Persistence
@@ -88,35 +118,6 @@ const replacedFlags = new Set([
   "enable-github-credentials",
   "credentials-github-no-write",
   "yes",
-]);
-
-// Keep a value that resembles a flag attached to its own option. cmd-ts's
-// forceOption parser consumes these even if they begin with a dash.
-const preservedValues = new Set([
-  "name",
-  "runtime",
-  "image",
-  "timeout",
-  "snapshot",
-  "env",
-  "tag",
-  "mount",
-  "region",
-  "failover-regions",
-  "network-id",
-  "publish-port",
-  "network-policy",
-  "allowed-domain",
-  "allowed-cidr",
-  "denied-cidr",
-  "request-header",
-  "request-header-from-env",
-  "network-policy-file",
-  "snapshot-expiration",
-  "keep-last-snapshots",
-  "keep-last-snapshots-for",
-  "delete-evicted-snapshots",
-  "workdir",
 ]);
 
 /**
@@ -230,7 +231,7 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
   ];
 }
 
-function retainedArguments(args: readonly string[]): string[] {
+function retainedArguments(args: readonly RetryArgument[]): string[] {
   const result: string[] = [];
   let positional = false;
   let environment = 0;
@@ -241,95 +242,79 @@ function retainedArguments(args: readonly string[]): string[] {
       `SANDBOX_RETRY_ENV_${++environment}`,
       `Set SANDBOX_RETRY_ENV_${environment} to the original env argument`,
     );
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index];
-    if (arg === "--") {
+  /** Re-emit an option in the exact split or `=` form it was written in. */
+  const emit = (arg: RetryArgument & { kind: "option" }, value?: string) => {
+    const flag = `${arg.dash}${arg.keys}`;
+    if (value === undefined) result.push(shellQuote(flag));
+    else if (arg.inline) result.push(shellQuote(`${flag}=${value}`));
+    else result.push(shellQuote(flag), shellQuote(value));
+  };
+
+  for (const arg of args) {
+    if (arg.kind === "separator") {
       positional = true;
       result.push("--");
       continue;
     }
-    const long = /^--([^=]+)(?:=([\s\S]*))?$/.exec(arg);
-    if (long) {
-      const [, key, inline] = long;
+    if (arg.kind === "positional") {
+      // In particular, node -e CODE is a literal child invocation, not --env.
+      result.push(shellQuote(arg.raw));
+      continue;
+    }
+    if (arg.dash === "--") {
+      const key = arg.keys;
       // Redact even child-command credential arguments after --. Retain their
       // original split/equals form there, as they are not our option syntax.
       if (key === "token" || key === "env" || key === "request-header") {
-        const tokenVariable = positional
-          ? `SANDBOX_RETRY_TOKEN_${childToken + 1}`
-          : "VERCEL_AUTH_TOKEN";
-        if (key === "token" && positional) childToken++;
-        const placeholder =
-          key === "token"
-            ? requiredVariable(tokenVariable, `Set ${tokenVariable}`)
-            : key === "request-header"
-              ? requiredVariable(
-                  `SANDBOX_RETRY_HEADER_${++header}`,
-                  `Set SANDBOX_RETRY_HEADER_${header} to the original domain:header=value argument`,
-                )
-              : envPlaceholder();
-        if (positional && inline === undefined)
-          result.push(`--${key}`, placeholder);
-        else result.push(`--${key}=${placeholder}`);
-        if (inline === undefined) index++;
-        continue;
-      }
-      if (!positional && (replacedValues.has(key) || replacedFlags.has(key))) {
-        if (inline === undefined && replacedValues.has(key)) index++;
-        continue;
-      }
-      result.push(shellQuote(arg));
-      if (
-        !positional &&
-        inline === undefined &&
-        preservedValues.has(key) &&
-        index + 1 < args.length
-      )
-        result.push(shellQuote(args[++index]));
-      continue;
-    }
-    if (positional) {
-      // In particular, node -e CODE is a literal child invocation, not --env.
-      result.push(shellQuote(arg));
-      continue;
-    }
-    const short = /^-([^-][^=]*)(?:=([\s\S]*))?$/.exec(arg);
-    if (short) {
-      const [, keys, inline] = short;
-      const lastKey = keys[keys.length - 1];
-      if (!keys.includes("y") && lastKey !== "e") {
-        result.push(shellQuote(arg));
-        if (
-          inline === undefined &&
-          ["s", "p", "w", "t"].includes(lastKey) &&
-          index + 1 < args.length
-        )
-          result.push(shellQuote(args[++index]));
-        continue;
-      }
-      // cmd-ts clusters flags; only the last short option can take a value.
-      for (let k = 0; k < keys.length; k++) {
-        const key = keys[k];
-        const last = k === keys.length - 1;
-        if (key === "y" && !positional) continue;
-        if (key === "e" && last) {
-          result.push("-e", envPlaceholder());
-          if (inline === undefined) index++;
-        } else if (last && inline !== undefined) {
-          result.push(shellQuote(`-${key}=${inline}`));
+        let placeholder: string;
+        if (key === "token") {
+          // Only a child-command token consumes a number, so the placeholders
+          // stay consecutive when env or header arguments sit between them.
+          const name = positional
+            ? `SANDBOX_RETRY_TOKEN_${++childToken}`
+            : "VERCEL_AUTH_TOKEN";
+          placeholder = requiredVariable(name, `Set ${name}`);
+        } else if (key === "request-header") {
+          placeholder = requiredVariable(
+            `SANDBOX_RETRY_HEADER_${++header}`,
+            `Set SANDBOX_RETRY_HEADER_${header} to the original domain:header=value argument`,
+          );
         } else {
-          result.push(shellQuote(`-${key}`));
-          if (
-            !positional &&
-            last &&
-            ["s", "p", "w", "t"].includes(key) &&
-            index + 1 < args.length
-          )
-            result.push(shellQuote(args[++index]));
+          placeholder = envPlaceholder();
         }
+        // Placeholders are already quoted shell expansions, so emit them raw.
+        if (positional && !arg.inline) result.push(`--${key}`, placeholder);
+        else result.push(`--${key}=${placeholder}`);
+        continue;
       }
+      if (!positional && (replacedValues.has(key) || replacedFlags.has(key)))
+        continue;
+      emit(arg, arg.value);
       continue;
     }
-    result.push(shellQuote(arg));
+
+    // cmd-ts clusters short flags; only the last one can carry a value.
+    const keys = arg.keys;
+    if (!keys.includes("y") && keys[keys.length - 1] !== "e") {
+      emit(arg, arg.value);
+      continue;
+    }
+    for (let k = 0; k < keys.length; k++) {
+      const key = keys[k];
+      const last = k === keys.length - 1;
+      if (key === "y" && !positional) continue;
+      if (key === "e" && last) result.push("-e", envPlaceholder());
+      else
+        emit(
+          {
+            kind: "option",
+            dash: "-",
+            keys: key,
+            ...(arg.inline ? { inline: true } : {}),
+          },
+          last ? arg.value : undefined,
+        );
+    }
   }
   return result;
 }

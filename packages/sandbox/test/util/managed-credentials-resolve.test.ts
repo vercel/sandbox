@@ -23,9 +23,6 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   token: "test-token",
   teamId: "team_123",
   inferRepositoryImpl: vi.fn().mockResolvedValue("vercel/api"),
-  inferCommitIdentityImpl: vi
-    .fn()
-    .mockResolvedValue({ name: "Jack Jackson", email: "scubbojj@gmail.com" }),
   inferActorImpl: vi
     .fn()
     .mockResolvedValue({ actAs: "@scubbo", login: "scubbo", source: "gh" }),
@@ -35,7 +32,6 @@ const context = (overrides: Record<string, unknown> = {}) => ({
 describe("request detection", () => {
   test("a new invocation selects the actor without deriving local commit credit", async () => {
     const ctx = context({
-      inferCommitIdentityImpl: vi.fn().mockResolvedValue(undefined),
       inferActorImpl: vi
         .fn()
         .mockResolvedValueOnce({
@@ -61,7 +57,6 @@ describe("request detection", () => {
     expect(next?.config.credentials.github[0].actAs).toBe("2");
     expect(first?.config.commitAs).toBeUndefined();
     expect(next?.config.commitAs).toBeUndefined();
-    expect(ctx.inferCommitIdentityImpl).not.toHaveBeenCalled();
   });
   test("a bare create requests nothing", () => {
     expect(hasManagedCredentialsRequest(options())).toBe(false);
@@ -200,7 +195,6 @@ describe("legacy read-only Git option", () => {
     ).rejects.toThrow(/does not support/);
     expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
     expect(ctx.inferActorImpl).not.toHaveBeenCalled();
-    expect(ctx.inferCommitIdentityImpl).not.toHaveBeenCalled();
   });
 
   test.each([true, false])(
@@ -220,26 +214,23 @@ describe("legacy read-only Git option", () => {
 });
 
 describe("identity resolution", () => {
-  test("an explicit commit identity overrides local Git configuration", async () => {
-    const inferCommitIdentityImpl = vi.fn();
+  test("an explicit commit identity is the only source of commit credit", async () => {
     const resolved = await resolveManagedCredentials(
       options({
         credentialsCommitAs: "Jack Jackson <myotheremail@scubbo.org>",
       }),
-      context({ inferCommitIdentityImpl }),
+      context(),
     );
     expect(resolved?.config.commitAs).toEqual({
       name: "Jack Jackson",
       email: "myotheremail@scubbo.org",
     });
-    expect(inferCommitIdentityImpl).not.toHaveBeenCalled();
   });
 
   test("leaves profile-derived commit attribution to the backend", async () => {
     const resolved = await resolveManagedCredentials(
       options({ enableManagedCredentials: true }),
       context({
-        inferCommitIdentityImpl: vi.fn().mockResolvedValue(undefined),
         inferActorImpl: vi.fn().mockResolvedValue({
           actAs: "2373726",
           login: "scubbo",
@@ -275,9 +266,7 @@ describe("identity resolution", () => {
   test("does not require local commit metadata when an actor is selected", async () => {
     const result = await resolveManagedCredentials(
       options({ enableManagedCredentials: true }),
-      context({
-        inferCommitIdentityImpl: vi.fn().mockResolvedValue(undefined),
-      }),
+      context({}),
     );
     expect(result?.config.commitAs).toBeUndefined();
     expect(result?.config.credentials.github[0].actAs).toBe("@scubbo");
@@ -287,7 +276,6 @@ describe("identity resolution", () => {
     const result = await resolveManagedCredentials(
       options({ enableManagedCredentials: true }),
       context({
-        inferCommitIdentityImpl: vi.fn().mockResolvedValue(undefined),
         inferActorImpl: vi.fn().mockResolvedValue({
           actAs: "@scubbo",
           source: "gh",
@@ -439,7 +427,6 @@ describe("explicit configuration sources", () => {
       );
       expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
       expect(ctx.inferActorImpl).not.toHaveBeenCalled();
-      expect(ctx.inferCommitIdentityImpl).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

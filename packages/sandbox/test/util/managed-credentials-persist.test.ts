@@ -9,7 +9,6 @@ import {
 import { parseConfig } from "../../src/util/managed-credentials-config";
 import {
   loadConfigFromSandbox,
-  selectorKind,
   toConfig,
 } from "../../src/util/managed-credentials-reuse";
 import { CliError } from "../../src/util/cli-error";
@@ -139,17 +138,6 @@ describe("writing", () => {
   });
 });
 
-describe("sandbox selectors", () => {
-  test.each([
-    ["sbx_132456789", "id"],
-    ["sbx_abc", "id"],
-    ["my-sandbox", "name"],
-    ["sbx-dashed", "name"],
-  ])("classifies %s as %s", (selector, expected) => {
-    expect(selectorKind(selector)).toBe(expected);
-  });
-});
-
 describe("reuse from an existing sandbox", () => {
   test("reconstructs legacy source rights without widening the other grouped repository", async () => {
     const fetchSnapshot = vi.fn().mockResolvedValue({
@@ -175,10 +163,7 @@ describe("reuse from an existing sandbox", () => {
       fetchSnapshot,
     });
 
-    expect(fetchSnapshot).toHaveBeenCalledWith({
-      selector: "sbx_123",
-      kind: "id",
-    });
+    expect(fetchSnapshot).toHaveBeenCalledWith("sbx_123");
     expect(result).toEqual({
       source: { type: "git", url: "https://github.com/acme/widgets.git" },
       commitAs: { name: "Grace Hopper", email: "grace@example.com" },
@@ -264,10 +249,7 @@ describe("reuse from an existing sandbox", () => {
       .fn()
       .mockResolvedValue({ credentials: { github: [] } });
     await loadConfigFromSandbox({ selector: "my-sandbox", fetchSnapshot });
-    expect(fetchSnapshot).toHaveBeenCalledWith({
-      selector: "my-sandbox",
-      kind: "name",
-    });
+    expect(fetchSnapshot).toHaveBeenCalledWith("my-sandbox");
   });
 
   test("reports a sandbox that has no configuration to reuse", async () => {

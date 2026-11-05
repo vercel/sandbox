@@ -26,9 +26,6 @@ const context = () => ({
   token: "test-token",
   teamId: "team_review",
   inferRepositoryImpl: vi.fn().mockResolvedValue("acme/widgets"),
-  inferCommitIdentityImpl: vi
-    .fn()
-    .mockResolvedValue({ name: "Grace Hopper", email: "grace@example.com" }),
   inferActorImpl: vi
     .fn()
     .mockResolvedValue({ actAs: "42", source: "gh" as const, login: "grace" }),
@@ -125,7 +122,6 @@ describe("preset resolution", () => {
       );
       expect(ctx.inferRepositoryImpl).toHaveBeenCalledOnce();
       expect(result?.config.commitAs).toBeUndefined();
-      expect(ctx.inferCommitIdentityImpl).not.toHaveBeenCalled();
       const rows = buildReview({
         config: result!.config,
         provenance: result!.provenance,
@@ -214,7 +210,15 @@ describe("review and command recovery", () => {
         invocation: {
           appName: "sandbox",
           command: "create",
-          args: [`--github-access=${level}`],
+          args: [
+            {
+              kind: "option" as const,
+              dash: "--" as const,
+              keys: "github-access",
+              value: level,
+              inline: true,
+            },
+          ],
         },
       });
       expect(command).not.toContain("--github-access");
@@ -245,20 +249,31 @@ describe("review and command recovery", () => {
             ...io,
             team: "team_review",
             project: "prj_review",
+            displayScope: { team: "team_review", project: "prj_review" },
             vcpus: 6,
             vcpusExplicit: false,
             interactive: true,
             json: false,
             yes: false,
             dryRun: false,
-            renderCommand: (proposal) =>
+            renderCommand: (config) =>
               renderManagedCredentialsRetryCommand({
-                ...proposal,
+                config,
+                team: "team_review",
+                project: "prj_review",
                 vcpus: 6,
                 invocation: {
                   appName: "sandbox",
                   command: "create",
-                  args: [`--github-access=${level}`],
+                  args: [
+                    {
+                      kind: "option" as const,
+                      dash: "--" as const,
+                      keys: "github-access",
+                      value: level,
+                      inline: true,
+                    },
+                  ],
                 },
               }),
           },

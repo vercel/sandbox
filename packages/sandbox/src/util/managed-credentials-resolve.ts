@@ -15,10 +15,7 @@ import {
   type IdentitySource,
   type InferredActor,
 } from "./managed-credentials-identity";
-import {
-  type inferCommitIdentity,
-  parseCommitAs,
-} from "./managed-credentials-commit";
+import { parseCommitAs } from "./managed-credentials-commit";
 import { inferActor } from "./managed-credentials-actor";
 import { inferRepository } from "./managed-credentials-repository";
 import { readJsonPayload } from "./managed-credentials-payload";
@@ -88,12 +85,7 @@ export interface ConfigProvenance {
   team?: string;
   project?: string;
   repository?: "explicit" | "git-remote" | "config";
-  commitAs?:
-    | IdentitySource
-    | "profile-fallback"
-    | "config"
-    | "omitted"
-    | "actor-derived";
+  commitAs?: "explicit" | "config" | "omitted" | "actor-derived";
   actor?: IdentitySource | "config" | "unresolved";
   actions?: "default" | "explicit" | "github-access" | "config";
   gitAccess?: "github-access" | "default" | "explicit" | "config";
@@ -113,7 +105,6 @@ export interface ResolveContext {
   /** Resolve `--credentials-github-from-sandbox` through a read-only lookup. */
   loadFromSandbox?: (selector: string) => Promise<ManagedCredentialsConfig>;
   inferRepositoryImpl?: typeof inferRepository;
-  inferCommitIdentityImpl?: typeof inferCommitIdentity;
   inferActorImpl?: typeof inferActor;
 }
 

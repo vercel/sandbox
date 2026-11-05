@@ -11,7 +11,6 @@ import type { SandboxCredentialSnapshot } from "./managed-credentials-reuse";
  */
 export async function fetchSandboxCredentialSnapshot(options: {
   selector: string;
-  kind: "id" | "name";
   token: string;
   teamId: string;
   projectId: string;

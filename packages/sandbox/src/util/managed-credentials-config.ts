@@ -288,8 +288,32 @@ export function validateConfig(
     );
   }
 
-  // Parsing preserves explicit metadata. Transport rejects commitAs if the API
-  // would widen permissions or apply it to an ambiguous writing repository.
+  // Legacy commitAs makes the API infer git:write for the source and applies to
+  // every writing repository. Never silently omit metadata or broaden access:
+  // it is safe only when the exact same Git write was explicitly requested.
+  if (config.commitAs) {
+    const writingGroups = config.credentials.github.filter((group) =>
+      group.actions.some(
+        (action) => action === "git:write" || action === "git:write-workflows",
+      ),
+    );
+    const writingRepositories = new Set(
+      writingGroups.flatMap((group) =>
+        group.repositories.map((repo) => repo.toLowerCase()),
+      ),
+    );
+    if (
+      sourceRepo === undefined ||
+      writingRepositories.size !== 1 ||
+      !writingRepositories.has(sourceRepo.toLowerCase()) ||
+      !writingGroups.some((group) => group.actions.includes("git:write"))
+    ) {
+      throw new CliError(
+        "commitAs requires exactly one writing repository matching source.url and explicitly requesting git:write. Omit commitAs to use per-repository managed identities.",
+      );
+    }
+  }
+
   return config;
 }
 
@@ -328,16 +352,6 @@ export function gitAccessFor(
   if (actions.includes("git:write-workflows")) return "git:write-workflows";
   if (actions.includes("git:write")) return "git:write";
   return undefined;
-}
-
-/** True when `commitAs` is present but no repository grants Git write. */
-export function hasInertCommitAs(config: ManagedCredentialsConfig): boolean {
-  if (!config.commitAs) return false;
-  return !config.credentials.github.some((group) =>
-    group.actions.some(
-      (action) => action === "git:write" || action === "git:write-workflows",
-    ),
-  );
 }
 
 /**

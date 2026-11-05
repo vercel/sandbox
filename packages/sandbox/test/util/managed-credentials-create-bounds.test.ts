@@ -32,7 +32,6 @@ const context = (): CreateContext => ({
   teamSlug: "example",
   project: "prj_Original",
   projectSlug: "widgets",
-  creation: {},
   creationRequested: true,
   mode: { interactive: true, json: false },
   yes: false,
@@ -46,33 +45,26 @@ beforeEach(() => {
   lookup.mockResolvedValue(true);
 });
 
-test.each([
-  ["example", "widgets", "team_Original", "prj_Original"],
-  ["team_Original", "prj_Original", "team_Original", "prj_Original"],
-  ["example", "corrected-project", "team_Original", "corrected-project"],
-  ["corrected-team", "widgets", "corrected-team", "widgets"],
-  ["team_Corrected", "prj_Corrected", "team_Corrected", "prj_Corrected"],
-])(
-  "reads Bounds for the approved scope %s/%s",
-  async (team, project, expectedTeam, expectedProject) => {
-    flow.mockImplementation(async (options: { context: FlowContext }) => {
-      await options.context.hasProjectBounds!({ team, project });
-      return {
-        config,
-        team,
-        project,
-        missingBounds: [],
-        boundsApproved: false,
-      };
+test("reads Bounds for the selected IDs, never the review labels", async () => {
+  flow.mockImplementation(async (options: { context: FlowContext }) => {
+    // Display labels and policy selectors are separate: the slugs reach the
+    // review table, and only the selected IDs reach the policy read.
+    expect(options.context.displayScope).toEqual({
+      team: "example",
+      project: "widgets",
     });
-    await prepareManagedCredentials({ context: context() });
-    expect(lookup).toHaveBeenCalledExactlyOnceWith({
-      token: "existing-token",
-      team: expectedTeam,
-      project: expectedProject,
+    await options.context.hasProjectBounds!({
+      team: options.context.team,
+      project: options.context.project,
     });
-  },
-);
+  });
+  await prepareManagedCredentials({ context: context() });
+  expect(lookup).toHaveBeenCalledExactlyOnceWith({
+    token: "existing-token",
+    team: "team_Original",
+    project: "prj_Original",
+  });
+});
 
 test.each([false, true])(
   "policy errors retain the requested JSON mode: %s",

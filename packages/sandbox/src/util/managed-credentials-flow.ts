@@ -21,15 +21,13 @@ export interface ReviewScope {
 
 export interface FlowContext extends ReviewScope {
   /** Review labels only, never policy/API/recovery selectors. */
-  displayScope?: ReviewScope;
+  displayScope: ReviewScope;
   /** Optional read-only coverage calculation. */
   readBounds?: (scope: ReviewScope) => Promise<BoundsLookup | undefined>;
   /** Check for project Bounds only after the proposal is approved. */
   hasProjectBounds?: (scope: ReviewScope) => Promise<boolean>;
   /** Render the exact proposal as a command without executing or approving it. */
-  renderCommand?: (
-    proposal: ReviewScope & { config: ManagedCredentialsConfig },
-  ) => string;
+  renderCommand?: (config: ManagedCredentialsConfig) => string;
   scopeProvenance?: ScopeProvenance;
   sandboxName?: string;
   vcpus: number;
@@ -42,23 +40,21 @@ export interface FlowContext extends ReviewScope {
   input?: NodeJS.ReadableStream;
 }
 
-export interface FlowResult extends ReviewScope {
-  config: ManagedCredentialsConfig;
-  missingBounds: MissingBound[];
-  boundsApproved: boolean;
-}
-
-/** Show one immutable proposal and ask for creation consent. */
+/**
+ * Show one immutable proposal and ask for creation consent.
+ *
+ * Consent approves the caller's own request; it never returns a replacement.
+ * Returning normally means "approved", and every other outcome throws.
+ */
 export async function runManagedCredentialsFlow(options: {
   initial: ResolvedManagedCredentials;
   context: FlowContext;
-}): Promise<FlowResult> {
+}): Promise<void> {
   const { context, initial: resolved } = options;
   const { team, project } = context;
   const write = (text: string) =>
     (context.output ?? process.stderr).write(text);
-  const recoveryCommand = () =>
-    context.renderCommand?.({ config: resolved.config, team, project });
+  const recoveryCommand = () => context.renderCommand?.(resolved.config);
   const showRecoveryCommand = (command: string | undefined) => {
     if (command && !context.json)
       write(`\n  Edit this command and run it again:\n\n${command}\n\n`);
@@ -90,22 +86,26 @@ export async function runManagedCredentialsFlow(options: {
     { team, project },
     resolved.config,
   );
-  const rows = buildReview({
-    config: resolved.config,
-    originLabel: resolved.originLabel,
-    provenance: {
-      ...resolved.provenance,
-      team: context.scopeProvenance?.team ?? "provided scope",
-      project: context.scopeProvenance?.project ?? "provided scope",
-    },
-    ...(resolved.actor ? { actor: resolved.actor } : {}),
-    team: context.displayScope?.team ?? team,
-    project: context.displayScope?.project ?? project,
-    ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
-    vcpus: context.vcpus,
-    vcpusExplicit: context.vcpusExplicit,
-    missingBounds,
-  });
+  // --yes makes the review invisible, and the only other reader of the rows is
+  // the consent error --yes cannot reach. Do not build a table nobody sees.
+  const rows = context.yes
+    ? []
+    : buildReview({
+        config: resolved.config,
+        originLabel: resolved.originLabel,
+        provenance: {
+          ...resolved.provenance,
+          team: context.scopeProvenance?.team ?? "provided scope",
+          project: context.scopeProvenance?.project ?? "provided scope",
+        },
+        ...(resolved.actor ? { actor: resolved.actor } : {}),
+        team: context.displayScope.team,
+        project: context.displayScope.project,
+        ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
+        vcpus: context.vcpus,
+        vcpusExplicit: context.vcpusExplicit,
+        missingBounds,
+      });
   if (!context.json) {
     if (!context.yes) {
       write(
@@ -120,14 +120,7 @@ export async function runManagedCredentialsFlow(options: {
       );
   }
 
-  if (context.dryRun)
-    return {
-      config: resolved.config,
-      team,
-      project,
-      missingBounds,
-      boundsApproved: false,
-    };
+  if (context.dryRun) return;
 
   if (!context.yes && !context.interactive) {
     const command = recoveryCommand();
@@ -186,13 +179,6 @@ export async function runManagedCredentialsFlow(options: {
       if (!/^(y|yes)$/i.test(answer.trim())) cancel();
     }
   }
-  return {
-    config: resolved.config,
-    team,
-    project,
-    missingBounds,
-    boundsApproved: missingBounds.length > 0,
-  };
 }
 
 async function resolveBounds(

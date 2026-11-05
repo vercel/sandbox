@@ -9,10 +9,6 @@ import {
 import { renderManagedCredentialsRetryCommand } from "./managed-credentials-retry-command";
 import { hasProjectBounds } from "./managed-credentials-project-bounds";
 import { resolveScopeDisplay } from "./scope-display";
-import {
-  toTransport,
-  type ManagedCredentialsTransport,
-} from "./managed-credentials-transport";
 
 /**
  * vCPU allocation for managed-credentials creations.
@@ -30,9 +26,12 @@ import {
 export const MANAGED_CREDENTIALS_VCPUS = 6;
 
 export interface PreparedManagedCredentials {
-  /** The approved request, in transport terms. */
-  transport: ManagedCredentialsTransport;
-  /** The approved logical configuration, for persistence. */
+  /**
+   * The approved request.
+   *
+   * The canonical configuration already uses the Sandbox creation API shape,
+   * so creation, persistence and the dry-run report all read this one object.
+   */
   config: ManagedCredentialsConfig;
   vcpus: number;
 }
@@ -52,23 +51,29 @@ export async function prepareManagedCredentials(options: {
   if (!context.managed) return undefined;
 
   const vcpus = options.vcpus ?? MANAGED_CREDENTIALS_VCPUS;
-  // Names are display metadata only. Never replace the selected IDs or token.
-  const displayScope = context.mode.json
-    ? undefined
-    : await resolveScopeDisplay({
-        token: context.token,
-        team: context.team,
-        project: context.project,
-        teamSlug: context.teamSlug,
-        projectSlug: context.projectSlug,
-      });
+  // Labels for the review table only. The selected IDs below stay the sole
+  // authority for policy reads and for the API, and the token never changes.
+  // A --yes run never shows the table, so skip both metadata GETs.
+  const displayScope =
+    context.mode.json || context.yes
+      ? {
+          team: context.teamSlug ?? context.team,
+          project: context.projectSlug ?? context.project,
+        }
+      : await resolveScopeDisplay({
+          token: context.token,
+          team: context.team,
+          project: context.project,
+          teamSlug: context.teamSlug,
+          projectSlug: context.projectSlug,
+        });
 
-  const result = await runManagedCredentialsFlow({
+  await runManagedCredentialsFlow({
     initial: context.managed,
     context: {
-      team: context.teamSlug ?? context.team,
-      project: context.projectSlug ?? context.project,
-      ...(displayScope ? { displayScope } : {}),
+      team: context.team,
+      project: context.project,
+      displayScope,
       ...(context.scopeProvenance
         ? { scopeProvenance: context.scopeProvenance }
         : {}),
@@ -80,15 +85,11 @@ export async function prepareManagedCredentials(options: {
       yes: context.yes,
       dryRun: context.dryRun,
       hasProjectBounds: async ({ team, project }) => {
-        const originalTeam = team === context.team || team === context.teamSlug;
         try {
           return await hasProjectBounds({
             token: context.token,
-            team: team === context.teamSlug ? context.team : team,
-            project:
-              originalTeam && project === context.projectSlug
-                ? context.project
-                : project,
+            team,
+            project,
           });
         } catch (error) {
           if (error instanceof CliError) {
@@ -100,24 +101,34 @@ export async function prepareManagedCredentials(options: {
           throw error;
         }
       },
-      renderCommand: (proposal) =>
+      // Recovery keeps the selector spelling the user typed, not the review
+      // labels: a slug the user supplied, otherwise the selected ID.
+      renderCommand: (config) =>
         renderManagedCredentialsRetryCommand({
-          ...proposal,
+          config,
+          team: context.teamSlug ?? context.team,
+          project: context.projectSlug ?? context.project,
           vcpus,
           invocation: context.retryInvocation ?? {
             appName: context.appName ?? "sandbox",
             command: "create",
-            args: options.sandboxName ? [`--name=${options.sandboxName}`] : [],
+            args: options.sandboxName
+              ? [
+                  {
+                    kind: "option",
+                    dash: "--",
+                    keys: "name",
+                    value: options.sandboxName,
+                    inline: true,
+                  },
+                ]
+              : [],
           },
         }),
     },
   });
 
-  return {
-    transport: toTransport(result.config),
-    config: result.config,
-    vcpus,
-  };
+  return { config: context.managed.config, vcpus };
 }
 
 /** Print the dry-run outcome and exit without creating anything. */

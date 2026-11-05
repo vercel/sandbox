@@ -20,10 +20,6 @@ import {
   type ManagedCredentialsOptions,
   type ResolvedManagedCredentials,
 } from "../util/managed-credentials-resolve";
-import {
-  toTransport,
-  type ManagedCredentialsTransport,
-} from "../util/managed-credentials-transport";
 import { loadConfigFromSandbox } from "../util/managed-credentials-reuse";
 import { fetchSandboxCredentialSnapshot } from "../util/managed-credentials-client";
 import {
@@ -34,7 +30,6 @@ import {
 type Parsed<T> = T extends ArgParser<infer Value> ? Value : never;
 export type CreateContext = Parsed<typeof scope> & {
   appName?: "sandbox" | "vercel sandbox";
-  creation: Partial<ManagedCredentialsTransport>;
   creationRequested: boolean;
   mode: ExecutionMode;
   scopeProvenance?: ScopeProvenance;
@@ -50,6 +45,7 @@ export type CreateContext = Parsed<typeof scope> & {
 /** Resolve the proposal without granting access or performing creation. */
 export function createContext({
   allowJson = true,
+  allowDryRun = true,
 } = {}): ArgParser<CreateContext> & ProvidesHelp {
   const execution = {
     yes: cmd.flag({
@@ -63,7 +59,9 @@ export function createContext({
       type: cmd.optional(cmd.boolean),
       description: "Never prompt; fail if input or consent is missing.",
     }),
-    ...executionOptions,
+    // Only `create` can preview without producing a sandbox, so `run` and `sh`
+    // must not advertise a mode they reject.
+    ...(allowDryRun ? executionOptions : {}),
     ...(allowJson
       ? {
           json: cmd.flag({
@@ -159,9 +157,9 @@ export function createContext({
             loadFromSandbox: (selector) =>
               loadConfigFromSandbox({
                 selector,
-                fetchSnapshot: (params) =>
+                fetchSnapshot: (target) =>
                   fetchSandboxCredentialSnapshot({
-                    ...params,
+                    selector: target,
                     token: result.value.token,
                     teamId: result.value.team,
                     projectId: result.value.project,
@@ -176,7 +174,6 @@ export function createContext({
             appName: context.hotPath?.includes("vercel sandbox")
               ? "vercel sandbox"
               : "sandbox",
-            creation: managed ? toTransport(managed.config) : {},
             creationRequested,
             mode,
             ...(scopeProvenance ? { scopeProvenance } : {}),

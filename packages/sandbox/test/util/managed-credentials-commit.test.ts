@@ -1,13 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import {
-  inferCommitIdentity,
-  parseCommitAs,
-  commitIdentityFromProfile,
-} from "../../src/util/managed-credentials-commit";
+import { parseCommitAs } from "../../src/util/managed-credentials-commit";
 import {
   runCommand,
   readCommand,
@@ -39,23 +31,6 @@ describe("read-only metadata helpers", () => {
   });
 });
 describe("commit identity", () => {
-  test("reads repository-local overrides without changing config", async () => {
-    const cwd = await mkdtemp(join(tmpdir(), "sandbox-commit-"));
-    const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd, encoding: "utf8" });
-    try {
-      git("init", "-q");
-      git("config", "user.name", "Local Author");
-      git("config", "user.email", "local@example.com");
-      expect(await inferCommitIdentity(cwd)).toEqual({
-        name: "Local Author",
-        email: "local@example.com",
-      });
-      expect(git("config", "--get", "user.name").trim()).toBe("Local Author");
-    } finally {
-      await rm(cwd, { recursive: true, force: true });
-    }
-  });
   test("parses explicit credit", () => {
     expect(parseCommitAs(" Ada Lovelace <ada@example.com> ")).toEqual({
       name: "Ada Lovelace",
@@ -68,21 +43,4 @@ describe("commit identity", () => {
       expect(() => parseCommitAs(value)).toThrow();
     },
   );
-  test("uses GitHub noreply credit before profile email", () => {
-    expect(
-      commitIdentityFromProfile({
-        githubName: "Ada",
-        githubLogin: "ada",
-        githubId: "42",
-        githubEmail: "private@example.com",
-      }),
-    ).toEqual({ name: "Ada", email: "42+ada@users.noreply.github.com" });
-    expect(
-      commitIdentityFromProfile({
-        vercelName: "Ada",
-        vercelEmail: "ada@example.com",
-      }),
-    ).toEqual({ name: "Ada", email: "ada@example.com" });
-    expect(commitIdentityFromProfile({ githubLogin: "ada" })).toBeUndefined();
-  });
 });

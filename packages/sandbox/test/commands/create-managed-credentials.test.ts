@@ -21,7 +21,6 @@ const {
   mockInferScope,
   mockLogin,
   mockInferRepository,
-  mockInferCommitIdentity,
   mockInferActor,
   mockVersionCheck,
   mockHasProjectBounds,
@@ -32,7 +31,6 @@ const {
   mockInferScope: vi.fn(),
   mockLogin: vi.fn(),
   mockInferRepository: vi.fn(),
-  mockInferCommitIdentity: vi.fn(),
   mockInferActor: vi.fn(),
   mockVersionCheck: vi.fn(() => ({ report() {} })),
   mockHasProjectBounds: vi.fn(),
@@ -74,12 +72,6 @@ vi.mock("../../src/util/managed-credentials-repository", () => ({
 vi.mock("../../src/util/managed-credentials-actor", () => ({
   inferActor: mockInferActor,
 }));
-vi.mock("../../src/util/managed-credentials-commit", async (original) => ({
-  ...(await original<
-    typeof import("../../src/util/managed-credentials-commit")
-  >()),
-  inferCommitIdentity: mockInferCommitIdentity,
-}));
 
 describe("create with managed credentials", () => {
   let directory: string;
@@ -100,10 +92,6 @@ describe("create with managed credentials", () => {
       currentSession: () => ({ sessionId: "sbx_132456789", status: "running" }),
     });
     mockInferRepository.mockResolvedValue("vercel/api");
-    mockInferCommitIdentity.mockResolvedValue({
-      name: "Jack Jackson",
-      email: "scubbojj@gmail.com",
-    });
     mockInferActor.mockResolvedValue({
       actAs: "2373726",
       login: "scubbo",
@@ -205,7 +193,6 @@ describe("create with managed credentials", () => {
         "git:write-workflows",
       );
       expect(params.commitAs).toBeUndefined();
-      expect(mockInferCommitIdentity).not.toHaveBeenCalled();
     });
     test("rejects the unsupported read preset before creating anything", async () => {
       await expect(
@@ -909,13 +896,20 @@ describe("create with managed credentials", () => {
       expect(mockExec).not.toHaveBeenCalled();
     });
     test.each(["run", "sh"])(
-      "%s rejects dry-run without starting anything",
+      "%s neither offers nor accepts dry-run",
       async (name) => {
         const module =
           name === "run"
             ? await import("../../src/commands/run")
             : await import("../../src/commands/sh");
         const command = "run" in module ? module.run : module.sh;
+        // Only create can preview without producing a sandbox, so the flag is
+        // absent from the help rather than advertised and then refused.
+        expect(
+          command
+            .helpTopics?.()
+            .some((topic) => topic.usage?.includes("--dry-run")),
+        ).toBeFalsy();
         await expect(
           cmd.run(command as typeof import("../../src/commands/sh").sh, [
             "--scope=team",
@@ -923,7 +917,7 @@ describe("create with managed credentials", () => {
             "--dry-run",
             ...(name === "run" ? ["echo", "hello"] : []),
           ]),
-        ).rejects.toThrow("--dry-run");
+        ).rejects.toThrow();
         expect(mockCreate).not.toHaveBeenCalled();
         expect(mockGet).not.toHaveBeenCalled();
         expect(mockExec).not.toHaveBeenCalled();

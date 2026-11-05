@@ -49,15 +49,6 @@ vi.mock("../../src/util/managed-credentials-repository", () => ({
 vi.mock("../../src/util/managed-credentials-actor", () => ({
   inferActor: async () => ({ actAs: "42", login: "grace", source: "gh" }),
 }));
-vi.mock("../../src/util/managed-credentials-commit", async (original) => ({
-  ...(await original<
-    typeof import("../../src/util/managed-credentials-commit")
-  >()),
-  inferCommitIdentity: async () => ({
-    name: "Grace Hopper",
-    email: "grace@example.com",
-  }),
-}));
 
 let stdout: MockInstance<typeof process.stdout.write>;
 let stderr: MockInstance<typeof process.stderr.write>;

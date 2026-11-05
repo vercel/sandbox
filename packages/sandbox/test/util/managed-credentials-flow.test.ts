@@ -26,7 +26,7 @@ const resolved = (repo = "vercel/api"): ResolvedManagedCredentials => ({
   originLabel: "command-line flags",
   provenance: {
     repository: "git-remote",
-    commitAs: "git-config",
+    commitAs: "actor-derived",
     actor: "gh",
   },
 });
@@ -56,6 +56,7 @@ function scripted(answers: string[]) {
 const baseContext = (overrides: Record<string, unknown> = {}) => ({
   team: "jacks-projects",
   project: "api",
+  displayScope: { team: "jacks-projects", project: "api" },
   vcpus: 6,
   vcpusExplicit: false,
   interactive: false,
@@ -79,7 +80,7 @@ describe("--yes review output", () => {
       const chunks: string[] = [];
       output.on("data", (chunk) => chunks.push(chunk.toString()));
       const hasProjectBounds = vi.fn().mockResolvedValue(true);
-      const result = await runManagedCredentialsFlow({
+      await runManagedCredentialsFlow({
         initial: resolved(),
         context: baseContext({
           yes: true,
@@ -89,7 +90,6 @@ describe("--yes review output", () => {
           hasProjectBounds,
         }),
       });
-      expect(result.config).toEqual(configFor());
       expect(chunks.join("")).toBe("");
       expect(hasProjectBounds).toHaveBeenCalledTimes(dryRun ? 0 : 1);
     },
@@ -104,12 +104,10 @@ describe("--yes review output", () => {
       context: baseContext({
         yes: true,
         output,
-        readBounds: vi
-          .fn()
-          .mockResolvedValue({
-            status: "known",
-            bounds: [{ repo: "other/repository", actions: ["git:read"] }],
-          }),
+        readBounds: vi.fn().mockResolvedValue({
+          status: "known",
+          bounds: [{ repo: "other/repository", actions: ["git:read"] }],
+        }),
       }),
     });
     const text = chunks.join("");
@@ -156,19 +154,21 @@ describe("non-interactive consent", () => {
   });
 
   test("--yes approves without prompting", async () => {
-    const result = await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({ yes: true }),
-    });
-    expect(result.config).toEqual(configFor());
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        context: baseContext({ yes: true }),
+      }),
+    ).resolves.toBeUndefined();
   });
 
   test("a dry run returns without approval and without policy changes", async () => {
-    const result = await runManagedCredentialsFlow({
+    const hasProjectBounds = vi.fn();
+    await runManagedCredentialsFlow({
       initial: resolved(),
-      context: baseContext({ dryRun: true }),
+      context: baseContext({ dryRun: true, hasProjectBounds }),
     });
-    expect(result.boundsApproved).toBe(false);
+    expect(hasProjectBounds).not.toHaveBeenCalled();
   });
 
   test("JSON mode does not write the review to the output stream", async () => {
@@ -219,11 +219,10 @@ describe("unbounded project confirmation", () => {
     async (answer) => {
       const io = capture(["y", answer]);
       const hasProjectBounds = vi.fn().mockResolvedValue(false);
-      const result = await runManagedCredentialsFlow({
+      await runManagedCredentialsFlow({
         initial: resolved(),
         context: baseContext({ interactive: true, ...io, hasProjectBounds }),
       });
-      expect(result.config).toEqual(configFor());
       expect(io.text()).toContain("Continue without project Bounds? (y/N)");
     },
   );
@@ -257,7 +256,7 @@ describe("unbounded project confirmation", () => {
       const io = capture([]);
       const hasProjectBounds = vi.fn().mockResolvedValue(false);
       const readBounds = vi.fn().mockResolvedValue(undefined);
-      const result = await runManagedCredentialsFlow({
+      await runManagedCredentialsFlow({
         initial: resolved(),
         context: baseContext({
           interactive,
@@ -267,9 +266,6 @@ describe("unbounded project confirmation", () => {
           readBounds,
         }),
       });
-      expect(result.config).toEqual(configFor());
-      expect(result.missingBounds).toEqual([]);
-      expect(result.boundsApproved).toBe(false);
       expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
         team: "jacks-projects",
         project: "api",
@@ -428,11 +424,7 @@ describe("unbounded project confirmation", () => {
         team: "jacks-projects",
         project: "api",
       });
-      expect(renderCommand).toHaveBeenCalledExactlyOnceWith({
-        config: configFor(),
-        team: "jacks-projects",
-        project: "api",
-      });
+      expect(renderCommand).toHaveBeenCalledExactlyOnceWith(configFor());
       expect(io.text()).toContain(command);
     },
   );
@@ -454,29 +446,29 @@ describe("policy additions", () => {
   });
 
   test("--yes covers the displayed policy additions", async () => {
-    const result = await runManagedCredentialsFlow({
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+    await runManagedCredentialsFlow({
       initial: resolved(),
-      context: baseContext({ readBounds, yes: true }),
+      context: baseContext({ readBounds, yes: true, output }),
     });
-    expect(result.boundsApproved).toBe(true);
-    expect(result.missingBounds).toEqual([
-      {
-        repo: "vercel/api",
-        actions: ["github:issues:read", "git:write"],
-      },
-    ]);
+    expect(chunks.join("")).toContain("raises the project-wide ceiling");
   });
 
   test("proposes nothing when there is no policy source to read", async () => {
-    const result = await runManagedCredentialsFlow({
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+    await runManagedCredentialsFlow({
       initial: resolved(),
       context: baseContext({
         yes: true,
+        output,
         readBounds: vi.fn().mockResolvedValue(undefined),
       }),
     });
-    expect(result.missingBounds).toEqual([]);
-    expect(result.boundsApproved).toBe(false);
+    expect(chunks.join("")).not.toContain("project-wide ceiling");
   });
 
   test("refuses to propose additions from an unreadable policy", async () => {
@@ -517,11 +509,7 @@ describe("interactive review", () => {
       ).rejects.toMatchObject({
         options: { reason: "canceled", exitCode: 130, data: { command } },
       });
-      expect(renderCommand).toHaveBeenCalledExactlyOnceWith({
-        config: configFor(),
-        team: "jacks-projects",
-        project: "api",
-      });
+      expect(renderCommand).toHaveBeenCalledExactlyOnceWith(configFor());
       expect(chunks.join("")).toContain(
         `Edit this command and run it again:\n\n${command}\n`,
       );
@@ -589,11 +577,12 @@ describe("interactive review", () => {
 
   test("creating approves the proposal", async () => {
     const { input, output } = scripted(["y"]);
-    const result = await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({ interactive: true, input, output }),
-    });
-    expect(result.config).toEqual(configFor());
+    await expect(
+      runManagedCredentialsFlow({
+        initial: resolved(),
+        context: baseContext({ interactive: true, input, output }),
+      }),
+    ).resolves.toBeUndefined();
   });
 
   test("an empty answer cancels rather than creating", async () => {
@@ -615,7 +604,7 @@ describe("review display metadata", () => {
     const output = new PassThrough();
     const chunks: string[] = [];
     output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
-    const result = await runManagedCredentialsFlow({
+    await runManagedCredentialsFlow({
       initial,
       context: baseContext({
         dryRun: true,
@@ -630,6 +619,6 @@ describe("review display metadata", () => {
     expect(text).toMatch(/Team\s+jacks-projects\s+from \.vercel\/project.json/);
     expect(text).toMatch(/GitHub actor\s+@scubbo/);
     expect(text).not.toContain("2373726");
-    expect(result.config.credentials.github[0].actAs).toBe("2373726");
+    expect(initial.config.credentials.github[0].actAs).toBe("2373726");
   });
 });

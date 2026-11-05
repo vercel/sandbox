@@ -14,7 +14,7 @@ const args = {
   // `timeout` is omitted because it collides with Create's `--timeout`
   // (sandbox lifetime).
   ...omit(execArgs, "sandbox", "timeout", "detached", "stdin"),
-  scope: createContext({ allowJson: false }),
+  scope: createContext({ allowJson: false, allowDryRun: false }),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
@@ -38,8 +38,6 @@ export const run = cmd.command({
         "An interactive command cannot share stdin with a configuration payload. Create the sandbox first, then use sandbox exec from a terminal.",
       );
     }
-    if (rest.scope.dryRun)
-      throw new CliError("--dry-run is only supported by sandbox create.");
     if (removeAfterUse && stopAfterUse) {
       throw new Error("--rm and --stop are mutually exclusive.");
     }

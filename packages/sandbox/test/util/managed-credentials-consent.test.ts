@@ -3,7 +3,10 @@ import { describe, expect, test, vi } from "vitest";
 import { promptReviewDecision } from "../../src/util/managed-credentials-review";
 import { runManagedCredentialsFlow } from "../../src/util/managed-credentials-flow";
 import { parseConfig } from "../../src/util/managed-credentials-config";
-import { renderManagedCredentialsRetryCommand } from "../../src/util/managed-credentials-retry-command";
+import {
+  renderManagedCredentialsRetryCommand,
+  type RetryArgument,
+} from "../../src/util/managed-credentials-retry-command";
 
 function io(answers: string[]) {
   const input = new PassThrough();
@@ -44,6 +47,14 @@ const initial = {
   provenance: {},
 };
 
+/** The parsed unit cmd-ts produces for an inline `--key[=value]`. */
+const opt = (keys: string, value?: string): RetryArgument => ({
+  kind: "option",
+  dash: "--",
+  keys,
+  ...(value === undefined ? {} : { value, inline: true }),
+});
+
 function run(answers: string[]) {
   const streams = io(answers);
   const bounds = vi.fn().mockResolvedValue(true);
@@ -57,9 +68,9 @@ function run(answers: string[]) {
         appName: "sandbox",
         command: "create",
         args: [
-          "--enable-github-credentials",
-          "--token=secret-token",
-          "--timeout=9m",
+          opt("enable-github-credentials"),
+          opt("token", "secret-token"),
+          opt("timeout", "9m"),
         ],
       },
     });
@@ -69,6 +80,7 @@ function run(answers: string[]) {
       ...streams,
       team: "team_selected",
       project: "prj_selected",
+      displayScope: { team: "team_selected", project: "prj_selected" },
       vcpus: 8,
       vcpusExplicit: true,
       interactive: true,
@@ -161,11 +173,7 @@ describe("binary creation consent", () => {
 
   test("y approves the exact proposal without changing scope or permissions", async () => {
     const { streams, bounds, promise } = run(["y"]);
-    await expect(promise).resolves.toMatchObject({
-      config,
-      team: "team_selected",
-      project: "prj_selected",
-    });
+    await expect(promise).resolves.toBeUndefined();
     expect(bounds).toHaveBeenCalledExactlyOnceWith({
       team: "team_selected",
       project: "prj_selected",

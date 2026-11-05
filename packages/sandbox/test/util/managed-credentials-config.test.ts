@@ -7,7 +7,6 @@ import {
   canonicalCreationAction,
   githubActor,
   gitAccessFor,
-  hasInertCommitAs,
   parseConfig,
   repositoryFromUrl,
   repositoryGroups,
@@ -637,69 +636,118 @@ describe("unsupported source fields and old CLI shapes", () => {
   });
 });
 
-describe("commitAs parsing never widens permissions", () => {
-  test("does not add git:write to an API-only group", () => {
-    // Metadata is preserved; transport must reject it if forwarding would
-    // cause the API to infer permissions that were not explicitly requested.
-    const config = parseConfig({
-      source: { type: "git", url: "https://github.com/o/r.git" },
-      commitAs: { name: "A", email: "a@example.com" },
-      credentials: {
-        github: [{ repositories: ["o/r"], actions: ["github:issues:read"] }],
-      },
-    });
-    expect(config.credentials.github[0].actions).toEqual([
-      "github:issues:read",
-    ]);
-    expect(gitAccessFor(config, "o/r")).toBeUndefined();
-  });
+describe("legacy commitAs never widens permissions", () => {
+  const commitAs = { name: "Ada", email: "ada@example.com" };
 
-  test("does not invent a group when none grants Git access", () => {
-    const config = parseConfig({
-      source: { type: "git", url: "https://github.com/o/r.git" },
-      commitAs: { name: "A", email: "a@example.com" },
+  // commitAs makes the API infer git:write for the source and apply it to
+  // every writing repository, so it is accepted only when that exact Git
+  // write was explicitly requested for the source and nothing else.
+  test.each([
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
       credentials: { github: [] },
-    });
-    expect(config.credentials.github).toEqual([]);
-  });
+    },
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      credentials: {
+        github: [
+          { repositories: ["vercel/api"], actions: ["github:issues:read"] },
+        ],
+      },
+    },
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      credentials: {
+        github: [
+          {
+            repositories: ["vercel/api", "vercel/other"],
+            actions: ["git:write"],
+          },
+        ],
+      },
+    },
+    {
+      credentials: {
+        github: [{ repositories: ["vercel/api"], actions: ["git:write"] }],
+      },
+    },
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      credentials: {
+        github: [{ repositories: ["vercel/other"], actions: ["git:write"] }],
+      },
+    },
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      credentials: {
+        github: [
+          { repositories: ["vercel/api"], actions: ["git:write"] },
+          { repositories: ["vercel/other"], actions: ["git:write-workflows"] },
+        ],
+      },
+    },
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      credentials: {
+        github: [
+          { repositories: ["vercel/api"], actions: ["git:write"] },
+          { repositories: ["vercel/other"], actions: ["git:write"] },
+        ],
+      },
+    },
+    {
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      credentials: {
+        github: [
+          { repositories: ["vercel/api"], actions: ["git:write-workflows"] },
+        ],
+      },
+    },
+  ])(
+    "rejects overrides that cannot preserve exact permissions: %j",
+    (config) => {
+      expect(() => parseConfig({ ...config, commitAs })).toThrow(/commitAs/);
+    },
+  );
 
   test("rejects unsupported git:read even alongside commit metadata", () => {
     expect(() =>
       parseConfig({
         source: { type: "git", url: "https://github.com/o/r.git" },
-        commitAs: { name: "A", email: "a@example.com" },
+        commitAs,
         credentials: {
           github: [{ repositories: ["o/r"], actions: ["git:read"] }],
         },
       }),
     ).toThrow(CliError);
   });
-});
 
-describe("inert commit metadata", () => {
-  test("reports commitAs as inert when nothing grants Git write", () => {
+  test("retains metadata for a sole writing source with unrelated API groups", () => {
     const config = parseConfig({
-      source: { type: "git", url: "https://github.com/vercel/infra.git" },
-      commitAs: { name: "John Fakenameson", email: "madeup@example.org" },
+      source: { type: "git", url: "https://github.com/vercel/api.git" },
+      commitAs,
       credentials: {
         github: [
-          { repositories: ["vercel/infra"], actions: ["github:issues:read"] },
+          {
+            repositories: ["vercel/api"],
+            actions: ["git:write-workflows", "git:write"],
+            actAs: "42",
+          },
+          {
+            repositories: ["vercel/reference"],
+            actions: ["github:issues:read"],
+            actAs: "43",
+          },
         ],
       },
     });
-    expect(hasInertCommitAs(config)).toBe(true);
-    expect(gitAccessFor(config, "vercel/infra")).toBeUndefined();
-  });
-
-  test("reports commitAs as effective when Git write is granted", () => {
-    expect(
-      hasInertCommitAs(
-        parseConfig({
-          ...base,
-          commitAs: { name: "Ada", email: "ada@example.com" },
-        }),
-      ),
-    ).toBe(false);
+    expect(config.commitAs).toEqual(commitAs);
+    expect(config.credentials.github[0]).toEqual({
+      repositories: ["vercel/api"],
+      actions: ["git:write-workflows", "git:write"],
+      actAs: "42",
+    });
+    expect(gitAccessFor(config, "vercel/api")).toBe("git:write-workflows");
   });
 });
 

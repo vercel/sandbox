@@ -14,6 +14,7 @@ import {
   captureRetryInvocation,
   renderManagedCredentialsRetryCommand,
   type RetryInvocation,
+  type RetryArgument,
 } from "../../src/util/managed-credentials-retry-command";
 
 const proposal = (): ManagedCredentialsConfig => ({
@@ -175,6 +176,41 @@ async function actualCommand(command: RetryInvocation["command"]) {
   return (await import("../../src/commands/run")).run;
 }
 
+/** Build the parsed unit cmd-ts produces for `spec`, inline or split. */
+function flag(spec: string, value?: string): RetryArgument {
+  const dash = spec.startsWith("--") ? "--" : "-";
+  const rest = spec.slice(dash.length);
+  const equals = rest.indexOf("=");
+  if (equals !== -1)
+    return {
+      kind: "option",
+      dash,
+      keys: rest.slice(0, equals),
+      value: rest.slice(equals + 1),
+      inline: true,
+    };
+  return value === undefined
+    ? { kind: "option", dash, keys: rest }
+    : { kind: "option", dash, keys: rest, value };
+}
+const pos = (raw: string): RetryArgument => ({ kind: "positional", raw });
+const sep: RetryArgument = { kind: "separator" };
+
+/** Flatten captured units back to argv text, for comparing against an input. */
+function flat(args: readonly RetryArgument[]): string[] {
+  return args.flatMap((arg) =>
+    arg.kind === "separator"
+      ? ["--"]
+      : arg.kind === "positional"
+        ? [arg.raw]
+        : arg.value === undefined
+          ? [`${arg.dash}${arg.keys}`]
+          : arg.inline
+            ? [`${arg.dash}${arg.keys}=${arg.value}`]
+            : [`${arg.dash}${arg.keys}`, arg.value],
+  );
+}
+
 describe("captureRetryInvocation", () => {
   test.each(["create", "sh", "run"] as const)(
     "retains every non-replaced long option value using real %s registration",
@@ -294,7 +330,7 @@ describe("captureRetryInvocation", () => {
       const replayed = replay(render(proposal(), result), {
         SANDBOX_RETRY_ENV_1: "A=restored",
       });
-      expect(result.args.slice(-6)).toEqual([
+      expect(flat(result.args).slice(-6)).toEqual([
         "--",
         "node",
         "-e",
@@ -302,7 +338,7 @@ describe("captureRetryInvocation", () => {
         "--yes",
         "--scope=child",
       ]);
-      expect(replayed.args.slice(-6)).toEqual(result.args.slice(-6));
+      expect(replayed.args.slice(-6)).toEqual(flat(result.args).slice(-6));
       expect(replayed.args).toContain("-i");
       expect(replayed.args).toContain("-t");
       expect(replayed.args).not.toContain("-y");
@@ -319,11 +355,9 @@ describe("captureRetryInvocation", () => {
         command,
         nested: true,
       });
-      expect(result).toEqual({
-        appName: "sandbox",
-        command,
-        args: [command, "--", command],
-      });
+      expect(result.appName).toBe("sandbox");
+      expect(result.command).toBe(command);
+      expect(flat(result.args)).toEqual([command, "--", command]);
     },
   );
 
@@ -332,9 +366,9 @@ describe("captureRetryInvocation", () => {
       command: "run",
       nested: true,
     });
-    expect(result.args).toEqual(["node", "-long", "--other=value"]);
+    expect(flat(result.args)).toEqual(["node", "-long", "--other=value"]);
     expect(replay(render(proposal(), result)).args.slice(-3)).toEqual(
-      result.args,
+      flat(result.args),
     );
   });
 
@@ -343,12 +377,12 @@ describe("captureRetryInvocation", () => {
       nodes: [{ type: "positionalArgument", index: 0, raw: "" }],
       visitedNodes: new Set(),
     };
-    expect(captureRetryInvocation(context).args).toEqual([""]);
+    expect(flat(captureRetryInvocation(context).args)).toEqual([""]);
   });
 
   test("preserves split short option values and equals-valued options", async () => {
     expect(
-      (await capture(["-e", "A=x y", "--name=a=b", "opencode"])).args,
+      flat((await capture(["-e", "A=x y", "--name=a=b", "opencode"])).args),
     ).toEqual(["-e", "A=x y", "--name=a=b", "opencode"]);
   });
 });
@@ -363,10 +397,10 @@ describe("renderManagedCredentialsRetryCommand", () => {
       const header =
         "registry.npmjs.org:Authorization=Bearer header-secret:$()=padding";
       const second = "api.example.com:X-Token=another-header-secret";
-      const args = [header, second].flatMap((value) =>
+      const args = [header, second].map((value) =>
         form === "split"
-          ? ["--request-header", value]
-          : [`--request-header=${value}`],
+          ? flag("--request-header", value)
+          : flag(`--request-header=${value}`),
       );
       const command = render(proposal(), {
         appName: "sandbox",
@@ -413,12 +447,12 @@ describe("renderManagedCredentialsRetryCommand", () => {
         appName: "sandbox",
         command: "run",
         args: [
-          "--network-policy-file=-",
-          "--interactive",
-          "--",
-          "node",
-          "-e",
-          "console.log(1)",
+          flag("--network-policy-file=-"),
+          flag("--interactive"),
+          sep,
+          pos("node"),
+          pos("-e"),
+          pos("console.log(1)"),
         ],
       });
       expect(command).not.toContain("--credentials-github-from-config-file=-");
@@ -453,7 +487,9 @@ describe("renderManagedCredentialsRetryCommand", () => {
             appName: "sandbox",
             command,
             args:
-              command === "run" ? ["--interactive", "--", "echo", "hi"] : [],
+              command === "run"
+                ? [flag("--interactive"), sep, pos("echo"), pos("hi")]
+                : [],
           });
           // Rendering itself must not run mktemp, write the file, or touch stdin.
           expect(readdirSync(directory)).toEqual(before);
@@ -550,9 +586,6 @@ describe("renderManagedCredentialsRetryCommand", () => {
         inferRepositoryImpl: async () => {
           throw new Error("Repository must not be inferred");
         },
-        inferCommitIdentityImpl: async () => {
-          throw new Error("Commit identity must not be inferred");
-        },
         inferActorImpl: async ({ explicit }) => {
           expect(explicit).toBe(actAs);
           return { actAs: explicit!, source: "explicit" };
@@ -599,38 +632,32 @@ describe("renderManagedCredentialsRetryCommand", () => {
       appName: "vercel sandbox",
       command: "run",
       args: [
-        "--enable-github-credentials",
-        "--scope",
-        "old-team",
-        "--team=alias",
-        "--project=old-project",
-        "--vcpus",
-        "1",
-        "--credentials-github-repo=old/repo",
-        "--credentials-github-action",
-        "issues:comment",
-        "--credentials-github-act-as=999",
-        "--credentials-github-commit-as",
-        "Old <old@example.com>",
-        "--credentials-github-no-write=false",
-        "--credentials-github-from-config-file",
-        "mutable.json",
-        "--credentials-github-from-sandbox=sbx_old",
-        "--credentials-github-persist-configuration=out.json",
-        "--yes",
-        "-iy",
-        "--yes=false",
-        "--name",
-        "keep name",
-        "--timeout=5m",
-        "--publish-port=3000",
-        "--rm",
-        "--json",
-        "--",
-        "echo",
-        "--yes",
-        "--scope=child",
-        "--credentials-github-action=child",
+        flag("--enable-github-credentials"),
+        flag("--scope", "old-team"),
+        flag("--team=alias"),
+        flag("--project=old-project"),
+        flag("--vcpus", "1"),
+        flag("--credentials-github-repo=old/repo"),
+        flag("--credentials-github-action", "issues:comment"),
+        flag("--credentials-github-act-as=999"),
+        flag("--credentials-github-commit-as", "Old <old@example.com>"),
+        flag("--credentials-github-no-write=false"),
+        flag("--credentials-github-from-config-file", "mutable.json"),
+        flag("--credentials-github-from-sandbox=sbx_old"),
+        flag("--credentials-github-persist-configuration=out.json"),
+        flag("--yes"),
+        flag("-iy"),
+        flag("--yes=false"),
+        flag("--name", "keep name"),
+        flag("--timeout=5m"),
+        flag("--publish-port=3000"),
+        flag("--rm"),
+        flag("--json"),
+        sep,
+        pos("echo"),
+        pos("--yes"),
+        pos("--scope=child"),
+        pos("--credentials-github-action=child"),
       ],
     };
     const before = structuredClone(invocation);
@@ -681,7 +708,7 @@ describe("renderManagedCredentialsRetryCommand", () => {
       const command = render(proposal(), {
         appName: "sandbox",
         command: "run",
-        args: ["--", "printf", ...values],
+        args: [sep, pos("printf"), ...values.map(pos)],
       });
       expect(command).not.toMatch(/[\u0000-\u001f\u007f-\u009f\u202e]/);
       expect(replay(command, {}, shell).args.slice(-values.length)).toEqual(
@@ -703,7 +730,11 @@ describe("renderManagedCredentialsRetryCommand", () => {
     ];
     expect(
       replay(
-        render(proposal(), { appName: "sandbox", command: "run", args: child }),
+        render(proposal(), {
+          appName: "sandbox",
+          command: "run",
+          args: [sep, ...child.slice(1).map(pos)],
+        }),
       ).args.slice(-child.length),
     ).toEqual(child);
   });
@@ -715,22 +746,21 @@ describe("renderManagedCredentialsRetryCommand", () => {
     ["--tag", "--credentials-github-action=tag-value"],
   ])(
     "keeps the option-looking value attached to the actual CLI option %s",
-    (flag, value) => {
+    (option, value) => {
       const invocation: RetryInvocation = {
         appName: "sandbox",
         command: "run",
         args: [
-          flag,
-          value,
-          "--scope=old-team",
-          "--vcpus=1",
-          "--",
-          "echo",
-          "done",
+          flag(option, value),
+          flag("--scope=old-team"),
+          flag("--vcpus=1"),
+          sep,
+          pos("echo"),
+          pos("done"),
         ],
       };
       const args = replay(render(proposal(), invocation)).args;
-      expect(args.slice(-5)).toEqual([flag, value, "--", "echo", "done"]);
+      expect(args.slice(-5)).toEqual([option, value, "--", "echo", "done"]);
       expect(args).not.toContain("--scope=old-team");
       expect(args).not.toContain("--vcpus=1");
     },
@@ -740,10 +770,52 @@ describe("renderManagedCredentialsRetryCommand", () => {
     const invocation: RetryInvocation = {
       appName: "sandbox",
       command: "create",
-      args: ["--name", "--yes", "-w", "--env=not-an-env-option", "opencode"],
+      args: [
+        flag("--name", "--yes"),
+        flag("-w", "--env=not-an-env-option"),
+        pos("opencode"),
+      ],
     };
     const args = replay(render(proposal(), invocation)).args;
-    expect(args.slice(-5)).toEqual(invocation.args);
+    expect(args.slice(-5)).toEqual(flat(invocation.args));
+  });
+
+  test("numbers child token placeholders consecutively across other redactions", () => {
+    const command = render(proposal(), {
+      appName: "sandbox",
+      command: "run",
+      args: [
+        sep,
+        pos("child"),
+        flag("--token=first-child-secret"),
+        flag("--env=A=between-secret"),
+        flag("--request-header=example.com:X=between-header"),
+        flag("--token", "second-child-secret"),
+      ],
+    });
+    for (const secret of [
+      "first-child-secret",
+      "between-secret",
+      "between-header",
+      "second-child-secret",
+    ])
+      expect(command).not.toContain(secret);
+    expect(command).toContain("${SANDBOX_RETRY_TOKEN_1:?");
+    expect(command).toContain("${SANDBOX_RETRY_TOKEN_2:?");
+    expect(command).not.toContain("SANDBOX_RETRY_TOKEN_3");
+    const { args } = replay(command, {
+      SANDBOX_RETRY_TOKEN_1: "first",
+      SANDBOX_RETRY_TOKEN_2: "second",
+      SANDBOX_RETRY_ENV_1: "A=env",
+      SANDBOX_RETRY_HEADER_1: "example.com:X=header",
+    });
+    expect(args.slice(-5)).toEqual([
+      "--token=first",
+      "--env=A=env",
+      "--request-header=example.com:X=header",
+      "--token",
+      "second",
+    ]);
   });
 
   test("hides explicit token/env values and requires replacements, including short and child flags", () => {
@@ -751,17 +823,14 @@ describe("renderManagedCredentialsRetryCommand", () => {
       appName: "sandbox",
       command: "run",
       args: [
-        "--token",
-        "auth-secret",
-        "--env=A=env-secret",
-        "-ye",
-        "B=short-secret",
-        "--env",
-        "C",
-        "--",
-        "child",
-        "--token=child-secret",
-        "--env=D=child-env",
+        flag("--token", "auth-secret"),
+        flag("--env=A=env-secret"),
+        flag("-ye", "B=short-secret"),
+        flag("--env", "C"),
+        sep,
+        pos("child"),
+        flag("--token=child-secret"),
+        flag("--env=D=child-env"),
       ],
     });
     for (const secret of [
@@ -912,9 +981,9 @@ describe("renderManagedCredentialsRetryCommand", () => {
         appName: "sandbox",
         command: "sh",
         args: [
-          "--credentials-github-from-sandbox=sbx_mutable",
-          "--yes",
-          "--rm",
+          flag("--credentials-github-from-sandbox=sbx_mutable"),
+          flag("--yes"),
+          flag("--rm"),
         ],
       });
       const replayed = replay(command);
@@ -955,6 +1024,16 @@ describe("renderManagedCredentialsRetryCommand", () => {
         expect(() => parseConfig(replayed.config)).toThrow(
           /Invalid managed credentials configuration/,
         );
+      } else if (
+        // Commit credit the source no longer earns is rendered as written,
+        // and rejected on replay rather than silently dropped or widened.
+        [
+          "no clone source",
+          "different source repository",
+          "empty groups",
+        ].includes(_name)
+      ) {
+        expect(() => parseConfig(replayed.config)).toThrow(/commitAs/);
       } else {
         expect(parseConfig(replayed.config)).toEqual(config);
       }
