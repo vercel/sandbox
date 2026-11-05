@@ -56,13 +56,3 @@ export const managedCredentialOptions = {
     "After successful creation, write the API-shaped credential configuration as JSON to this path. (experimental)",
   ),
 };
-
-/** Flags that only describe how the command runs. */
-export const executionOptions = {
-  dryRun: cmd.flag({
-    long: "dry-run",
-    type: cmd.optional(cmd.boolean),
-    description:
-      "Resolve and show the managed-credentials configuration without creating a sandbox, changing policy, or writing files.",
-  }),
-};

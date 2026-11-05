@@ -19,10 +19,10 @@ team selected by `vercel switch`.
 Configurations are read from and persisted to API-shaped JSON files
 (`source.type`, `source.url`, `credentials.github[].repositories`), and can be
 reused from an existing Sandbox without resuming it or copying consent.
-`--dry-run` resolves everything read-only: no token refresh, no login, no
-project creation, no Sandbox. Project Bounds are read before creation using the
-approved scope; an unreadable policy stops the command, and a project with no
-Bounds warns and requires a second confirmation.
+The confirmation preview replaces a separate dry-run mode. Normal authentication
+and project selection happen before the preview. Project Bounds are read before
+creation using the approved scope. An unreadable policy stops the command.
+A project with no Bounds warns and requires a second confirmation.
 
 The SDK gains managed Git and GitHub API credential request contracts and
 optional nonsecret session request metadata, and no longer retries creation, so

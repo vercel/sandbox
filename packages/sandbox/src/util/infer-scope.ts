@@ -29,11 +29,9 @@ export type InferredScope = {
 export async function inferScope({
   token,
   team,
-  readOnly,
 }: {
   token: string;
   team?: string;
-  readOnly?: boolean;
 }): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
   const jwt = z.jwt().safeParse(token);
@@ -57,8 +55,8 @@ export async function inferScope({
     };
   }
 
-  debug("trying to infer scope from API token", { team, readOnly });
-  const fromToken = await inferFromToken(token, team, readOnly);
+  debug("trying to infer scope from API token", { team });
+  const fromToken = await inferFromToken(token, team);
   debug("Using scope from API token", fromToken);
   return fromToken;
 }
@@ -88,15 +86,10 @@ async function inferFromJwt(jwt: string) {
   };
 }
 
-async function inferFromToken(
-  token: string,
-  requestedTeam?: string,
-  readOnly = false,
-) {
+async function inferFromToken(token: string, requestedTeam?: string) {
   const { teamId, teamSlug, projectId, projectSlug } = await Auth.inferScope({
     token,
     teamId: requestedTeam,
-    ...(readOnly ? { readOnly: true } : {}),
   });
   return {
     source: "account-default" as const,

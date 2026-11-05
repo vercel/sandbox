@@ -477,7 +477,8 @@ describe("inferScope", () => {
         if (endpoint.includes("teamId=team_blocked")) {
           throw new NotOk({
             statusCode: 402,
-            responseText: "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
+            responseText:
+              "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
           });
         }
         return {};
@@ -610,3 +611,33 @@ describe("inferScope", () => {
     });
   });
 });
+
+test.each([false, true])(
+  "keeps explicit team selection when its name lookup fails=%s",
+  async (unavailable) => {
+    const cwd = await getTempDir();
+    fetchApiMock.mockImplementation(async ({ endpoint }) => {
+      if (endpoint.startsWith("/v2/projects/")) return {};
+      if (endpoint === "/v2/teams/team_selected") {
+        if (unavailable)
+          throw new NotOk({
+            statusCode: 403,
+            responseText: "Unavailable display name",
+          });
+        return { slug: "selected-team" };
+      }
+      throw new Error(`Unexpected lookup: ${endpoint}`);
+    });
+    await expect(
+      inferScope({ token: "t", teamId: "team_selected", cwd }),
+    ).resolves.toEqual({
+      teamId: "team_selected",
+      projectId: "vercel-sandbox-default-project",
+      created: false,
+      ...(unavailable ? {} : { teamSlug: "selected-team" }),
+    });
+    expect(fetchApiMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: "/v2/user" }),
+    );
+  },
+);

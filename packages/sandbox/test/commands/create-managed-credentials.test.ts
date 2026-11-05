@@ -358,20 +358,7 @@ describe("create with managed credentials", () => {
     });
   });
 
-  describe("dry run and consent", () => {
-    test("creates nothing and writes no configuration file", async () => {
-      const path = join(directory, "dry.json");
-      await createWith([
-        "--enable-github-credentials",
-        `--credentials-github-persist-configuration=${path}`,
-        "--dry-run",
-        "--yes",
-      ]);
-      expect(mockCreate).not.toHaveBeenCalled();
-      await expect(readFile(path, "utf8")).rejects.toThrow();
-      expect(errText()).toContain("Dry run");
-    });
-
+  describe("consent", () => {
     test("requires --yes before creating", async () => {
       await expect(
         createWith(["--enable-github-credentials", "--silent"]),

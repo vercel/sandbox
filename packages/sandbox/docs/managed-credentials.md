@@ -50,16 +50,12 @@ flags win. Otherwise, the CLI uses OIDC claims, the linked local project, or its
 existing account-based selection. It does not read the team selected by
 `vercel switch`. Use `--scope` to select a team and `--project` to select a project.
 
-Preview the same configuration without creating anything:
+The command shows the proposed access before it asks for approval. Enter `n`
+to cancel and print the explicit flags. No Sandbox or configuration file is
+created after rejection. There is no separate dry-run command.
 
-```sh
-vercel sandbox create --enable-github-credentials --dry-run
-```
-
-The preview uses saved credentials and read-only API lookups. It never logs in,
-refreshes a token, or creates a missing default project. If no default project
-exists, link an existing project or create the default project separately.
-Normal creation retains its existing default-project setup behavior.
+Normal authentication and project selection happen before the preview. They
+can refresh credentials or create a missing default project.
 
 ## Requesting access
 
@@ -380,8 +376,6 @@ allocation. Ordinary creation defaults are unchanged.
 
 Beyond the Bounds rules above:
 
-- `--dry-run` performs no permission mutation, sandbox or grant creation, token
-  refresh, or configuration write.
 - Creation is never retried automatically, and neither are policy writes.
 - Raw GitHub tokens never enter sandbox environment variables, Git URLs,
   exported configuration, logs, or CLI output.
@@ -406,16 +400,11 @@ configuration was persisted, and a `next` verification command. Errors write
 JSON to stderr and leave stdout empty. Input errors exit 2, operational
 failures exit 1, cancellation exits 130.
 
-With `--json`, `--dry-run` writes `outcome: "dry_run"` and the resolved configuration.
-It can read account and Sandbox metadata through the API. It never refreshes
-credentials, starts login, creates a default project, or writes a configuration file.
-Scope can come from explicit flags, local project configuration, OIDC claims, or
-read-only lookup of the signed-in account's existing default Sandbox project.
-Login alone cannot select a project that does not exist.
+Without `--yes`, a non-interactive request returns `confirmation_required`
+with the proposed access and explicit command. It does not create a Sandbox.
 
-`run` and `sh` accept the same creation inputs but not `--dry-run`, which does
-not produce a sandbox to run in. `exec`, `connect`, and `fork` do not accept
-credential mutations.
+`run` and `sh` accept the same creation inputs. `exec`, `connect`, and `fork`
+do not accept credential mutations.
 
 ## Testing locally
 
@@ -427,10 +416,10 @@ pnpm --filter sandbox build
 node packages/sandbox/bin/sandbox.mjs create --help
 ```
 
-Preview a configuration without creating anything:
+Run the command, inspect the preview, and enter `n` to print the explicit flags:
 
 ```sh
-node packages/sandbox/bin/sandbox.mjs create --enable-github-credentials --dry-run
+node packages/sandbox/bin/sandbox.mjs create --enable-github-credentials
 ```
 
 Use the built binary by its full path to keep another directory as the working

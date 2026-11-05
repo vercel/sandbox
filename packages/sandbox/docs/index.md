@@ -249,7 +249,6 @@ Flags:
     --enable-github-credentials  Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental) [optional]
     --yes, -y                    Confirm granting managed access. Does not supply missing inputs. [optional]
     --non-interactive            Never prompt; fail if input or consent is missing. [optional]
-    --dry-run                    Resolve and show the managed-credentials configuration without creating a sandbox, changing policy, or writing files. [optional]
     --json                       Output JSON. Disables prompts but does not grant consent. [optional]
     --help, -h                   show help [optional]
 

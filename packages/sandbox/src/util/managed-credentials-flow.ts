@@ -28,7 +28,6 @@ export interface FlowContext extends ReviewScope {
   interactive: boolean;
   json: boolean;
   yes: boolean;
-  dryRun: boolean;
   output?: NodeJS.WritableStream;
   input?: NodeJS.ReadableStream;
 }
@@ -98,8 +97,6 @@ export async function runManagedCredentialsFlow(options: {
       `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
     );
   }
-
-  if (context.dryRun) return;
 
   if (!context.yes && !context.interactive) {
     const command = recoveryCommand();

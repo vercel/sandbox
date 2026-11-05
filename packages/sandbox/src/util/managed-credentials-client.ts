@@ -1,5 +1,4 @@
 import { sandboxClient } from "../client";
-import { Sandbox } from "@vercel/sandbox";
 import type { SandboxCredentialSnapshot } from "./managed-credentials-reuse";
 
 /**
@@ -15,10 +14,8 @@ export async function fetchSandboxCredentialSnapshot(options: {
   teamId: string;
   projectId: string;
   signal?: AbortSignal;
-  /** Avoid the normal client's automatic authentication refresh. */
-  dryRun?: boolean;
 }): Promise<SandboxCredentialSnapshot | undefined> {
-  const sandbox = await (options.dryRun ? Sandbox : sandboxClient).get({
+  const sandbox = await sandboxClient.get({
     // The API resolves both a Sandbox name and an sbx_* identifier in this
     // slot, which is how the other commands accept either spelling.
     name: options.selector,

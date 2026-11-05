@@ -1,7 +1,7 @@
 import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { APIError, type Sandbox } from "@vercel/sandbox";
-import { create, args as createArgs, requireCreatedSandbox } from "./create";
+import { create, args as createArgs } from "./create";
 import { createContext } from "../args/create-context";
 import { CliError } from "../util/cli-error";
 import { exec, args as execArgs } from "./exec";
@@ -14,7 +14,7 @@ const args = {
   // `timeout` is omitted because it collides with Create's `--timeout`
   // (sandbox lifetime).
   ...omit(execArgs, "sandbox", "timeout", "detached", "stdin"),
-  scope: createContext({ allowJson: false, allowDryRun: false }),
+  scope: createContext({ allowJson: false }),
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
@@ -69,27 +69,23 @@ export const run = cmd.command({
           error.cause instanceof APIError &&
           error.cause.response.status === 404
         ) {
-          sandbox = requireCreatedSandbox(
-            await create.handler({
-              ...rest,
-              agent: undefined,
-              nonPersistent: rest.nonPersistent || removeAfterUse,
-              __printConnectHint: false,
-            } as Parameters<typeof create.handler>[0]),
-          );
+          sandbox = await create.handler({
+            ...rest,
+            agent: undefined,
+            nonPersistent: rest.nonPersistent || removeAfterUse,
+            __printConnectHint: false,
+          } as Parameters<typeof create.handler>[0]);
         } else {
           throw error;
         }
       }
     } else {
-      sandbox = requireCreatedSandbox(
-        await create.handler({
-          ...rest,
-          agent: undefined,
-          nonPersistent: rest.nonPersistent || removeAfterUse,
-          __printConnectHint: false,
-        } as Parameters<typeof create.handler>[0]),
-      );
+      sandbox = await create.handler({
+        ...rest,
+        agent: undefined,
+        nonPersistent: rest.nonPersistent || removeAfterUse,
+        __printConnectHint: false,
+      } as Parameters<typeof create.handler>[0]);
     }
 
     try {

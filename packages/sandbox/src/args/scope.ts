@@ -62,7 +62,6 @@ const team: typeof scopeParser = {
  */
 export function createScope(
   tokenParser = token,
-  readOnly = false,
   reportProvenance?: (provenance: ScopeProvenance) => void,
 ): ArgParser<{
   token: string;
@@ -127,9 +126,8 @@ export function createScope(
             inferScope({
               token: t.value,
               team: teamId.value,
-              readOnly,
             });
-          const scope = await (readOnly ? infer() : withFreshAuthRetry(infer));
+          const scope = await withFreshAuthRetry(infer);
           projectId.value ??= scope.project;
           teamId.value ??= scope.owner;
           projectSlug = inferProject ? scope.projectSlug : undefined;

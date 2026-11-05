@@ -22,7 +22,7 @@ async function parse(args: string[]) {
   const report = vi.fn();
   const parser = cmd.command({
     name: "scope",
-    args: { scope: createScope(createTokenOption(false, true), true, report) },
+    args: { scope: createScope(createTokenOption(false), report) },
     handler: (args) => args,
   });
   const result = await cmd.run(parser, args);
@@ -107,4 +107,15 @@ test("attributes token claims only to fields the token supplied", async () => {
     team: "from --scope",
     project: "from OIDC token claims",
   });
+});
+
+// Kept from the removed dry-run suite: explicit fields must not carry another
+// project's display label, regardless of the authentication mode.
+test.each([
+  ["--scope=explicit-team", "teamSlug"],
+  ["--project=explicit-project", "projectSlug"],
+])("does not label %s with another target's OIDC slug", async (flag, slug) => {
+  const token = `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ owner_id: "team_token", project_id: "prj_token", owner: "token-team", project: "token-project" })).toString("base64url")}.signature`;
+  const { result } = await parse([`--token=${token}`, flag]);
+  expect(result[slug as "teamSlug" | "projectSlug"]).toBeUndefined();
 });

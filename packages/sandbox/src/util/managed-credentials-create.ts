@@ -30,8 +30,8 @@ export interface PreparedManagedCredentials {
   /**
    * The approved request.
    *
-   * The canonical configuration already uses the Sandbox creation API shape,
-   * so creation, persistence and the dry-run report all read this one object.
+   * The configuration uses the Sandbox creation API shape, so creation and
+   * persistence read this one object.
    */
   config: ManagedCredentialsConfig;
   vcpus: number;
@@ -86,7 +86,6 @@ export async function prepareManagedCredentials(options: {
       interactive: context.mode.interactive,
       json: context.mode.json,
       yes: context.yes,
-      dryRun: context.dryRun,
       hasProjectBounds: async ({ team, project }) => {
         try {
           return await hasProjectBounds({
@@ -133,32 +132,6 @@ export async function prepareManagedCredentials(options: {
   });
 
   return { config: context.managed.config, vcpus };
-}
-
-/** Print the dry-run outcome and exit without creating anything. */
-export function reportDryRun(options: {
-  context: CreateContext;
-  prepared?: PreparedManagedCredentials;
-}): void {
-  const { context, prepared } = options;
-  if (context.mode.json) {
-    process.stdout.write(
-      JSON.stringify({
-        outcome: "dry_run",
-        sandbox: null,
-        ...(prepared
-          ? {
-              managedCredentials: prepared.config,
-              resources: { vcpus: prepared.vcpus },
-            }
-          : {}),
-      }) + "\n",
-    );
-    return;
-  }
-  process.stderr.write(
-    "  Dry run: no sandbox was created, no policy was changed, and no files were written.\n",
-  );
 }
 
 /**

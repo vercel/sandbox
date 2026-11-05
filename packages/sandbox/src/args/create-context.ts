@@ -4,10 +4,7 @@ import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { createScope, scope } from "./scope";
 import type { ScopeProvenance } from "../util/infer-scope";
 import { createTokenOption } from "./auth";
-import {
-  executionOptions,
-  managedCredentialOptions,
-} from "./managed-credentials";
+import { managedCredentialOptions } from "./managed-credentials";
 import { CliError } from "../util/cli-error";
 import {
   resolveExecutionMode,
@@ -34,7 +31,6 @@ export type CreateContext = Parsed<typeof scope> & {
   mode: ExecutionMode;
   scopeProvenance?: ScopeProvenance;
   yes: boolean;
-  dryRun: boolean;
   managed?: ResolvedManagedCredentials;
   managedOptions?: ManagedCredentialsOptions;
   persistConfiguration?: string;
@@ -45,7 +41,6 @@ export type CreateContext = Parsed<typeof scope> & {
 /** Resolve the proposal without granting access or performing creation. */
 export function createContext({
   allowJson = true,
-  allowDryRun = true,
 } = {}): ArgParser<CreateContext> & ProvidesHelp {
   const execution = {
     yes: cmd.flag({
@@ -59,9 +54,6 @@ export function createContext({
       type: cmd.optional(cmd.boolean),
       description: "Never prompt; fail if input or consent is missing.",
     }),
-    // Only `create` can preview without producing a sandbox, so `run` and `sh`
-    // must not advertise a mode they reject.
-    ...(allowDryRun ? executionOptions : {}),
     ...(allowJson
       ? {
           json: cmd.flag({
@@ -115,7 +107,6 @@ export function createContext({
         // Reject incompatible flags before reading payloads or resolving auth.
         assertCompatibleOptions(managedOptions);
         const creationRequested = hasManagedCredentialsRequest(managedOptions);
-        const dryRun = run.dryRun === true;
         const mode = await resolveExecutionMode({
           json,
           nonInteractive: run.nonInteractive,
@@ -128,20 +119,16 @@ export function createContext({
             : undefined;
         let scopeProvenance: ScopeProvenance | undefined;
         const auth = createScope(
-          createTokenOption(
-            !creationRequested && mode.interactive && !dryRun,
-            dryRun,
-          ),
-          dryRun,
+          createTokenOption(!creationRequested && mode.interactive),
           (provenance) => {
             scopeProvenance = provenance;
           },
         );
         const result = await auth.parse(context);
         if (result._tag === "error") {
-          if (json || creationRequested || dryRun)
+          if (json || creationRequested)
             throw new CliError(
-              "Can't resolve authentication, team, or project. Use a saved login with an existing Sandbox default project, local project/OIDC context, or explicit --token, --scope and --project. Dry-run never refreshes credentials or creates a project.",
+              "Can't resolve authentication, team, or project. Use a saved login, local project/OIDC context, or explicit --token, --scope and --project.",
               {
                 reason: "missing_context",
                 data: { required: ["--token", "--scope", "--project"] },
@@ -163,7 +150,6 @@ export function createContext({
                     token: result.value.token,
                     teamId: result.value.team,
                     projectId: result.value.project,
-                    dryRun,
                   }),
               }),
           }));
@@ -178,7 +164,6 @@ export function createContext({
             mode,
             ...(scopeProvenance ? { scopeProvenance } : {}),
             yes: run.yes,
-            dryRun,
             ...(managed
               ? {
                   managed,

@@ -31,24 +31,7 @@ import {
   MANAGED_CREDENTIALS_VCPUS,
   prepareManagedCredentials,
   persistManagedConfiguration,
-  reportDryRun,
 } from "../util/managed-credentials-create";
-
-/**
- * Narrow `create.handler`'s result for commands that compose it.
- *
- * `create` returns no sandbox for `--dry-run`, which previews a creation
- * without performing one. `run` and `sh` reject that flag up front, so this
- * only guards the type.
- */
-export function requireCreatedSandbox<T>(sandbox: T | undefined): T {
-  if (!sandbox) {
-    throw new CliError(
-      "Expected a created sandbox. --dry-run only previews a creation; use sandbox create --dry-run.",
-    );
-  }
-  return sandbox;
-}
 
 export const args = {
   name: cmd.option({
@@ -236,9 +219,7 @@ export const create = cmd.command({
       // Look up the latest published CLI version while the creation request is
       // in flight, so stale installs learn they're behind at no latency cost.
       const versionCheck =
-        silent || mode.json || scope.dryRun
-          ? undefined
-          : startLatestVersionCheck();
+        silent || mode.json ? undefined : startLatestVersionCheck();
 
       const networkPolicy = buildNetworkPolicy(input) ?? "allow-all";
 
@@ -265,14 +246,6 @@ export const create = cmd.command({
         ...(name !== undefined ? { sandboxName: name } : {}),
         ...(vcpus !== undefined ? { vcpus } : {}),
       });
-      // A dry run never creates a sandbox, mutates policy, or writes files —
-      // including when no managed credentials were requested, so the flag is
-      // safe to add to any `create` invocation.
-      if (scope.dryRun) {
-        reportDryRun({ context: scope, ...(prepared ? { prepared } : {}) });
-        return undefined;
-      }
-
       const resources = prepared
         ? { vcpus: prepared.vcpus }
         : vcpus

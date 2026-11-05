@@ -3,12 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createContext } from "../../src/args/create-context";
 import { prepareManagedCredentials } from "../../src/util/managed-credentials-create";
 import { CliError } from "../../src/util/cli-error";
-import { getVercelToken, getVercelOidcToken } from "@vercel/oidc";
-import { getAuth } from "@vercel/sandbox/dist/auth/index.js";
-vi.mock("@vercel/sandbox/dist/auth/index.js", async (original) => ({
-  ...(await original<typeof import("@vercel/sandbox/dist/auth/index.js")>()),
-  getAuth: vi.fn(),
-}));
+import { getVercelToken } from "@vercel/oidc";
 vi.mock("@vercel/oidc", async (original) => ({
   ...(await original<typeof import("@vercel/oidc")>()),
   getVercelToken: vi.fn(),
@@ -27,39 +22,21 @@ beforeEach(() => {
   vi.stubEnv("VERCEL_AUTH_TOKEN", "existing");
 });
 afterEach(() => vi.unstubAllEnvs());
-test("bare interactive dry-run does not use normal authentication", async () => {
-  vi.stubEnv("VERCEL_AUTH_TOKEN", "");
-  vi.stubEnv("VERCEL_TOKEN", "");
-  vi.stubEnv("VERCEL_OIDC_TOKEN", "");
-  vi.mocked(getAuth).mockReturnValue({ token: "stored-read-only" });
-  const stdin = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-  const stderr = Object.getOwnPropertyDescriptor(process.stderr, "isTTY");
-  Object.defineProperty(process.stdin, "isTTY", {
-    configurable: true,
-    value: true,
-  });
-  Object.defineProperty(process.stderr, "isTTY", {
-    configurable: true,
-    value: true,
-  });
-  vi.stubEnv("CI", "");
-  try {
-    const result = await cmd.run(parser, [
-      "--dry-run",
-      "--scope=team",
-      "--project=project",
-    ]);
-    expect(result.dryRun).toBe(true);
-    expect(result.managed).toBeUndefined();
-    expect(result.token).toBe("stored-read-only");
-    expect(getVercelToken).not.toHaveBeenCalled();
-    expect(getVercelOidcToken).not.toHaveBeenCalled();
-  } finally {
-    if (stdin) Object.defineProperty(process.stdin, "isTTY", stdin);
-    else Reflect.deleteProperty(process.stdin, "isTTY");
-    if (stderr) Object.defineProperty(process.stderr, "isTTY", stderr);
-    else Reflect.deleteProperty(process.stderr, "isTTY");
-  }
+test("does not register a separate dry-run mode", async () => {
+  expect(
+    (
+      await cmd.runSafely(parser, [
+        "--scope=team",
+        "--project=project",
+        "--dry-run",
+      ])
+    )._tag,
+  ).toBe("error");
+  expect(
+    createContext()
+      .helpTopics()
+      .some((topic) => topic.usage?.includes("--dry-run")),
+  ).toBe(false);
 });
 test.each(["sandbox", "vercel sandbox"])(
   "includes the explicit rejected command for %s",

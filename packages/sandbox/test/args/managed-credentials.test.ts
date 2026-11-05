@@ -1,13 +1,10 @@
 import * as cmd from "cmd-ts";
 import { describe, expect, test } from "vitest";
-import {
-  managedCredentialOptions,
-  executionOptions,
-} from "../../src/args/managed-credentials";
+import { managedCredentialOptions } from "../../src/args/managed-credentials";
 
 const parser = cmd.command({
   name: "credentials",
-  args: { ...managedCredentialOptions, ...executionOptions },
+  args: managedCredentialOptions,
   handler: (args) => args,
 });
 
@@ -28,13 +25,11 @@ describe("managed credential arguments", () => {
       "issues:comment",
       "--credentials-github-act-as",
       "42",
-      "--dry-run",
     ]);
     expect(args).toMatchObject({
       credentialsRepo: "o/r",
       credentialsActions: ["issues:read", "issues:comment"],
       credentialsActAs: "42",
-      dryRun: true,
     });
   });
   test("takes the persistence path in either form", async () => {

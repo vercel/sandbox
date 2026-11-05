@@ -62,20 +62,14 @@ const baseContext = (overrides: Record<string, unknown> = {}) => ({
   interactive: false,
   json: false,
   yes: false,
-  dryRun: false,
   output: new PassThrough(),
   ...overrides,
 });
 
 describe("--yes review output", () => {
-  test.each([
-    { interactive: false, dryRun: false },
-    { interactive: true, dryRun: false },
-    { interactive: false, dryRun: true },
-    { interactive: true, dryRun: true },
-  ])(
-    "omits guessed parameters (interactive: $interactive, dry-run: $dryRun)",
-    async ({ interactive, dryRun }) => {
+  test.each([false, true])(
+    "omits guessed parameters (interactive: %s)",
+    async (interactive) => {
       const output = new PassThrough();
       const chunks: string[] = [];
       output.on("data", (chunk) => chunks.push(chunk.toString()));
@@ -85,13 +79,12 @@ describe("--yes review output", () => {
         context: baseContext({
           yes: true,
           interactive,
-          dryRun,
           output,
           hasProjectBounds,
         }),
       });
       expect(chunks.join("")).toBe("");
-      expect(hasProjectBounds).toHaveBeenCalledTimes(dryRun ? 0 : 1);
+      expect(hasProjectBounds).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -137,15 +130,6 @@ describe("non-interactive consent", () => {
         context: baseContext({ yes: true }),
       }),
     ).resolves.toBeUndefined();
-  });
-
-  test("a dry run returns without approval and without policy changes", async () => {
-    const hasProjectBounds = vi.fn();
-    await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({ dryRun: true, hasProjectBounds }),
-    });
-    expect(hasProjectBounds).not.toHaveBeenCalled();
   });
 
   test("JSON mode does not write the review to the output stream", async () => {
@@ -286,18 +270,6 @@ describe("unbounded project confirmation", () => {
     }
   });
 
-  test.each([false, true])(
-    "dry-run does not perform the post-approval Bounds lookup (yes: %j)",
-    async (yes) => {
-      const hasProjectBounds = vi.fn();
-      await runManagedCredentialsFlow({
-        initial: resolved(),
-        context: baseContext({ dryRun: true, yes, hasProjectBounds }),
-      });
-      expect(hasProjectBounds).not.toHaveBeenCalled();
-    },
-  );
-
   test("noninteractive use without --yes does not look up Bounds", async () => {
     const hasProjectBounds = vi.fn();
     await expect(
@@ -410,17 +382,14 @@ describe("interactive review", () => {
     expect(chunks.join("")).toBe("");
   });
 
-  test.each([{ yes: true }, { dryRun: true }])(
-    "does not render a rejected command on success: %j",
-    async (mode) => {
-      const renderCommand = vi.fn();
-      await runManagedCredentialsFlow({
-        initial: resolved(),
-        context: baseContext({ ...mode, renderCommand }),
-      });
-      expect(renderCommand).not.toHaveBeenCalled();
-    },
-  );
+  test("does not render a rejected command on success", async () => {
+    const renderCommand = vi.fn();
+    await runManagedCredentialsFlow({
+      initial: resolved(),
+      context: baseContext({ yes: true, renderCommand }),
+    });
+    expect(renderCommand).not.toHaveBeenCalled();
+  });
 
   test("creating approves the proposal", async () => {
     const { input, output } = scripted(["y"]);
@@ -451,17 +420,25 @@ describe("review display metadata", () => {
     const output = new PassThrough();
     const chunks: string[] = [];
     output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
-    await runManagedCredentialsFlow({
-      initial,
-      context: baseContext({
-        dryRun: true,
-        output,
-        scopeProvenance: {
-          team: "from .vercel/project.json",
-          project: "from .vercel/project.json",
-        },
-      }),
+    const input = new PassThrough();
+    output.on("data", (chunk) => {
+      if (String(chunk).includes("Create this sandbox?"))
+        setImmediate(() => input.write("n\n"));
     });
+    await expect(
+      runManagedCredentialsFlow({
+        initial,
+        context: baseContext({
+          interactive: true,
+          input,
+          output,
+          scopeProvenance: {
+            team: "from .vercel/project.json",
+            project: "from .vercel/project.json",
+          },
+        }),
+      }),
+    ).rejects.toMatchObject({ options: { reason: "canceled" } });
     const text = chunks.join("");
     expect(text).toMatch(/Team\s+jacks-projects\s+from \.vercel\/project.json/);
     expect(text).toMatch(/GitHub actor\s+@scubbo/);

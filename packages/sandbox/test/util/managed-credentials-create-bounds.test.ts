@@ -35,7 +35,6 @@ const context = (): CreateContext => ({
   creationRequested: true,
   mode: { interactive: true, json: false },
   yes: false,
-  dryRun: false,
   managed: { config, origin: "flags", originLabel: "flags", provenance: {} },
   managedOptions: { credentialsActions: [], enableManagedCredentials: true },
 });
