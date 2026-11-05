@@ -102,7 +102,6 @@ function option(
 // Only options that describe the resolved proposal are replaced. Persistence
 // describes a requested output, not access, and must survive a retry.
 const replacedValues = new Set([
-  "github-access",
   "scope",
   "team",
   "project",
@@ -110,15 +109,10 @@ const replacedValues = new Set([
   "credentials-github-repo",
   "credentials-github-action",
   "credentials-github-act-as",
-  "credentials-github-commit-as",
   "credentials-github-from-config-file",
   "credentials-github-from-sandbox",
 ]);
-const replacedFlags = new Set([
-  "enable-github-credentials",
-  "credentials-github-no-write",
-  "yes",
-]);
+const replacedFlags = new Set(["enable-github-credentials", "yes"]);
 
 /**
  * Print the current proposal without approving it, writing a file, or looking
@@ -206,28 +200,13 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
     !group.actAs
   )
     return;
-  // Replay every explicit permission and actor. Missing values use the exact
-  // configuration-file fallback instead of invoking fresh identity inference.
-  if (config.commitAs) {
-    const { name, email } = config.commitAs;
-    // parseCommitAs trims names and does not accept newlines/angle brackets.
-    // Preserve such imported identities in JSON rather than normalize them.
-    if (
-      name !== name.trim() ||
-      !/^[^<>\r\n]+$/.test(name) ||
-      !/^[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+$/.test(email)
-    )
-      return;
-  }
+  // No flag can express imported commit credit, so such a configuration
+  // travels as exact JSON rather than being normalized or silently dropped.
+  if (config.commitAs) return;
   return [
     `--credentials-github-repo=${repo}`,
     ...group.actions.map((action) => `--credentials-github-action=${action}`),
     `--credentials-github-act-as=${group.actAs}`,
-    ...(config.commitAs
-      ? [
-          `--credentials-github-commit-as=${config.commitAs.name} <${config.commitAs.email}>`,
-        ]
-      : []),
   ];
 }
 

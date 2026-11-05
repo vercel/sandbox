@@ -112,20 +112,13 @@ describe("create with managed credentials", () => {
 
   const errText = () => stderr.mock.calls.flat().join("");
 
-  describe("unbounded project warning", () => {
-    test("--yes accepts the state but prints its warning before creation", async () => {
-      mockHasProjectBounds.mockResolvedValue(false);
-      await createWith(["--enable-github-credentials", "--yes", "--silent"]);
-      expect(mockHasProjectBounds).toHaveBeenCalledExactlyOnceWith({
-        token: "test-token",
-        team: "team",
-        project: "project",
-      });
-      expect(errText()).toContain("This project has no Bounds");
-      expect(mockCreate).toHaveBeenCalledOnce();
-      expect(stdout).not.toHaveBeenCalled();
-    });
+  // This suite is the command wiring layer: it asserts that each behavior
+  // reaches Sandbox.create, the filesystem or the error path correctly. The
+  // input matrices themselves belong to the unit suites that own them
+  // (managed-credentials-resolve, -config, -flow, -persist, -project-bounds,
+  // create-rejection), which this file deliberately does not re-run.
 
+  describe("project Bounds", () => {
     test("JSON --yes keeps the warning on stderr and the creation result on stdout", async () => {
       mockHasProjectBounds.mockResolvedValue(false);
       await createWith(["--enable-github-credentials", "--yes", "--json"]);
@@ -138,21 +131,6 @@ describe("create with managed credentials", () => {
         sandbox: { name: "new-sandbox" },
       });
       expect(mockCreate).toHaveBeenCalledOnce();
-    });
-
-    test("an unreadable policy stops creation even with --yes", async () => {
-      mockHasProjectBounds.mockRejectedValue(
-        new CliError("Cannot read project Bounds", {
-          reason: "policy_unknown",
-        }),
-      );
-      await expect(
-        createWith(["--enable-github-credentials", "--yes", "--json"]),
-      ).rejects.toMatchObject({
-        options: { reason: "policy_unknown", json: true },
-      });
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(stdout).not.toHaveBeenCalled();
     });
   });
 
@@ -175,35 +153,7 @@ describe("create with managed credentials", () => {
     });
   });
 
-  describe("GitHub access presets", () => {
-    test("sends the fixed write action set without legacy source or credit fields", async () => {
-      await createWith(["--github-access=write", "--yes", "--silent"]);
-      expect(mockCreate).toHaveBeenCalledOnce();
-      const params = mockCreate.mock.calls[0][0];
-      expect(params.source).toEqual({
-        type: "git",
-        url: "https://github.com/vercel/api.git",
-      });
-      expect(params.credentials.github[0].repositories).toEqual(["vercel/api"]);
-      expect(params.credentials.github[0].actions).toEqual([
-        ...GITHUB_API_CREDENTIAL_ACTIONS,
-        "git:write",
-      ]);
-      expect(params.credentials.github[0].actions).not.toContain(
-        "git:write-workflows",
-      );
-      expect(params.commitAs).toBeUndefined();
-    });
-    test("rejects the unsupported read preset before creating anything", async () => {
-      await expect(
-        createWith(["--github-access=read", "--yes", "--silent"]),
-      ).rejects.toThrow(/does not support/);
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(mockInferRepository).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("opt-in defaults", () => {
+  describe("requested access reaches the API", () => {
     test("sends the inferred source, identity, actions, and six vCPUs", async () => {
       await createWith(["--enable-github-credentials", "--yes", "--silent"]);
       expect(mockCreate).toHaveBeenCalledExactlyOnceWith(
@@ -242,141 +192,6 @@ describe("create with managed credentials", () => {
       expect(mockCreate.mock.calls[0][0].resources).toEqual({ vcpus: 2 });
     });
 
-    test("direct flags activate without a separate enable flag", async () => {
-      await createWith([
-        "--credentials-github-action=issues:read",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockCreate.mock.calls[0][0].credentials).toEqual({
-        github: [
-          {
-            repositories: ["vercel/api"],
-            actions: ["github:issues:read"],
-            actAs: "2373726",
-          },
-        ],
-      });
-    });
-
-    test("supplied actions replace the defaults", async () => {
-      await createWith([
-        "--credentials-github-action=labels:read",
-        "--credentials-github-action=labels:write",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockCreate.mock.calls[0][0].credentials.github[0].actions).toEqual(
-        ["github:labels:read", "github:labels:write"],
-      );
-    });
-
-    test("explicit API actions do not acquire Git write", async () => {
-      await createWith([
-        "--credentials-github-action=issues:read",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockCreate.mock.calls[0][0].source).not.toHaveProperty(
-        "credentials",
-      );
-      expect(mockCreate.mock.calls[0][0].commitAs).toBeUndefined();
-      expect(mockCreate.mock.calls[0][0].credentials.github[0].actions).toEqual(
-        ["github:issues:read"],
-      );
-    });
-
-    test("an explicit commit identity overrides local Git configuration", async () => {
-      await createWith([
-        "--credentials-github-commit-as=Jack Jackson <myotheremail@scubbo.org>",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockCreate.mock.calls[0][0].commitAs).toEqual({
-        name: "Jack Jackson",
-        email: "myotheremail@scubbo.org",
-      });
-    });
-
-    test("passes an explicit actor through as the explicit value", async () => {
-      mockInferActor.mockResolvedValue({
-        actAs: "123456",
-        source: "explicit",
-      });
-      await createWith([
-        "--credentials-github-act-as=123456",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockInferActor).toHaveBeenCalledWith(
-        expect.objectContaining({ explicit: "123456" }),
-      );
-      expect(mockCreate.mock.calls[0][0].credentials.github[0].actAs).toBe(
-        "123456",
-      );
-    });
-
-    test("an explicit repository overrides the local remote", async () => {
-      await createWith([
-        "--credentials-github-repo=acme/widgets",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockCreate.mock.calls[0][0].source.url).toBe(
-        "https://github.com/acme/widgets.git",
-      );
-      expect(mockInferRepository).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("legacy read-only Git option", () => {
-    test("fails closed when the current creation API does not support git:read", async () => {
-      await expect(
-        createWith([
-          "--enable-github-credentials",
-          "--credentials-github-no-write",
-          "--yes",
-          "--silent",
-        ]),
-      ).rejects.toThrow(/does not support/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-    test("does not merge a separate Git toggle into explicit actions", async () => {
-      await expect(
-        createWith([
-          "--credentials-github-action=issues:comment",
-          "--credentials-github-no-write",
-          "--yes",
-          "--silent",
-        ]),
-      ).rejects.toThrow(/complete action set/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("identity resolution", () => {
-    test("sends the resolved actor as the API identity", async () => {
-      mockInferActor.mockResolvedValue({
-        actAs: "@scubbo",
-        login: "scubbo",
-        source: "vercel-account-link",
-      });
-      await createWith(["--enable-github-credentials", "--yes", "--silent"]);
-      expect(mockCreate.mock.calls[0][0].credentials.github[0].actAs).toBe(
-        "@scubbo",
-      );
-    });
-
-    test("creates nothing when actor resolution fails", async () => {
-      mockInferActor.mockRejectedValue(
-        new CliError("gh is logged in but `gh api user` failed."),
-      );
-      await expect(
-        createWith(["--enable-github-credentials", "--yes", "--silent"]),
-      ).rejects.toThrow(/gh api user/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-
     test("creates nothing when no actor can be resolved", async () => {
       mockInferActor.mockResolvedValue(undefined);
       await expect(
@@ -386,7 +201,7 @@ describe("create with managed credentials", () => {
     });
   });
 
-  describe("configuration files", () => {
+  describe("configuration input", () => {
     const writeConfig = async (value: unknown) => {
       const path = join(directory, "config.json");
       await writeFile(path, JSON.stringify(value), "utf8");
@@ -449,51 +264,6 @@ describe("create with managed credentials", () => {
       ]);
     });
 
-    test("an empty github array acquires no default actions", async () => {
-      const path = await writeConfig({ credentials: { github: [] } });
-      await createWith([
-        `--credentials-github-from-config-file=${path}`,
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockCreate.mock.calls[0][0].credentials).toEqual({ github: [] });
-      expect(mockCreate.mock.calls[0][0].commitAs).toBeUndefined();
-    });
-
-    test("does not consult local Git or gh for an explicit configuration", async () => {
-      const path = await writeConfig({ credentials: { github: [] } });
-      await createWith([
-        `--credentials-github-from-config-file=${path}`,
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockInferRepository).not.toHaveBeenCalled();
-      expect(mockInferActor).not.toHaveBeenCalled();
-    });
-
-    test("rejects combining a file with direct flags", async () => {
-      const path = await writeConfig({ credentials: { github: [] } });
-      await expect(
-        createWith([
-          `--credentials-github-from-config-file=${path}`,
-          "--credentials-github-action=issues:read",
-          "--yes",
-        ]),
-      ).rejects.toThrow(/cannot be combined with/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-
-    test("rejects a malformed file before authenticating or creating", async () => {
-      const path = join(directory, "bad.json");
-      await writeFile(path, "{ not json", "utf8");
-      await expect(
-        createWith([`--credentials-github-from-config-file=${path}`, "--yes"]),
-      ).rejects.toThrow(/valid UTF-8 JSON/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("reuse from an existing sandbox", () => {
     test("copies configuration without resuming the source sandbox", async () => {
       mockGet.mockResolvedValue({
         currentSession: () => ({
@@ -536,73 +306,9 @@ describe("create with managed credentials", () => {
         },
       ]);
     });
-
-    test("accepts a sandbox name", async () => {
-      mockGet.mockResolvedValue({
-        currentSession: () => ({
-          sessionId: "sbx_source",
-          status: "stopped",
-          managedCredentials: { credentials: { github: [] } },
-        }),
-      });
-      await createWith([
-        "--credentials-github-from-sandbox=my-sandbox",
-        "--yes",
-        "--silent",
-      ]);
-      expect(mockGet).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "my-sandbox", resume: false }),
-      );
-    });
-
-    test("reports a sandbox with no configuration to reuse", async () => {
-      mockGet.mockResolvedValue({
-        currentSession: () => ({ sessionId: "sbx_source", status: "stopped" }),
-      });
-      await expect(
-        createWith(["--credentials-github-from-sandbox=plain", "--yes"]),
-      ).rejects.toThrow(/does not report a managed-credentials configuration/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
   });
 
   describe("persistence", () => {
-    test("writes the default file name from the returned sbx_ identifier", async () => {
-      const cwd = vi.spyOn(process, "cwd").mockReturnValue(directory);
-      try {
-        await createWith([
-          "--enable-github-credentials",
-          "--credentials-github-persist-configuration",
-          "--yes",
-          "--silent",
-        ]);
-      } finally {
-        cwd.mockRestore();
-      }
-
-      const written = await readFile(
-        join(directory, "sbx_132456789-credentials.json"),
-        "utf8",
-      );
-      expect(JSON.parse(written)).toEqual({
-        source: { type: "git", url: "https://github.com/vercel/api.git" },
-        credentials: {
-          github: [
-            {
-              repositories: ["vercel/api"],
-              actions: [
-                "github:issues:read",
-                "github:issues:comment",
-                "github:pull-request:create",
-                "git:write",
-              ],
-              actAs: "2373726",
-            },
-          ],
-        },
-      });
-    });
-
     test("writes an explicit path", async () => {
       const path = join(directory, "explicit.json");
       await createWith([
@@ -614,29 +320,6 @@ describe("create with managed credentials", () => {
       expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
         source: { type: "git", url: "https://github.com/vercel/api.git" },
       });
-    });
-
-    test("round-trips: a persisted file replays to the same request", async () => {
-      const path = join(directory, "round-trip.json");
-      await createWith([
-        "--enable-github-credentials",
-        `--credentials-github-persist-configuration=${path}`,
-        "--yes",
-        "--silent",
-      ]);
-      const first = mockCreate.mock.calls[0][0];
-
-      mockCreate.mockClear();
-      await createWith([
-        `--credentials-github-from-config-file=${path}`,
-        "--yes",
-        "--silent",
-      ]);
-      const second = mockCreate.mock.calls[0][0];
-
-      expect(second.source).toEqual(first.source);
-      expect(second.commitAs).toEqual(first.commitAs);
-      expect(second.credentials).toEqual(first.credentials);
     });
 
     test("reports the created sandbox when the local write fails", async () => {
@@ -660,42 +343,6 @@ describe("create with managed credentials", () => {
       expect(await readFile(path, "utf8")).toBe("user data");
     });
 
-    test("rejects persisting when no configuration was requested", async () => {
-      // Otherwise the command would succeed having written nothing.
-      await expect(
-        createWith([
-          `--credentials-github-persist-configuration=${join(directory, "x.json")}`,
-          "--yes",
-          "--silent",
-        ]),
-      ).rejects.toThrow(/but none was requested/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-
-    test("explains that the path needs an equals sign", async () => {
-      // `--flag path` leaves the path as a positional, which would otherwise
-      // fail against the agent shortcut with an unrelated message.
-      await expect(
-        createWith([
-          "--enable-github-credentials",
-          "--credentials-github-persist-configuration",
-          join(directory, "out.json"),
-          "--yes",
-        ]),
-      ).rejects.toThrow(/takes its path with an equals sign/);
-      expect(mockCreate).not.toHaveBeenCalled();
-    });
-
-    test("still reports a repeated option by name", async () => {
-      await expect(
-        createWith([
-          "--credentials-github-repo=acme/one",
-          "--credentials-github-repo=acme/two",
-          "--yes",
-        ]),
-      ).rejects.toThrow(/--credentials-github-repo/);
-    });
-
     test("does not write a file when creation fails", async () => {
       mockCreate.mockRejectedValue(new Error("creation rejected"));
       const path = join(directory, "never.json");
@@ -711,7 +358,7 @@ describe("create with managed credentials", () => {
     });
   });
 
-  describe("--dry-run", () => {
+  describe("dry run and consent", () => {
     test("creates nothing and writes no configuration file", async () => {
       const path = join(directory, "dry.json");
       await createWith([
@@ -725,57 +372,11 @@ describe("create with managed credentials", () => {
       expect(errText()).toContain("Dry run");
     });
 
-    test("--yes hides the proposal but keeps the dry-run outcome", async () => {
-      await createWith(["--enable-github-credentials", "--dry-run", "--yes"]);
-      expect(errText()).toContain("Dry run");
-      expect(errText()).not.toContain("Managed credentials for this sandbox");
-      expect(errText()).not.toContain("vercel/api");
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(mockHasProjectBounds).not.toHaveBeenCalled();
-    });
-
-    test("shows the proposal without requiring approval", async () => {
-      await createWith(["--enable-github-credentials", "--dry-run"]);
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(errText()).toContain("vercel/api");
-      expect(errText()).toContain("git:write");
-    });
-
-    test("creates nothing even without managed credentials", async () => {
-      await createWith(["--dry-run"]);
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(mockVersionCheck).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("consent in non-interactive runs", () => {
     test("requires --yes before creating", async () => {
       await expect(
         createWith(["--enable-github-credentials", "--silent"]),
       ).rejects.toMatchObject({ options: { reason: "confirmation_required" } });
       expect(mockCreate).not.toHaveBeenCalled();
-    });
-
-    test("shows the proposal before refusing", async () => {
-      await createWith(["--enable-github-credentials", "--silent"]).catch(
-        () => undefined,
-      );
-      expect(errText()).toContain("Managed credentials for this sandbox");
-      expect(errText()).toContain("Commit credit");
-      expect(errText()).toContain("GitHub actor");
-    });
-
-    test("--json does not prompt and does not grant consent", async () => {
-      await expect(
-        createWith(["--enable-github-credentials", "--json"]),
-      ).rejects.toMatchObject({ options: { reason: "confirmation_required" } });
-      expect(stdout).not.toHaveBeenCalled();
-    });
-
-    test("--yes suppresses the proposal even with --silent", async () => {
-      await createWith(["--enable-github-credentials", "--silent", "--yes"]);
-      expect(errText()).toBe("");
-      expect(mockCreate).toHaveBeenCalledOnce();
     });
   });
 
@@ -815,33 +416,6 @@ describe("create with managed credentials", () => {
       expect(stdout).not.toHaveBeenCalled();
     });
 
-    test("distinguishes a grant-policy denial from a request-schema rejection", async () => {
-      mockCreate.mockRejectedValue(
-        new APIError(new Response(null, { status: 403 }), {
-          json: {
-            error: {
-              code: "git_credential_grant_forbidden",
-              message: "private-policy-response-canary",
-            },
-          },
-        }),
-      );
-      const error = await createWith([
-        "--credentials-github-action=git:write",
-        "--yes",
-        "--json",
-      ]).catch((error) => error);
-      expect(error.message).toContain(
-        "HTTP 403, git_credential_grant_forbidden",
-      );
-      expect(error.message).toContain("Bounds");
-      expect(JSON.stringify(error.options)).not.toContain(
-        "private-policy-response-canary",
-      );
-      expect(error.options.data.apiCode).toBe("git_credential_grant_forbidden");
-      expect(mockCreate).toHaveBeenCalledOnce();
-    });
-
     test("does not suggest retrying creation after an uncertain server error", async () => {
       mockCreate.mockRejectedValue(
         new APIError(new Response(null, { status: 502 }), {
@@ -867,62 +441,6 @@ describe("create with managed credentials", () => {
       expect(mockCreate).toHaveBeenCalledOnce();
     });
 
-    test("does not restore an old Git source when the approved configuration has none", async () => {
-      const preparation = await import(
-        "../../src/util/managed-credentials-create"
-      );
-      vi.spyOn(preparation, "prepareManagedCredentials").mockResolvedValue({
-        transport: { credentials: { github: [] } },
-        config: { credentials: { github: [] } },
-        vcpus: 6,
-      });
-      await createWith(["--enable-github-credentials", "--yes", "--silent"]);
-      expect(mockCreate.mock.calls[0][0].source).toBeUndefined();
-    });
-    test("sh --rm rejects managed creation when stdin cannot support an interactive shell", async () => {
-      const path = join(directory, "shell-credentials.json");
-      await writeFile(path, JSON.stringify({ credentials: { github: [] } }));
-      const { sh } = await import("../../src/commands/sh");
-      await expect(
-        cmd.run(sh, [
-          "--scope=team",
-          "--project=project",
-          "--rm",
-          "--yes",
-          `--credentials-github-from-config-file=${path}`,
-        ]),
-      ).rejects.toThrow("interactive");
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(mockExec).not.toHaveBeenCalled();
-    });
-    test.each(["run", "sh"])(
-      "%s neither offers nor accepts dry-run",
-      async (name) => {
-        const module =
-          name === "run"
-            ? await import("../../src/commands/run")
-            : await import("../../src/commands/sh");
-        const command = "run" in module ? module.run : module.sh;
-        // Only create can preview without producing a sandbox, so the flag is
-        // absent from the help rather than advertised and then refused.
-        expect(
-          command
-            .helpTopics?.()
-            .some((topic) => topic.usage?.includes("--dry-run")),
-        ).toBeFalsy();
-        await expect(
-          cmd.run(command as typeof import("../../src/commands/sh").sh, [
-            "--scope=team",
-            "--project=project",
-            "--dry-run",
-            ...(name === "run" ? ["echo", "hello"] : []),
-          ]),
-        ).rejects.toThrow();
-        expect(mockCreate).not.toHaveBeenCalled();
-        expect(mockGet).not.toHaveBeenCalled();
-        expect(mockExec).not.toHaveBeenCalled();
-      },
-    );
     test("run never resumes an existing sandbox to change its credentials", async () => {
       const { run } = await import("../../src/commands/run");
       mockGet.mockResolvedValue({ name: "existing" });

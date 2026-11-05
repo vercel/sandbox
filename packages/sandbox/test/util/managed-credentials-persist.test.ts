@@ -28,50 +28,17 @@ const config = parseConfig({
 });
 
 describe("output path resolution", () => {
-  test("names the default file after the returned sbx_ identifier", () => {
-    expect(
-      resolvePersistPath({
-        requested: "",
-        sandboxId: "sbx_132456789",
-        cwd: "/work",
-      }),
-    ).toBe("/work/sbx_132456789-credentials.json");
-  });
-
-  test("resolves a relative explicit path against the working directory", () => {
-    expect(
-      resolvePersistPath({
-        requested: "out/config.json",
-        sandboxId: "sbx_1",
-        cwd: "/work",
-      }),
-    ).toBe("/work/out/config.json");
-  });
-
-  test("keeps an absolute explicit path", () => {
-    expect(
-      resolvePersistPath({
-        requested: "/tmp/config.json",
-        sandboxId: "sbx_1",
-        cwd: "/work",
-      }),
-    ).toBe("/tmp/config.json");
+  test.each([
+    ["out/config.json", "/work/out/config.json"],
+    ["/tmp/config.json", "/tmp/config.json"],
+  ])("resolves %s against the working directory", (requested, expected) => {
+    expect(resolvePersistPath({ requested, cwd: "/work" })).toBe(expected);
   });
 
   test("rejects a directory-shaped path", () => {
     expect(() =>
-      resolvePersistPath({
-        requested: "out/",
-        sandboxId: "sbx_1",
-        cwd: "/work",
-      }),
+      resolvePersistPath({ requested: "out/", cwd: "/work" }),
     ).toThrow(/expects a file path/);
-  });
-
-  test("refuses to guess a default name without an sbx_ identifier", () => {
-    expect(() =>
-      resolvePersistPath({ requested: "", sandboxId: "", cwd: "/work" }),
-    ).toThrow(/did not include an sbx_\* identifier/);
   });
 });
 

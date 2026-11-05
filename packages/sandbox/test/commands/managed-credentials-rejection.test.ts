@@ -73,7 +73,6 @@ test.each(
       "--credentials-github-repo=acme/widgets",
       "--credentials-github-action=issues:read",
       "--credentials-github-action=git:write",
-      "--credentials-github-commit-as=Grace Hopper <grace@example.com>",
       "--credentials-github-act-as=42",
       "--vcpus=8",
     ];

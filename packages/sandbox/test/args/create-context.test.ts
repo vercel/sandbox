@@ -81,7 +81,6 @@ test.each(["sandbox", "vercel sandbox"])(
       "--credentials-github-repo=acme/widgets",
       "--credentials-github-action=issues:read",
       "--credentials-github-action=git:write",
-      "--credentials-github-commit-as=Grace Hopper <grace@example.com>",
       "--credentials-github-act-as=42",
       "--token=secret-test-token",
     ]);
@@ -106,9 +105,6 @@ test.each(["sandbox", "vercel sandbox"])(
       );
       expect(command).toContain("--credentials-github-action=git:write");
       expect(command).toContain("--credentials-github-act-as=42");
-      expect(command).toContain(
-        "--credentials-github-commit-as=Grace Hopper <grace@example.com>",
-      );
       expect(command).not.toContain("secret-test-token");
       expect(command).not.toContain("--yes");
       expect(command).not.toContain("create create");

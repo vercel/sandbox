@@ -175,10 +175,7 @@ export async function persistManagedConfiguration(options: {
 
   let path: string;
   try {
-    path = resolvePersistPath({
-      requested,
-      sandboxId: options.sandboxId,
-    });
+    path = resolvePersistPath({ requested });
     await persistConfiguration({ config: options.config, path });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

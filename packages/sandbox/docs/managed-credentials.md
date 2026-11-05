@@ -89,21 +89,6 @@ flags / Git / gh / Vercel account
 Every permission travels in `credentials.github[].actions`. The clone source
 contains only clone options; the CLI never sends `source.credentials`.
 
-### Presets
-
-A preset is a fixed permission set for the inferred repository:
-
-```sh
-vercel sandbox create --github-access=write
-```
-
-The write preset requests `git:write` and all 11 supported GitHub API actions.
-It does not request `git:write-workflows`. New SDK actions never expand this set.
-
-Do not combine `--github-access` with explicit actions, configuration input,
-or `--credentials-github-no-write`. Choose one complete source of permissions.
-A rejected write preset expands into explicit action flags for replay.
-
 ### Explicit actions
 
 Explicit `--credentials-github-action` flags replace the entire default set.
@@ -122,9 +107,8 @@ complete configuration without `source` when no initial clone is wanted.
 
 The supported Git actions are `git:write` and `git:write-workflows`.
 Workflow-file writes require the latter explicitly; normal writes never imply it.
-The current creation contract does not accept `git:read`, so the CLI rejects
-`--github-access=read` and `--credentials-github-no-write` before inference. It
-never substitutes write access for an unsupported read request.
+The current creation contract does not accept `git:read`, which the CLI rejects
+rather than substituting write access for an unsupported read request.
 
 GitHub API actions accept short aliases such as `issues:read` and canonical
 names such as `github:issues:read`. Git actions retain their `git:` prefix.
@@ -184,10 +168,12 @@ The same `actAs` selects the GitHub identity for Git actions and API actions.
 The broker derives the Git name and email. A local Git name or email does not
 select or prove that identity.
 
-`--credentials-github-commit-as` remains a deprecated explicit override.
-The CLI never infers it. It only accepts an override when one writing repository
-matches the clone source and explicitly requests `git:write`. Ambiguous overrides
-fail instead of adding permissions or applying one identity across repositories.
+No flag sets commit credit. A configuration file or a reused Sandbox may still
+carry the deprecated `commitAs` field, which is accepted only when one writing
+repository matches the clone source and explicitly requests `git:write`. An
+ambiguous one is rejected rather than adding permissions or applying a single
+identity across repositories, and a rejected proposal that carries it replays as
+exact JSON because no flag can express it.
 
 ## Review, approval and Bounds
 
@@ -347,23 +333,14 @@ See [`managed-credentials.example.json`](./managed-credentials.example.json).
 ### Persist to a file
 
 ```sh
-# Writes $PWD/<sbx_id>-credentials.json
-vercel sandbox create --enable-github-credentials --credentials-github-persist-configuration
-
-# Writes an explicit path
 vercel sandbox create --enable-github-credentials \
   --credentials-github-persist-configuration=./widgets-credentials.json
 ```
 
-The path is attached with `=`. A bare `--credentials-github-persist-configuration`
-uses the default name, so `--credentials-github-persist-configuration path.json`
-would leave `path.json` as a separate argument; the CLI detects that and says
-so.
-
-The API-shaped file is written **after** successful creation and round-trips
-through `--credentials-github-from-config-file` without field translation. The default name uses the `sbx_*` session
-identifier the creation response returned — the same identifier
-`--credentials-github-from-sandbox` accepts.
+The flag always takes an explicit path; a relative one resolves against the
+working directory. The API-shaped file is written **after** successful creation
+and round-trips through `--credentials-github-from-config-file` without field
+translation.
 
 An existing file is never overwritten: the CLI reports the path and stops. If
 the write fails, the error names the sandbox that was already created; the CLI

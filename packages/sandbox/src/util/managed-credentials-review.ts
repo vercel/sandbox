@@ -94,13 +94,11 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     });
 
   const actionSource =
-    provenance.actions === "github-access"
-      ? "from --github-access"
-      : provenance.actions === "explicit"
-        ? "from --credentials-github-action"
-        : provenance.actions === "config" || provenance.repository === "config"
-          ? origin
-          : "default GitHub actions";
+    provenance.actions === "explicit"
+      ? "from --credentials-github-action"
+      : provenance.actions === "config" || provenance.repository === "config"
+        ? origin
+        : "default GitHub actions";
   const actorSource =
     provenance.actor === "gh"
       ? "inferred from active gh account"
@@ -147,9 +145,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     ...new Set(writingGroups.map((group) => sourceForActor(group.actAs))),
   ];
   const creditSource = config.commitAs
-    ? provenance.commitAs === "explicit"
-      ? "from --credentials-github-commit-as; legacy override"
-      : `${origin}; legacy override`
+    ? `${origin}; legacy override`
     : writingGroups.length
       ? creditSources.length === 1
         ? creditSources[0]

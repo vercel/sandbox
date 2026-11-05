@@ -37,12 +37,10 @@ describe("request detection", () => {
         .mockResolvedValueOnce({
           actAs: "1",
           source: "gh",
-          profile: { name: "One", login: "one", id: "1" },
         })
         .mockResolvedValueOnce({
           actAs: "2",
           source: "gh",
-          profile: { name: "Two", login: "two", id: "2" },
         }),
     });
     const first = await resolveManagedCredentials(
@@ -71,9 +69,7 @@ describe("request detection", () => {
   test.each([
     ["credentialsRepo", { credentialsRepo: "acme/widgets" }],
     ["credentialsAction", { credentialsActions: ["issues:read"] }],
-    ["credentialsCommitAs", { credentialsCommitAs: "A <a@example.com>" }],
     ["credentialsActAs", { credentialsActAs: "scubbo" }],
-    ["credentialsNoWrite", { credentialsNoWrite: true }],
     ["credentialsFromConfigFile", { credentialsFromConfigFile: "x.json" }],
     ["credentialsFromSandbox", { credentialsFromSandbox: "sbx_1" }],
   ])("%s activates without a separate enable flag", (_name, overrides) => {
@@ -187,47 +183,8 @@ describe("inferred single-repository defaults", () => {
   });
 });
 
-describe("legacy read-only Git option", () => {
-  test("rejects unsupported read intent before inference instead of upgrading it", async () => {
-    const ctx = context();
-    await expect(
-      resolveManagedCredentials(options({ credentialsNoWrite: true }), ctx),
-    ).rejects.toThrow(/does not support/);
-    expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
-    expect(ctx.inferActorImpl).not.toHaveBeenCalled();
-  });
-
-  test.each([true, false])(
-    "does not combine a separate Git toggle with an exact action set (%s)",
-    async (credentialsNoWrite) => {
-      await expect(
-        resolveManagedCredentials(
-          options({
-            credentialsNoWrite,
-            credentialsActions: ["issues:comment"],
-          }),
-          context(),
-        ),
-      ).rejects.toThrow(/complete action set/);
-    },
-  );
-});
-
 describe("identity resolution", () => {
-  test("an explicit commit identity is the only source of commit credit", async () => {
-    const resolved = await resolveManagedCredentials(
-      options({
-        credentialsCommitAs: "Jack Jackson <myotheremail@scubbo.org>",
-      }),
-      context(),
-    );
-    expect(resolved?.config.commitAs).toEqual({
-      name: "Jack Jackson",
-      email: "myotheremail@scubbo.org",
-    });
-  });
-
-  test("leaves profile-derived commit attribution to the backend", async () => {
+  test("never derives commit credit from an actor profile or local Git", async () => {
     const resolved = await resolveManagedCredentials(
       options({ enableManagedCredentials: true }),
       context({
@@ -235,55 +192,14 @@ describe("identity resolution", () => {
           actAs: "2373726",
           login: "scubbo",
           source: "gh",
-          profile: {
-            name: "Jack Jackson",
-            login: "scubbo",
-            id: "2373726",
-            email: "ignored@example.com",
-          },
         }),
       }),
     );
+    // The broker derives Git attribution from actAs. No flag sets commitAs,
+    // so it can only reach a request through an imported configuration.
     expect(resolved?.config.commitAs).toBeUndefined();
     expect(resolved?.provenance.commitAs).toBe("actor-derived");
-  });
-
-  test("does not substitute a local Git identity for the selected actor", async () => {
-    const resolved = await resolveManagedCredentials(
-      options({ enableManagedCredentials: true }),
-      context({
-        inferActorImpl: vi.fn().mockResolvedValue({
-          actAs: "2373726",
-          source: "gh",
-          profile: { name: "Profile Name", login: "scubbo", id: "2373726" },
-        }),
-      }),
-    );
-    expect(resolved?.config.commitAs).toBeUndefined();
-    expect(resolved?.provenance.commitAs).toBe("actor-derived");
-  });
-
-  test("does not require local commit metadata when an actor is selected", async () => {
-    const result = await resolveManagedCredentials(
-      options({ enableManagedCredentials: true }),
-      context({}),
-    );
-    expect(result?.config.commitAs).toBeUndefined();
-    expect(result?.config.credentials.github[0].actAs).toBe("@scubbo");
-  });
-
-  test("keeps partial profile metadata out of commitAs", async () => {
-    const result = await resolveManagedCredentials(
-      options({ enableManagedCredentials: true }),
-      context({
-        inferActorImpl: vi.fn().mockResolvedValue({
-          actAs: "@scubbo",
-          source: "gh",
-          profile: { login: "scubbo" },
-        }),
-      }),
-    );
-    expect(result?.config.commitAs).toBeUndefined();
+    expect(resolved?.config.credentials.github[0].actAs).toBe("2373726");
   });
 
   test("requires an actor when API actions are requested", async () => {
@@ -512,7 +428,6 @@ describe("conflicting inputs", () => {
   test.each([
     ["credentialsRepo", { credentialsRepo: "acme/widgets" }],
     ["credentialsActions", { credentialsActions: ["issues:read"] }],
-    ["credentialsNoWrite", { credentialsNoWrite: true }],
   ])("rejects a file combined with %s", async (_name, overrides) => {
     await expect(
       resolveManagedCredentials(

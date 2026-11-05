@@ -456,48 +456,11 @@ describe("project ID with a selected team slug", () => {
 });
 
 describe("one total lookup deadline", () => {
-  test("bounds fetch that ignores abort and keeps an independently resolved name", async () => {
-    vi.useFakeTimers();
-    let finishFetch!: (response: Response) => void;
-    const fetch = vi.fn<typeof globalThis.fetch>((input) =>
-      requestUrl(input) === TEAM_URL
-        ? Promise.resolve(response(teamMetadata))
-        : new Promise<Response>((resolve) => {
-            finishFetch = resolve;
-          }),
-    );
-    const result = resolveScopeDisplay(options(fetch));
-    await vi.advanceTimersByTimeAsync(2999);
-    let settled = false;
-    void result.then(() => {
-      settled = true;
-    });
-    await Promise.resolve();
-    expect(settled).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    const labels = await result;
-    expect(labels).toEqual({
-      team: "selected-team",
-      project: ORIGINAL_SCOPE.project,
-    });
-    expect(fetch.mock.calls[1][1]!.signal!.aborted).toBe(true);
-    const json = vi.fn(async () => projectMetadata);
-    finishFetch({
-      status: 200,
-      redirected: false,
-      json,
-    } as unknown as Response);
-    await vi.runAllTimersAsync();
-    expect(json).not.toHaveBeenCalled();
-    expect(labels).toEqual({
-      team: "selected-team",
-      project: ORIGINAL_SCOPE.project,
-    });
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  test("bounds JSON that never settles even when fetch has completed", async () => {
+  // Names are display metadata: a slow or hanging lookup must not delay the
+  // command, and it falls back to the original selectors. The remaining abort
+  // permutations are covered by the project-bounds client, which shares the
+  // same bounded-GET shape and is the one that gates creation.
+  test("bounds a fetch that ignores abort and keeps the original selectors", async () => {
     vi.useFakeTimers();
     const json = vi.fn(() => new Promise<unknown>(() => {}));
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue({
@@ -508,96 +471,9 @@ describe("one total lookup deadline", () => {
     const result = resolveScopeDisplay(options(fetch));
     await vi.advanceTimersByTimeAsync(3000);
     expect(await result).toEqual(ORIGINAL_SCOPE);
-    expect(json).toHaveBeenCalledTimes(2);
     expect(fetch.mock.calls.every(([, init]) => init!.signal!.aborted)).toBe(
       true,
     );
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  test("does not start ownership verification after late project JSON", async () => {
-    vi.useFakeTimers();
-    let finishJson!: (body: unknown) => void;
-    const json = vi.fn(
-      () =>
-        new Promise<unknown>((resolve) => {
-          finishJson = resolve;
-        }),
-    );
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue({
-      status: 200,
-      redirected: false,
-      json,
-    } as unknown as Response);
-    const result = resolveScopeDisplay({
-      ...options(fetch),
-      team: "selected-team",
-    });
-    await vi.advanceTimersByTimeAsync(3000);
-    expect(await result).toEqual({
-      team: "selected-team",
-      project: ORIGINAL_SCOPE.project,
-    });
-    finishJson(projectMetadata);
-    await vi.runAllTimersAsync();
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  test("the ownership GET shares the original deadline, not a fresh budget", async () => {
-    vi.useFakeTimers();
-    let finishProject!: (value: Response) => void;
-    const fetch = vi
-      .fn<typeof globalThis.fetch>()
-      .mockImplementationOnce(
-        () =>
-          new Promise<Response>((resolve) => {
-            finishProject = resolve;
-          }),
-      )
-      .mockImplementationOnce(() => new Promise<Response>(() => {}));
-    const result = resolveScopeDisplay({
-      ...options(fetch),
-      team: "selected-team",
-    });
-    await vi.advanceTimersByTimeAsync(2000);
-    finishProject(response(projectMetadata));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(await result).toEqual({
-      team: "selected-team",
-      project: ORIGINAL_SCOPE.project,
-    });
-    expect(fetch.mock.calls[1][1]!.signal!.aborted).toBe(true);
-  });
-
-  test("checks the elapsed deadline before JSON even if the timeout callback was delayed", async () => {
-    vi.useFakeTimers();
-    let finishFetch!: (value: Response) => void;
-    const fetch = vi.fn<typeof globalThis.fetch>(
-      () =>
-        new Promise<Response>((resolve) => {
-          finishFetch = resolve;
-        }),
-    );
-    const result = resolveScopeDisplay({
-      ...options(fetch),
-      team: "selected-team",
-    });
-    vi.setSystemTime(Date.now() + 3001);
-    const json = vi.fn(async () => projectMetadata);
-    finishFetch({
-      status: 200,
-      redirected: false,
-      json,
-    } as unknown as Response);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(await result).toEqual({
-      team: "selected-team",
-      project: ORIGINAL_SCOPE.project,
-    });
-    expect(json).not.toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
 

@@ -26,50 +26,36 @@ describe("managed credential arguments", () => {
       "issues:read",
       "--credentials-github-action",
       "issues:comment",
-      "--credentials-github-commit-as",
-      "Ada <ada@example.com>",
       "--credentials-github-act-as",
       "42",
-      "--credentials-github-no-write",
       "--dry-run",
     ]);
     expect(args).toMatchObject({
       credentialsRepo: "o/r",
       credentialsActions: ["issues:read", "issues:comment"],
-      credentialsCommitAs: "Ada <ada@example.com>",
       credentialsActAs: "42",
-      credentialsNoWrite: true,
       dryRun: true,
     });
   });
-  test.each([
-    ["--credentials-github-persist-configuration", ""],
-    [
-      "--credentials-github-persist-configuration=./config.json",
-      "./config.json",
-    ],
-  ])("parses %s", async (flag, expected) => {
-    expect(
-      (await cmd.run(parser, [flag])).credentialsPersistConfiguration,
-    ).toBe(expected);
-  });
-  test("rejects repeated persistence and space-separated paths", async () => {
+  test("takes the persistence path in either form", async () => {
     for (const argv of [
-      [
-        "--credentials-github-persist-configuration",
-        "--credentials-github-persist-configuration",
-      ],
       ["--credentials-github-persist-configuration", "./config.json"],
-    ]) {
-      expect((await cmd.runSafely(parser, argv))._tag).toBe("error");
-    }
+      ["--credentials-github-persist-configuration=./config.json"],
+    ])
+      expect(
+        (await cmd.run(parser, argv)).credentialsPersistConfiguration,
+      ).toBe("./config.json");
   });
   test.each([
     "--github-repo",
     "--git-source",
     "--managed-credentials-file",
     "--commit-as-name",
-  ])("does not register legacy %s", async (flag) => {
+    // Retired surfaces must not quietly come back as unvalidated options.
+    "--github-access",
+    "--credentials-github-no-write",
+    "--credentials-github-commit-as",
+  ])("does not register %s", async (flag) => {
     expect((await cmd.runSafely(parser, [flag, "value"]))._tag).toBe("error");
   });
 });

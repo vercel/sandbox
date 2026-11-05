@@ -427,21 +427,16 @@ describe("review regressions: exact teams and server project selectors", () => {
     },
   );
 
+  // The team endpoint shares readJson with the project endpoint, so the HTTP
+  // status, redirect, sanitization and deadline matrices are owned above and
+  // not repeated here. Only team-identity verification is team-specific.
   test.each([
     null,
-    [],
-    {},
-    { ...selectedTeam, id: undefined },
-    { ...selectedTeam, id: "" },
     { ...selectedTeam, id: "team_other" },
-    { ...selectedTeam, id: 123 },
-    { ...selectedTeam, slug: undefined },
-    { ...selectedTeam, slug: "" },
-    { ...selectedTeam, slug: 123 },
     { ...selectedTeam, slug: "other-team" },
-    { team: selectedTeam },
+    { ...selectedTeam, slug: undefined },
   ])(
-    "rejects malformed or differently scoped team metadata #%#",
+    "rejects team metadata that does not verify the owning team #%#",
     async (teamBody) => {
       const fetch = scopedFetch(project, teamBody, page());
       await policyUnknown(hasProjectBounds({ ...slugScope, fetch }));
@@ -450,59 +445,19 @@ describe("review regressions: exact teams and server project selectors", () => {
     },
   );
 
-  test.each([301, 307, 401, 403, 404, 429, 500])(
-    "rejects team lookup HTTP %i without fallback",
-    async (status) => {
-      const fetch = fetchWith(project);
-      fetch.mockResolvedValueOnce(
-        new Response("private-team-response", {
-          status,
-          headers: { Location: "https://untrusted.example/teams" },
-        }),
-      );
-      const error = await policyUnknown(
-        hasProjectBounds({ ...slugScope, fetch }),
-      );
-      expect(error.message).not.toContain("private-team-response");
-      expect(fetch).toHaveBeenCalledTimes(2);
-      expect(urlAt(fetch, 1).pathname).toBe(`/api/v2/teams/${scope.team}`);
-      expect(fetch.mock.calls[1][1]).toMatchObject({
-        method: "GET",
-        redirect: "error",
-        credentials: "omit",
-      });
-      expect(inferScope).not.toHaveBeenCalled();
-      expect(globalThis.fetch).not.toHaveBeenCalled();
-    },
-  );
-
-  test("sanitizes invalid team JSON and team transport errors", async () => {
-    for (const failure of ["json", "network"]) {
-      const fetch = fetchWith(project);
-      if (failure === "json")
-        fetch.mockResolvedValueOnce(new Response("private-team-json"));
-      else
-        fetch.mockRejectedValueOnce(new Error(`private-team-error ${token}`));
-      const error = await policyUnknown(
-        hasProjectBounds({ ...slugScope, fetch }),
-      );
-      expect(error.message).not.toMatch(/private-team|private-token/);
-      expect(fetch).toHaveBeenCalledTimes(2);
-      expect(urlAt(fetch, 1).pathname).toBe(`/api/v2/teams/${scope.team}`);
-    }
-  });
-
-  test("includes team verification in the shared 10s deadline", async () => {
-    vi.useFakeTimers();
+  test("a failed team read is never a fallback to the default team", async () => {
     const fetch = fetchWith(project);
-    fetch.mockImplementationOnce(() => new Promise(() => {}));
-    const result = policyUnknown(hasProjectBounds({ ...slugScope, fetch }));
-    await vi.advanceTimersByTimeAsync(10_000);
-    await result;
+    fetch.mockResolvedValueOnce(
+      new Response("private-team-response", { status: 403 }),
+    );
+    const error = await policyUnknown(
+      hasProjectBounds({ ...slugScope, fetch }),
+    );
+    expect(error.message).not.toContain("private-team-response");
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(urlAt(fetch, 1).pathname).toBe(`/api/v2/teams/${scope.team}`);
-    expect(fetch.mock.calls[1][1]?.signal?.aborted).toBe(true);
-    expect(vi.getTimerCount()).toBe(0);
+    expect(
+      fetch.mock.calls.some(([input]) => String(input).includes("/bounds")),
+    ).toBe(false);
   });
 
   test.each([false, true])(

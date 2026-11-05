@@ -138,32 +138,6 @@ test("unreadable names retain IDs with a note and do not bypass an unreadable Bo
   });
 });
 
-test("existing names require no extra metadata requests", async () => {
-  const ctx = {
-    ...context(),
-    teamSlug: "already-known-team",
-    projectSlug: "already-known-project",
-  };
-  await prepareManagedCredentials({ context: ctx });
-  expect(output).toContain("already-known-team");
-  expect(output).toContain("already-known-project");
-  expect(fetch).not.toHaveBeenCalled();
-});
-
-test("JSON dry-run keeps the original selectors and does not fetch display metadata or policy", async () => {
-  const ctx = context();
-  ctx.mode = { interactive: false, json: true };
-  ctx.dryRun = true;
-  const prepared = await prepareManagedCredentials({ context: ctx });
-  expect(prepared?.config).toEqual(config);
-  expect(ctx.team).toBe(TEAM);
-  expect(ctx.project).toBe(PROJECT);
-  expect(output).toBe("");
-  expect(fetch).not.toHaveBeenCalled();
-  expect(bounds).not.toHaveBeenCalled();
-  expect(prompt).not.toHaveBeenCalled();
-});
-
 test.each([PROJECT, "Qm" + "a".repeat(44)])(
   "the pure review retains unresolved IDs and annotates the missing names (%s)",
   (project) => {

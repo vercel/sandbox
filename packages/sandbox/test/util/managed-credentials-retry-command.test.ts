@@ -19,7 +19,6 @@ import {
 
 const proposal = (): ManagedCredentialsConfig => ({
   source: { type: "git", url: "https://github.com/acme/widgets.git" },
-  commitAs: { name: "Jack O'Neil", email: "jack@example.com" },
   credentials: {
     github: [
       {
@@ -33,6 +32,12 @@ const proposal = (): ManagedCredentialsConfig => ({
       },
     ],
   },
+});
+
+/** A configuration whose commit credit could only have been imported. */
+const imported = (): ManagedCredentialsConfig => ({
+  ...proposal(),
+  commitAs: { name: "Jack O'Neil", email: "jack@example.com" },
 });
 
 function render(config = proposal(), invocation?: RetryInvocation) {
@@ -523,11 +528,19 @@ describe("renderManagedCredentialsRetryCommand", () => {
       "--credentials-github-action=github:pull-request:create",
       "--credentials-github-action=git:write",
       "--credentials-github-act-as=12345",
-      "--credentials-github-commit-as=Jack O'Neil <jack@example.com>",
     ]);
     expect(input).toBe("");
     expect(command).not.toContain("--yes");
     expect(command).not.toContain("github:issues:comment");
+  });
+
+  test("imported commit credit has no flag, so it replays as exact JSON", () => {
+    const config = imported();
+    const replayed = replay(render(config));
+    expect(replayed.args).not.toContain(
+      "--credentials-github-commit-as=Jack O'Neil <jack@example.com>",
+    );
+    expect(replayed.config).toEqual(config);
   });
 
   test.each(
@@ -549,7 +562,6 @@ describe("renderManagedCredentialsRetryCommand", () => {
       const config = proposal();
       config.credentials.github[0].actAs = actAs;
       if (apiOnly) {
-        delete config.commitAs;
         config.credentials.github[0].actions = ["github:issues:read"];
       }
       const replayed = replay(render(config));
@@ -597,7 +609,6 @@ describe("renderManagedCredentialsRetryCommand", () => {
 
   test("grouped API-only access falls back to exact canonical JSON without write or commit credit", () => {
     const config = proposal();
-    delete config.commitAs;
     config.credentials.github[0].repositories.push("acme/reference");
     config.credentials.github[0].actions = ["github:issues:read"];
     const { args, config: replayed } = replay(render(config));
@@ -958,15 +969,9 @@ describe("renderManagedCredentialsRetryCommand", () => {
       },
     ],
     [
-      "missing write identity",
+      "imported commit credit",
       (c) => {
-        delete c.commitAs;
-      },
-    ],
-    [
-      "identity requiring lossless whitespace",
-      (c) => {
-        c.commitAs!.name = " Jack ";
+        c.commitAs = { name: " Jack ", email: "jack@example.com" };
       },
     ],
   ];
@@ -991,7 +996,6 @@ describe("renderManagedCredentialsRetryCommand", () => {
         [
           "zero API actions",
           "no git permission",
-          "missing write identity",
           "inert commit identity",
           "both git permissions",
         ].includes(_name)
@@ -1024,16 +1028,6 @@ describe("renderManagedCredentialsRetryCommand", () => {
         expect(() => parseConfig(replayed.config)).toThrow(
           /Invalid managed credentials configuration/,
         );
-      } else if (
-        // Commit credit the source no longer earns is rendered as written,
-        // and rejected on replay rather than silently dropped or widened.
-        [
-          "no clone source",
-          "different source repository",
-          "empty groups",
-        ].includes(_name)
-      ) {
-        expect(() => parseConfig(replayed.config)).toThrow(/commitAs/);
       } else {
         expect(parseConfig(replayed.config)).toEqual(config);
       }
@@ -1051,7 +1045,10 @@ describe("renderManagedCredentialsRetryCommand", () => {
     const config = proposal();
     config.source!.revision =
       "SANDBOX_MANAGED_CREDENTIALS\nSANDBOX_MANAGED_CREDENTIALS_\n$(printf INJECTED >&2)";
-    config.commitAs!.name = "O'Neil\n\u001b[31m\u009b\u202e";
+    config.commitAs = {
+      name: "O'Neil\n\u001b[31m\u009b\u202e",
+      email: "jack@example.com",
+    };
     const command = render(config);
     const marker = /<<'([^']+)'/.exec(command)?.[1];
     expect(marker).toBeTruthy();

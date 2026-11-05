@@ -9,27 +9,14 @@ import {
 /**
  * Resolve where `--credentials-github-persist-configuration` should write.
  *
- * With no path, the file is `$PWD/<sbx_id>-credentials.json`, where `<sbx_id>`
- * is the `sbx_*` session identifier the creation response returned — the same
- * identifier `--credentials-github-from-sandbox` accepts. A relative explicit path is
- * resolved against the working directory.
+ * The flag always carries an explicit path. A relative one is resolved against
+ * the working directory.
  */
 export function resolvePersistPath(options: {
   requested: string;
-  sandboxId: string;
   cwd?: string;
 }): string {
   const cwd = options.cwd ?? process.cwd();
-  if (options.requested === "") {
-    if (!/^sbx_[A-Za-z0-9]+$/.test(options.sandboxId)) {
-      throw new CliError(
-        "Can't name the configuration file: the creation response did not include an sbx_* identifier. Re-run with an explicit --credentials-github-persist-configuration PATH.",
-        { reason: "persist_failed" },
-      );
-    }
-    return resolve(cwd, `${options.sandboxId}-credentials.json`);
-  }
-
   // A path ending in a separator names a directory, which would make the
   // write fail with a confusing EISDIR rather than a clear message.
   if (/[\\/]$/.test(options.requested)) {

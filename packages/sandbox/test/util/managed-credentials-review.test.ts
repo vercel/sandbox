@@ -1,7 +1,9 @@
+import { PassThrough } from "node:stream";
 import { describe, expect, test, vi } from "vitest";
 import { parseConfig } from "../../src/util/managed-credentials-config";
 import {
   buildReview,
+  promptReviewDecision,
   renderReview,
 } from "../../src/util/managed-credentials-review";
 
@@ -291,7 +293,6 @@ describe("complete review provenance", () => {
 
   test.each([
     ["explicit", "--credentials-github-action"],
-    ["github-access", "--github-access"],
     ["config", "configuration file"],
   ])("describes %s API permissions", (actions, label) => {
     const proposal = input();
@@ -314,17 +315,15 @@ describe("complete review provenance", () => {
         repository: "explicit",
         actor: "explicit",
         actions: "explicit",
-        commitAs: "explicit",
       },
     });
     for (const [label, flag] of [
       ["Source", "--credentials-github-repo"],
       ["Access acme/widgets", "--credentials-github-action"],
       ["GitHub actor", "--credentials-github-act-as"],
-      ["Commit credit", "--credentials-github-commit-as"],
     ])
       expect(rows.find((row) => row.label === label)?.note).toBe(
-        `from ${flag}${label === "Commit credit" ? "; legacy override" : ""}`,
+        `from ${flag}`,
       );
   });
 
@@ -401,4 +400,55 @@ describe("three-column review rendering", () => {
     expect(text).not.toContain("\u001b");
     expect(text).not.toContain("\u202e");
   });
+});
+
+describe("creation consent prompt", () => {
+  /** Answer each question the prompt asks, in order. */
+  function io(answers: string[]) {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    let text = "";
+    let index = 0;
+    output.on("data", (chunk: Buffer) => {
+      const part = chunk.toString();
+      text += part;
+      if (
+        (part.includes("? ") || part.endsWith(": ")) &&
+        index < answers.length
+      ) {
+        const answer = answers[index++];
+        setImmediate(() => input.write(`${answer}\n`));
+      }
+    });
+    return { input, output, text: () => text };
+  }
+
+  test("asks exactly the y/n question, with no edit menu", async () => {
+    const streams = io(["n"]);
+    await expect(promptReviewDecision(streams)).resolves.toEqual({
+      action: "cancel",
+    });
+    expect(streams.text()).toBe("Create this sandbox? (y/n) ");
+  });
+
+  test.each(["y", "Y", "yes", " YES "])(
+    "accepts only an affirmative answer: %j",
+    async (answer) => {
+      await expect(promptReviewDecision(io([answer]))).resolves.toEqual({
+        action: "create",
+      });
+    },
+  );
+
+  test.each(["n", "no", "", "e", "edit", "c", "create", "other"])(
+    "cancels on any other answer, without offering editing: %j",
+    async (answer) => {
+      // The second answer lets a reinstated edit menu finish rather than hang.
+      const streams = io([answer, "n"]);
+      await expect(promptReviewDecision(streams)).resolves.toEqual({
+        action: "cancel",
+      });
+      expect(streams.text()).not.toContain("Which value");
+    },
+  );
 });

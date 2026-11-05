@@ -169,43 +169,36 @@ describe("managed credential transport", () => {
     },
   );
 
-  describe.each([undefined, "node24" as const])(
-    "action-only creation with runtime %s",
-    (runtime) => {
-      it.each([
-        "git:write",
-        "git:write-workflows",
-        ...GITHUB_API_CREDENTIAL_ACTIONS,
-      ] as const)(
-        "preserves %s without a source or inferred commit identity",
-        async (action) => {
-          const mockFetch = vi.fn<typeof fetch>(
-            async () => new Response("{}", { status: 403 }),
-          );
-          const credentials = {
-            github: [
-              {
-                repositories: ["acme/one", "acme/two"],
-                actions: [action],
-                actAs: "42",
-              },
-            ],
-          };
-          await expect(
-            Sandbox.create({ ...auth, runtime, credentials, fetch: mockFetch }),
-          ).rejects.toBeInstanceOf(APIError);
-          expect(mockFetch).toHaveBeenCalledOnce();
-          const [url, init] = mockFetch.mock.calls[0];
-          expect(String(url)).toContain(
-            runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes",
-          );
-          const body = JSON.parse(String(init?.body));
-          expect(body.credentials).toEqual(credentials);
-          expect(body).not.toHaveProperty("source");
-          expect(body).not.toHaveProperty("commitAs");
-          expect(body).not.toHaveProperty("__source_credentials");
-        },
+  it.each([undefined, "node24" as const])(
+    "forwards every supported action verbatim with runtime %s",
+    async (runtime) => {
+      // Actions are pass-through, so one request carrying the whole registry
+      // proves the contract that one request per action would prove 13 times.
+      const mockFetch = vi.fn<typeof fetch>(
+        async () => new Response("{}", { status: 403 }),
       );
+      const credentials = {
+        github: [
+          {
+            repositories: ["acme/one", "acme/two"],
+            actions: [...SANDBOX_GITHUB_CREDENTIAL_ACTIONS],
+            actAs: "42",
+          },
+        ],
+      };
+      await expect(
+        Sandbox.create({ ...auth, runtime, credentials, fetch: mockFetch }),
+      ).rejects.toBeInstanceOf(APIError);
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(String(url)).toContain(
+        runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes",
+      );
+      const body = JSON.parse(String(init?.body));
+      expect(body.credentials).toEqual(credentials);
+      expect(body).not.toHaveProperty("source");
+      expect(body).not.toHaveProperty("commitAs");
+      expect(body).not.toHaveProperty("__source_credentials");
     },
   );
 

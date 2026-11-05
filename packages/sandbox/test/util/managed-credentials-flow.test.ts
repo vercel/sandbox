@@ -285,36 +285,7 @@ describe("unbounded project confirmation", () => {
     },
   );
 
-  test("JSON --yes emits a structured warning without extra plain text", async () => {
-    const io = capture([]);
-    const stdout = vi.spyOn(process.stdout, "write");
-    try {
-      await runManagedCredentialsFlow({
-        initial: resolved(),
-        context: baseContext({
-          yes: true,
-          json: true,
-          ...io,
-          hasProjectBounds: vi.fn().mockResolvedValue(false),
-        }),
-      });
-      expect(io.text().trim().split("\n")).toHaveLength(1);
-      expect(JSON.parse(io.text())).toMatchObject({
-        status: "warning",
-        reason: "project_has_no_bounds",
-        message: expect.stringContaining(
-          "The Sandbox still receives only the requested rights",
-        ),
-        team: "jacks-projects",
-        project: "api",
-      });
-      expect(stdout).not.toHaveBeenCalled();
-    } finally {
-      stdout.mockRestore();
-    }
-  });
-
-  test("JSON --yes defaults to one warning on stderr and leaves stdout untouched", async () => {
+  test("JSON --yes writes one structured warning to stderr only", async () => {
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     const stdout = vi.spyOn(process.stdout, "write");
     try {
@@ -331,7 +302,9 @@ describe("unbounded project confirmation", () => {
       expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
         status: "warning",
         reason: "project_has_no_bounds",
-        message: expect.stringContaining("no project-wide limit"),
+        message: expect.stringContaining(
+          "The Sandbox still receives only the requested rights",
+        ),
         team: "jacks-projects",
         project: "api",
       });
@@ -385,47 +358,6 @@ describe("unbounded project confirmation", () => {
       ).rejects.toBe(error);
       expect(io.text()).not.toContain("This project has no Bounds");
       expect(io.text()).not.toContain("Continue without project Bounds?");
-    },
-  );
-
-  test.each(["EOF", "SIGINT"])(
-    "cancels with the full retry command on %s at the second prompt",
-    async (event) => {
-      const io = capture(["y"]);
-      // A terminal-like stream exercises readline's SIGINT event without sending
-      // a signal to the test process.
-      if (event === "SIGINT") Object.assign(io.output, { isTTY: true });
-      io.output.on("data", (chunk: Buffer) => {
-        if (chunk.toString() === "Continue without project Bounds? (y/N) ") {
-          setImmediate(() => {
-            if (event === "EOF") io.input.end();
-            else io.input.write("\u0003");
-          });
-        }
-      });
-      const command =
-        "sandbox create --scope=jacks-projects --project=api --credentials-github-repo=vercel/api --credentials-github-actions=issues:read,git:write --credentials-github-act-as=@scubbo --credentials-github-commit-as='Jack Jackson <scubbojj@gmail.com>'";
-      const renderCommand = vi.fn().mockReturnValue(command);
-      const hasProjectBounds = vi.fn().mockResolvedValue(false);
-      await expect(
-        runManagedCredentialsFlow({
-          initial: resolved(),
-          context: baseContext({
-            interactive: true,
-            ...io,
-            hasProjectBounds,
-            renderCommand,
-          }),
-        }),
-      ).rejects.toMatchObject({
-        options: { reason: "canceled", exitCode: 130, data: { command } },
-      });
-      expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
-        team: "jacks-projects",
-        project: "api",
-      });
-      expect(renderCommand).toHaveBeenCalledExactlyOnceWith(configFor());
-      expect(io.text()).toContain(command);
     },
   );
 });
