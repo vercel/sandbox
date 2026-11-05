@@ -205,9 +205,9 @@ function parseStat(stdout: string) {
 }
 
 function parseDirent(stdout: string, path: string) {
-  const parts = stdout.trim().split("|");
-  const name = parts[0];
-  const type = parts[1];
+  const separator = stdout.indexOf("|");
+  const type = separator === -1 ? undefined : stdout.slice(0, separator);
+  const name = stdout.slice(separator + 1);
 
   if (!name) {
     throw fsError("ENOENT", "no such file or directory", "readdir", path);
@@ -389,29 +389,16 @@ export class FileSystem {
     options?: { signal?: AbortSignal; withFileTypes?: boolean },
   ): Promise<string[] | Dirent[]> {
     "use step";
-    if (options?.withFileTypes) {
-      // Use find to get name and type in one pass
-      const result = await this.sandbox.runCommand(
-        "find",
-        [path, "-maxdepth", "1", "-mindepth", "1", "-printf", "%f|%y\\n"],
-        { signal: options?.signal },
-      );
-      if (result.exitCode !== 0) {
-        const stderr = await result.stderr();
-        if (stderr.includes("No such file or directory")) {
-          throw fsError("ENOENT", "no such file or directory", "scandir", path);
-        }
-        throw fsError("EACCES", stderr.trim(), "scandir", path);
-      }
-      const stdout = await result.stdout();
-      const lines = stdout.trim().split("\n").filter(Boolean);
-
-      return lines.map((line) => parseDirent(line, path));
-    }
-
-    const result = await this.sandbox.runCommand("ls", ["-1", path], {
-      signal: options?.signal,
-    });
+    // Names can't contain NUL; leading with the type lets them contain "|".
+    const format = options?.withFileTypes ? "%y|%f\\0" : "%f\\0";
+    // Prefix relative paths so find cannot interpret them as expressions.
+    const findPath = path !== "" && !path.startsWith("/") ? `./${path}` : path;
+    const result = await this.sandbox.runCommand(
+      "find",
+      // -H follows `path` if it is a symlink, but not the entries inside it.
+      ["-H", findPath, "-maxdepth", "1", "-mindepth", "1", "-printf", format],
+      { signal: options?.signal },
+    );
     if (result.exitCode !== 0) {
       const stderr = await result.stderr();
       if (stderr.includes("No such file or directory")) {
@@ -420,7 +407,12 @@ export class FileSystem {
       throw fsError("EACCES", stderr.trim(), "scandir", path);
     }
     const stdout = await result.stdout();
-    return stdout.trim().split("\n").filter(Boolean);
+    const entries = stdout.split("\0").filter(Boolean);
+    // find prints directory order; sort by name for a stable result.
+    if (!options?.withFileTypes) return entries.sort();
+    return entries
+      .map((entry) => parseDirent(entry, path))
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   }
 
   /**
