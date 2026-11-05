@@ -16,6 +16,15 @@ export type { SerializedSandbox } from "./sandbox.js";
 export { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 export type { ExecutionContext } from "./execution-context.js";
 export { DEFAULT_SANDBOX_REGION } from "./constants.js";
+export {
+  GITHUB_API_CREDENTIAL_ACTIONS,
+  MANAGED_GIT_ACTIONS,
+  SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
+} from "./managed-credentials.js";
+export type {
+  ManagedGitAction,
+  SandboxGithubCredentialAction,
+} from "./managed-credentials.js";
 export type { SandboxRegion } from "./constants.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";

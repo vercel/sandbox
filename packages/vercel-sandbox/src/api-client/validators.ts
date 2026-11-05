@@ -134,7 +134,33 @@ export const NetworkPolicyResponseValidator = z.union([
   LegacyCustomNetworkPolicyValidator,
 ]);
 
+/** Nonsecret requested configuration; never tokens, grants, or consent. */
+export const ManagedCredentialsResponseValidator = z.object({
+  source: z
+    .object({
+      type: z.literal("git"),
+      url: z.string(),
+      revision: z.string().optional(),
+      depth: z.number().optional(),
+      credentials: z.union([z.literal(true), z.literal("read")]).optional(),
+    })
+    .optional(),
+  commitAs: z.object({ name: z.string(), email: z.string() }).optional(),
+  credentials: z
+    .object({
+      github: z.array(
+        z.object({
+          repositories: z.array(z.string()),
+          actions: z.array(z.string()),
+          actAs: z.union([z.string(), z.number()]).optional(),
+        }),
+      ),
+    })
+    .optional(),
+});
+
 export const Session = z.object({
+  managedCredentials: ManagedCredentialsResponseValidator.optional(),
   id: z.string(),
   memory: z.number(),
   vcpus: z.number(),

@@ -32,6 +32,7 @@ import { FileSystem } from "./filesystem.js";
 import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";
 import { validateName } from "./utils/validate-name.js";
+import type { ManagedCredentialOptions } from "./managed-credentials.js";
 
 export type {
   NetworkPolicy,
@@ -778,7 +779,8 @@ export class Sandbox implements ExecutionContext {
    */
   static async create(
     params?: WithPrivate<
-      CreateSandboxParams | (CreateSandboxParams & Credentials)
+      (CreateSandboxParams | (CreateSandboxParams & Credentials)) &
+        ManagedCredentialOptions
     > &
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
@@ -797,6 +799,8 @@ export class Sandbox implements ExecutionContext {
     const privateParams = getPrivateParams(params);
     const response = await client.createSandbox({
       source: params?.source,
+      commitAs: params?.commitAs,
+      credentials: params?.credentials,
       projectId: credentials.projectId,
       ports: params?.ports ?? [],
       timeout: params?.timeout,

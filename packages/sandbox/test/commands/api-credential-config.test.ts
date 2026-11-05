@@ -1,0 +1,161 @@
+import * as cmd from "cmd-ts";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { create } from "../../src/commands/create";
+import type { Sandbox } from "@vercel/sandbox";
+import type { ManagedCredentialsConfig } from "../../src/util/managed-credentials-config";
+
+const { createSandbox, readBounds, inferActor } = vi.hoisted(() => ({
+  createSandbox: vi.fn(),
+  readBounds: vi.fn(),
+  inferActor: vi.fn(),
+}));
+vi.mock("../../src/client", () => ({
+  sandboxClient: { create: createSandbox },
+}));
+vi.mock("../../src/util/managed-credentials-project-bounds", () => ({
+  hasProjectBounds: readBounds,
+}));
+vi.mock("../../src/util/managed-credentials-actor", () => ({ inferActor }));
+vi.mock("../../src/util/check-latest-version", () => ({
+  startLatestVersionCheck: () => undefined,
+}));
+vi.mock("../../src/telemetry/agent", () => ({
+  detectAgentName: async () => undefined,
+}));
+
+let directory: string;
+beforeEach(async () => {
+  vi.clearAllMocks();
+  vi.stubEnv("VERCEL_AUTH_TOKEN", "fixture-token");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(null, { status: 403 })),
+  );
+  directory = await mkdtemp(join(tmpdir(), "sandbox-api-config-"));
+  readBounds.mockResolvedValue(true);
+  createSandbox.mockResolvedValue({
+    name: "configured",
+    interactivePort: 8443,
+    routes: [],
+    currentSession: () => ({ sessionId: "sbx_apifile", status: "running" }),
+  });
+  vi.spyOn(process.stdout, "write").mockReturnValue(true);
+  vi.spyOn(process.stderr, "write").mockReturnValue(true);
+});
+afterEach(async () => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  await rm(directory, { recursive: true, force: true });
+});
+
+const apiDocument = (): ManagedCredentialsConfig => ({
+  source: {
+    depth: 2,
+    type: "git" as const,
+    url: "https://github.com/acme/Widgets",
+    revision: "refs/heads/main",
+  },
+  credentials: {
+    github: [
+      {
+        repositories: ["acme/Widgets", "acme/tools"],
+        actions: ["github:pull-request:create", "git:write"],
+        actAs: "@octocat",
+      },
+      {
+        repositories: ["acme/Docs"],
+        actions: ["github:issues:read"],
+        actAs: "43",
+      },
+      {
+        repositories: ["acme/Widgets"],
+        actions: ["github:labels:read"],
+        actAs: "@octocat",
+      },
+    ],
+  },
+});
+
+async function invoke(file: string, extra: string[] = []) {
+  return cmd.run(create, [
+    "--scope=team_fixture",
+    "--project=project_fixture",
+    `--credentials-github-from-config-file=${file}`,
+    "--yes",
+    "--silent",
+    ...extra,
+  ]);
+}
+
+test("one API-shaped document survives file input, request construction, persistence and replay unchanged", async () => {
+  const document = apiDocument();
+  const sdkFields: Pick<
+    NonNullable<Parameters<typeof Sandbox.create>[0]>,
+    "source" | "credentials" | "commitAs"
+  > = document;
+  expect(sdkFields).toBe(document);
+  const original = JSON.stringify(document, null, 4) + "\n";
+  const input = join(directory, "request.json");
+  const persisted = join(directory, "persisted.json");
+  await writeFile(input, original);
+  await invoke(input, [
+    `--credentials-github-persist-configuration=${persisted}`,
+  ]);
+  expect(createSandbox).toHaveBeenCalledOnce();
+  const first = createSandbox.mock.calls[0][0];
+  expect(first.source).toEqual(document.source);
+  expect(first.credentials).toEqual(document.credentials);
+  expect(first.commitAs).toBeUndefined();
+  expect(first.teamId).toBe("team_fixture");
+  expect(first.projectId).toBe("project_fixture");
+  expect(await readFile(input, "utf8")).toBe(original);
+  const saved = JSON.parse(await readFile(persisted, "utf8"));
+  expect(saved).toEqual(document);
+  expect(Object.keys(saved.source)).toEqual(Object.keys(document.source!));
+  expect(
+    saved.credentials.github.map(
+      (group: { repositories: string[] }) => group.repositories,
+    ),
+  ).toEqual(document.credentials.github.map((group) => group.repositories));
+  createSandbox.mockClear();
+  await invoke(persisted);
+  const second = createSandbox.mock.calls[0][0];
+  expect(second.source).toEqual(document.source);
+  expect(second.credentials).toEqual(document.credentials);
+  expect(inferActor).not.toHaveBeenCalled();
+});
+
+test("rejects duplicate repository entries just as the API schema does", async () => {
+  const document = apiDocument();
+  document.credentials.github[0].repositories = [
+    "acme/Widgets",
+    "acme/Widgets",
+  ];
+  const input = join(directory, "duplicate-repositories.json");
+  await writeFile(input, JSON.stringify(document));
+  await expect(invoke(input)).rejects.toThrow(/Duplicate repositories/);
+  expect(createSandbox).not.toHaveBeenCalled();
+  expect(readBounds).not.toHaveBeenCalled();
+});
+
+test("rejects CLI-only repo aliases instead of accepting a second JSON schema", async () => {
+  const input = join(directory, "old-cli-shape.json");
+  await writeFile(
+    input,
+    JSON.stringify({
+      source: { repo: "acme/widgets" },
+      credentials: {
+        github: [{ repo: "acme/widgets", actions: ["git:write"], actAs: "42" }],
+      },
+    }),
+  );
+  await expect(invoke(input)).rejects.toThrow(
+    /Invalid managed credentials configuration/,
+  );
+  expect(createSandbox).not.toHaveBeenCalled();
+  expect(readBounds).not.toHaveBeenCalled();
+});

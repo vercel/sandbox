@@ -2,8 +2,14 @@ import { z } from "zod/v4";
 import { readProjectConfiguration } from "./project-configuration";
 import createDebugger from "debug";
 import * as Auth from "@vercel/sandbox/dist/auth/index.js";
+import { readVercelCurrentTeam } from "./current-team";
 
 const debug = createDebugger("sandbox:scope");
+
+export interface ScopeProvenance {
+  team: string;
+  project: string;
+}
 
 /**
  * Inferred scope information for a sandbox session.
@@ -17,14 +23,18 @@ export type InferredScope = {
   projectSlug?: string;
   /** Human-readable team slug for display */
   ownerSlug?: string;
+  /** Display metadata, never authorization. */
+  source?: "oidc" | "project-config" | "vercel-cli" | "account-default";
 };
 
 export async function inferScope({
   token,
   team,
+  readOnly,
 }: {
   token: string;
   team?: string;
+  readOnly?: boolean;
 }): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
   const jwt = z.jwt().safeParse(token);
@@ -41,13 +51,21 @@ export async function inferScope({
       owner: projectJson.orgId,
       project: projectJson.projectId,
     });
-    return { owner: projectJson.orgId, project: projectJson.projectId };
+    return {
+      owner: projectJson.orgId,
+      project: projectJson.projectId,
+      source: "project-config",
+    };
   }
 
-  debug("trying to infer scope from API token", { team });
-  const fromToken = await inferFromToken(token, team);
+  const selectedTeam = team === undefined ? readVercelCurrentTeam() : undefined;
+  debug("trying to infer scope from API token", {
+    team: team ?? selectedTeam,
+    readOnly,
+  });
+  const fromToken = await inferFromToken(token, team ?? selectedTeam, readOnly);
   debug("Using scope from API token", fromToken);
-  return fromToken;
+  return selectedTeam ? { ...fromToken, source: "vercel-cli" } : fromToken;
 }
 
 const JwtSchema = z
@@ -68,15 +86,25 @@ const JwtSchema = z
 
 async function inferFromJwt(jwt: string) {
   const body = JSON.parse(Buffer.from(jwt.split(".")[1], "base64").toString());
-  return { _tag: "OIDC" as const, ...JwtSchema.parse(body) };
+  return {
+    _tag: "OIDC" as const,
+    source: "oidc" as const,
+    ...JwtSchema.parse(body),
+  };
 }
 
-async function inferFromToken(token: string, requestedTeam?: string) {
+async function inferFromToken(
+  token: string,
+  requestedTeam?: string,
+  readOnly = false,
+) {
   const { teamId, teamSlug, projectId, projectSlug } = await Auth.inferScope({
     token,
     teamId: requestedTeam,
+    ...(readOnly ? { readOnly: true } : {}),
   });
   return {
+    source: "account-default" as const,
     owner: teamId,
     project: projectId,
     ownerSlug: teamSlug ?? teamId,

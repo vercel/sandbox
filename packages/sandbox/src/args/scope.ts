@@ -1,7 +1,7 @@
 import { token } from "./auth";
 import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
-import { inferScope } from "../util/infer-scope";
+import { inferScope, type ScopeProvenance } from "../util/infer-scope";
 import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
@@ -14,7 +14,7 @@ const project = cmd.option({
   long: "project",
   type: { ...cmd.optional(cmd.string), displayName: "my-project" },
   description:
-    "The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN.",
+    "The project name or ID to associate with the command. Defaults to OIDC claims, the linked project, or the selected team's Sandbox default project.",
 });
 
 /** Parser for the `--team` option. */
@@ -27,7 +27,7 @@ const scopeParser = cmd.option({
   long: "scope",
   type: { ...cmd.optional(cmd.string), displayName: "my-team" },
   description:
-    "The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team]",
+    "The scope/team to associate with the command. Defaults to OIDC claims, the linked project, the team selected by vercel switch, or the account default. [alias: --team]",
 });
 
 /** Parser for the `--scope` option that falls back to `--team` if not provided. */
@@ -60,103 +60,142 @@ const team: typeof scopeParser = {
  * that includes token, project, and team.
  * If project or team are not provided, they will be inferred.
  */
-export const scope: ArgParser<{
+export function createScope(
+  tokenParser = token,
+  readOnly = false,
+  reportProvenance?: (provenance: ScopeProvenance) => void,
+): ArgParser<{
   token: string;
   project: string;
   team: string;
   projectSlug?: string;
   teamSlug?: string;
 }> &
-  ProvidesHelp = {
-  register(ctx) {
-    token.register?.(ctx);
-    project.register?.(ctx);
-    team.register?.(ctx);
-  },
-  async parse(context) {
-    const t = await token.parse(context);
-    if (t._tag === "error") {
-      return t;
-    }
-
-    // We want to find all the arguments that `--project` or `--team` are
-    // visiting, so the errors will be nicer.
-    const visited = new Set(context.visitedNodes);
-    let [projectId, teamId] = await Promise.all([
-      project.parse(context),
-      team.parse(context),
-    ]);
-    const nodes = Array.from(context.visitedNodes).filter(
-      (x) => !visited.has(x),
-    );
-
-    if (projectId._tag === "error") {
-      return projectId;
-    }
-
-    if (teamId._tag === "error") {
-      return teamId;
-    }
-
-    let projectSlug: string | undefined;
-    let teamSlug: string | undefined;
-
-    if (
-      typeof projectId.value === "undefined" ||
-      typeof teamId.value === "undefined"
-    ) {
-      try {
-        const scope = await withFreshAuthRetry(() =>
-          inferScope({
-            token: t.value,
-            team: teamId.value,
-          }),
-        );
-        projectId.value ??= scope.project;
-        teamId.value ??= scope.owner;
-        projectSlug = scope.projectSlug;
-        teamSlug = scope.ownerSlug;
-      } catch (err) {
-        debug("scope inference failed: %O", err);
-        const detail =
-          err instanceof NotOk ? ` ${err.response.responseText}` : "";
-        return {
-          _tag: "error",
-          error: {
-            errors: [
-              {
-                nodes,
-                message: [
-                  `Could not determine team/project scope.${detail}`,
-                  `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, or set VERCEL_OIDC_TOKEN.`,
-                  "╰▶ Docs: https://vercel.com/docs/sandbox",
-                ].join("\n"),
-              },
-            ],
-          },
-        };
+  ProvidesHelp {
+  return {
+    register(ctx) {
+      tokenParser.register?.(ctx);
+      project.register?.(ctx);
+      team.register?.(ctx);
+    },
+    async parse(context) {
+      const t = await tokenParser.parse(context);
+      if (t._tag === "error") {
+        return t;
       }
-    }
 
-    return {
-      _tag: "ok",
-      value: {
-        token: t.value,
-        project: projectId.value,
-        team: teamId.value,
-        projectSlug,
-        teamSlug,
-      },
-    };
-  },
-  helpTopics() {
-    return [
-      ...token.helpTopics(),
-      ...project.helpTopics(),
-      ...team.helpTopics(),
-    ].map((x) => ({
-      ...x,
-      category: "Auth & Scope",
-    }));
-  },
-};
+      // We want to find all the arguments that `--project` or `--team` are
+      // visiting, so the errors will be nicer.
+      const visited = new Set(context.visitedNodes);
+      let [projectId, teamId] = await Promise.all([
+        project.parse(context),
+        team.parse(context),
+      ]);
+      const nodes = Array.from(context.visitedNodes).filter(
+        (x) => !visited.has(x),
+      );
+
+      if (projectId._tag === "error") {
+        return projectId;
+      }
+
+      if (teamId._tag === "error") {
+        return teamId;
+      }
+
+      let projectSlug: string | undefined;
+      let teamSlug: string | undefined;
+      const explicitScope = context.nodes.some(
+        (node) =>
+          node.type === "longOption" &&
+          node.key === "scope" &&
+          node.value !== undefined,
+      );
+      const provenance: ScopeProvenance = {
+        team: `from --${explicitScope ? "scope" : "team"}`,
+        project: "from --project",
+      };
+
+      if (
+        typeof projectId.value === "undefined" ||
+        typeof teamId.value === "undefined"
+      ) {
+        try {
+          const inferProject = projectId.value === undefined;
+          const inferTeam = teamId.value === undefined;
+          const infer = () =>
+            inferScope({
+              token: t.value,
+              team: teamId.value,
+              readOnly,
+            });
+          const scope = await (readOnly ? infer() : withFreshAuthRetry(infer));
+          projectId.value ??= scope.project;
+          teamId.value ??= scope.owner;
+          projectSlug = inferProject ? scope.projectSlug : undefined;
+          teamSlug = inferTeam ? scope.ownerSlug : undefined;
+          const inferredFrom =
+            scope.source === "oidc"
+              ? "from OIDC token claims"
+              : scope.source === "project-config"
+                ? "from .vercel/project.json"
+                : scope.source === "vercel-cli"
+                  ? "from vercel switch"
+                  : scope.source === "account-default"
+                    ? "inferred from Vercel account"
+                    : "from scope inference";
+          if (inferTeam) provenance.team = inferredFrom;
+          if (inferProject)
+            provenance.project =
+              scope.source === "account-default" ||
+              scope.source === "vercel-cli"
+                ? "default Sandbox project"
+                : inferredFrom;
+        } catch (err) {
+          debug("scope inference failed: %O", err);
+          const detail =
+            err instanceof NotOk ? ` ${err.response.responseText}` : "";
+          return {
+            _tag: "error",
+            error: {
+              errors: [
+                {
+                  nodes,
+                  message: [
+                    `Could not determine team/project scope.${detail}`,
+                    `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, or set VERCEL_OIDC_TOKEN.`,
+                    "╰▶ Docs: https://vercel.com/docs/sandbox",
+                  ].join("\n"),
+                },
+              ],
+            },
+          };
+        }
+      }
+
+      reportProvenance?.(provenance);
+      return {
+        _tag: "ok",
+        value: {
+          token: t.value,
+          project: projectId.value,
+          team: teamId.value,
+          projectSlug,
+          teamSlug,
+        },
+      };
+    },
+    helpTopics() {
+      return [
+        ...tokenParser.helpTopics(),
+        ...project.helpTopics(),
+        ...team.helpTopics(),
+      ].map((x) => ({
+        ...x,
+        category: "Auth & Scope",
+      }));
+    },
+  };
+}
+
+export const scope = createScope();

@@ -15,42 +15,54 @@ export const sandboxClient: Pick<
   get: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params });
+      const sandbox = await Sandbox.get({
+        fetch: fetchWithUserAgent,
+        resume: false,
+        ...params,
+      });
       trackSession(sandbox, "attached");
       return sandbox;
     }),
   create: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.create({ fetch: fetchWithUserAgent, ...params });
+      const sandbox = await Sandbox.create({
+        fetch: fetchWithUserAgent,
+        ...params,
+      });
       trackSession(sandbox, "created");
       return sandbox;
-    }),
+    }, false),
   fork: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.fork({ fetch: fetchWithUserAgent, ...params });
+      const sandbox = await Sandbox.fork({
+        fetch: fetchWithUserAgent,
+        ...params,
+      });
       trackSession(sandbox, "created");
       return sandbox;
     }),
   list: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+      return Sandbox.list({
+        fetch: fetchWithUserAgent,
+        ...params,
+      } as typeof params);
     }),
 };
 
-export const snapshotClient: Pick<
-  typeof Snapshot,
-  "get" | "list" | "tree"
-> = {
+export const snapshotClient: Pick<typeof Snapshot, "get" | "list" | "tree"> = {
   list: (params) =>
     withErrorHandling(() =>
       Snapshot.list({ fetch: fetchWithUserAgent, ...params }),
     ),
   get: (params) => withErrorHandling(() => Snapshot.get({ ...params })),
   tree: (params) =>
-    withErrorHandling(() => Snapshot.tree({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() =>
+      Snapshot.tree({ fetch: fetchWithUserAgent, ...params }),
+    ),
 };
 
 export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
@@ -58,7 +70,9 @@ export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
   delete(drive: Drive): Promise<void>;
 } = {
   get: (params) =>
-    withErrorHandling(() => Drive.get({ fetch: fetchWithUserAgent, ...params })),
+    withErrorHandling(() =>
+      Drive.get({ fetch: fetchWithUserAgent, ...params }),
+    ),
   getOrCreate: (params) =>
     withErrorHandling(() =>
       Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params }),
@@ -129,9 +143,12 @@ const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   return fetch(input, { ...init, headers });
 };
 
-async function withErrorHandling<T>(factory: () => Promise<T>): Promise<T> {
+async function withErrorHandling<T>(
+  factory: () => Promise<T>,
+  retryAuth = true,
+): Promise<T> {
   try {
-    return await withFreshAuthRetry(factory);
+    return await (retryAuth ? withFreshAuthRetry(factory) : factory());
   } catch (error) {
     if (error instanceof APIError) {
       throw await formatApiError(error);

@@ -1,6 +1,7 @@
 import { run as runCmd } from "cmd-ts";
 import { app } from "./app";
 import { telemetry } from "./telemetry";
+import { CliError } from "./util/cli-error";
 
 export function createApp(opts: { withoutAuth: boolean; appName: string }) {
   return {
@@ -10,6 +11,13 @@ export function createApp(opts: { withoutAuth: boolean; appName: string }) {
         await runCmd(await app(args, opts), args);
         telemetry.trackExitCode(0);
       } catch (error) {
+        if (error instanceof CliError) {
+          telemetry.trackExitCode(error.exitCode);
+          if (error.options.json) error.writeJson();
+          else process.stderr.write(error.message + "\n");
+          process.exitCode = error.exitCode;
+          return;
+        }
         telemetry.trackExitCode(1);
         throw error;
       } finally {

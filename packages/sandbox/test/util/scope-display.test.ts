@@ -1,0 +1,615 @@
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { isScopeId, resolveScopeDisplay } from "../../src/util/scope-display";
+
+const TOKEN = "credential-canary-do-not-display";
+const TEAM = "team_selected";
+const PROJECT = "prj_selected";
+const LEGACY_PROJECT = `Qm${"a".repeat(44)}`;
+const TEAM_URL = `https://vercel.com/api/v2/teams/${TEAM}`;
+const PROJECT_URL = `https://vercel.com/api/v9/projects/${PROJECT}?teamId=${TEAM}`;
+const ORIGINAL_SCOPE = { team: TEAM, project: PROJECT };
+const teamMetadata = { id: TEAM, slug: "selected-team" };
+const projectMetadata = {
+  id: PROJECT,
+  accountId: TEAM,
+  name: "selected-project",
+};
+
+function response(body: unknown): Response {
+  return Response.json(body);
+}
+
+function options(fetch: typeof globalThis.fetch) {
+  return { token: TOKEN, team: TEAM, project: PROJECT, fetch };
+}
+
+function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
+  return input instanceof Request ? input.url : String(input);
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("scope ID detection", () => {
+  test.each([
+    ["team_selected", "team", true],
+    ["team_", "team", true],
+    ["prj_selected", "project", true],
+    ["prj_", "project", true],
+    [LEGACY_PROJECT, "project", true],
+    [LEGACY_PROJECT, "team", false],
+    ["team_selected", "project", false],
+    ["prj_selected", "team", false],
+    ["acme-team", "team", false],
+    ["My Project (staging)", "project", false],
+    ["Qm-short-name", "project", false],
+    ["", "team", false],
+  ] as const)("detects %s for %s", (value, kind, expected) => {
+    expect(isScopeId(value, kind)).toBe(expected);
+  });
+});
+
+describe("display-only names", () => {
+  test("resolves linked IDs with two GETs, one token, and no input mutation", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+      switch (requestUrl(input)) {
+        case TEAM_URL:
+          return response(teamMetadata);
+        case PROJECT_URL:
+          return response(projectMetadata);
+        default:
+          throw new Error(`Unexpected request containing ${TOKEN}`);
+      }
+    });
+    const input = Object.freeze(options(fetch));
+    const before = { ...input };
+    expect(await resolveScopeDisplay(input)).toEqual({
+      team: "selected-team",
+      project: "selected-project",
+    });
+    expect(input).toEqual(before);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls.map(([url]) => requestUrl(url)).sort()).toEqual(
+      [TEAM_URL, PROJECT_URL].sort(),
+    );
+    const signals = new Set<AbortSignal>();
+    for (const [, init] of fetch.mock.calls) {
+      expect(init).toEqual({
+        method: "GET",
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        credentials: "omit",
+        redirect: "error",
+        signal: expect.any(AbortSignal),
+      });
+      signals.add(init!.signal!);
+      expect(init).not.toHaveProperty("body");
+    }
+    expect(signals.size).toBe(1);
+  });
+
+  test("OIDC names need no fetch, even with conflicting display hints", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        team: "Acme, Inc. (R&D)",
+        project: "München / web: staging_v2.0",
+        teamSlug: "unrelated-team",
+        projectSlug: "unrelated-project",
+      }),
+    ).toEqual({
+      team: "Acme, Inc. (R&D)",
+      project: "München / web: staging_v2.0",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("usable display hints avoid lookup for IDs", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        teamSlug: "selected-team",
+        projectSlug: "selected-project",
+      }),
+    ).toEqual({ team: "selected-team", project: "selected-project" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("team hints do not change the selected team ID for project lookup", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(response(projectMetadata));
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        teamSlug: "display-only",
+      }),
+    ).toEqual({ team: "display-only", project: "selected-project" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(requestUrl(fetch.mock.calls[0][0])).toBe(PROJECT_URL);
+  });
+
+  test("a project hint does not suppress an independent team lookup", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(response(teamMetadata));
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        projectSlug: "display-only",
+      }),
+    ).toEqual({ team: "selected-team", project: "display-only" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(requestUrl(fetch.mock.calls[0][0])).toBe(TEAM_URL);
+  });
+
+  test.each([
+    "",
+    "   ",
+    " padded ",
+    "team_hidden",
+    "prj_hidden",
+    LEGACY_PROJECT,
+    "line\nbreak",
+    "escape\u001b[31m",
+    "bidi\u202eunsafe",
+    "invisible\u200bname",
+  ])("ignores malformed or opaque slug hints (%j)", async (hint) => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(null, { status: 403 }));
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        teamSlug: hint,
+        projectSlug: hint,
+      }),
+    ).toEqual(ORIGINAL_SCOPE);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("legacy project IDs are retained on failure and can be resolved by exact ID", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(
+        response({ ...projectMetadata, id: LEGACY_PROJECT }),
+      );
+    const input = {
+      ...options(fetch),
+      team: "selected-team",
+      project: LEGACY_PROJECT,
+    };
+    expect(await resolveScopeDisplay(input)).toEqual({
+      team: "selected-team",
+      project: LEGACY_PROJECT,
+    });
+    fetch.mockReset();
+    fetch
+      .mockResolvedValueOnce(
+        response({ ...projectMetadata, id: LEGACY_PROJECT }),
+      )
+      .mockResolvedValueOnce(response(teamMetadata));
+    expect(await resolveScopeDisplay(input)).toEqual({
+      team: "selected-team",
+      project: "selected-project",
+    });
+    expect(requestUrl(fetch.mock.calls[0][0])).toBe(
+      `https://vercel.com/api/v9/projects/${LEGACY_PROJECT}?slug=selected-team`,
+    );
+  });
+
+  test("uses the supplied fetch, or global fetch when omitted", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
+      response(requestUrl(url) === TEAM_URL ? teamMetadata : projectMetadata),
+    );
+    vi.stubGlobal("fetch", fetch);
+    expect(
+      await resolveScopeDisplay({ token: TOKEN, team: TEAM, project: PROJECT }),
+    ).toEqual({ team: "selected-team", project: "selected-project" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("untrusted metadata", () => {
+  const failures: [string, () => Promise<Response>][] = [
+    ["403", async () => new Response(TOKEN, { status: 403 })],
+    ["404", async () => new Response(TOKEN, { status: 404 })],
+    [
+      "network error",
+      async () => {
+        throw new Error(TOKEN);
+      },
+    ],
+    ["bad JSON", async () => new Response(TOKEN)],
+    ["empty JSON", async () => response(null)],
+    ["array JSON", async () => response([teamMetadata, projectMetadata])],
+    ["error body", async () => response({ error: { message: TOKEN } })],
+    [
+      "redirected response",
+      async () =>
+        ({
+          status: 200,
+          redirected: true,
+          json: async () => ({ ...teamMetadata, ...projectMetadata }),
+        }) as Response,
+    ],
+  ];
+
+  test.each(failures)(
+    "%s returns only original selectors without remote diagnostics",
+    async (_name, fail) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const fetch = vi.fn<typeof globalThis.fetch>(fail);
+      const result = await resolveScopeDisplay(options(fetch));
+      expect(result).toEqual(ORIGINAL_SCOPE);
+      expect(JSON.stringify(result)).not.toContain(TOKEN);
+      expect(error).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+      expect(fetch).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  test.each(["team", "project"] as const)(
+    "keeps the other name when %s metadata fails",
+    async (failed) => {
+      const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+        const isTeam = requestUrl(input) === TEAM_URL;
+        if (isTeam === (failed === "team")) throw new Error(TOKEN);
+        return response(isTeam ? teamMetadata : projectMetadata);
+      });
+      expect(await resolveScopeDisplay(options(fetch))).toEqual({
+        team: failed === "team" ? ORIGINAL_SCOPE.team : "selected-team",
+        project:
+          failed === "project" ? ORIGINAL_SCOPE.project : "selected-project",
+      });
+    },
+  );
+
+  test.each([
+    { ...teamMetadata, id: "team_another" },
+    { slug: "selected-team" },
+    { ...teamMetadata, slug: undefined },
+    { ...teamMetadata, slug: 42 },
+    { team: teamMetadata },
+  ])("rejects missing or mismatched team metadata (%j)", async (body) => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(response(body));
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        projectSlug: "project-hint",
+      }),
+    ).toEqual({ team: ORIGINAL_SCOPE.team, project: "project-hint" });
+  });
+
+  test.each([
+    { ...projectMetadata, id: "prj_another" },
+    { ...projectMetadata, accountId: "team_another" },
+    { ...projectMetadata, accountId: undefined },
+    { ...projectMetadata, name: undefined },
+    { ...projectMetadata, name: 42 },
+    { accountId: TEAM, name: "selected-project" },
+  ])(
+    "rejects missing, mismatched, or unowned project metadata (%j)",
+    async (body) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValue(response(body));
+      expect(
+        await resolveScopeDisplay({ ...options(fetch), teamSlug: "team-hint" }),
+      ).toEqual({ team: "team-hint", project: ORIGINAL_SCOPE.project });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(requestUrl(fetch.mock.calls[0][0])).toBe(PROJECT_URL);
+    },
+  );
+
+  test.each([
+    "",
+    " ",
+    " padded ",
+    "team_hidden",
+    "prj_hidden",
+    LEGACY_PROJECT,
+    "line\nbreak",
+    "tab\tname",
+    "bell\u0007name",
+    "c1\u009bname",
+    "bidi\u202ename",
+    "isolate\u2066name",
+    "zero\u200bwidth",
+    "line\u2028separator",
+    "paragraph\u2029separator",
+    "unpaired\ud800",
+  ])("rejects unsafe or opaque metadata names (%j)", async (name) => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
+      response(
+        requestUrl(input) === TEAM_URL
+          ? { ...teamMetadata, slug: name }
+          : { ...projectMetadata, name },
+      ),
+    );
+    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
+  });
+
+  test("invalid supplied names are not displayed or used for requests", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    expect(
+      await resolveScopeDisplay({
+        ...options(fetch),
+        team: "\u202eevil",
+        project: "\nunsafe",
+      }),
+    ).toEqual({
+      team: "team name unavailable",
+      project: "project name unavailable",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("does not read error response bodies", async () => {
+    const json = vi.fn(async () => {
+      throw new Error(TOKEN);
+    });
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue({
+      status: 403,
+      redirected: false,
+      json,
+    } as unknown as Response);
+    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
+    expect(json).not.toHaveBeenCalled();
+  });
+});
+
+describe("project ID with a selected team slug", () => {
+  test("verifies BOTH the returned owning team ID and the selected slug", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(response(projectMetadata))
+      .mockResolvedValueOnce(response(teamMetadata));
+    const input = Object.freeze({
+      ...options(fetch),
+      team: "selected-team",
+      teamSlug: "different-display-hint",
+    });
+    expect(await resolveScopeDisplay(input)).toEqual({
+      team: "selected-team",
+      project: "selected-project",
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(requestUrl(fetch.mock.calls[0][0])).toBe(
+      `https://vercel.com/api/v9/projects/${PROJECT}?slug=selected-team`,
+    );
+    expect(requestUrl(fetch.mock.calls[1][0])).toBe(TEAM_URL);
+    for (const [, init] of fetch.mock.calls) {
+      expect(init).toMatchObject({
+        method: "GET",
+        credentials: "omit",
+        redirect: "error",
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      });
+    }
+    expect(input.team).toBe("selected-team");
+    expect(input.teamSlug).toBe("different-display-hint");
+  });
+
+  test.each([
+    { ...teamMetadata, slug: "default-team" },
+    { ...teamMetadata, id: "team_another" },
+    { id: TEAM },
+    { ...teamMetadata, slug: "selected-team\u202e" },
+    null,
+  ])(
+    "rejects default-team fallthrough or malformed ownership (%j)",
+    async (body) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValueOnce(response(projectMetadata))
+        .mockResolvedValueOnce(response(body));
+      expect(
+        await resolveScopeDisplay({ ...options(fetch), team: "selected-team" }),
+      ).toEqual({
+        team: "selected-team",
+        project: ORIGINAL_SCOPE.project,
+      });
+      expect(fetch).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  test.each([undefined, "user_personal", "team_bad\nvalue", 42])(
+    "does not try another account for invalid accountId (%j)",
+    async (accountId) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValue(response({ ...projectMetadata, accountId }));
+      expect(
+        await resolveScopeDisplay({ ...options(fetch), team: "selected-team" }),
+      ).toEqual({
+        team: "selected-team",
+        project: ORIGINAL_SCOPE.project,
+      });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  test("ownership read failure retains the original project ID", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(response(projectMetadata))
+      .mockRejectedValueOnce(new Error(TOKEN));
+    expect(
+      await resolveScopeDisplay({ ...options(fetch), team: "selected-team" }),
+    ).toEqual({
+      team: "selected-team",
+      project: ORIGINAL_SCOPE.project,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("one total lookup deadline", () => {
+  test("bounds fetch that ignores abort and keeps an independently resolved name", async () => {
+    vi.useFakeTimers();
+    let finishFetch!: (response: Response) => void;
+    const fetch = vi.fn<typeof globalThis.fetch>((input) =>
+      requestUrl(input) === TEAM_URL
+        ? Promise.resolve(response(teamMetadata))
+        : new Promise<Response>((resolve) => {
+            finishFetch = resolve;
+          }),
+    );
+    const result = resolveScopeDisplay(options(fetch));
+    await vi.advanceTimersByTimeAsync(2999);
+    let settled = false;
+    void result.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    const labels = await result;
+    expect(labels).toEqual({
+      team: "selected-team",
+      project: ORIGINAL_SCOPE.project,
+    });
+    expect(fetch.mock.calls[1][1]!.signal!.aborted).toBe(true);
+    const json = vi.fn(async () => projectMetadata);
+    finishFetch({
+      status: 200,
+      redirected: false,
+      json,
+    } as unknown as Response);
+    await vi.runAllTimersAsync();
+    expect(json).not.toHaveBeenCalled();
+    expect(labels).toEqual({
+      team: "selected-team",
+      project: ORIGINAL_SCOPE.project,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  test("bounds JSON that never settles even when fetch has completed", async () => {
+    vi.useFakeTimers();
+    const json = vi.fn(() => new Promise<unknown>(() => {}));
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue({
+      status: 200,
+      redirected: false,
+      json,
+    } as unknown as Response);
+    const result = resolveScopeDisplay(options(fetch));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await result).toEqual(ORIGINAL_SCOPE);
+    expect(json).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls.every(([, init]) => init!.signal!.aborted)).toBe(
+      true,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  test("does not start ownership verification after late project JSON", async () => {
+    vi.useFakeTimers();
+    let finishJson!: (body: unknown) => void;
+    const json = vi.fn(
+      () =>
+        new Promise<unknown>((resolve) => {
+          finishJson = resolve;
+        }),
+    );
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue({
+      status: 200,
+      redirected: false,
+      json,
+    } as unknown as Response);
+    const result = resolveScopeDisplay({
+      ...options(fetch),
+      team: "selected-team",
+    });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await result).toEqual({
+      team: "selected-team",
+      project: ORIGINAL_SCOPE.project,
+    });
+    finishJson(projectMetadata);
+    await vi.runAllTimersAsync();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("the ownership GET shares the original deadline, not a fresh budget", async () => {
+    vi.useFakeTimers();
+    let finishProject!: (value: Response) => void;
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finishProject = resolve;
+          }),
+      )
+      .mockImplementationOnce(() => new Promise<Response>(() => {}));
+    const result = resolveScopeDisplay({
+      ...options(fetch),
+      team: "selected-team",
+    });
+    await vi.advanceTimersByTimeAsync(2000);
+    finishProject(response(projectMetadata));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await result).toEqual({
+      team: "selected-team",
+      project: ORIGINAL_SCOPE.project,
+    });
+    expect(fetch.mock.calls[1][1]!.signal!.aborted).toBe(true);
+  });
+
+  test("checks the elapsed deadline before JSON even if the timeout callback was delayed", async () => {
+    vi.useFakeTimers();
+    let finishFetch!: (value: Response) => void;
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishFetch = resolve;
+        }),
+    );
+    const result = resolveScopeDisplay({
+      ...options(fetch),
+      team: "selected-team",
+    });
+    vi.setSystemTime(Date.now() + 3001);
+    const json = vi.fn(async () => projectMetadata);
+    finishFetch({
+      status: 200,
+      redirected: false,
+      json,
+    } as unknown as Response);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await result).toEqual({
+      team: "selected-team",
+      project: ORIGINAL_SCOPE.project,
+    });
+    expect(json).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  test("clears the deadline after fast success", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
+      response(requestUrl(input) === TEAM_URL ? teamMetadata : projectMetadata),
+    );
+    expect(await resolveScopeDisplay(options(fetch))).toEqual({
+      team: "selected-team",
+      project: "selected-project",
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
