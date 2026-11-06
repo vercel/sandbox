@@ -4,6 +4,7 @@ import dotenv from "dotenv-flow";
 import { steerShCommand } from "./util/steer-sh";
 import { vercelFormatter } from "cmd-ts/batteries/vercel-formatter";
 import { telemetry } from "./telemetry";
+import { CliError } from "./util/cli-error";
 
 // Called by bin/sandbox.mjs. tsdown can make lazy-loaded command chunks import
 // this entry, so it must not run anything on import (test/bundle.test.ts).
@@ -22,10 +23,11 @@ export async function main() {
     telemetry.trackExitCode(0);
     await telemetry.flush();
   } catch (e) {
-    telemetry.trackExitCode(1);
+    const exitCode = e instanceof CliError ? e.exitCode : 1;
+    telemetry.trackExitCode(exitCode);
     await telemetry.flush();
     const { printTopLevelError } = await import("./util/format-error");
     await printTopLevelError(e);
-    process.exit(1);
+    process.exit(exitCode);
   }
 }

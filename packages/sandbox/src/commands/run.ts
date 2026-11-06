@@ -2,6 +2,7 @@ import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { APIError, type Sandbox } from "@vercel/sandbox";
 import { create, args as createArgs } from "./create";
+import { CliError } from "../util/cli-error";
 import { exec, args as execArgs } from "./exec";
 import { sandboxClient } from "../client";
 import { StyledError } from "../error";
@@ -12,6 +13,7 @@ const args = {
   // `timeout` is omitted because it collides with Create's `--timeout`
   // (sandbox lifetime).
   ...omit(execArgs, "sandbox", "timeout", "detached", "stdin"),
+  scope: createArgs.scope,
   removeAfterUse: cmd.flag({
     long: "rm",
     description: "Automatically remove the sandbox when the command exits.",
@@ -26,6 +28,15 @@ export const run = cmd.command({
   ...commandMetadata.run,
   args,
   async handler({ removeAfterUse, stopAfterUse, ...rest }) {
+    if (
+      rest.scope.creationRequested &&
+      rest.interactive &&
+      !rest.scope.interactive
+    ) {
+      throw new CliError(
+        "An interactive command cannot share stdin with a configuration payload. Create the sandbox first, then use sandbox exec from a terminal.",
+      );
+    }
     if (removeAfterUse && stopAfterUse) {
       throw new Error("--rm and --stop are mutually exclusive.");
     }
@@ -43,9 +54,14 @@ export const run = cmd.command({
           projectId: rest.scope.project,
           teamId: rest.scope.team,
           token: rest.scope.token,
-          resume: true,
+          resume: !rest.scope.creationRequested,
           __includeSystemRoutes: true,
         });
+        if (rest.scope.creationRequested)
+          throw new CliError(
+            "The named sandbox already exists. Creation inputs cannot change its source or credentials. Use sandbox exec, or choose a new --name.",
+            { reason: "creation_options_on_existing_sandbox" },
+          );
       } catch (error) {
         if (
           error instanceof StyledError &&

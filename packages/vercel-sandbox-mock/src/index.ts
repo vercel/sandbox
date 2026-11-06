@@ -18,6 +18,8 @@ export type {
 // The rest of the SDK surface, re-exported verbatim from the real package.
 export {
   DEFAULT_SANDBOX_REGION,
+  GITHUB_API_CREDENTIAL_ACTIONS,
+  SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
   Session,
   SandboxUser,
   SandboxUserAlreadyExistsError,
@@ -31,6 +33,7 @@ export {
   NetworkPolicyParseError,
 } from "@vercel/sandbox";
 export type {
+  SandboxGithubCredentialAction,
   NetworkPolicy,
   NetworkPolicyKeyValueMatcher,
   NetworkPolicyMatch,

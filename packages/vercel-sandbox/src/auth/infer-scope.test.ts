@@ -284,15 +284,22 @@ describe("team selection from paginated results", () => {
 });
 
 describe("inferScope", () => {
-  test("uses provided teamId", async () => {
-    fetchApiMock.mockResolvedValue({});
-    const scope = await inferScope({ teamId: "my-team", token: "token" });
-    expect(scope).toEqual({
-      created: false,
-      projectId: "vercel-sandbox-default-project",
-      teamId: "my-team",
-    });
-  });
+  test.each(["my-team", "team_selected"])(
+    "uses provided teamId %s without display-name lookups",
+    async (teamId) => {
+      fetchApiMock.mockResolvedValue({});
+      const scope = await inferScope({ teamId, token: "token" });
+      expect(scope).toEqual({
+        created: false,
+        projectId: "vercel-sandbox-default-project",
+        teamId,
+      });
+      expect(fetchApiMock).toHaveBeenCalledExactlyOnceWith({
+        token: "token",
+        endpoint: `/v2/projects/vercel-sandbox-default-project?${teamId.startsWith("team_") ? "teamId" : "slug"}=${teamId}`,
+      });
+    },
+  );
 
   describe("project creation", () => {
     test("project 404 triggers project creation", async () => {
@@ -404,26 +411,33 @@ describe("inferScope", () => {
       );
     });
 
-    test("uses defaultTeamId when it succeeds", async () => {
-      fetchApiMock.mockImplementation(async ({ endpoint }) => {
-        if (endpoint === "/v2/user") {
-          return {
-            user: { defaultTeamId: "team_default", username: "my-user" },
-          };
-        }
-        if (endpoint.startsWith("/v2/teams")) {
-          return { teams: [], pagination: { count: 0, next: null } };
-        }
-        return {};
-      });
+    test.each([false, true])(
+      "uses defaultTeamId when its display-name lookup fails=%s",
+      async (unavailable) => {
+        fetchApiMock.mockImplementation(async ({ endpoint }) => {
+          if (endpoint === "/v2/user") {
+            return {
+              user: { defaultTeamId: "team_default", username: "my-user" },
+            };
+          }
+          if (endpoint === "/v2/teams/team_default") {
+            if (unavailable) {
+              throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
+            }
+            return { slug: "default-team" };
+          }
+          return {};
+        });
 
-      const scope = await inferScope({ token: "token" });
-      expect(scope).toEqual({
-        created: false,
-        projectId: "vercel-sandbox-default-project",
-        teamId: "team_default",
-      });
-    });
+        const scope = await inferScope({ token: "token" });
+        expect(scope).toEqual({
+          created: false,
+          projectId: "vercel-sandbox-default-project",
+          teamId: "team_default",
+          ...(unavailable ? {} : { teamSlug: "default-team" }),
+        });
+      },
+    );
 
     test("creates project in fallback team when it returns 404", async () => {
       fetchApiMock.mockImplementation(async ({ endpoint, method }) => {
@@ -477,7 +491,8 @@ describe("inferScope", () => {
         if (endpoint.includes("teamId=team_blocked")) {
           throw new NotOk({
             statusCode: 402,
-            responseText: "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
+            responseText:
+              "RESOURCE_CREATION_BLOCKED: Your Team encountered an unknown problem.",
           });
         }
         return {};

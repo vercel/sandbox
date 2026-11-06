@@ -41,7 +41,10 @@ export async function inferScope({
       owner: projectJson.orgId,
       project: projectJson.projectId,
     });
-    return { owner: projectJson.orgId, project: projectJson.projectId };
+    return {
+      owner: projectJson.orgId,
+      project: projectJson.projectId,
+    };
   }
 
   debug("trying to infer scope from API token", { team });
@@ -68,7 +71,10 @@ const JwtSchema = z
 
 async function inferFromJwt(jwt: string) {
   const body = JSON.parse(Buffer.from(jwt.split(".")[1], "base64").toString());
-  return { _tag: "OIDC" as const, ...JwtSchema.parse(body) };
+  return {
+    _tag: "OIDC" as const,
+    ...JwtSchema.parse(body),
+  };
 }
 
 async function inferFromToken(token: string, requestedTeam?: string) {
