@@ -1,17 +1,20 @@
 # python
 
-`vercel/sandbox/python:3.14`
+Python on top of the [ubuntu](../ubuntu) base image.
 
-Python on top of the [ubuntu](../ubuntu) base image. Pinned to Python 3.14
-via the versioned package from the Ubuntu archive; the build fails if the
-distro stops shipping that version.
+| Image tags                                                   | Python version | Bake target  |
+| ------------------------------------------------------------ | -------------- | ------------ |
+| `vercel/sandbox/python:3.14`                                 | 3.14.8         | `python`     |
+| `vercel/sandbox/python:3.15`, `vercel/sandbox/python:3.15.0` | 3.15.0         | `python-315` |
 
 Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ## Packages
 
 - `git`
-- `python3.14` and `python3.14-venv` (pinned versioned packages)
-- `python3-pip`
-- `python-is-python3` (provides the `python` command)
+- `python`, `python3`, and the versioned interpreter (for example, `python3.15`)
+- `pip`, `pip3`, and `venv`
+- `packaging`, `setuptools`, and `wheel`
 - `uv` and `uvx` (installed via pip)
+- `media-types`, `netbase`, and `tzdata` (MIME types, network services, and time zones)
+- Standard-library extension dependencies, including Berkeley DB for `dbm.ndbm`

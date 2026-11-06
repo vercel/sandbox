@@ -19,7 +19,7 @@ group "runtimes" {
 }
 
 group "vmi" {
-  targets = ["ubuntu", "node", "python", "universal", "arch"]
+  targets = ["ubuntu", "node", "python", "python-315", "universal", "arch"]
 }
 
 target "_common" {
@@ -84,7 +84,19 @@ target "python" {
   }
 
   args = {
-    PYTHON_VERSION = "3.14"
+    PYTHON_VERSION = "3.14.8"
+  }
+}
+
+target "python-315" {
+  inherits = ["python"]
+  tags = [
+    "${REGISTRY}/python:3.15${TAG_SUFFIX}",
+    "${REGISTRY}/python:3.15.0${TAG_SUFFIX}",
+  ]
+
+  args = {
+    PYTHON_VERSION = "3.15.0"
   }
 }
 
