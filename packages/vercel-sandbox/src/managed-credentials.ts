@@ -13,21 +13,6 @@ export const GITHUB_API_CREDENTIAL_ACTIONS = [
   "github:ci-status:read",
 ] as const;
 
-/**
- * Logical Git actions, including legacy read-only configuration intent.
- * `git:read` is not supported by the Sandbox create API.
- *
- * @hidden
- */
-export const MANAGED_GIT_ACTIONS = [
-  "git:read",
-  "git:write",
-  "git:write-workflows",
-] as const;
-
-/** @hidden */
-export type ManagedGitAction = (typeof MANAGED_GIT_ACTIONS)[number];
-
 /** Git and GitHub API actions supported by Sandbox creation. @hidden */
 export const SANDBOX_GITHUB_CREDENTIAL_ACTIONS = [
   "git:write",

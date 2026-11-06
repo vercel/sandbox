@@ -31,10 +31,6 @@ export function resolvePersistPath(options: {
     : resolve(cwd, options.requested);
 }
 
-export interface PersistResult {
-  path: string;
-}
-
 /**
  * Write the configuration so it round-trips through
  * `--credentials-github-from-config-file`.
@@ -47,7 +43,7 @@ export interface PersistResult {
 export async function persistConfiguration(options: {
   config: ManagedCredentialsConfig;
   path: string;
-}): Promise<PersistResult> {
+}): Promise<void> {
   try {
     await writeFile(options.path, serializeConfig(options.config), {
       encoding: "utf8",
@@ -69,5 +65,4 @@ export async function persistConfiguration(options: {
       { reason: "persist_failed" },
     );
   }
-  return { path: options.path };
 }

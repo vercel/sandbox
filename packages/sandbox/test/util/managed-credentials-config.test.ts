@@ -160,6 +160,9 @@ describe("canonical validation and views", () => {
   test("keeps alias normalization available only for flag callers", () => {
     expect(githubActor.parse("scubbo")).toBe("@scubbo");
     expect(githubActor.parse("123456")).toBe("123456");
+    expect(githubActor.parse("9007199254740991")).toBe("9007199254740991");
+    expect(githubActor.safeParse("9007199254740992").success).toBe(false);
+    expect(githubActor.safeParse(42).success).toBe(false);
     expect(canonicalCreationAction("issues:read")).toBe("github:issues:read");
     expect(canonicalCreationAction("git:read")).toBeUndefined();
   });
@@ -245,6 +248,16 @@ describe("canonical validation and views", () => {
     credentialGroup(["o/one"], ["git:write", "git:write"]),
   ])("rejects incomplete or invalid groups: %j", (group) => {
     expect(() => parseConfig(configuration([group]))).toThrow(CliError);
+  });
+
+  test("rejects duplicate repository entries just as the API schema does", () => {
+    expect(() =>
+      parseConfig(
+        configuration([
+          credentialGroup(["acme/Widgets", "acme/Widgets"], ["git:write"]),
+        ]),
+      ),
+    ).toThrow(/Duplicate repositories/);
   });
 });
 
@@ -361,23 +374,13 @@ describe("configuration parsing", () => {
     expect(config.credentials.github).toEqual([]);
   });
 
-  test("rejects unknown fields", () => {
-    expect(() =>
-      parseConfig({ credentials: { github: [] }, expiry: "1h" }),
-    ).toThrow(CliError);
-  });
-
-  test("rejects raw credentials in a source", () => {
-    expect(() =>
-      parseConfig(
-        configuration([], {
-          type: "git",
-          url: "https://github.com/vercel/api.git",
-          username: "x",
-          password: "y",
-        }),
-      ),
-    ).toThrow(CliError);
+  test.each([
+    { expiry: "1h" },
+    { commitAs: { name: "Ada", email: "ada@example.com" } },
+  ])("rejects unknown configuration fields: %j", (fields) => {
+    const parse = () => parseConfig({ ...base, ...fields });
+    expect(parse).toThrow(CliError);
+    expect(parse).toThrow("Unknown fields are not supported.");
   });
 
   test.each([undefined, "@alias"])(
@@ -468,13 +471,4 @@ describe("unsupported source fields and old CLI shapes", () => {
       }),
     ).toThrow(CliError);
   });
-});
-
-test("rejects commitAs like any other unknown configuration field", () => {
-  expect(() =>
-    parseConfig({
-      ...base,
-      commitAs: { name: "Ada", email: "ada@example.com" },
-    }),
-  ).toThrow("Unknown fields are not supported.");
 });

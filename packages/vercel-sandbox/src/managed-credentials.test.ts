@@ -2,7 +2,6 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import {
   Sandbox,
   GITHUB_API_CREDENTIAL_ACTIONS,
-  MANAGED_GIT_ACTIONS,
   SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
   type SandboxGithubCredentialAction,
 } from "./index.js";
@@ -43,12 +42,7 @@ const sessionResponse = (managedCredentials?: unknown, vcpus = 1) =>
   });
 
 describe("managed credential transport", () => {
-  it("exports separate logical and create action registries", () => {
-    expect(MANAGED_GIT_ACTIONS).toEqual([
-      "git:read",
-      "git:write",
-      "git:write-workflows",
-    ]);
+  it("exports the supported create action registry", () => {
     expect(SANDBOX_GITHUB_CREDENTIAL_ACTIONS).toEqual([
       "git:write",
       "git:write-workflows",
@@ -96,7 +90,7 @@ describe("managed credential transport", () => {
   });
 
   it.each([undefined, "node24" as const])(
-    "serializes unified groups and plain source fields with runtime %s",
+    "serializes every action, groups and plain source fields without retired options with runtime %s",
     async (runtime) => {
       const mockFetch = deniedFetch();
       const source = {
@@ -108,12 +102,8 @@ describe("managed credential transport", () => {
       const credentials: ManagedCredentialOptions["credentials"] = {
         github: [
           {
-            repositories: ["acme/widgets"],
-            actions: [
-              "git:write",
-              "git:write-workflows",
-              "github:pull-request:create",
-            ],
+            repositories: ["acme/widgets", "acme/two"],
+            actions: [...SANDBOX_GITHUB_CREDENTIAL_ACTIONS],
             actAs: "42",
           },
           {
@@ -123,14 +113,15 @@ describe("managed credential transport", () => {
           },
         ],
       };
+      const options = {
+        ...auth,
+        runtime,
+        source,
+        credentials,
+        commitAs: { name: "Ada", email: "ada@example.com" },
+      };
       await expect(
-        Sandbox.create({
-          ...auth,
-          runtime,
-          source,
-          credentials,
-          fetch: mockFetch,
-        }),
+        Sandbox.create({ ...options, fetch: mockFetch }),
       ).rejects.toBeInstanceOf(APIError);
       expect(mockFetch).toHaveBeenCalledOnce();
       const [url, init] = mockFetch.mock.calls[0];
@@ -138,7 +129,8 @@ describe("managed credential transport", () => {
         runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes",
       );
       const body = JSON.parse(String(init?.body));
-      expect(body).toMatchObject({ source, credentials });
+      expect(body.source).toEqual(source);
+      expect(body.credentials).toEqual(credentials);
       expect(body).not.toHaveProperty("commitAs");
       expect(body.source).not.toHaveProperty("credentials");
       expect(body).not.toHaveProperty("__commitAs");
@@ -166,20 +158,6 @@ describe("managed credential transport", () => {
     },
   );
 
-  it("does not forward retired commitAs options", async () => {
-    const mockFetch = deniedFetch();
-    const options = {
-      ...auth,
-      commitAs: { name: "Ada", email: "ada@example.com" },
-    };
-    await expect(
-      Sandbox.create({ ...options, fetch: mockFetch }),
-    ).rejects.toBeInstanceOf(APIError);
-    expect(
-      JSON.parse(String(mockFetch.mock.calls[0][1]?.body)),
-    ).not.toHaveProperty("commitAs");
-  });
-
   it("omits managed fields when they were not supplied", async () => {
     const mockFetch = deniedFetch();
     await expect(
@@ -203,37 +181,6 @@ describe("managed credential transport", () => {
         }),
       ).rejects.toBeInstanceOf(APIError);
       expect(mockFetch).toHaveBeenCalledOnce();
-    },
-  );
-
-  it.each([undefined, "node24" as const])(
-    "forwards every supported action verbatim with runtime %s",
-    async (runtime) => {
-      // Actions are pass-through, so one request carrying the whole registry
-      // proves the contract that one request per action would prove 13 times.
-      const mockFetch = deniedFetch();
-      const credentials = {
-        github: [
-          {
-            repositories: ["acme/one", "acme/two"],
-            actions: [...SANDBOX_GITHUB_CREDENTIAL_ACTIONS],
-            actAs: "42",
-          },
-        ],
-      };
-      await expect(
-        Sandbox.create({ ...auth, runtime, credentials, fetch: mockFetch }),
-      ).rejects.toBeInstanceOf(APIError);
-      expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, init] = mockFetch.mock.calls[0];
-      expect(String(url)).toContain(
-        runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes",
-      );
-      const body = JSON.parse(String(init?.body));
-      expect(body.credentials).toEqual(credentials);
-      expect(body).not.toHaveProperty("source");
-      expect(body).not.toHaveProperty("commitAs");
-      expect(body).not.toHaveProperty("__source_credentials");
     },
   );
 

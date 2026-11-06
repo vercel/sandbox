@@ -38,7 +38,9 @@ remain supported. Git attribution comes from `actAs`. The deprecated `commitAs`
 field is not supported and is rejected in configuration files.
 
 The CLI reads only account IDs and usernames for actor selection. Unused private
-helpers and duplicate configuration-test setup are removed.
+helpers, action exports, and persistence return values are removed. Configuration
+and transport tests share coverage. The CLI handles display-name requests without
+adding them to SDK authentication.
 
 The preview labels the clone source as `Repo`, lists actions one per line, and
 separates the column headings from the inferred parameter values.

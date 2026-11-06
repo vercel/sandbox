@@ -16,8 +16,8 @@ describe("public exports", () => {
       real.GITHUB_API_CREDENTIAL_ACTIONS,
     );
     expect(mock).toHaveProperty(
-      "MANAGED_GIT_ACTIONS",
-      real.MANAGED_GIT_ACTIONS,
+      "SANDBOX_GITHUB_CREDENTIAL_ACTIONS",
+      real.SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
     );
   });
   test("re-exports every value the real SDK exposes", () => {

@@ -28,7 +28,6 @@ import { CliError } from "../util/cli-error";
 import { describeCreationRejection } from "../util/create-rejection";
 import { APIError } from "@vercel/sandbox";
 import {
-  MANAGED_CREDENTIALS_VCPUS,
   prepareManagedCredentials,
   persistManagedConfiguration,
 } from "../util/managed-credentials-create";
@@ -144,18 +143,12 @@ export const create = cmd.command({
     } = input;
     const { interactive } = scope;
     const requested = scope.managed?.config;
-    const effectiveTeam = scope.team;
-    const effectiveProject = scope.project;
     const authScope = () => ({
       token: scope.token,
-      team: effectiveTeam,
-      project: effectiveProject,
-      ...(scope.teamSlug && effectiveTeam === scope.team
-        ? { teamSlug: scope.teamSlug }
-        : {}),
-      ...(scope.projectSlug && effectiveProject === scope.project
-        ? { projectSlug: scope.projectSlug }
-        : {}),
+      team: scope.team,
+      project: scope.project,
+      ...(scope.teamSlug ? { teamSlug: scope.teamSlug } : {}),
+      ...(scope.projectSlug ? { projectSlug: scope.projectSlug } : {}),
     });
     let creationAttempted = false;
     let createdName: string | undefined;
@@ -261,8 +254,8 @@ export const create = cmd.command({
         creationAttempted = true;
         sandbox = await sandboxClient.create({
           name,
-          teamId: effectiveTeam,
-          projectId: effectiveProject,
+          teamId: scope.team,
+          projectId: scope.project,
           token: scope.token,
           ports,
           ...sourceOptions,
@@ -359,7 +352,7 @@ export const create = cmd.command({
           });
         } finally {
           if (launcher && !silent) {
-            const scopeFlags = `--scope=${effectiveTeam} --project=${effectiveProject}`;
+            const scopeFlags = `--scope=${scope.team} --project=${scope.project}`;
             const envFlags =
               launcher.reconnectEnv === "explicit"
                 ? Object.keys(envVars)

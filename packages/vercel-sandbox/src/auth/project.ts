@@ -42,10 +42,7 @@ const DEFAULT_PROJECT_NAME = "vercel-sandbox-default-project";
 
 /** Status codes that mean "this team can't be used, try the next one". */
 function isSkippableTeamError(e: unknown): boolean {
-  return (
-    e instanceof NotOk &&
-    (e.response.statusCode === 402 || e.response.statusCode === 403)
-  );
+  return e instanceof NotOk && (e.response.statusCode === 402 || e.response.statusCode === 403);
 }
 
 /**
@@ -95,11 +92,7 @@ export async function inferScope(opts: {
   }
 
   if (opts.teamId) {
-    const result = await tryTeam(opts.token, opts.teamId);
-    const teamSlug = opts.teamId.startsWith("team_")
-      ? await resolveTeamSlug(opts.token, opts.teamId)
-      : undefined;
-    return { ...result, ...(teamSlug ? { teamSlug } : {}) };
+    return tryTeam(opts.token, opts.teamId);
   }
 
   const userData = await fetchApi({
@@ -112,8 +105,16 @@ export async function inferScope(opts: {
   if (defaultTeamId) {
     try {
       const result = await tryTeam(opts.token, defaultTeamId);
-      const teamSlug = await resolveTeamSlug(opts.token, defaultTeamId);
-      return { ...result, ...(teamSlug ? { teamSlug } : {}) };
+      // Resolve team slug (best-effort)
+      try {
+        const team = await fetchApi({
+          token: opts.token,
+          endpoint: `/v2/teams/${encodeURIComponent(defaultTeamId)}`,
+        }).then(z.object({ slug: z.string() }).parse);
+        return { ...result, teamSlug: team.slug };
+      } catch {
+        return result;
+      }
     } catch (e) {
       if (!isSkippableTeamError(e)) throw e;
     }
@@ -123,7 +124,9 @@ export async function inferScope(opts: {
   let next: number | null = null;
   do {
     const endpoint: string =
-      next === null ? "/v2/teams?limit=20" : `/v2/teams?limit=20&until=${next}`;
+      next === null
+        ? "/v2/teams?limit=20"
+        : `/v2/teams?limit=20&until=${next}`;
     const page = await fetchApi({ token: opts.token, endpoint }).then(
       TeamsSchema.parse,
     );
@@ -139,9 +142,7 @@ export async function inferScope(opts: {
 
     const bestHobbyTeam =
       hobbyOwnerTeams.find((t) => t.slug === username) ??
-      hobbyOwnerTeams.sort(
-        (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
-      )[0];
+      hobbyOwnerTeams.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
 
     if (bestHobbyTeam && bestHobbyTeam.id !== defaultTeamId) {
       try {
@@ -205,21 +206,6 @@ async function tryTeam(
   }
 
   return { projectId: DEFAULT_PROJECT_NAME, teamId, created };
-}
-
-async function resolveTeamSlug(
-  token: string,
-  teamId: string,
-): Promise<string | undefined> {
-  try {
-    const team = await fetchApi({
-      token,
-      endpoint: `/v2/teams/${encodeURIComponent(teamId)}`,
-    }).then(z.object({ slug: z.string().min(1) }).parse);
-    return team.slug;
-  } catch {
-    return undefined;
-  }
 }
 
 /**

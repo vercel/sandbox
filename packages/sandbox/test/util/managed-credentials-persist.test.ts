@@ -34,6 +34,7 @@ describe("output path resolution", () => {
   test.each([
     ["out/config.json", "/work/out/config.json"],
     ["/tmp/config.json", "/tmp/config.json"],
+    ["/tmp/../config.json", "/tmp/../config.json"],
   ])("resolves %s against the working directory", (requested, expected) => {
     expect(resolvePersistPath({ requested, cwd: "/work" })).toBe(expected);
   });

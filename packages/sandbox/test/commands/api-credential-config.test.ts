@@ -116,34 +116,3 @@ test("rejects commitAs in configuration files before requesting access", async (
   expect(createSandbox).not.toHaveBeenCalled();
   expect(hasBounds).not.toHaveBeenCalled();
 });
-
-test("rejects duplicate repository entries just as the API schema does", async () => {
-  const document = apiDocument();
-  document.credentials.github[0].repositories = [
-    "acme/Widgets",
-    "acme/Widgets",
-  ];
-  const input = join(directory, "duplicate-repositories.json");
-  await writeFile(input, JSON.stringify(document));
-  await expect(invoke(input)).rejects.toThrow(/Duplicate repositories/);
-  expect(createSandbox).not.toHaveBeenCalled();
-  expect(hasBounds).not.toHaveBeenCalled();
-});
-
-test("rejects CLI-only repo aliases instead of accepting a second JSON schema", async () => {
-  const input = join(directory, "old-cli-shape.json");
-  await writeFile(
-    input,
-    JSON.stringify({
-      source: { repo: "acme/widgets" },
-      credentials: {
-        github: [{ repo: "acme/widgets", actions: ["git:write"], actAs: "42" }],
-      },
-    }),
-  );
-  await expect(invoke(input)).rejects.toThrow(
-    /Invalid managed credentials configuration/,
-  );
-  expect(createSandbox).not.toHaveBeenCalled();
-  expect(hasBounds).not.toHaveBeenCalled();
-});

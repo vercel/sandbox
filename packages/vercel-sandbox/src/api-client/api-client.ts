@@ -229,43 +229,42 @@ export class APIClient extends BaseClient {
   }
 
   async createSandbox(
-    params: WithPrivate<
-      ManagedCredentialOptions & {
-        name?: string;
-        ports?: number[];
-        projectId: string;
-        source?:
-          | {
-              type: "git";
-              url: string;
-              depth?: number;
-              revision?: string;
-              username?: string;
-              password?: string;
-            }
-          | { type: "tarball"; url: string }
-          | { type: "snapshot"; snapshotId: string };
-        timeout?: number;
-        resources?: { vcpus: number };
-        persistent?: boolean;
-        runtime?: RUNTIMES | (string & {});
-        image?: string;
-        networkPolicy?: NetworkPolicy;
-        networkId?: string;
-        env?: Record<string, string>;
-        tags?: Record<string, string>;
-        snapshotExpiration?: number;
-        keepLastSnapshots?: {
-          count: number;
-          expiration?: number;
-          deleteEvicted?: boolean;
-        };
-        mounts?: SandboxMetaData["mounts"];
-        region?: SandboxRegion;
-        failoverRegions?: SandboxRegion[];
-        signal?: AbortSignal;
-      }
-    >,
+    params: WithPrivate<{
+      name?: string;
+      ports?: number[];
+      projectId: string;
+      source?:
+        | {
+            type: "git";
+            url: string;
+            depth?: number;
+            revision?: string;
+            username?: string;
+            password?: string;
+          }
+        | { type: "tarball"; url: string }
+        | { type: "snapshot"; snapshotId: string };
+      credentials?: ManagedCredentialOptions["credentials"];
+      timeout?: number;
+      resources?: { vcpus: number };
+      persistent?: boolean;
+      runtime?: RUNTIMES | (string & {});
+      image?: string;
+      networkPolicy?: NetworkPolicy;
+      networkId?: string;
+      env?: Record<string, string>;
+      tags?: Record<string, string>;
+      snapshotExpiration?: number;
+      keepLastSnapshots?: {
+        count: number;
+        expiration?: number;
+        deleteEvicted?: boolean;
+      };
+      mounts?: SandboxMetaData["mounts"];
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
+      signal?: AbortSignal;
+    }>,
   ) {
     const privateParams = getPrivateParams(params);
     const endpoint =

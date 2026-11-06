@@ -86,28 +86,7 @@ const canonicalGithubActor = z.union([githubUserId, githubUsername]);
 
 /** Flag-only actor normalizer; configuration files require canonical strings. */
 export const githubActor = z
-  .union([z.string(), z.number()])
-  .superRefine((value, ctx) => {
-    if (typeof value !== "number") return;
-    if (!Number.isInteger(value) || value <= 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "A numeric actAs must be a positive integer GitHub user ID.",
-      });
-      return;
-    }
-    if (!Number.isSafeInteger(value)) {
-      // A JSON number this large already lost precision during parsing, so it
-      // cannot be trusted to identify the intended account. Require the
-      // string form instead of authorizing a neighbouring ID.
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "A numeric actAs beyond 2^53-1 loses precision. Quote the ID as a string.",
-      });
-    }
-  })
-  .transform((value) => (typeof value === "number" ? String(value) : value))
+  .string()
   .transform((value) =>
     /^[0-9]+$/.test(value) || value.startsWith("@") ? value : `@${value}`,
   )

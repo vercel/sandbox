@@ -252,9 +252,12 @@ describe("explicit configuration sources", () => {
       }),
     );
 
-    await expect(resolve({ credentialsFromConfigFile: path })).rejects.toThrow(
-      CliError,
-    );
+    const ctx = context();
+    await expect(
+      resolve({ credentialsFromConfigFile: path }, ctx),
+    ).rejects.toThrow(CliError);
+    expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
+    expect(ctx.inferActorImpl).not.toHaveBeenCalled();
   });
 
   test("an empty github array acquires no default actions", async () => {
@@ -279,39 +282,6 @@ describe("explicit configuration sources", () => {
     expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
     expect(ctx.inferActorImpl).not.toHaveBeenCalled();
   });
-
-  test.each([
-    { source: { repo: "acme/widgets" }, credentials: { github: [] } },
-    {
-      credentials: {
-        github: [{ repo: "acme/widgets", actions: ["github:issues:read"] }],
-      },
-    },
-    {
-      credentials: {
-        github: [{ repositories: ["acme/widgets"], actions: ["issues:read"] }],
-      },
-    },
-    {
-      credentials: {
-        github: [
-          { repositories: ["acme/widgets"], actions: ["git:write"], actAs: 42 },
-        ],
-      },
-    },
-  ])(
-    "rejects old logical shapes and file aliases without inference: %j",
-    async (document) => {
-      const path = await withTempFile(JSON.stringify(document));
-      const ctx = context();
-
-      await expect(
-        resolve({ credentialsFromConfigFile: path }, ctx),
-      ).rejects.toThrow(CliError);
-      expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
-      expect(ctx.inferActorImpl).not.toHaveBeenCalled();
-    },
-  );
 
   test("reuses a configuration from another sandbox", async () => {
     const loadFromSandbox = vi.fn().mockResolvedValue({

@@ -284,15 +284,22 @@ describe("team selection from paginated results", () => {
 });
 
 describe("inferScope", () => {
-  test("uses provided teamId", async () => {
-    fetchApiMock.mockResolvedValue({});
-    const scope = await inferScope({ teamId: "my-team", token: "token" });
-    expect(scope).toEqual({
-      created: false,
-      projectId: "vercel-sandbox-default-project",
-      teamId: "my-team",
-    });
-  });
+  test.each(["my-team", "team_selected"])(
+    "uses provided teamId %s without display-name lookups",
+    async (teamId) => {
+      fetchApiMock.mockResolvedValue({});
+      const scope = await inferScope({ teamId, token: "token" });
+      expect(scope).toEqual({
+        created: false,
+        projectId: "vercel-sandbox-default-project",
+        teamId,
+      });
+      expect(fetchApiMock).toHaveBeenCalledExactlyOnceWith({
+        token: "token",
+        endpoint: `/v2/projects/vercel-sandbox-default-project?${teamId.startsWith("team_") ? "teamId" : "slug"}=${teamId}`,
+      });
+    },
+  );
 
   describe("project creation", () => {
     test("project 404 triggers project creation", async () => {
@@ -404,26 +411,33 @@ describe("inferScope", () => {
       );
     });
 
-    test("uses defaultTeamId when it succeeds", async () => {
-      fetchApiMock.mockImplementation(async ({ endpoint }) => {
-        if (endpoint === "/v2/user") {
-          return {
-            user: { defaultTeamId: "team_default", username: "my-user" },
-          };
-        }
-        if (endpoint.startsWith("/v2/teams")) {
-          return { teams: [], pagination: { count: 0, next: null } };
-        }
-        return {};
-      });
+    test.each([false, true])(
+      "uses defaultTeamId when its display-name lookup fails=%s",
+      async (unavailable) => {
+        fetchApiMock.mockImplementation(async ({ endpoint }) => {
+          if (endpoint === "/v2/user") {
+            return {
+              user: { defaultTeamId: "team_default", username: "my-user" },
+            };
+          }
+          if (endpoint === "/v2/teams/team_default") {
+            if (unavailable) {
+              throw new NotOk({ statusCode: 403, responseText: "Forbidden" });
+            }
+            return { slug: "default-team" };
+          }
+          return {};
+        });
 
-      const scope = await inferScope({ token: "token" });
-      expect(scope).toEqual({
-        created: false,
-        projectId: "vercel-sandbox-default-project",
-        teamId: "team_default",
-      });
-    });
+        const scope = await inferScope({ token: "token" });
+        expect(scope).toEqual({
+          created: false,
+          projectId: "vercel-sandbox-default-project",
+          teamId: "team_default",
+          ...(unavailable ? {} : { teamSlug: "default-team" }),
+        });
+      },
+    );
 
     test("creates project in fallback team when it returns 404", async () => {
       fetchApiMock.mockImplementation(async ({ endpoint, method }) => {
@@ -611,33 +625,3 @@ describe("inferScope", () => {
     });
   });
 });
-
-test.each([false, true])(
-  "keeps explicit team selection when its name lookup fails=%s",
-  async (unavailable) => {
-    const cwd = await getTempDir();
-    fetchApiMock.mockImplementation(async ({ endpoint }) => {
-      if (endpoint.startsWith("/v2/projects/")) return {};
-      if (endpoint === "/v2/teams/team_selected") {
-        if (unavailable)
-          throw new NotOk({
-            statusCode: 403,
-            responseText: "Unavailable display name",
-          });
-        return { slug: "selected-team" };
-      }
-      throw new Error(`Unexpected lookup: ${endpoint}`);
-    });
-    await expect(
-      inferScope({ token: "t", teamId: "team_selected", cwd }),
-    ).resolves.toEqual({
-      teamId: "team_selected",
-      projectId: "vercel-sandbox-default-project",
-      created: false,
-      ...(unavailable ? {} : { teamSlug: "selected-team" }),
-    });
-    expect(fetchApiMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: "/v2/user" }),
-    );
-  },
-);
