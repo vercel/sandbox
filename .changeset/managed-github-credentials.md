@@ -23,7 +23,8 @@ Configurations are read from and persisted to API-shaped JSON files
 reused from an existing Sandbox without resuming it or copying consent.
 The confirmation preview replaces a separate dry-run mode. Normal authentication
 and project selection happen before the preview. Project Bounds are read before
-creation using the approved scope. An unreadable policy stops the command.
+creation using one project-scoped request with backend selector resolution and
+pagination. An unreadable policy stops the command.
 A project with no Bounds warns and requires a second confirmation.
 
 The SDK gains managed Git and GitHub API credential request contracts and

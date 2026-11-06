@@ -30,18 +30,22 @@ function read(fetch: typeof globalThis.fetch, signal?: AbortSignal) {
   );
 }
 
-test("reuses successful metadata reads between display and policy in one invocation", async () => {
+test("caches display metadata while project Bounds reads stay fresh", async () => {
   const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
     const { pathname } = new URL(String(input));
     return json(
-      pathname.includes("/projects/")
+      pathname.startsWith("/api/v9/projects/")
         ? project
-        : pathname.includes("/teams/")
+        : pathname.startsWith("/api/v2/teams/")
           ? team
-          : { bounds: [], pagination: { next: null } },
+          : { teamId: scope.team, projectId: scope.project, bounds: [] },
     );
   });
   const api = createVercelApi({ ...scope, fetch });
+  expect(await resolveScopeDisplay({ ...scope, api })).toEqual({
+    team: team.slug,
+    project: project.name,
+  });
   expect(await resolveScopeDisplay({ ...scope, api })).toEqual({
     team: team.slug,
     project: project.name,

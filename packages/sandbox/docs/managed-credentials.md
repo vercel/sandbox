@@ -204,12 +204,12 @@ but never creates or changes them:
 - If the policy cannot be read, the command stops. A failed lookup never means
   that access is unrestricted.
 
-The check runs after approval, using the final approved team and project, and
-reads all relevant pages before deciding that no Bounds exist. It is read-only.
-The current token must be able to read the project and its team's Bounds: a
-project OIDC token can identify the right scope but still receive HTTP 403 from
-those endpoints, and the CLI stops in that case rather than treating inaccessible
-policy as absent. A Vercel user login can read these endpoints given permission.
+The check runs after approval, using the final approved team and project.
+One project-scoped request resolves IDs or exact names and returns all project
+Bounds. The backend handles pagination. The current token must have read access
+to that project. The endpoint supports verified user and project-scoped OIDC
+authentication. A failed read still stops creation instead of implying that
+Bounds are absent.
 
 `--yes` skips the parameter review and accepts both confirmations. It does not
 disable the Bounds check or hide warnings and errors.
