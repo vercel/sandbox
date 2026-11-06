@@ -61,7 +61,6 @@ export async function loadConfigFromSandbox(options: {
       `Sandbox ${options.selector} does not report a managed-credentials configuration, so there is nothing to reuse. The Sandbox API only returns one for Sandboxes created with managed credentials.`,
       {
         reason: "configuration_unavailable",
-        data: { selector: options.selector },
       },
     );
   }

@@ -119,17 +119,11 @@ describe("create with managed credentials", () => {
   // create-rejection), which this file deliberately does not re-run.
 
   describe("project Bounds", () => {
-    test("JSON --yes keeps the warning on stderr and the creation result on stdout", async () => {
+    test("--yes --silent keeps the Bounds warning visible", async () => {
       mockHasProjectBounds.mockResolvedValue(false);
-      await createWith(["--enable-github-credentials", "--yes", "--json"]);
-      expect(JSON.parse(errText())).toMatchObject({
-        status: "warning",
-        reason: "project_has_no_bounds",
-      });
-      expect(JSON.parse(stdout.mock.calls.flat().join(""))).toMatchObject({
-        outcome: "created",
-        sandbox: { name: "new-sandbox" },
-      });
+      await createWith(["--enable-github-credentials", "--yes", "--silent"]);
+      expect(errText()).toContain("This project has no Bounds");
+      expect(stdout).not.toHaveBeenCalled();
       expect(mockCreate).toHaveBeenCalledOnce();
     });
   });
@@ -384,7 +378,6 @@ describe("create with managed credentials", () => {
       const error = await createWith([
         "--credentials-github-action=git:write",
         "--yes",
-        "--json",
       ]).catch((error) => error);
       expect(error).toBeInstanceOf(CliError);
       expect(error.message).toContain("HTTP 400, bad_request");
@@ -392,12 +385,6 @@ describe("create with managed credentials", () => {
       expect(error.message).not.toContain("private-response-canary");
       expect(error.options).toMatchObject({
         reason: "creation_failed",
-        json: true,
-        data: {
-          status: 400,
-          apiCode: "bad_request",
-          apiReason: "unsupported_credential_action",
-        },
       });
       expect(mockCreate).toHaveBeenCalledOnce();
       expect(stdout).not.toHaveBeenCalled();
@@ -419,13 +406,11 @@ describe("create with managed credentials", () => {
         const error = await createWith([
           "--credentials-github-action=git:write",
           "--yes",
-          "--json",
         ]).catch((error) => error);
         expect(error.options.reason).toBe("unknown_outcome");
         expect(error.message).toContain(
           "Inspect the sandbox list before retrying",
         );
-        expect(error.options.data).not.toHaveProperty("apiCode");
         expect(error.message).not.toContain("private-response-canary");
         expect(mockCreate).toHaveBeenCalledOnce();
       },

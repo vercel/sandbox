@@ -251,7 +251,6 @@ async function resolveFromFlags(
         "Can't infer the repository for managed credentials. Run the command inside a GitHub repository with a github.com remote, or pass --credentials-github-repo OWNER/REPOSITORY.",
         {
           reason: "missing_context",
-          data: { required: ["--credentials-github-repo"] },
         },
       );
     }
@@ -282,7 +281,6 @@ async function resolveFromFlags(
       "Can't resolve the GitHub account to act as. Log in with gh, or pass --credentials-github-act-as with a GitHub username or numeric user ID.",
       {
         reason: "missing_context",
-        data: { required: ["--credentials-github-act-as"] },
       },
     );
   }

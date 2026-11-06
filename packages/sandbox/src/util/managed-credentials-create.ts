@@ -56,20 +56,19 @@ export async function prepareManagedCredentials(options: {
   // Labels for the review table only. The selected IDs below stay the sole
   // authority for policy reads and for the API, and the token never changes.
   // A --yes run never shows the table, so skip both metadata GETs.
-  const displayScope =
-    context.mode.json || context.yes
-      ? {
-          team: context.teamSlug ?? context.team,
-          project: context.projectSlug ?? context.project,
-        }
-      : await resolveScopeDisplay({
-          token: context.token,
-          team: context.team,
-          project: context.project,
-          teamSlug: context.teamSlug,
-          projectSlug: context.projectSlug,
-          api,
-        });
+  const displayScope = context.yes
+    ? {
+        team: context.teamSlug ?? context.team,
+        project: context.projectSlug ?? context.project,
+      }
+    : await resolveScopeDisplay({
+        token: context.token,
+        team: context.team,
+        project: context.project,
+        teamSlug: context.teamSlug,
+        projectSlug: context.projectSlug,
+        api,
+      });
 
   await runManagedCredentialsFlow({
     initial: context.managed,
@@ -83,27 +82,10 @@ export async function prepareManagedCredentials(options: {
       ...(options.sandboxName ? { sandboxName: options.sandboxName } : {}),
       vcpus,
       vcpusExplicit: options.vcpus !== undefined,
-      interactive: context.mode.interactive,
-      json: context.mode.json,
+      interactive: context.interactive,
       yes: context.yes,
-      hasProjectBounds: async ({ team, project }) => {
-        try {
-          return await hasProjectBounds({
-            token: context.token,
-            team,
-            project,
-            api,
-          });
-        } catch (error) {
-          if (error instanceof CliError) {
-            throw new CliError(error.message, {
-              ...error.options,
-              json: context.mode.json,
-            });
-          }
-          throw error;
-        }
-      },
+      hasProjectBounds: ({ team, project }) =>
+        hasProjectBounds({ token: context.token, team, project, api }),
       // Recovery keeps the selector spelling the user typed, not the review
       // labels: a slug the user supplied, otherwise the selected ID.
       renderCommand: (config) =>
@@ -130,12 +112,11 @@ export async function prepareManagedCredentials(options: {
 export async function persistManagedConfiguration(options: {
   context: CreateContext;
   config: ManagedCredentialsConfig;
-  sandboxId: string;
   sandboxName: string;
   silent?: boolean;
-}): Promise<string | undefined> {
+}): Promise<void> {
   const requested = options.context.persistConfiguration;
-  if (requested === undefined) return undefined;
+  if (requested === undefined) return;
 
   let path: string;
   try {
@@ -148,17 +129,11 @@ export async function persistManagedConfiguration(options: {
       {
         reason: "persist_failed",
         exitCode: 1,
-        json: options.context.mode.json,
-        data: {
-          sandbox: { name: options.sandboxName, id: options.sandboxId },
-          outcome: "created_without_configuration_file",
-        },
       },
     );
   }
 
-  if (!options.silent && !options.context.mode.json) {
+  if (!options.silent) {
     process.stderr.write(`   ╰ Configuration saved to ${path}\n`);
   }
-  return path;
 }

@@ -25,26 +25,25 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("VERCEL_AUTH_TOKEN", "existing");
 });
-afterEach(() => vi.unstubAllEnvs());
-test("does not register a separate dry-run mode", async () => {
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
+test.each(["--dry-run", "--json"])("does not register %s", async (flag) => {
   expect(
-    (
-      await cmd.runSafely(parser, [
-        "--scope=team",
-        "--project=project",
-        "--dry-run",
-      ])
-    )._tag,
+    (await cmd.runSafely(parser, ["--scope=team", "--project=project", flag]))
+      ._tag,
   ).toBe("error");
   expect(
     createContext()
       .helpTopics()
-      .some((topic) => topic.usage?.includes("--dry-run")),
+      .some((topic) => topic.usage?.includes(flag)),
   ).toBe(false);
 });
 test.each(["sandbox", "vercel sandbox"])(
   "includes the explicit rejected command for %s",
   async (appName) => {
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     let context: Awaited<ReturnType<typeof parser.handler>> | undefined;
     const leaf = cmd.command({
       name: "create",
@@ -58,7 +57,7 @@ test.each(["sandbox", "vercel sandbox"])(
       "create",
       "--scope=team",
       "--project=project",
-      "--json",
+      "--non-interactive",
       "--credentials-github-repo=acme/widgets",
       "--credentials-github-action=issues:read",
       "--credentials-github-action=git:write",
@@ -74,7 +73,7 @@ test.each(["sandbox", "vercel sandbox"])(
       expect(error).toBeInstanceOf(CliError);
       const failure = error as CliError;
       expect(failure.options.reason).toBe("confirmation_required");
-      const command = (failure.options.data as { command?: string }).command;
+      const command = stderr.mock.calls.flat().join("");
       expect(command).toBeTypeOf("string");
       expect(command).toContain(`${appName} create `);
       expect(command).toContain("--scope=team");
@@ -101,10 +100,10 @@ test("invalid configuration is rejected before authentication", async () => {
   ).rejects.toThrow("Can't read");
   expect(getVercelToken).not.toHaveBeenCalled();
 });
-test("execution syntax errors retain the requested JSON error mode", async () => {
-  await expect(
-    cmd.run(parser, ["--json", "--yes", "--yes"]),
-  ).rejects.toMatchObject({ options: { json: true } });
+test("rejects repeated approval flags", async () => {
+  await expect(cmd.run(parser, ["--yes", "--yes"])).rejects.toBeInstanceOf(
+    CliError,
+  );
 });
 test.each([
   "--git-source",
@@ -124,28 +123,23 @@ test.each([
   ).toBe("error");
 });
 
-test.each([false, true])(
-  "reuse lookup failures are safe CLI errors (JSON: %s)",
-  async (json) => {
-    vi.mocked(fetchSandboxCredentialSnapshot).mockRejectedValueOnce(
-      new Error("private-response-canary"),
-    );
-    const error = await cmd
-      .run(parser, [
-        "--scope=team",
-        "--project=project",
-        "--credentials-github-from-sandbox=source",
-        ...(json ? ["--json"] : []),
-      ])
-      .catch((error) => error);
-    expect(error).toBeInstanceOf(CliError);
-    expect(error.options).toMatchObject({
-      reason: "configuration_lookup_failed",
-      exitCode: 1,
-      json,
-    });
-    expect(error.message).not.toContain("private-response-canary");
-    expect(error.cause).toBeUndefined();
-    expect(fetchSandboxCredentialSnapshot).toHaveBeenCalledOnce();
-  },
-);
+test("reuse lookup failures are safe CLI errors", async () => {
+  vi.mocked(fetchSandboxCredentialSnapshot).mockRejectedValueOnce(
+    new Error("private-response-canary"),
+  );
+  const error = await cmd
+    .run(parser, [
+      "--scope=team",
+      "--project=project",
+      "--credentials-github-from-sandbox=source",
+    ])
+    .catch((error) => error);
+  expect(error).toBeInstanceOf(CliError);
+  expect(error.options).toMatchObject({
+    reason: "configuration_lookup_failed",
+    exitCode: 1,
+  });
+  expect(error.message).not.toContain("private-response-canary");
+  expect(error.cause).toBeUndefined();
+  expect(fetchSandboxCredentialSnapshot).toHaveBeenCalledOnce();
+});

@@ -227,20 +227,16 @@ export interface ResolvedConfig {
 export function parseConfig(value: unknown): ManagedCredentialsConfig {
   const parsed = configSchema.safeParse(value);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map((issue) => ({
-      field: issue.path.join(".") || "$",
-      message:
-        issue.code === "unrecognized_keys"
-          ? "Unknown fields are not supported."
-          : // Only custom messages are ours. Never echo untrusted URL, actor,
-            // action or credential values from a library diagnostic.
-            issue.code === "custom"
-            ? issue.message
-            : "Invalid or missing value.",
-    }));
+    const issue = parsed.error.issues[0];
+    // Never echo untrusted values from a library diagnostic.
+    const message =
+      issue.code === "unrecognized_keys"
+        ? "Unknown fields are not supported."
+        : issue.code === "custom"
+          ? issue.message
+          : "Invalid or missing value.";
     throw new CliError(
-      `Invalid managed credentials configuration at ${issues[0].field}: ${issues[0].message}`,
-      { data: { issues } },
+      `Invalid managed credentials configuration at ${issue.path.join(".") || "$"}: ${message}`,
     );
   }
   // The schema has no transformations. Keep the original canonical object so
@@ -274,7 +270,6 @@ export function validateConfig(
         if (existing !== undefined && existing !== group.actAs) {
           throw new CliError(
             `Conflicting identities for ${repo}. Use one actAs per repository instead of relying on a merge.`,
-            { data: { repository: repo } },
           );
         }
         actors.set(key, group.actAs);

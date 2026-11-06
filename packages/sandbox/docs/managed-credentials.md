@@ -26,7 +26,7 @@ without changing these flags.
 - [Reusing a configuration](#reusing-a-configuration)
 - [Resources](#resources)
 - [Safety rules](#safety-rules)
-- [Non-interactive use and JSON](#non-interactive-use-and-json)
+- [Non-interactive use](#non-interactive-use)
 - [Testing locally](#testing-locally)
 
 ## Quick start
@@ -216,9 +216,7 @@ those endpoints, and the CLI stops in that case rather than treating inaccessibl
 policy as absent. A Vercel user login can read these endpoints given permission.
 
 `--yes` skips the parameter review and accepts both confirmations. It does not
-disable the Bounds check or hide warnings and errors. With `--json --yes`, the
-warning is one JSON object on stderr with `reason: "project_has_no_bounds"`; the
-created result on stdout is unchanged.
+disable the Bounds check or hide warnings and errors.
 
 ### Reject and correct the command
 
@@ -253,9 +251,6 @@ resolved JSON and a temporary-file command. Only running that command creates th
 private temporary file. The command removes that file on exit and leaves stdin
 available for other inputs. It does not read permissions from the original
 configuration file or Sandbox again.
-
-In JSON mode, a consent-required error includes the command in `data.command`.
-No extra plain text is added to JSON output. The command retains the reviewed team and project.
 
 ## Configuration files
 
@@ -386,23 +381,21 @@ Beyond the Bounds rules above:
 - If the creation outcome is uncertain, inspect the Sandbox list before retrying.
   A failed response does not prove that the server created no resources.
 
-## Non-interactive use and JSON
+## Non-interactive use
 
-`--json`, CI, piped input, and `--non-interactive` never prompt. In those modes
+CI, piped input, and `--non-interactive` never prompt. In those modes
 a managed-credentials request needs `--yes`, which grants consent — never a
 missing input or a missing permission. `--silent` alone does not suppress the review
 or bypass consent. One approval covers creation with the displayed rights; it
 does not change project-wide policy. `--enable-github-credentials` selects
 defaults, not consent.
 
-Success writes one JSON document to stdout with `sandbox.name`, `session.id`,
-`session.status`, `outcome: "created"`, a `configuration.path` when a
-configuration was persisted, and a `next` verification command. Errors write
-JSON to stderr and leave stdout empty. Input errors exit 2, operational
-failures exit 1, cancellation exits 130.
+Command output is text. Credential validation failures exit 2, operational failures
+exit 1, and cancellation exits 130. To export reusable JSON after successful creation, pass
+`--credentials-github-persist-configuration=FILE`.
 
-Without `--yes`, a non-interactive request returns `confirmation_required`
-with the proposed access and explicit command. It does not create a Sandbox.
+Without `--yes`, a non-interactive request prints the proposed access and explicit
+command, then stops without creating a Sandbox.
 
 `run` and `sh` accept the same creation inputs. `exec`, `connect`, and `fork`
 do not accept credential mutations.

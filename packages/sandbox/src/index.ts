@@ -13,8 +13,7 @@ export function createApp(opts: { withoutAuth: boolean; appName: string }) {
       } catch (error) {
         if (error instanceof CliError) {
           telemetry.trackExitCode(error.exitCode);
-          if (error.options.json) error.writeJson();
-          else process.stderr.write(error.message + "\n");
+          process.stderr.write(error.message + "\n");
           process.exitCode = error.exitCode;
           return;
         }

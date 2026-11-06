@@ -142,7 +142,7 @@ export const create = cmd.command({
       keepLastSnapshotsFor,
       deleteEvictedSnapshots,
     } = input;
-    const { mode } = scope;
+    const { interactive } = scope;
     const requested = scope.managed?.config;
     const effectiveTeam = scope.team;
     const effectiveProject = scope.project;
@@ -185,12 +185,7 @@ export const create = cmd.command({
           "A snapshot source cannot be combined with --runtime, --image, or an agent shortcut.",
         );
       }
-      if (mode.json && (silent || connect || agent)) {
-        throw new CliError(
-          "--json cannot be combined with --silent, --connect, or an agent shortcut.",
-        );
-      }
-      if (!mode.interactive && (connect || agent) && scope.creationRequested) {
+      if (!interactive && (connect || agent) && scope.creationRequested) {
         throw new CliError(
           "Connecting after creation requires an interactive terminal. Remove --connect or the agent shortcut, then connect separately.",
         );
@@ -218,8 +213,7 @@ export const create = cmd.command({
 
       // Look up the latest published CLI version while the creation request is
       // in flight, so stale installs learn they're behind at no latency cost.
-      const versionCheck =
-        silent || mode.json ? undefined : startLatestVersionCheck();
+      const versionCheck = silent ? undefined : startLatestVersionCheck();
 
       const networkPolicy = buildNetworkPolicy(input) ?? "allow-all";
 
@@ -254,9 +248,7 @@ export const create = cmd.command({
       const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
       const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
       const spinner =
-        silent || !mode.interactive
-          ? undefined
-          : ora("Creating sandbox...").start();
+        silent || !interactive ? undefined : ora("Creating sandbox...").start();
       const managedSource = prepared
         ? (prepared.config.source ??
           (source?.type === "snapshot" ? source : undefined))
@@ -311,50 +303,16 @@ export const create = cmd.command({
       // Persist after a confirmed creation, using the identifier the response
       // actually returned. A failure here reports the created sandbox rather
       // than creating another one to retry a local write.
-      let persistedPath: string | undefined;
       if (prepared) {
-        persistedPath = await persistManagedConfiguration({
+        await persistManagedConfiguration({
           context: scope,
           config: prepared.config,
-          sandboxId: sandbox.currentSession().sessionId,
           sandboxName: sandbox.name,
           silent,
         });
       }
 
-      if (mode.json) {
-        const session = sandbox.currentSession();
-        const selector = (value: string, placeholder: string) =>
-          /^[A-Za-z0-9_.-]+$/.test(value) ? value : placeholder;
-        const argv = [
-          ...(scope.appName === "vercel sandbox"
-            ? ["vercel", "sandbox"]
-            : ["sandbox"]),
-          "config",
-          "list",
-          selector(sandbox.name, "<SANDBOX>"),
-          "--scope",
-          selector(effectiveTeam, "<TEAM>"),
-          "--project",
-          selector(effectiveProject, "<PROJECT>"),
-        ];
-        process.stdout.write(
-          JSON.stringify({
-            sandbox: { name: sandbox.name },
-            session: { id: session.sessionId, status: session.status },
-            outcome: "created",
-            ...(persistedPath
-              ? { configuration: { path: persistedPath } }
-              : {}),
-            next: [
-              {
-                command: argv.join(" "),
-                argv,
-              },
-            ],
-          }) + "\n",
-        );
-      } else if (!silent) {
+      if (!silent) {
         printSandboxSummary({
           sandbox,
           scope: authScope(),
@@ -441,12 +399,8 @@ export const create = cmd.command({
 
       return sandbox;
     } catch (error) {
-      if (error instanceof CliError)
-        throw new CliError(error.message, {
-          ...error.options,
-          json: mode.json,
-        });
-      if (mode.json || scope.creationRequested) {
+      if (error instanceof CliError) throw error;
+      if (scope.creationRequested) {
         // sandboxClient.create leaves APIError unformatted so the outcome is
         // classified once, here, rather than formatted, spilled to a temporary
         // file, unwrapped and formatted again.
@@ -462,7 +416,7 @@ export const create = cmd.command({
             ? "The sandbox was created, but the local follow-up failed. Inspect the sandbox before retrying."
             : unknownOutcome
               ? "Can't confirm whether the sandbox was created. Inspect the sandbox list before retrying."
-              : rejection.message,
+              : rejection,
           {
             reason: createdName
               ? "post_creation_failed"
@@ -470,11 +424,6 @@ export const create = cmd.command({
                 ? "unknown_outcome"
                 : "creation_failed",
             exitCode: 1,
-            json: mode.json,
-            data: {
-              sandbox: { name: createdName ?? name ?? null },
-              ...rejection.data,
-            },
           },
         );
       }

@@ -27,8 +27,7 @@ export async function main() {
     telemetry.trackExitCode(exitCode);
     await telemetry.flush();
     const { printTopLevelError } = await import("./util/format-error");
-    if (e instanceof CliError && e.options.json) e.writeJson();
-    else await printTopLevelError(e);
+    await printTopLevelError(e);
     process.exit(exitCode);
   }
 }

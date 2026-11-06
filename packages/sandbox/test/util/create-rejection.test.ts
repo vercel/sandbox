@@ -23,14 +23,9 @@ test("recognizes action-schema incompatibility without copying the remote text",
       },
     }),
   );
-  expect(result.message).toContain("HTTP 400, bad_request");
-  expect(result.message).toContain("unified-credential backend");
-  expect(result.data).toEqual({
-    status: 400,
-    apiCode: "bad_request",
-    apiReason: "unsupported_credential_action",
-  });
-  expect(JSON.stringify(result)).not.toContain("private-");
+  expect(result).toContain("HTTP 400, bad_request");
+  expect(result).toContain("unified-credential backend");
+  expect(result).not.toContain("private-");
 });
 
 test.each([
@@ -42,9 +37,8 @@ test.each([
   },
 ])("unrecognized error data stays private: %j", (body) => {
   const result = describeCreationRejection(apiError(400, body));
-  expect(result.message).toContain("HTTP 400");
-  expect(result.data).toEqual({ status: 400 });
-  expect(JSON.stringify(result)).not.toContain("private-");
+  expect(result).toContain("HTTP 400");
+  expect(result).not.toContain("private-");
 });
 
 test("does not classify unrelated bad-request messages as action incompatibility", () => {
@@ -53,9 +47,8 @@ test("does not classify unrelated bad-request messages as action incompatibility
       error: { code: "bad_request", message: "private-response-canary" },
     }),
   );
-  expect(result.data).toEqual({ status: 400, apiCode: "bad_request" });
-  expect(result.message).toContain("request format");
-  expect(JSON.stringify(result)).not.toContain("private-");
+  expect(result).toContain("request format");
+  expect(result).not.toContain("private-");
 });
 
 test("policy failures retain only a recognized code and static recovery text", () => {
@@ -67,19 +60,13 @@ test("policy failures retain only a recognized code and static recovery text", (
       },
     }),
   );
-  expect(result.message).toContain("HTTP 403, git_credential_grant_forbidden");
-  expect(result.message).toContain("Bounds");
-  expect(result.data).toEqual({
-    status: 403,
-    apiCode: "git_credential_grant_forbidden",
-  });
-  expect(JSON.stringify(result)).not.toContain("private-");
+  expect(result).toContain("HTTP 403, git_credential_grant_forbidden");
+  expect(result).toContain("Bounds");
+  expect(result).not.toContain("private-");
 });
 
 test("preserves the generic fallback when no API response exists", () => {
-  expect(describeCreationRejection()).toEqual({
-    message:
-      "Sandbox creation was rejected. Check project access and managed credential availability before retrying.",
-    data: {},
-  });
+  expect(describeCreationRejection()).toBe(
+    "Sandbox creation was rejected. Check project access and managed credential availability before retrying.",
+  );
 });

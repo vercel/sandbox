@@ -24,11 +24,7 @@ const genericHint =
 
 /** Keep diagnostics useful without echoing arbitrary API bodies or error codes. */
 export function describeCreationRejection(error?: APIError<unknown>) {
-  if (!error)
-    return {
-      message: `Sandbox creation was rejected. ${genericHint}`,
-      data: {},
-    };
+  if (!error) return `Sandbox creation was rejected. ${genericHint}`;
 
   const status = error.response.status;
   const parsed = knownError.safeParse(error.json);
@@ -57,12 +53,5 @@ export function describeCreationRejection(error?: APIError<unknown>) {
     hint = "The API rate limit was reached. Wait before retrying.";
   }
 
-  return {
-    message: `Sandbox creation was rejected (HTTP ${status}${apiCode ? `, ${apiCode}` : ""}). ${hint}`,
-    data: {
-      status,
-      ...(apiCode ? { apiCode } : {}),
-      ...(actionRejected ? { apiReason: "unsupported_credential_action" } : {}),
-    },
-  };
+  return `Sandbox creation was rejected (HTTP ${status}${apiCode ? `, ${apiCode}` : ""}). ${hint}`;
 }

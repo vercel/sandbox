@@ -26,7 +26,6 @@ export interface FlowContext extends ReviewScope {
   vcpus: number;
   vcpusExplicit: boolean;
   interactive: boolean;
-  json: boolean;
   yes: boolean;
   output?: NodeJS.WritableStream;
   input?: NodeJS.ReadableStream;
@@ -48,19 +47,16 @@ export async function runManagedCredentialsFlow(options: {
     (context.output ?? process.stderr).write(text);
   const recoveryCommand = () => context.renderCommand?.(resolved.config);
   const showRecoveryCommand = (command: string | undefined) => {
-    if (command && !context.json)
+    if (command)
       write(
         `\n  Edit this credentials command and run it again.\n  Re-add other creation options if needed.\n\n${command}\n\n`,
       );
   };
   const cancel = (): never => {
-    const command = recoveryCommand();
-    showRecoveryCommand(command);
+    showRecoveryCommand(recoveryCommand());
     throw new CliError("Sandbox creation canceled.", {
       reason: "canceled",
       exitCode: 130,
-      json: context.json,
-      ...(command ? { data: { command } } : {}),
     });
   };
   const withCancellation = async <T>(
@@ -75,46 +71,33 @@ export async function runManagedCredentialsFlow(options: {
     }
   };
 
-  // --yes makes the review invisible, and the only other reader of the rows is
-  // the consent error --yes cannot reach. Do not build a table nobody sees.
-  const rows = context.yes
-    ? []
-    : buildReview({
-        config: resolved.config,
-        originLabel: resolved.originLabel,
-        provenance: {
-          ...resolved.provenance,
-          team: context.scopeProvenance?.team ?? "provided scope",
-          project: context.scopeProvenance?.project ?? "provided scope",
-        },
-        ...(resolved.actor ? { actor: resolved.actor } : {}),
-        team: context.displayScope.team,
-        project: context.displayScope.project,
-        ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
-        vcpus: context.vcpus,
-        vcpusExplicit: context.vcpusExplicit,
-      });
-  if (!context.json && !context.yes) {
+  if (!context.yes) {
+    const rows = buildReview({
+      config: resolved.config,
+      originLabel: resolved.originLabel,
+      provenance: {
+        ...resolved.provenance,
+        team: context.scopeProvenance?.team ?? "provided scope",
+        project: context.scopeProvenance?.project ?? "provided scope",
+      },
+      ...(resolved.actor ? { actor: resolved.actor } : {}),
+      team: context.displayScope.team,
+      project: context.displayScope.project,
+      ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
+      vcpus: context.vcpus,
+      vcpusExplicit: context.vcpusExplicit,
+    });
     write(
       `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
     );
   }
 
   if (!context.yes && !context.interactive) {
-    const command = recoveryCommand();
-    showRecoveryCommand(command);
+    showRecoveryCommand(recoveryCommand());
     throw new CliError(
       "Creating this sandbox requests managed access. Review the proposal and pass --yes only after approval.",
       {
         reason: "confirmation_required",
-        json: context.json,
-        userActionRequired: true,
-        data: {
-          team,
-          project,
-          effects: rows.map((row) => `${row.label}: ${row.value}`),
-          ...(command ? { command } : {}),
-        },
       },
     );
   }
@@ -138,11 +121,7 @@ export async function runManagedCredentialsFlow(options: {
       (context.yes
         ? "The Sandbox still receives only the requested rights."
         : "The Sandbox still receives only the rights shown above.");
-    if (context.json)
-      write(
-        `${JSON.stringify({ status: "warning", reason: "project_has_no_bounds", message, team, project })}\n`,
-      );
-    else write(`\n  ${message}\n\n`);
+    write(`\n  ${message}\n\n`);
     // --yes accepts both confirmations, but never suppresses the warning.
     if (!context.yes) {
       const answer = await withCancellation(() =>

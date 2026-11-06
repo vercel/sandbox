@@ -6,10 +6,7 @@ import type { ScopeProvenance } from "../util/infer-scope";
 import { createTokenOption } from "./auth";
 import { managedCredentialOptions } from "./managed-credentials";
 import { CliError } from "../util/cli-error";
-import {
-  resolveExecutionMode,
-  type ExecutionMode,
-} from "../util/execution-mode";
+import { isInteractive } from "../util/execution-mode";
 import {
   assertCompatibleOptions,
   hasManagedCredentialsRequest,
@@ -24,7 +21,7 @@ type Parsed<T> = T extends ArgParser<infer Value> ? Value : never;
 export type CreateContext = Parsed<typeof scope> & {
   appName?: "sandbox" | "vercel sandbox";
   creationRequested: boolean;
-  mode: ExecutionMode;
+  interactive: boolean;
   scopeProvenance?: ScopeProvenance;
   yes: boolean;
   managed?: ResolvedManagedCredentials;
@@ -35,9 +32,7 @@ export type CreateContext = Parsed<typeof scope> & {
 };
 
 /** Resolve the proposal without granting access or performing creation. */
-export function createContext({
-  allowJson = true,
-} = {}): ArgParser<CreateContext> & ProvidesHelp {
+export function createContext(): ArgParser<CreateContext> & ProvidesHelp {
   const execution = {
     yes: cmd.flag({
       long: "yes",
@@ -50,15 +45,6 @@ export function createContext({
       type: cmd.optional(cmd.boolean),
       description: "Never prompt; fail if input or consent is missing.",
     }),
-    ...(allowJson
-      ? {
-          json: cmd.flag({
-            long: "json",
-            description:
-              "Output JSON. Disables prompts but does not grant consent.",
-          }),
-        }
-      : {}),
   };
   const options = { ...managedCredentialOptions, ...execution };
   return {
@@ -78,116 +64,92 @@ export function createContext({
       ];
     },
     async parse(context) {
-      // Preserve output mode even if an earlier execution option is malformed.
-      let json =
-        allowJson &&
-        context.nodes.some((node) => {
-          const option = node as {
-            type: string;
-            key?: string;
-            value?: { node: { raw: string } };
-          };
-          return (
-            option.type === "longOption" &&
-            option.key === "json" &&
-            option.value?.node.raw !== "false"
+      const run = await parseOptions(execution, context);
+      const managedOptions = await parseOptions(
+        managedCredentialOptions,
+        context,
+      );
+      // Reject incompatible flags before reading payloads or resolving auth.
+      assertCompatibleOptions(managedOptions);
+      const creationRequested = hasManagedCredentialsRequest(managedOptions);
+      const interactive = await isInteractive({
+        nonInteractive: run.nonInteractive,
+        payloadStdin: managedOptions.credentialsFromConfigFile === "-",
+      });
+      // Read and validate files before authentication, including piped input.
+      const imported =
+        managedOptions.credentialsFromConfigFile !== undefined
+          ? await resolveManagedCredentials(managedOptions, { token: "" })
+          : undefined;
+      let scopeProvenance: ScopeProvenance | undefined;
+      const auth = createScope(
+        createTokenOption(!creationRequested && interactive),
+        (provenance) => {
+          scopeProvenance = provenance;
+        },
+      );
+      const result = await auth.parse(context);
+      if (result._tag === "error") {
+        if (creationRequested)
+          throw new CliError(
+            "Can't resolve authentication, team, or project. Use a saved login, local project/OIDC context, or explicit --token, --scope and --project.",
+            {
+              reason: "missing_context",
+            },
           );
-        });
-      try {
-        const run = await parseOptions(execution, context);
-        json = run.json === true;
-        const managedOptions = await parseOptions(
-          managedCredentialOptions,
-          context,
-        );
-        // Reject incompatible flags before reading payloads or resolving auth.
-        assertCompatibleOptions(managedOptions);
-        const creationRequested = hasManagedCredentialsRequest(managedOptions);
-        const mode = await resolveExecutionMode({
-          json,
-          nonInteractive: run.nonInteractive,
-          payloadStdin: managedOptions.credentialsFromConfigFile === "-",
-        });
-        // Read and validate files before authentication, including piped input.
-        const imported =
-          managedOptions.credentialsFromConfigFile !== undefined
-            ? await resolveManagedCredentials(managedOptions, { token: "" })
-            : undefined;
-        let scopeProvenance: ScopeProvenance | undefined;
-        const auth = createScope(
-          createTokenOption(!creationRequested && mode.interactive),
-          (provenance) => {
-            scopeProvenance = provenance;
-          },
-        );
-        const result = await auth.parse(context);
-        if (result._tag === "error") {
-          if (json || creationRequested)
-            throw new CliError(
-              "Can't resolve authentication, team, or project. Use a saved login, local project/OIDC context, or explicit --token, --scope and --project.",
-              {
-                reason: "missing_context",
-                data: { required: ["--token", "--scope", "--project"] },
-              },
-            );
-          return result;
-        }
-        const managed =
-          imported ??
-          (await resolveManagedCredentials(managedOptions, {
-            token: result.value.token,
-            teamId: result.value.team,
-            loadFromSandbox: (selector) =>
-              loadConfigFromSandbox({
-                selector,
-                fetchSnapshot: (target) =>
-                  fetchSandboxCredentialSnapshot({
-                    selector: target,
-                    token: result.value.token,
-                    teamId: result.value.team,
-                    projectId: result.value.project,
-                  }),
-              }),
-          }));
-        return {
-          _tag: "ok",
-          value: {
-            ...result.value,
-            appName:
-              context.hotPath?.includes("vercel sandbox") ||
-              (context.hotPath?.[0] === "vercel" &&
-                context.hotPath?.[1] === "sandbox")
-                ? "vercel sandbox"
-                : "sandbox",
-            creationRequested,
-            mode,
-            ...(scopeProvenance ? { scopeProvenance } : {}),
-            yes: run.yes,
-            hasExplicitToken: context.nodes.some(
-              (node) =>
-                node.type === "longOption" &&
-                node.key === "token" &&
-                node.value !== undefined,
-            ),
-            ...(managed
-              ? {
-                  managed,
-                  managedOptions,
-                }
-              : {}),
-            ...(managedOptions.credentialsPersistConfiguration !== undefined
-              ? {
-                  persistConfiguration:
-                    managedOptions.credentialsPersistConfiguration,
-                }
-              : {}),
-          },
-        };
-      } catch (error) {
-        if (error instanceof CliError)
-          throw new CliError(error.message, { ...error.options, json });
-        throw error;
+        return result;
       }
+      const managed =
+        imported ??
+        (await resolveManagedCredentials(managedOptions, {
+          token: result.value.token,
+          teamId: result.value.team,
+          loadFromSandbox: (selector) =>
+            loadConfigFromSandbox({
+              selector,
+              fetchSnapshot: (target) =>
+                fetchSandboxCredentialSnapshot({
+                  selector: target,
+                  token: result.value.token,
+                  teamId: result.value.team,
+                  projectId: result.value.project,
+                }),
+            }),
+        }));
+      return {
+        _tag: "ok",
+        value: {
+          ...result.value,
+          appName:
+            context.hotPath?.includes("vercel sandbox") ||
+            (context.hotPath?.[0] === "vercel" &&
+              context.hotPath?.[1] === "sandbox")
+              ? "vercel sandbox"
+              : "sandbox",
+          creationRequested,
+          interactive,
+          ...(scopeProvenance ? { scopeProvenance } : {}),
+          yes: run.yes,
+          hasExplicitToken: context.nodes.some(
+            (node) =>
+              node.type === "longOption" &&
+              node.key === "token" &&
+              node.value !== undefined,
+          ),
+          ...(managed
+            ? {
+                managed,
+                managedOptions,
+              }
+            : {}),
+          ...(managedOptions.credentialsPersistConfiguration !== undefined
+            ? {
+                persistConfiguration:
+                  managedOptions.credentialsPersistConfiguration,
+              }
+            : {}),
+        },
+      };
     },
   };
 }

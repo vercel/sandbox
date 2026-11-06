@@ -61,12 +61,12 @@ export async function persistConfiguration(options: {
     if (code === "EEXIST") {
       throw new CliError(
         `Can't write the configuration: ${options.path} already exists. Move it or pass a different --credentials-github-persist-configuration path.`,
-        { reason: "persist_failed", data: { path: options.path } },
+        { reason: "persist_failed" },
       );
     }
     throw new CliError(
       `Can't write the configuration to ${options.path}${code ? ` (${code})` : ""}.`,
-      { reason: "persist_failed", data: { path: options.path } },
+      { reason: "persist_failed" },
     );
   }
   return { path: options.path };

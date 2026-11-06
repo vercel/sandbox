@@ -33,7 +33,7 @@ const context = (): CreateContext => ({
   project: "prj_Original",
   projectSlug: "widgets",
   creationRequested: true,
-  mode: { interactive: true, json: false },
+  interactive: true,
   yes: false,
   managed: { config, origin: "flags", originLabel: "flags", provenance: {} },
   managedOptions: { credentialsActions: [], enableManagedCredentials: true },
@@ -66,31 +66,23 @@ test("reads Bounds for the selected IDs, never the review labels", async () => {
   });
 });
 
-test.each([false, true])(
-  "policy errors retain the requested JSON mode: %s",
-  async (json) => {
-    lookup.mockRejectedValue(
-      new CliError("Project Bounds could not be read.", {
-        reason: "policy_unknown",
-        exitCode: 1,
-      }),
-    );
-    flow.mockImplementation(async (options: { context: FlowContext }) => {
-      await options.context.hasProjectBounds!({
-        team: "example",
-        project: "widgets",
-      });
+test("policy errors keep their reason and exit code", async () => {
+  const error = new CliError("Project Bounds could not be read.", {
+    reason: "policy_unknown",
+    exitCode: 1,
+  });
+  lookup.mockRejectedValue(error);
+  flow.mockImplementation(async (options: { context: FlowContext }) => {
+    await options.context.hasProjectBounds!({
+      team: "example",
+      project: "widgets",
     });
-    const ctx = context();
-    ctx.mode = { interactive: false, json };
-    ctx.yes = true;
-    await expect(
-      prepareManagedCredentials({ context: ctx }),
-    ).rejects.toMatchObject({
-      options: { reason: "policy_unknown", exitCode: 1, json },
-    });
-  },
-);
+  });
+  const ctx = context();
+  ctx.interactive = false;
+  ctx.yes = true;
+  await expect(prepareManagedCredentials({ context: ctx })).rejects.toBe(error);
+});
 
 test("an unreadable policy stops preparation instead of becoming no Bounds", async () => {
   lookup.mockRejectedValue(new Error("policy unavailable"));

@@ -60,7 +60,6 @@ const baseContext = (overrides: Record<string, unknown> = {}) => ({
   vcpus: 6,
   vcpusExplicit: false,
   interactive: false,
-  json: false,
   yes: false,
   output: new PassThrough(),
   ...overrides,
@@ -130,17 +129,6 @@ describe("non-interactive consent", () => {
         context: baseContext({ yes: true }),
       }),
     ).resolves.toBeUndefined();
-  });
-
-  test("JSON mode does not write the review to the output stream", async () => {
-    const output = new PassThrough();
-    const chunks: string[] = [];
-    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
-    await runManagedCredentialsFlow({
-      initial: resolved(),
-      context: baseContext({ json: true, yes: true, output }),
-    });
-    expect(chunks.join("")).toBe("");
   });
 });
 
@@ -240,36 +228,6 @@ describe("unbounded project confirmation", () => {
     },
   );
 
-  test("JSON --yes writes one structured warning to stderr only", async () => {
-    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
-    const stdout = vi.spyOn(process.stdout, "write");
-    try {
-      await runManagedCredentialsFlow({
-        initial: resolved(),
-        context: baseContext({
-          yes: true,
-          json: true,
-          output: undefined,
-          hasProjectBounds: vi.fn().mockResolvedValue(false),
-        }),
-      });
-      expect(stderr).toHaveBeenCalledOnce();
-      expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
-        status: "warning",
-        reason: "project_has_no_bounds",
-        message: expect.stringContaining(
-          "The Sandbox still receives only the requested rights",
-        ),
-        team: "jacks-projects",
-        project: "api",
-      });
-      expect(stdout).not.toHaveBeenCalled();
-    } finally {
-      stderr.mockRestore();
-      stdout.mockRestore();
-    }
-  });
-
   test("noninteractive use without --yes does not look up Bounds", async () => {
     const hasProjectBounds = vi.fn();
     await expect(
@@ -326,7 +284,7 @@ describe("interactive review", () => {
           }),
         }),
       ).rejects.toMatchObject({
-        options: { reason: "canceled", exitCode: 130, data: { command } },
+        options: { reason: "canceled", exitCode: 130 },
       });
       expect(renderCommand).toHaveBeenCalledExactlyOnceWith(configFor());
       expect(chunks.join("")).toContain(
@@ -358,7 +316,7 @@ describe("interactive review", () => {
     expect(chunks.join("")).toContain(command);
   });
 
-  test("includes the explicit command in machine-readable consent errors", async () => {
+  test("prints the explicit command for non-interactive consent errors", async () => {
     const output = new PassThrough();
     const chunks: string[] = [];
     output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
@@ -367,7 +325,6 @@ describe("interactive review", () => {
       runManagedCredentialsFlow({
         initial: resolved(),
         context: baseContext({
-          json: true,
           output,
           renderCommand: () => command,
         }),
@@ -375,11 +332,9 @@ describe("interactive review", () => {
     ).rejects.toMatchObject({
       options: {
         reason: "confirmation_required",
-        json: true,
-        data: { command },
       },
     });
-    expect(chunks.join("")).toBe("");
+    expect(chunks.join("")).toContain(command);
   });
 
   test("does not render a rejected command on success", async () => {

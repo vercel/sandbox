@@ -39,7 +39,7 @@ function context(): CreateContext {
     team: TEAM,
     project: PROJECT,
     creationRequested: true,
-    mode: { interactive: true, json: false },
+    interactive: true,
     yes: false,
     scopeProvenance: {
       team: "from .vercel/project.json",

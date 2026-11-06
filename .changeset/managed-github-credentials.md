@@ -30,4 +30,6 @@ The SDK gains managed Git and GitHub API credential request contracts and
 optional nonsecret session request metadata, and no longer retries creation, so
 an uncertain response cannot produce a duplicate Sandbox or grant. Unreadable
 successful responses require inspection before retrying. Credential flags reject
-missing values, and configuration-reuse lookup errors preserve JSON output.
+missing values, and configuration-reuse lookup errors use safe error messages.
+Command output is text. JSON configuration input, file export, and Sandbox reuse
+remain supported.

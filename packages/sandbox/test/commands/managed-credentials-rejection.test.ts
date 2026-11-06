@@ -25,7 +25,7 @@ vi.mock("../../src/util/check-latest-version", () => ({
   startLatestVersionCheck: () => ({ report() {} }),
 }));
 vi.mock("../../src/util/execution-mode", () => ({
-  resolveExecutionMode: async () => ({ interactive: true, json: false }),
+  isInteractive: async () => true,
 }));
 vi.mock("../../src/util/managed-credentials-review", async (original) => ({
   ...(await original<
@@ -105,7 +105,11 @@ test.each(
         reason: "canceled",
         exitCode: 130,
       });
-      const command = (failure.options.data as { command: string }).command;
+      const command = stderr.mock.calls
+        .flat()
+        .join("")
+        .split("\n")
+        .find((line) => line.startsWith("vercel sandbox create "))!;
       expect(command).toMatch(/^vercel sandbox create /);
       expect(command).toContain("--scope=team");
       expect(command).toContain("--project=project");
