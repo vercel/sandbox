@@ -14,8 +14,7 @@ consent. Git attribution comes from `actAs`; deprecated `commitAs` is rejected.
 The SDK adds managed-credential request types and optional nonsecret session metadata.
 
 Show the two-column `Inferred Parameters` preview with `Repo`, one action per
-line, and a heading separator. `--yes` grants consent without review. Agents,
-CI, and piped/non-terminal sessions are detected without `--non-interactive`.
+line, and a heading separator. `--yes` grants consent without review.
 Read project Bounds through one backend-resolved, paginated endpoint. Missing
 Bounds require a warning and second consent; unreadable policy stops creation.
 
