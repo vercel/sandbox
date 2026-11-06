@@ -39,7 +39,6 @@ const context = (): CreateContext => ({
   interactive: true,
   yes: false,
   managed: { config },
-  managedOptions: { credentialsActions: [], enableManagedCredentials: true },
 });
 
 beforeEach(() => {

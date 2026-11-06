@@ -23,6 +23,11 @@ function options(fetch: typeof globalThis.fetch) {
   return { token: TOKEN, team: TEAM, project: PROJECT, fetch };
 }
 
+const lookup = (
+  fetch: typeof globalThis.fetch,
+  overrides: Partial<Parameters<typeof resolveScopeDisplay>[0]> = {},
+) => resolveScopeDisplay({ ...options(fetch), ...overrides });
+
 function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
   return input instanceof Request ? input.url : String(input);
 }
@@ -93,8 +98,7 @@ describe("display-only names", () => {
   test("OIDC names need no fetch, even with conflicting display hints", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>();
     expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
+      await lookup(fetch, {
         team: "Acme, Inc. (R&D)",
         project: "München / web: staging_v2.0",
         teamSlug: "unrelated-team",
@@ -110,8 +114,7 @@ describe("display-only names", () => {
   test("usable display hints avoid lookup for IDs", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>();
     expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
+      await lookup(fetch, {
         teamSlug: "selected-team",
         projectSlug: "selected-project",
       }),
@@ -123,12 +126,10 @@ describe("display-only names", () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValue(response(projectMetadata));
-    expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
-        teamSlug: "display-only",
-      }),
-    ).toEqual({ team: "display-only", project: "selected-project" });
+    expect(await lookup(fetch, { teamSlug: "display-only" })).toEqual({
+      team: "display-only",
+      project: "selected-project",
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(requestUrl(fetch.mock.calls[0][0])).toBe(PROJECT_URL);
   });
@@ -137,12 +138,10 @@ describe("display-only names", () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValue(response(teamMetadata));
-    expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
-        projectSlug: "display-only",
-      }),
-    ).toEqual({ team: "selected-team", project: "display-only" });
+    expect(await lookup(fetch, { projectSlug: "display-only" })).toEqual({
+      team: "selected-team",
+      project: "display-only",
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(requestUrl(fetch.mock.calls[0][0])).toBe(TEAM_URL);
   });
@@ -162,13 +161,9 @@ describe("display-only names", () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValue(new Response(null, { status: 403 }));
-    expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
-        teamSlug: hint,
-        projectSlug: hint,
-      }),
-    ).toEqual(ORIGINAL_SCOPE);
+    expect(await lookup(fetch, { teamSlug: hint, projectSlug: hint })).toEqual(
+      ORIGINAL_SCOPE,
+    );
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -222,7 +217,7 @@ describe("untrusted metadata", () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockRejectedValue(new Error(TOKEN));
-    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
+    expect(await lookup(fetch)).toEqual(ORIGINAL_SCOPE);
     expect(error).not.toHaveBeenCalled();
   });
 
@@ -234,7 +229,7 @@ describe("untrusted metadata", () => {
         if (isTeam === (failed === "team")) throw new Error(TOKEN);
         return response(isTeam ? teamMetadata : projectMetadata);
       });
-      expect(await resolveScopeDisplay(options(fetch))).toEqual({
+      expect(await lookup(fetch)).toEqual({
         team: failed === "team" ? ORIGINAL_SCOPE.team : "selected-team",
         project:
           failed === "project" ? ORIGINAL_SCOPE.project : "selected-project",
@@ -250,7 +245,7 @@ describe("untrusted metadata", () => {
           : { ...projectMetadata, accountId: "team_another" },
       ),
     );
-    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
+    expect(await lookup(fetch)).toEqual(ORIGINAL_SCOPE);
   });
 
   test.each([
@@ -278,17 +273,13 @@ describe("untrusted metadata", () => {
           : { ...projectMetadata, name },
       ),
     );
-    expect(await resolveScopeDisplay(options(fetch))).toEqual(ORIGINAL_SCOPE);
+    expect(await lookup(fetch)).toEqual(ORIGINAL_SCOPE);
   });
 
   test("invalid supplied names are not displayed or used for requests", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>();
     expect(
-      await resolveScopeDisplay({
-        ...options(fetch),
-        team: "\u202eevil",
-        project: "\nunsafe",
-      }),
+      await lookup(fetch, { team: "\u202eevil", project: "\nunsafe" }),
     ).toEqual({
       team: "team name unavailable",
       project: "project name unavailable",
@@ -334,9 +325,7 @@ describe("project ID with a selected team slug", () => {
         .fn<typeof globalThis.fetch>()
         .mockResolvedValueOnce(response(projectMetadata))
         .mockResolvedValueOnce(response(body));
-      expect(
-        await resolveScopeDisplay({ ...options(fetch), team: "selected-team" }),
-      ).toEqual({
+      expect(await lookup(fetch, { team: "selected-team" })).toEqual({
         team: "selected-team",
         project: ORIGINAL_SCOPE.project,
       });
@@ -350,9 +339,7 @@ describe("project ID with a selected team slug", () => {
       const fetch = vi
         .fn<typeof globalThis.fetch>()
         .mockResolvedValue(response({ ...projectMetadata, accountId }));
-      expect(
-        await resolveScopeDisplay({ ...options(fetch), team: "selected-team" }),
-      ).toEqual({
+      expect(await lookup(fetch, { team: "selected-team" })).toEqual({
         team: "selected-team",
         project: ORIGINAL_SCOPE.project,
       });
@@ -365,9 +352,7 @@ describe("project ID with a selected team slug", () => {
       .fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(response(projectMetadata))
       .mockRejectedValueOnce(new Error(TOKEN));
-    expect(
-      await resolveScopeDisplay({ ...options(fetch), team: "selected-team" }),
-    ).toEqual({
+    expect(await lookup(fetch, { team: "selected-team" })).toEqual({
       team: "selected-team",
       project: ORIGINAL_SCOPE.project,
     });
@@ -388,7 +373,7 @@ describe("one total lookup deadline", () => {
       redirected: false,
       json,
     } as unknown as Response);
-    const result = resolveScopeDisplay(options(fetch));
+    const result = lookup(fetch);
     await vi.advanceTimersByTimeAsync(3000);
     expect(await result).toEqual(ORIGINAL_SCOPE);
     expect(fetch.mock.calls.every(([, init]) => init!.signal!.aborted)).toBe(
@@ -402,7 +387,7 @@ describe("one total lookup deadline", () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
       response(requestUrl(input) === TEAM_URL ? teamMetadata : projectMetadata),
     );
-    expect(await resolveScopeDisplay(options(fetch))).toEqual({
+    expect(await lookup(fetch)).toEqual({
       team: "selected-team",
       project: "selected-project",
     });

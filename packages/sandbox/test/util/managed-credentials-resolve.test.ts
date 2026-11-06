@@ -26,7 +26,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   inferRepositoryImpl: vi.fn().mockResolvedValue("vercel/api"),
   inferActorImpl: vi
     .fn()
-    .mockResolvedValue({ actAs: "@scubbo", login: "scubbo", source: "gh" }),
+    .mockResolvedValue({ actAs: "@scubbo", login: "scubbo" }),
   ...overrides,
 });
 
@@ -42,11 +42,9 @@ describe("request detection", () => {
         .fn()
         .mockResolvedValueOnce({
           actAs: "1",
-          source: "gh",
         })
         .mockResolvedValueOnce({
           actAs: "2",
-          source: "gh",
         }),
     });
     const first = await resolve({ enableManagedCredentials: true }, ctx);
@@ -171,7 +169,6 @@ describe("identity resolution", () => {
         inferActorImpl: vi.fn().mockResolvedValue({
           actAs: "2373726",
           login: "scubbo",
-          source: "gh",
         }),
       }),
     );
@@ -191,7 +188,6 @@ describe("identity resolution", () => {
   test("passes an explicit actor through to inference", async () => {
     const inferActorImpl = vi.fn().mockResolvedValue({
       actAs: "123456",
-      source: "explicit",
     });
     const resolved = await resolve(
       { credentialsActAs: "123456" },

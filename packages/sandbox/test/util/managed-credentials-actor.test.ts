@@ -22,7 +22,6 @@ describe("Vercel account connections", () => {
     expect(await lookup([{ ...eligible, accessToken: "never-copy" }])).toEqual({
       login: "ada",
       id: "42",
-      name: "Ada",
     });
   });
   test.each([
@@ -58,7 +57,7 @@ describe("actor precedence", () => {
     const readVercel = vi.fn();
     expect(
       await inferActor({ explicit: "ada", token: "t", readGh, readVercel }),
-    ).toMatchObject({ actAs: "@ada", source: "explicit" });
+    ).toEqual({ actAs: "@ada", login: "ada" });
     expect(readGh).not.toHaveBeenCalled();
     expect(readVercel).not.toHaveBeenCalled();
   });
@@ -70,7 +69,7 @@ describe("actor precedence", () => {
         readGh: vi.fn().mockResolvedValue({ login: "ada", id: 42 }),
         readVercel,
       }),
-    ).toMatchObject({ actAs: "42", source: "gh" });
+    ).toEqual({ actAs: "42", login: "ada" });
     expect(readVercel).not.toHaveBeenCalled();
   });
   test("falls back only when gh has no account", async () => {
@@ -80,7 +79,7 @@ describe("actor precedence", () => {
         readGh: vi.fn().mockResolvedValue(undefined),
         readVercel: vi.fn().mockResolvedValue({ login: "ada", id: "42" }),
       }),
-    ).toMatchObject({ actAs: "42", source: "vercel-account-link" });
+    ).toEqual({ actAs: "42", login: "ada" });
     const readVercel = vi.fn();
     await expect(
       inferActor({

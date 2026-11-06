@@ -32,11 +32,7 @@ describe("gh account metadata", () => {
           token: "never-copy",
         }),
       });
-    expect(await readGhAccount()).toEqual({
-      login: "ada",
-      id: 42,
-      name: "Ada",
-    });
+    expect(await readGhAccount()).toEqual({ login: "ada", id: 42 });
     expect(vi.mocked(runCommand).mock.calls.map((call) => call[1])).toEqual([
       ["auth", "status", "--active", "--hostname", "github.com"],
       [
@@ -45,7 +41,7 @@ describe("gh account metadata", () => {
         "--hostname",
         "github.com",
         "--jq",
-        "{login: .login, id: .id, name: .name, email: .email}",
+        "{login: .login, id: .id}",
       ],
     ]);
   });

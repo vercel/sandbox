@@ -121,7 +121,7 @@ const input = () => ({
       },
     ),
   ),
-  actor: { actAs: "2373726", login: "scubbo", source: "gh" as const },
+  actor: { actAs: "2373726", login: "scubbo" },
   team: "vercel",
   project: "widgets",
   vcpus: 6,

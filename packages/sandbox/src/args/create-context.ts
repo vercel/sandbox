@@ -23,7 +23,6 @@ export type CreateContext = Parsed<typeof scope> & {
   interactive: boolean;
   yes: boolean;
   managed?: ResolvedManagedCredentials;
-  managedOptions?: ManagedCredentialsOptions;
   persistConfiguration?: string;
   /** Replaying an explicit token must not silently select another login. */
   hasExplicitToken?: boolean;
@@ -129,12 +128,7 @@ export function createContext(): ArgParser<CreateContext> & ProvidesHelp {
               node.key === "token" &&
               node.value !== undefined,
           ),
-          ...(managed
-            ? {
-                managed,
-                managedOptions,
-              }
-            : {}),
+          ...(managed ? { managed } : {}),
           ...(managedOptions.credentialsPersistConfiguration !== undefined
             ? {
                 persistConfiguration:

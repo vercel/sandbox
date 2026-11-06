@@ -1,6 +1,5 @@
 import {
   GITHUB_API_CREDENTIAL_ACTIONS,
-  MANAGED_GIT_ACTIONS,
   SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
 } from "@vercel/sandbox";
 import { z } from "zod";
@@ -17,10 +16,6 @@ import { CliError } from "./cli-error";
 export const MAX_REPOSITORIES = 25;
 export const MAX_PAYLOAD_BYTES = 64 * 1024;
 
-/** Git-operation actions, including legacy read intent for flag diagnostics. */
-export const GIT_ACTIONS = MANAGED_GIT_ACTIONS;
-
-export type GitAction = (typeof GIT_ACTIONS)[number];
 export type GithubApiAction = (typeof GITHUB_API_CREDENTIAL_ACTIONS)[number];
 export type CredentialAction =
   (typeof SANDBOX_GITHUB_CREDENTIAL_ACTIONS)[number];
@@ -46,43 +41,6 @@ export function isRepository(value: string): boolean {
   );
 }
 
-/**
- * Map a short action name to its canonical GitHub action name.
- *
- * The product surface accepts `issues:read`; the API expects
- * `github:issues:read`. Git actions keep their own `git:` prefix.
- */
-export function canonicalAction(
-  value: string,
-): GitAction | GithubApiAction | undefined {
-  const trimmed = value.trim();
-  if ((GIT_ACTIONS as readonly string[]).includes(trimmed)) {
-    return trimmed as GitAction;
-  }
-  const prefixed = trimmed.startsWith("github:")
-    ? trimmed
-    : `github:${trimmed}`;
-  return (GITHUB_API_CREDENTIAL_ACTIONS as readonly string[]).includes(prefixed)
-    ? (prefixed as GithubApiAction)
-    : undefined;
-}
-
-export function isGitAction(
-  action: CredentialAction | GitAction,
-): action is GitAction {
-  return (GIT_ACTIONS as readonly string[]).includes(action);
-}
-
-export function isApiAction(
-  action: CredentialAction,
-): action is GithubApiAction {
-  return !isGitAction(action);
-}
-
-/** Short API aliases remain accepted alongside canonical action names. */
-export const ACCEPTED_API_ACTION_NAMES: readonly string[] =
-  GITHUB_API_CREDENTIAL_ACTIONS.map((action) => action.replace(/^github:/, ""));
-
 /** All actions supported by the Sandbox creation API, without provider splitting. */
 export const ACCEPTED_CREATE_ACTION_NAMES: readonly string[] =
   SANDBOX_GITHUB_CREDENTIAL_ACTIONS.map((action) =>
@@ -92,9 +50,14 @@ export const ACCEPTED_CREATE_ACTION_NAMES: readonly string[] =
 export function canonicalCreationAction(
   value: string,
 ): CredentialAction | undefined {
-  const action = canonicalAction(value);
-  return action &&
-    (SANDBOX_GITHUB_CREDENTIAL_ACTIONS as readonly string[]).includes(action)
+  const trimmed = value.trim();
+  const action =
+    trimmed.startsWith("git:") || trimmed.startsWith("github:")
+      ? trimmed
+      : `github:${trimmed}`;
+  return (SANDBOX_GITHUB_CREDENTIAL_ACTIONS as readonly string[]).includes(
+    action,
+  )
     ? (action as CredentialAction)
     : undefined;
 }
@@ -214,19 +177,7 @@ export function parseConfig(value: unknown): ManagedCredentialsConfig {
   }
   // The schema has no transformations. Keep the original canonical object so
   // source-option and other object-key ordering also survive persistence.
-  return validateConfig(value as ManagedCredentialsConfig);
-}
-
-/**
- * Apply the cross-field rules the schema cannot express.
- *
- * Kept separate from parsing so configurations built in memory — from flags,
- * from inference, or copied from another Sandbox — go through exactly the same
- * checks as a configuration read from disk.
- */
-export function validateConfig(
-  config: ManagedCredentialsConfig,
-): ManagedCredentialsConfig {
+  const config = value as ManagedCredentialsConfig;
   const repositories = new Set<string>();
   const sourceRepo = sourceRepository(config);
   if (sourceRepo) repositories.add(sourceRepo.toLowerCase());
@@ -277,23 +228,6 @@ export function sourceRepository(
   config: ManagedCredentialsConfig,
 ): string | undefined {
   return config.source ? repositoryFromUrl(config.source.url) : undefined;
-}
-
-/** Git access the configuration requests for a repository, if any. */
-export function gitAccessFor(
-  config: ManagedCredentialsConfig,
-  repo: string,
-): GitAction | undefined {
-  const actions = config.credentials.github
-    .filter((group) =>
-      group.repositories.some(
-        (entry) => entry.toLowerCase() === repo.toLowerCase(),
-      ),
-    )
-    .flatMap((group) => group.actions);
-  if (actions.includes("git:write-workflows")) return "git:write-workflows";
-  if (actions.includes("git:write")) return "git:write";
-  return undefined;
 }
 
 /**

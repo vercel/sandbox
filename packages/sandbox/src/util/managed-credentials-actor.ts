@@ -22,7 +22,6 @@ export async function inferActor(options: {
     return {
       actAs: parsed.data,
       ...(parsed.data.startsWith("@") ? { login: parsed.data.slice(1) } : {}),
-      source: "explicit",
     };
   }
   const gh = await (options.readGh ?? readGhAccount)();
@@ -30,7 +29,6 @@ export async function inferActor(options: {
     return {
       actAs: gh.id !== undefined ? String(gh.id) : `@${gh.login}`,
       login: gh.login,
-      source: "gh",
     };
   const link = await (options.readVercel ?? readVercelGithubLink)({
     token: options.token,
@@ -41,6 +39,5 @@ export async function inferActor(options: {
   return {
     actAs: link.id ?? `@${link.login}`,
     ...(link.login ? { login: link.login } : {}),
-    source: "vercel-account-link",
   };
 }

@@ -4,8 +4,6 @@ import { CliError } from "./cli-error";
 export interface VercelGithubLink {
   login?: string;
   id?: string;
-  name?: string;
-  email?: string;
 }
 const connection = z.object({
   provider: z.string(),
@@ -14,8 +12,6 @@ const connection = z.object({
   oauthApp: z.string().optional(),
   login: z.string().nullish(),
   userId: z.union([z.string(), z.number()]).nullish(),
-  name: z.string().nullish(),
-  email: z.string().nullish(),
 });
 const responseSchema = z.object({ connections: z.array(connection) });
 
@@ -67,8 +63,6 @@ export async function readVercelGithubLink(options: {
   return {
     login: link.login!,
     ...(id ? { id } : {}),
-    ...(link.name ? { name: link.name } : {}),
-    ...(link.email ? { email: link.email } : {}),
   };
 }
 

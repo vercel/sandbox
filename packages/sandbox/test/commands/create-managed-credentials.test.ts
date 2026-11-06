@@ -95,7 +95,6 @@ describe("create with managed credentials", () => {
     mockInferActor.mockResolvedValue({
       actAs: "2373726",
       login: "scubbo",
-      source: "gh",
     });
   });
 

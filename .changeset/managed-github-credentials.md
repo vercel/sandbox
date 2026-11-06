@@ -35,3 +35,6 @@ missing values, and configuration-reuse lookup errors use safe error messages.
 Command output is text. JSON configuration input, file export, and Sandbox reuse
 remain supported. Git attribution comes from `actAs`. The deprecated `commitAs`
 field is not supported and is rejected in configuration files.
+
+The CLI reads only account IDs and usernames for actor selection. Unused private
+helpers and duplicate configuration-test setup are removed.

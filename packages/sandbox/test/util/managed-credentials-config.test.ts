@@ -5,12 +5,10 @@ import {
 import { describe, expect, test, vi } from "vitest";
 import { SANDBOX_GITHUB_CREDENTIAL_ACTIONS } from "@vercel/sandbox";
 import {
-  ACCEPTED_API_ACTION_NAMES,
+  ACCEPTED_CREATE_ACTION_NAMES,
   DEFAULT_API_ACTIONS,
-  canonicalAction,
   canonicalCreationAction,
   githubActor,
-  gitAccessFor,
   parseConfig,
   repositoryFromUrl,
   repositoryGroups,
@@ -32,31 +30,34 @@ const base = configuration(
 
 describe("action names", () => {
   test("maps short names to canonical GitHub action names", () => {
-    expect(canonicalAction("issues:read")).toBe("github:issues:read");
-    expect(canonicalAction("pull-request:create")).toBe(
+    expect(canonicalCreationAction("issues:read")).toBe("github:issues:read");
+    expect(canonicalCreationAction("pull-request:create")).toBe(
       "github:pull-request:create",
     );
   });
 
   test("accepts already-canonical names unchanged", () => {
-    expect(canonicalAction("github:issues:comment")).toBe(
+    expect(canonicalCreationAction("github:issues:comment")).toBe(
       "github:issues:comment",
     );
   });
 
   test("keeps Git actions in their own namespace", () => {
-    expect(canonicalAction("git:read")).toBe("git:read");
-    expect(canonicalAction("git:write")).toBe("git:write");
+    expect(canonicalCreationAction("git:write-workflows")).toBe(
+      "git:write-workflows",
+    );
+    expect(canonicalCreationAction("git:write")).toBe("git:write");
   });
 
   test("rejects unknown actions", () => {
-    expect(canonicalAction("issues:delete")).toBeUndefined();
-    expect(canonicalAction("github:repo:admin")).toBeUndefined();
+    expect(canonicalCreationAction("issues:delete")).toBeUndefined();
+    expect(canonicalCreationAction("github:repo:admin")).toBeUndefined();
   });
 
-  test("does not advertise Git actions as --credentials-github-action values", () => {
-    expect(ACCEPTED_API_ACTION_NAMES).not.toContain("git:write");
-    expect(ACCEPTED_API_ACTION_NAMES).toContain("issues:read");
+  test("advertises only the supported creation-action aliases", () => {
+    expect(ACCEPTED_CREATE_ACTION_NAMES).toContain("git:write");
+    expect(ACCEPTED_CREATE_ACTION_NAMES).toContain("issues:read");
+    expect(ACCEPTED_CREATE_ACTION_NAMES).not.toContain("git:read");
   });
 
   test("the documented default set is exactly three API actions", () => {
@@ -111,7 +112,6 @@ describe("canonical API documents", () => {
           credentialGroup(
             ["acme/three"],
             ["git:write-workflows", "github:issues:read", "git:write"],
-            "42",
           ),
         ],
       },
@@ -119,10 +119,11 @@ describe("canonical API documents", () => {
     const before = structuredClone(document);
     const parsed = parseConfig(document);
     expect(parsed).toEqual(before);
-    expect(JSON.parse(serializeConfig(parsed))).toEqual(before);
-    expect(serializeConfig(parsed)).toBe(
-      `${JSON.stringify(before, null, 2)}\n`,
-    );
+    const serialized = serializeConfig(parsed);
+    const reparsed = parseConfig(JSON.parse(serialized));
+    expect(reparsed).toEqual(before);
+    expect(serialized).toBe(`${JSON.stringify(before, null, 2)}\n`);
+    expect(serializeConfig(reparsed)).toBe(serialized);
     expect(Object.keys(parsed.source!)).toEqual(Object.keys(document.source));
     expect(document).toEqual(before);
   });
@@ -194,8 +195,6 @@ describe("canonical validation and views", () => {
       { repo: "acme/two", actions: ["git:write-workflows"] },
     ]);
     expect(sourceRepository(config)).toBe("Acme/Source");
-    expect(gitAccessFor(config, "ACME/SOURCE")).toBe("git:write");
-    expect(gitAccessFor(config, "acme/two")).toBe("git:write-workflows");
     groups[0].actions.reverse();
     groups[1].repo = "another/repository";
     groups[2].actAs = "@another";
@@ -283,6 +282,7 @@ describe("safe source validation", () => {
     { url: "https://github.com/o/r.git" },
     { type: "tarball", url: "https://github.com/o/r.git" },
     { type: "git", url: "https://github.com/o/r.git", credentials: true },
+    { type: "git", url: "https://github.com/o/r.git", credentials: "read" },
     {
       type: "git",
       url: "https://github.com/o/r.git",
@@ -311,37 +311,32 @@ describe("safe source validation", () => {
 
 describe("configuration parsing", () => {
   test("does not echo an accidental secret from an invalid action", () => {
-    expect(() =>
+    const parse = () =>
       parseConfig(
         configuration([credentialGroup(["o/r"], ["accidental-secret-value"])]),
-      ),
-    ).toThrow();
-    expect(() =>
-      parseConfig(
-        configuration([credentialGroup(["o/r"], ["accidental-secret-value"])]),
-      ),
-    ).not.toThrow("accidental-secret-value");
-  });
-  test("accepts canonical API actions unchanged", () => {
-    const config = parseConfig(base);
-    expect(config.credentials.github[0].actions).toEqual([
-      "github:issues:read",
-      "git:write",
-    ]);
+      );
+    expect(parse).toThrow();
+    expect(parse).not.toThrow("accidental-secret-value");
   });
 
-  test.each([123456, "scubbo", "0", "01", "9007199254740992", "@", " @scubbo"])(
-    "rejects noncanonical file actors: %s",
-    (actAs) => {
-      expect(() =>
-        parseConfig(
-          configuration([
-            credentialGroup(["vercel/api"], ["github:issues:read"], actAs),
-          ]),
-        ),
-      ).toThrow(CliError);
-    },
-  );
+  test.each([
+    123456,
+    9007199254740993,
+    "scubbo",
+    "0",
+    "01",
+    "9007199254740992",
+    "@",
+    " @scubbo",
+  ])("rejects noncanonical file actors: %s", (actAs) => {
+    expect(() =>
+      parseConfig(
+        configuration([
+          credentialGroup(["vercel/api"], ["github:issues:read"], actAs),
+        ]),
+      ),
+    ).toThrow(CliError);
+  });
 
   test("accepts a string numeric actAs", () => {
     const config = parseConfig(
@@ -359,22 +354,6 @@ describe("configuration parsing", () => {
       ]),
     );
     expect(config.credentials.github[0].actAs).toBe("@Scubbo");
-  });
-
-  test("rejects a numeric actAs that lost precision in JSON", () => {
-    // 2^53 cannot be represented exactly, so it may not name the account the
-    // author meant.
-    expect(() =>
-      parseConfig(
-        configuration([
-          credentialGroup(
-            ["vercel/api"],
-            ["github:issues:read"],
-            9007199254740993,
-          ),
-        ]),
-      ),
-    ).toThrow(CliError);
   });
 
   test("keeps an explicitly empty action list empty", () => {
@@ -399,17 +378,6 @@ describe("configuration parsing", () => {
         }),
       ),
     ).toThrow(CliError);
-  });
-
-  test("rejects conflicting numeric identities for one repository", () => {
-    expect(() =>
-      parseConfig(
-        configuration([
-          credentialGroup(["vercel/api"], ["github:issues:read"], "1"),
-          credentialGroup(["vercel/api"], ["github:issues:comment"], "2"),
-        ]),
-      ),
-    ).toThrow(/one actAs per repository/);
   });
 
   test.each([undefined, "@alias"])(
@@ -493,37 +461,11 @@ describe("unsupported source fields and old CLI shapes", () => {
     expect(() => parseConfig(value)).toThrow(CliError);
   });
 
-  test("rejects a transport read marker", () => {
-    expect(() =>
-      parseConfig(
-        configuration(
-          [credentialGroup(["acme/widgets"], ["github:issues:read"])],
-          {
-            type: "git",
-            url: "https://github.com/acme/widgets.git",
-            credentials: "read",
-          },
-        ),
-      ),
-    ).toThrow(CliError);
-  });
-
   test("does not invent missing credential groups", () => {
     expect(() =>
       parseConfig({
         source: { type: "git", url: "https://github.com/acme/widgets.git" },
       }),
-    ).toThrow(CliError);
-  });
-
-  test("rejects a non-GitHub legacy source", () => {
-    expect(() =>
-      parseConfig(
-        configuration([], {
-          type: "git",
-          url: "https://gitlab.com/acme/widgets.git",
-        }),
-      ),
     ).toThrow(CliError);
   });
 });
@@ -535,36 +477,4 @@ test("rejects commitAs like any other unknown configuration field", () => {
       commitAs: { name: "Ada", email: "ada@example.com" },
     }),
   ).toThrow("Unknown fields are not supported.");
-});
-
-describe("round trip", () => {
-  test("serialized output parses back to the same configuration", () => {
-    const config = parseConfig(
-      configuration(
-        [
-          credentialGroup(
-            ["vercel/api"],
-            ["github:issues:read", "git:write"],
-            "123456",
-          ),
-          credentialGroup(["vercel/front"], ["github:pull-request:create"]),
-        ],
-        {
-          type: "git",
-          url: "https://github.com/vercel/api.git",
-          revision: "main",
-          depth: 1,
-        },
-      ),
-    );
-
-    const reparsed = parseConfig(JSON.parse(serializeConfig(config)));
-    expect(reparsed).toEqual(config);
-  });
-
-  test("serialized output is stable across a second round trip", () => {
-    const once = serializeConfig(parseConfig(base));
-    const twice = serializeConfig(parseConfig(JSON.parse(once)));
-    expect(twice).toBe(once);
-  });
 });

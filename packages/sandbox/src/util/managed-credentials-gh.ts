@@ -5,15 +5,8 @@ import { runCommand } from "./managed-credentials-command";
 const ghUserSchema = z.object({
   login: z.string().min(1),
   id: z.number().int().positive().optional(),
-  name: z.string().nullish(),
-  email: z.string().nullish(),
 });
-export interface GhAccount {
-  login: string;
-  id?: number;
-  name?: string;
-  email?: string;
-}
+export type GhAccount = z.infer<typeof ghUserSchema>;
 const GH_TIMEOUT_MS = 10_000;
 const failure = () =>
   new CliError(
@@ -41,7 +34,7 @@ export async function readGhAccount(): Promise<GhAccount | undefined> {
       "--hostname",
       "github.com",
       "--jq",
-      "{login: .login, id: .id, name: .name, email: .email}",
+      "{login: .login, id: .id}",
     ],
     GH_TIMEOUT_MS,
   );
@@ -54,11 +47,5 @@ export async function readGhAccount(): Promise<GhAccount | undefined> {
   }
   const result = ghUserSchema.safeParse(parsed);
   if (!result.success) throw failure();
-  const { login, id, name, email } = result.data;
-  return {
-    login,
-    ...(id !== undefined ? { id } : {}),
-    ...(name ? { name } : {}),
-    ...(email ? { email } : {}),
-  };
+  return result.data;
 }
