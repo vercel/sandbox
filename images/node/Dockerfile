@@ -19,12 +19,14 @@ ENV HOME=/root
 
 # Node.js requires libatomic.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git libatomic1 && \
+    apt-get install -y --no-install-recommends libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=fetch /opt/node /usr/local
 
-RUN npm install -g pnpm@11 && \
+ARG PNPM_VERSION
+RUN test -n "${PNPM_VERSION}" && \
+    npm install -g "pnpm@${PNPM_VERSION}" && \
     npm cache clean --force
 
 RUN chown -R ubuntu:ubuntu /vercel
@@ -43,4 +45,4 @@ ENV PATH="/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 RUN git --version && \
     node --version && \
     npm --version && \
-    pnpm --version
+    test "$(pnpm --version)" = "${PNPM_VERSION}"
