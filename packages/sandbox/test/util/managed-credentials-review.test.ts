@@ -39,8 +39,8 @@ describe("review contents", () => {
     expect(rows).toEqual([
       { label: "Team", value: "jacks-projects" },
       { label: "Project", value: "api" },
-      { label: "Source", value: "vercel/api" },
-      { label: "Actions", value: "github:issues:read, git:write" },
+      { label: "Repo", value: "vercel/api" },
+      { label: "Actions", value: "github:issues:read\ngit:write" },
       { label: "GitHub actor", value: "@scubbo" },
     ]);
   });
@@ -73,8 +73,8 @@ describe("review contents", () => {
     expect(
       rows.filter((row) => row.label === "Actions").map((row) => row.value),
     ).toEqual([
-      "acme/one: github:issues:read",
-      "acme/two: github:pull-request:create",
+      "acme/one:\ngithub:issues:read",
+      "acme/two:\ngithub:pull-request:create",
     ]);
   });
 
@@ -105,11 +105,11 @@ describe("review contents", () => {
       {
         label: "Actions",
         value:
-          "github:issues:read, github:issues:comment, github:pull-request:create, git:write",
+          "github:issues:read\ngithub:issues:comment\ngithub:pull-request:create\ngit:write",
       },
     ]);
     const text = renderReview(rows, 80);
-    expect(text).toMatch(/Source\s+vercel-labs\/agent-factory/);
+    expect(text).toMatch(/Repo\s+vercel-labs\/agent-factory/);
     expect(text).toMatch(/Actions\s+github:issues:read/);
     expect(text).toContain("git:write");
     expect(text).not.toContain("Access");
@@ -136,7 +136,7 @@ describe("review contents", () => {
           ),
         ),
       });
-      expect(valueOf(rows, "Actions")).toBe("acme/target: github:issues:read");
+      expect(valueOf(rows, "Actions")).toBe("acme/target:\ngithub:issues:read");
     },
   );
 
@@ -146,7 +146,7 @@ describe("review contents", () => {
         configuration([credentialGroup(["vercel/api"], ["git:write"])], {
           type: "git",
           url: "https://github.com/vercel/api.git",
-          revision: "main‮Evil",
+          revision: "main\n‮Evil",
         }),
       ),
       team: "t\u0000eam",
@@ -232,8 +232,8 @@ describe("review identities", () => {
     expect(
       rows.filter((row) => row.label === "Actions").map((row) => row.value),
     ).toEqual([
-      "acme/one: github:issues:read",
-      "acme/two: github:issues:comment",
+      "acme/one:\ngithub:issues:read",
+      "acme/two:\ngithub:issues:comment",
     ]);
   });
 });
@@ -248,6 +248,16 @@ describe("two-column review rendering", () => {
     expect(text).toMatch(/Team\s+vercel/);
     expect(text).toMatch(/GitHub actor\s+@scubbo/);
     expect(text).not.toMatch(/\bFrom\b/);
+  });
+
+  test("separates the heading and preserves one action per line", () => {
+    const text = renderReview(
+      [{ label: "Actions", value: "github:issues:read\ngit:write" }],
+      80,
+    );
+    expect(text).toMatch(/Setting\s+Value\n\s+-+\s+-+\n/);
+    expect(text).toMatch(/Actions\s+github:issues:read\n\s+git:write\n/);
+    expect(text).not.toContain(",");
   });
 
   test("wraps long values within their column without losing permissions", () => {

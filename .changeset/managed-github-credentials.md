@@ -39,3 +39,6 @@ field is not supported and is rejected in configuration files.
 
 The CLI reads only account IDs and usernames for actor selection. Unused private
 helpers and duplicate configuration-test setup are removed.
+
+The preview labels the clone source as `Repo`, lists actions one per line, and
+separates the column headings from the inferred parameter values.

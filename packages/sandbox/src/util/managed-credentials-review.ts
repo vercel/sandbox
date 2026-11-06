@@ -43,7 +43,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       value: safeText(input.project),
     },
     {
-      label: "Source",
+      label: "Repo",
       value: config.source
         ? safeText(sourceRepository(config) ?? config.source.url)
         : "none (no repository cloned)",
@@ -62,7 +62,7 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       group.repo.toLowerCase() !== sourceRepository(config)?.toLowerCase();
     rows.push({
       label: "Actions",
-      value: `${showRepo ? `${repo}: ` : ""}${group.actions.join(", ")}`,
+      value: `${showRepo ? `${repo}:\n` : ""}${group.actions.join("\n")}`,
     });
     const actor = displayActor(group.actAs, input.actor);
     rows.push({
@@ -110,22 +110,33 @@ export function renderReview(
     Math.floor(available * 0.25),
   );
   const valueWidth = Math.min(
-    Math.max(5, ...rows.map((row) => Array.from(safeText(row.value)).length)),
+    Math.max(
+      5,
+      ...rows.flatMap((row) =>
+        row.value.split("\n").map((line) => Array.from(safeText(line)).length),
+      ),
+    ),
     available - labelWidth,
   );
   const table = [{ label: "Setting", value: "Value" }, ...rows];
   return table
-    .map((row) => {
+    .map((row, index) => {
       const cells = [
         wrapReviewCell(row.label, labelWidth),
         wrapReviewCell(row.value, valueWidth),
       ];
-      return Array.from(
+      const rendered = Array.from(
         { length: Math.max(...cells.map((cell) => cell.length)) },
         (_, line) =>
           `  ${padReviewCell(cells[0][line] ?? "", labelWidth)}  ${cells[1][line] ?? ""}`.trimEnd() +
           "\n",
       ).join("");
+      return (
+        rendered +
+        (index === 0
+          ? `  ${"-".repeat(labelWidth)}  ${"-".repeat(valueWidth)}\n`
+          : "")
+      );
     })
     .join("");
 }
@@ -135,23 +146,25 @@ function padReviewCell(text: string, width: number): string {
 }
 
 function wrapReviewCell(text: string, width: number): string[] {
-  const lines: string[] = [];
-  let line = "";
-  for (const word of safeText(text).split(/\s+/).filter(Boolean)) {
-    if (line && Array.from(`${line} ${word}`).length > width) {
-      lines.push(line);
-      line = "";
+  return text.split("\n").flatMap((part) => {
+    const lines: string[] = [];
+    let line = "";
+    for (const word of safeText(part).split(/\s+/).filter(Boolean)) {
+      if (line && Array.from(`${line} ${word}`).length > width) {
+        lines.push(line);
+        line = "";
+      }
+      let remaining = Array.from(word);
+      while (remaining.length > width) {
+        lines.push(remaining.slice(0, width).join(""));
+        remaining = remaining.slice(width);
+      }
+      const tail = remaining.join("");
+      if (tail) line = line ? `${line} ${tail}` : tail;
     }
-    let remaining = Array.from(word);
-    while (remaining.length > width) {
-      lines.push(remaining.slice(0, width).join(""));
-      remaining = remaining.slice(width);
-    }
-    const tail = remaining.join("");
-    if (tail) line = line ? `${line} ${tail}` : tail;
-  }
-  if (line || !lines.length) lines.push(line);
-  return lines;
+    if (line || !lines.length) lines.push(line);
+    return lines;
+  });
 }
 
 export type ReviewDecision = { action: "create" } | { action: "cancel" };

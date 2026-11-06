@@ -168,8 +168,9 @@ field like any other unknown field.
 ## Review, approval and Bounds
 
 The `Inferred Parameters` review uses two columns: the setting and its value.
-It shows the team, project, source, complete action sets, and GitHub actor.
-Git actions such as `git:write` appear in the same `Actions` value as API actions.
+It shows the team, project, `Repo`, complete action sets, and GitHub actor.
+A dashed separator follows the heading. Each action appears on its own line.
+Git actions such as `git:write` stay in the same `Actions` entry as API actions.
 The Sandbox name, resource allocation, and a separate commit-credit row are omitted.
 Long values wrap without hiding requested rights.
 
