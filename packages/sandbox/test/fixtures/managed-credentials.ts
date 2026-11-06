@@ -1,3 +1,4 @@
+import type { ManagedCredentialsConfig } from "../../src/util/managed-credentials-config";
 import { PassThrough } from "node:stream";
 
 // Build raw objects without validating or normalizing inputs under test.
@@ -15,15 +16,23 @@ export const configuration = <G, S>(github: G, source?: S) => ({
   credentials: { github },
 });
 
+export function captureOutput() {
+  const output = new PassThrough();
+  let text = "";
+  output.on("data", (chunk: Buffer) => {
+    text += chunk.toString();
+  });
+  return { output, text: () => text };
+}
+
 /** Feed one answer per prompt and capture all output. */
 export function scriptedInput(answers: string[]) {
   const input = new PassThrough();
-  const output = new PassThrough();
-  let text = "";
+  const captured = captureOutput();
+  const { output } = captured;
   let index = 0;
   output.on("data", (chunk: Buffer) => {
     const part = chunk.toString();
-    text += part;
     if (
       (part.includes("? ") || part.endsWith(": ")) &&
       index < answers.length
@@ -32,5 +41,37 @@ export function scriptedInput(answers: string[]) {
       setImmediate(() => input.write(`${answer}\n`));
     }
   });
-  return { input, output, text: () => text };
+  return { input, ...captured };
 }
+
+export const apiConfiguration = (): ManagedCredentialsConfig => ({
+  source: {
+    depth: 2,
+    type: "git" as const,
+    url: "https://github.com/acme/Widgets",
+    revision: "refs/heads/main",
+  },
+  credentials: {
+    github: [
+      {
+        repositories: ["acme/Widgets", "acme/tools"],
+        actions: [
+          "github:pull-request:create",
+          "git:write",
+          "git:write-workflows",
+        ],
+        actAs: "@octocat",
+      },
+      {
+        repositories: ["acme/Docs"],
+        actions: ["github:issues:read"],
+        actAs: "43",
+      },
+      {
+        repositories: ["acme/Widgets"],
+        actions: ["github:labels:read"],
+        actAs: "@octocat",
+      },
+    ],
+  },
+});

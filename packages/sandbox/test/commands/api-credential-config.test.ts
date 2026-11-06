@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { create } from "../../src/commands/create";
 import type { Sandbox } from "@vercel/sandbox";
-import type { ManagedCredentialsConfig } from "../../src/util/managed-credentials-config";
+import { apiConfiguration as apiDocument } from "../fixtures/managed-credentials";
 
 const { createSandbox, hasBounds, inferActor } = vi.hoisted(() => ({
   createSandbox: vi.fn(),
@@ -50,38 +50,6 @@ afterEach(async () => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   await rm(directory, { recursive: true, force: true });
-});
-
-const apiDocument = (): ManagedCredentialsConfig => ({
-  source: {
-    depth: 2,
-    type: "git" as const,
-    url: "https://github.com/acme/Widgets",
-    revision: "refs/heads/main",
-  },
-  credentials: {
-    github: [
-      {
-        repositories: ["acme/Widgets", "acme/tools"],
-        actions: [
-          "github:pull-request:create",
-          "git:write",
-          "git:write-workflows",
-        ],
-        actAs: "@octocat",
-      },
-      {
-        repositories: ["acme/Docs"],
-        actions: ["github:issues:read"],
-        actAs: "43",
-      },
-      {
-        repositories: ["acme/Widgets"],
-        actions: ["github:labels:read"],
-        actAs: "@octocat",
-      },
-    ],
-  },
 });
 
 async function invoke(file: string, extra: string[] = []) {
