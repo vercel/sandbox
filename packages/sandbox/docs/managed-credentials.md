@@ -5,11 +5,6 @@ the sandbox, CLI output, logs, Git URLs, or exported configuration. Only GitHub 
 supported; its flags use `--credentials-github-*` so other providers can have
 separate namespaces.
 
-The project needs the server-side feature gates, permissions, and unified action
-contract from [API PR #103992](https://github.com/vercel/api/pull/103992).
-Flags need no local opt-in. The CLI does not deploy backend support or retry with
-older request fields. Sandbox reuse also needs readable request metadata.
-
 ## Quick start and scope
 
 Sign in with `vercel login`, then run inside a GitHub repository:
