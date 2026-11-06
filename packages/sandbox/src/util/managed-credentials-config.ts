@@ -193,22 +193,6 @@ export type GithubCredentialGroup =
   ManagedCredentialsConfig["credentials"]["github"][number];
 
 /**
- * Where a configuration came from.
- *
- * Explicit sources (a file or another Sandbox) state the access they want.
- * They never acquire inferred defaults. Empty credential lists stay empty;
- * unsupported read actions are rejected rather than upgraded to write.
- */
-export type ConfigOrigin = "flags" | "file" | "sandbox";
-
-export interface ResolvedConfig {
-  config: ManagedCredentialsConfig;
-  origin: ConfigOrigin;
-  /** Human-readable description of the origin, for the review screen. */
-  originLabel: string;
-}
-
-/**
  * Validate an untrusted value as a managed-credentials configuration.
  *
  * Accepts only the canonical API subset, with no CLI aliases or coercion.

@@ -19,20 +19,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 async function parse(args: string[]) {
-  const report = vi.fn();
   const parser = cmd.command({
     name: "scope",
-    args: { scope: createScope(createTokenOption(false), report) },
+    args: { scope: createScope(createTokenOption(false)) },
     handler: (args) => args,
   });
   const result = await cmd.run(parser, args);
-  return { result: result.scope, provenance: report.mock.calls[0]?.[0] };
+  return result.scope;
 }
 
 test.each(["scope", "team"])(
-  "attributes explicit --%s and --project separately",
+  "keeps explicit --%s and --project selectors",
   async (flag) => {
-    const { result, provenance } = await parse([
+    const result = await parse([
       "--token=t",
       `--${flag}=team_explicit`,
       "--project=prj_explicit",
@@ -41,72 +40,59 @@ test.each(["scope", "team"])(
       team: "team_explicit",
       project: "prj_explicit",
     });
-    expect(provenance).toEqual({
-      team: `from --${flag}`,
-      project: "from --project",
-    });
     expect(Auth.inferScope).not.toHaveBeenCalled();
   },
 );
 
-test("attributes the winning scope alias when both are provided", async () => {
-  const { result, provenance } = await parse([
+test("keeps the winning scope alias when both are provided", async () => {
+  const result = await parse([
     "--token=t",
     "--team=other",
     "--scope=chosen",
     "--project=prj",
   ]);
   expect(result.team).toBe("chosen");
-  expect(provenance.team).toBe("from --scope");
 });
 
-test("attributes linked scope to the project file", async () => {
+test("selects scope from the linked project file", async () => {
   vi.mocked(readProjectConfiguration).mockReturnValue({
     orgId: "team_linked",
     projectId: "prj_linked",
   });
-  const { provenance } = await parse(["--token=t"]);
-  expect(provenance).toEqual({
-    team: "from .vercel/project.json",
-    project: "from .vercel/project.json",
-  });
+  const result = await parse(["--token=t"]);
+  expect(result).toMatchObject({ team: "team_linked", project: "prj_linked" });
+  expect(Auth.inferScope).not.toHaveBeenCalled();
 });
 
-test("attributes default scope to account discovery without mislabeling an explicit project", async () => {
+test("keeps the explicit project when discovering the default team", async () => {
   vi.mocked(Auth.inferScope).mockResolvedValue({
     teamId: "team_default",
     projectId: "vercel-sandbox-default-project",
     created: false,
   });
-  const { provenance } = await parse(["--token=t", "--project=prj_explicit"]);
-  expect(provenance).toEqual({
-    team: "inferred from Vercel account",
-    project: "from --project",
+  const result = await parse(["--token=t", "--project=prj_explicit"]);
+  expect(result).toMatchObject({
+    team: "team_default",
+    project: "prj_explicit",
   });
 });
 
-test("attributes an inferred project to the Sandbox default", async () => {
+test("selects the Sandbox default project", async () => {
   vi.mocked(Auth.inferScope).mockResolvedValue({
     teamId: "team_default",
     projectId: "vercel-sandbox-default-project",
     created: false,
   });
-  expect((await parse(["--token=t"])).provenance).toEqual({
-    team: "inferred from Vercel account",
-    project: "default Sandbox project",
+  expect(await parse(["--token=t"])).toMatchObject({
+    team: "team_default",
+    project: "vercel-sandbox-default-project",
   });
 });
 
-test("attributes token claims only to fields the token supplied", async () => {
+test("fills only missing selectors from token claims", async () => {
   const token = `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ owner_id: "team_token", project_id: "prj_token" })).toString("base64url")}.signature`;
-  const { provenance } = await parse([
-    `--token=${token}`,
-    "--scope=team_explicit",
-  ]);
-  expect(provenance).toEqual({
-    team: "from --scope",
-    project: "from OIDC token claims",
-  });
+  const result = await parse([`--token=${token}`, "--scope=team_explicit"]);
+  expect(result).toMatchObject({ team: "team_explicit", project: "prj_token" });
 });
 
 // Kept from the removed dry-run suite: explicit fields must not carry another
@@ -116,6 +102,6 @@ test.each([
   ["--project=explicit-project", "projectSlug"],
 ])("does not label %s with another target's OIDC slug", async (flag, slug) => {
   const token = `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ owner_id: "team_token", project_id: "prj_token", owner: "token-team", project: "token-project" })).toString("base64url")}.signature`;
-  const { result } = await parse([`--token=${token}`, flag]);
+  const result = await parse([`--token=${token}`, flag]);
   expect(result[slug as "teamSlug" | "projectSlug"]).toBeUndefined();
 });

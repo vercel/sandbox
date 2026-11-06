@@ -2,18 +2,13 @@ import { CliError } from "./cli-error";
 import {
   DEFAULT_API_ACTIONS,
   type CredentialAction,
-  type ConfigOrigin,
   type ManagedCredentialsConfig,
-  type ResolvedConfig,
   canonicalCreationAction,
   isRepository,
   parseConfig,
   repositoryUrl,
 } from "./managed-credentials-config";
-import {
-  type IdentitySource,
-  type InferredActor,
-} from "./managed-credentials-identity";
+import type { InferredActor } from "./managed-credentials-identity";
 import { inferActor } from "./managed-credentials-actor";
 import { inferRepository } from "./managed-credentials-repository";
 import { readJsonPayload } from "./managed-credentials-payload";
@@ -67,18 +62,8 @@ export function hasManagedCredentialsRequest(
   );
 }
 
-/** How each field of the proposal was arrived at, for the review screen. */
-export interface ConfigProvenance {
-  team?: string;
-  project?: string;
-  repository?: "explicit" | "git-remote" | "config";
-  actor?: IdentitySource | "config" | "unresolved";
-  actions?: "default" | "explicit" | "config";
-  gitAccess?: "default" | "explicit" | "config";
-}
-
-export interface ResolvedManagedCredentials extends ResolvedConfig {
-  provenance: ConfigProvenance;
+export interface ResolvedManagedCredentials {
+  config: ManagedCredentialsConfig;
   /** The actor inference result, kept for review and re-computation. */
   actor?: InferredActor;
 }
@@ -187,17 +172,6 @@ export async function resolveManagedCredentials(
     );
     return {
       config: parseConfig(payload),
-      origin: "file",
-      originLabel:
-        options.credentialsFromConfigFile === "-"
-          ? "configuration file (stdin)"
-          : `configuration file ${options.credentialsFromConfigFile}`,
-      provenance: {
-        repository: "config",
-        actor: "config",
-        actions: "config",
-        gitAccess: "config",
-      },
     };
   }
 
@@ -212,14 +186,6 @@ export async function resolveManagedCredentials(
     );
     return {
       config: parseConfig(config),
-      origin: "sandbox",
-      originLabel: `Sandbox ${options.credentialsFromSandbox}`,
-      provenance: {
-        repository: "config",
-        actor: "config",
-        actions: "config",
-        gitAccess: "config",
-      },
     };
   }
 
@@ -230,8 +196,6 @@ async function resolveFromFlags(
   options: ManagedCredentialsOptions,
   context: ResolveContext,
 ): Promise<ResolvedManagedCredentials> {
-  const provenance: ConfigProvenance = {};
-
   // --- Repository -----------------------------------------------------
   let repo = options.credentialsRepo;
   if (repo !== undefined) {
@@ -240,7 +204,6 @@ async function resolveFromFlags(
         `--credentials-github-repo expects OWNER/REPOSITORY. Received: ${repo}`,
       );
     }
-    provenance.repository = "explicit";
   } else {
     repo = await (context.inferRepositoryImpl ?? inferRepository)(context.cwd);
     if (repo === undefined) {
@@ -251,7 +214,6 @@ async function resolveFromFlags(
         },
       );
     }
-    provenance.repository = "git-remote";
   }
 
   // Explicit actions replace the complete set, including Git access.
@@ -259,8 +221,6 @@ async function resolveFromFlags(
   const actions: CredentialAction[] = explicitActions
     ? parseActions(options.credentialsActions)
     : [...DEFAULT_API_ACTIONS, "git:write"];
-  provenance.actions = explicitActions ? "explicit" : "default";
-  provenance.gitAccess = explicitActions ? "explicit" : "default";
 
   // One selected actor applies to Git operations and GitHub API operations.
   const actor = await (context.inferActorImpl ?? inferActor)({
@@ -271,7 +231,6 @@ async function resolveFromFlags(
     ...(context.teamId ? { teamId: context.teamId } : {}),
     ...(context.fetch ? { fetch: context.fetch } : {}),
   });
-  provenance.actor = actor?.source ?? "unresolved";
 
   if (!actor && actions.length > 0) {
     throw new CliError(
@@ -300,9 +259,6 @@ async function resolveFromFlags(
 
   return {
     config,
-    origin: "flags",
-    originLabel: "command-line flags",
-    provenance,
     ...(actor ? { actor } : {}),
   };
 }
@@ -331,5 +287,3 @@ export function parseActions(values: readonly string[]): CredentialAction[] {
   }
   return actions;
 }
-
-export type { ConfigOrigin };

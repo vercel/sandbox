@@ -112,12 +112,6 @@ describe("inferred single-repository defaults", () => {
     expect(resolved?.config.credentials.github[0].actions).not.toContain(
       "git:write-workflows",
     );
-    expect(resolved?.provenance).toEqual({
-      repository: "git-remote",
-      actor: "gh",
-      actions: "default",
-      gitAccess: "default",
-    });
   });
 
   test("supplied actions replace the defaults rather than adding to them", async () => {
@@ -274,7 +268,6 @@ describe("explicit configuration sources", () => {
 
     const resolved = await resolve({ credentialsFromConfigFile: path });
     expect(resolved?.config.credentials.github).toEqual([]);
-    expect(resolved?.origin).toBe("file");
   });
 
   test("accepts an API-shaped file and preserves complete repository groups exactly", async () => {
@@ -284,7 +277,6 @@ describe("explicit configuration sources", () => {
 
     const resolved = await resolve({ credentialsFromConfigFile: path }, ctx);
     expect(resolved?.config).toEqual(document);
-    expect(resolved?.origin).toBe("file");
     expect(Object.keys(resolved!.config.source!)).toEqual(
       Object.keys(document.source!),
     );
@@ -342,8 +334,6 @@ describe("explicit configuration sources", () => {
       context({ loadFromSandbox }),
     );
     expect(loadFromSandbox).toHaveBeenCalledWith("sbx_123");
-    expect(resolved?.origin).toBe("sandbox");
-    expect(resolved?.originLabel).toContain("sbx_123");
     expect(resolved?.config).toEqual(
       await loadFromSandbox.mock.results[0].value,
     );

@@ -167,23 +167,20 @@ field like any other unknown field.
 
 ## Review, approval and Bounds
 
-The review uses three columns: the setting, its value, and where the value came
-from. Every field has a source, including the team, project, complete action sets,
-GitHub actor, commit attribution, and resource allocation. Sources identify
-explicit flags, linked configuration, token claims, account defaults, or imported
-configuration. Long values wrap within their column without hiding requested rights.
+The review uses two columns: the setting and its value. It shows the team,
+project, complete action sets, GitHub actor, commit attribution, and resource
+allocation. Long values wrap within their column without hiding requested rights.
 
 The CLI looks up team and project names through read-only requests. These names
 are for display only; API requests keep the selected IDs and token. If a lookup
-fails, the review keeps the ID and adds `name lookup unavailable` to the From
-column. Name lookup does not replace or skip the Bounds check.
+fails, the review keeps the ID. Name lookup does not replace or skip the Bounds
+check.
 
 Each repository's requested actions have one actor row with a GitHub username. The request
 still uses its original authorization selector, including a numeric ID when available.
 If a numeric selector has no matching username metadata, the review shows
 `GitHub username unavailable`. It never guesses another account or displays an
-ID as a username. Configuration input sources appear in the source column rather
-than as a separate Sandbox setting.
+ID as a username.
 
 Answer `y` or `yes` at `Create this sandbox? (y/n)` to approve. Any other answer,
 including Enter, cancels: the CLI prints the editable command below and exits 130

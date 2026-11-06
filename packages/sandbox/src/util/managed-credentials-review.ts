@@ -5,9 +5,7 @@ import {
   repositoryGroups,
   sourceRepository,
 } from "./managed-credentials-config";
-import type { ConfigProvenance } from "./managed-credentials-resolve";
 import type { InferredActor } from "./managed-credentials-identity";
-import { isScopeId } from "./scope-display";
 
 /** Strip control and bidirectional characters before display. */
 export const safeText = (text: string) =>
@@ -15,21 +13,16 @@ export const safeText = (text: string) =>
 
 export interface ReviewInput {
   config: ManagedCredentialsConfig;
-  originLabel: string;
-  provenance: ConfigProvenance;
   actor?: InferredActor;
   team: string;
   project: string;
   sandboxName?: string;
   vcpus: number;
-  vcpusExplicit: boolean;
 }
 
 export interface ReviewRow {
   label: string;
   value: string;
-  /** Why this value was chosen, shown in the third column. */
-  note?: string;
 }
 
 /**
@@ -40,79 +33,40 @@ export interface ReviewRow {
  * attribution comes from the selected actor.
  */
 export function buildReview(input: ReviewInput): ReviewRow[] {
-  const { config, provenance } = input;
+  const { config } = input;
   const groups = repositoryGroups(config);
-  const origin = `from ${safeText(input.originLabel || "the resolved configuration")}`;
   const rows: ReviewRow[] = [
     {
       label: "Team",
       value: safeText(input.team),
-      note:
-        (provenance.team ?? "provided scope") +
-        (isScopeId(input.team, "team") ? " (name lookup unavailable)" : ""),
     },
     {
       label: "Project",
       value: safeText(input.project),
-      note:
-        (provenance.project ?? "provided scope") +
-        (isScopeId(input.project, "project")
-          ? " (name lookup unavailable)"
-          : ""),
     },
     {
       label: "Sandbox",
       value: input.sandboxName
         ? safeText(input.sandboxName)
         : "new sandbox (name assigned by the server)",
-      note: input.sandboxName ? "from --name" : "assigned by the server",
     },
     {
       label: "Source",
       value: config.source
         ? safeText(sourceRepository(config) ?? config.source.url)
         : "none (no repository cloned)",
-      note: !config.source
-        ? "no clone requested"
-        : provenance.repository === "git-remote"
-          ? "inferred from the local Git remote"
-          : provenance.repository === "explicit"
-            ? "from --credentials-github-repo"
-            : origin,
     },
   ];
   if (config.source?.revision)
     rows.push({
       label: "Revision",
       value: safeText(config.source.revision),
-      note: origin,
     });
 
-  const actionSource =
-    provenance.actions === "explicit"
-      ? "from --credentials-github-action"
-      : provenance.actions === "config" || provenance.repository === "config"
-        ? origin
-        : "default GitHub actions";
-  const actorSource =
-    provenance.actor === "gh"
-      ? "inferred from active gh account"
-      : provenance.actor === "vercel-account-link"
-        ? "from Vercel-linked GitHub account"
-        : provenance.actor === "explicit"
-          ? "from --credentials-github-act-as"
-          : provenance.actor === "config"
-            ? origin
-            : "selected by the backend";
-  const sourceForActor = (selector: string | undefined) =>
-    selector === undefined
-      ? `backend default; no actor set in ${safeText(input.originLabel)}`
-      : actorSource;
   for (const group of groups) {
     rows.push({
       label: `Access ${safeText(group.repo)}`,
       value: group.actions.join(", "),
-      note: actionSource,
     });
     rows.push({
       label:
@@ -120,14 +74,12 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
           ? "GitHub actor"
           : `GitHub actor ${safeText(group.repo)}`,
       value: displayActor(group.actAs, input.actor),
-      note: sourceForActor(group.actAs),
     });
   }
   if (groups.length === 0) {
     rows.push({
       label: "GitHub actor",
       value: "none",
-      note: "no credential access requested",
     });
   }
 
@@ -136,14 +88,6 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       (action) => action === "git:write" || action === "git:write-workflows",
     ),
   );
-  const creditSources = [
-    ...new Set(writingGroups.map((group) => sourceForActor(group.actAs))),
-  ];
-  const creditSource = writingGroups.length
-    ? creditSources.length === 1
-      ? creditSources[0]
-      : "from each repository's GitHub actor"
-    : "no Git writing requested";
   rows.push({
     label: "Commit credit",
     value:
@@ -152,12 +96,10 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
         : writingGroups.length
           ? "from each repository's GitHub actor"
           : "none",
-    note: creditSource,
   });
   rows.push({
     label: "Resources",
     value: `${input.vcpus} vCPUs`,
-    note: input.vcpusExplicit ? "from --vcpus" : "managed-credentials default",
   });
   return rows;
 }
@@ -177,7 +119,7 @@ function displayActor(
     : "caller's connected GitHub account";
 }
 
-/** Render complete values and provenance in three aligned, wrapping columns. */
+/** Render complete values in two aligned, wrapping columns. */
 export function renderReview(
   rows: readonly ReviewRow[],
   columns = process.stderr.columns ?? 120,
@@ -186,36 +128,26 @@ export function renderReview(
     40,
     Math.floor(Number.isFinite(columns) ? columns : 120),
   );
-  const available = width - 6;
+  const available = width - 4;
   const labelWidth = Math.min(
     Math.max(7, ...rows.map((row) => Array.from(safeText(row.label)).length)),
     Math.floor(available * 0.25),
   );
-  const sourceWidth = Math.min(
-    Math.max(
-      4,
-      ...rows.map(
-        (row) => Array.from(safeText(row.note ?? "not specified")).length,
-      ),
-    ),
-    Math.floor(available * 0.35),
-  );
   const valueWidth = Math.min(
     Math.max(5, ...rows.map((row) => Array.from(safeText(row.value)).length)),
-    available - labelWidth - sourceWidth,
+    available - labelWidth,
   );
-  const table = [{ label: "Setting", value: "Value", note: "From" }, ...rows];
+  const table = [{ label: "Setting", value: "Value" }, ...rows];
   return table
     .map((row) => {
       const cells = [
         wrapReviewCell(row.label, labelWidth),
         wrapReviewCell(row.value, valueWidth),
-        wrapReviewCell(row.note ?? "not specified", sourceWidth),
       ];
       return Array.from(
         { length: Math.max(...cells.map((cell) => cell.length)) },
         (_, line) =>
-          `  ${padReviewCell(cells[0][line] ?? "", labelWidth)}  ${padReviewCell(cells[1][line] ?? "", valueWidth)}  ${cells[2][line] ?? ""}`.trimEnd() +
+          `  ${padReviewCell(cells[0][line] ?? "", labelWidth)}  ${cells[1][line] ?? ""}`.trimEnd() +
           "\n",
       ).join("");
     })

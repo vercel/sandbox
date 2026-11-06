@@ -41,15 +41,8 @@ function context(): CreateContext {
     creationRequested: true,
     interactive: true,
     yes: false,
-    scopeProvenance: {
-      team: "from .vercel/project.json",
-      project: "from .vercel/project.json",
-    },
     managed: {
       config,
-      origin: "flags",
-      originLabel: "command-line flags",
-      provenance: {},
     },
   };
 }
@@ -93,14 +86,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("linked IDs display looked-up names without changing API selectors, provenance or token", async () => {
+test("linked IDs display looked-up names without changing API selectors or token", async () => {
   const ctx = context();
   const original = structuredClone(ctx);
   const prepared = await prepareManagedCredentials({ context: ctx });
-  expect(output).toMatch(/Team\s+linked-team\s+from \.vercel\/project.json/);
-  expect(output).toMatch(
-    /Project\s+linked-project\s+from \.vercel\/project.json/,
-  );
+  expect(output).toMatch(/Team\s+linked-team/);
+  expect(output).toMatch(/Project\s+linked-project/);
+  expect(output).not.toMatch(/\bFrom\b/);
   expect(output).not.toContain(TEAM);
   expect(output).not.toContain(PROJECT);
   expect(bounds).toHaveBeenCalledExactlyOnceWith({
@@ -114,7 +106,7 @@ test("linked IDs display looked-up names without changing API selectors, provena
   expect(requests).toHaveLength(2);
 });
 
-test("unreadable names retain IDs with a note and do not bypass an unreadable Bounds policy", async () => {
+test("unreadable names retain IDs and do not bypass an unreadable Bounds policy", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response(null, { status: 403 })),
@@ -129,8 +121,6 @@ test("unreadable names retain IDs with a note and do not bypass an unreadable Bo
   ).rejects.toMatchObject({ options: { reason: "policy_unknown" } });
   expect(output).toContain(TEAM);
   expect(output).toContain(PROJECT);
-  expect(output).toMatch(/name lookup\s+unavailable/);
-  expect(output).toContain("from .vercel/project.json");
   expect(bounds).toHaveBeenCalledExactlyOnceWith({
     token: "existing-token",
     team: TEAM,
@@ -140,24 +130,19 @@ test("unreadable names retain IDs with a note and do not bypass an unreadable Bo
 });
 
 test.each([PROJECT, "Qm" + "a".repeat(44)])(
-  "the pure review retains unresolved IDs and annotates the missing names (%s)",
+  "the pure review retains unresolved IDs (%s)",
   (project) => {
     const rows = buildReview({
       config,
-      originLabel: "flags",
-      provenance: {},
       team: TEAM,
       project,
       vcpus: 6,
-      vcpusExplicit: false,
     });
     expect(rows.find((row) => row.label === "Team")).toMatchObject({
       value: TEAM,
-      note: "provided scope (name lookup unavailable)",
     });
     expect(rows.find((row) => row.label === "Project")).toMatchObject({
       value: project,
-      note: "provided scope (name lookup unavailable)",
     });
   },
 );

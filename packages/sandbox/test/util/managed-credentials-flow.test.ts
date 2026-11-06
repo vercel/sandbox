@@ -23,12 +23,6 @@ const configFor = (repo = "vercel/api") =>
 
 const resolved = (repo = "vercel/api"): ResolvedManagedCredentials => ({
   config: configFor(repo),
-  origin: "flags",
-  originLabel: "command-line flags",
-  provenance: {
-    repository: "git-remote",
-    actor: "gh",
-  },
 });
 
 const baseContext = (overrides: Record<string, unknown> = {}) => ({
@@ -36,7 +30,6 @@ const baseContext = (overrides: Record<string, unknown> = {}) => ({
   project: "api",
   displayScope: { team: "jacks-projects", project: "api" },
   vcpus: 6,
-  vcpusExplicit: false,
   interactive: false,
   yes: false,
   output: new PassThrough(),
@@ -267,7 +260,7 @@ describe("interactive review", () => {
 });
 
 describe("review display metadata", () => {
-  test("carries scope sources and usernames through the real flow without changing IDs", async () => {
+  test("carries readable scope and usernames through the real flow without changing IDs", async () => {
     const initial = resolved();
     initial.config.credentials.github[0].actAs = "2373726";
     initial.actor = { actAs: "2373726", login: "scubbo", source: "gh" };
@@ -285,15 +278,12 @@ describe("review display metadata", () => {
           interactive: true,
           input,
           output,
-          scopeProvenance: {
-            team: "from .vercel/project.json",
-            project: "from .vercel/project.json",
-          },
         }),
       }),
     ).rejects.toMatchObject({ options: { reason: "canceled" } });
     const text = captured.text();
-    expect(text).toMatch(/Team\s+jacks-projects\s+from \.vercel\/project.json/);
+    expect(text).toMatch(/Team\s+jacks-projects/);
+    expect(text).not.toMatch(/\bFrom\b/);
     expect(text).toMatch(/GitHub actor\s+@scubbo/);
     expect(text).not.toContain("2373726");
     expect(initial.config.credentials.github[0].actAs).toBe("2373726");

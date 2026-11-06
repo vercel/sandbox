@@ -1,7 +1,7 @@
 import { token } from "./auth";
 import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
-import { inferScope, type ScopeProvenance } from "../util/infer-scope";
+import { inferScope } from "../util/infer-scope";
 import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
@@ -60,10 +60,7 @@ const team: typeof scopeParser = {
  * that includes token, project, and team.
  * If project or team are not provided, they will be inferred.
  */
-export function createScope(
-  tokenParser = token,
-  reportProvenance?: (provenance: ScopeProvenance) => void,
-): ArgParser<{
+export function createScope(tokenParser = token): ArgParser<{
   token: string;
   project: string;
   team: string;
@@ -104,17 +101,6 @@ export function createScope(
 
       let projectSlug: string | undefined;
       let teamSlug: string | undefined;
-      const explicitScope = context.nodes.some(
-        (node) =>
-          node.type === "longOption" &&
-          node.key === "scope" &&
-          node.value !== undefined,
-      );
-      const provenance: ScopeProvenance = {
-        team: `from --${explicitScope ? "scope" : "team"}`,
-        project: "from --project",
-      };
-
       if (
         typeof projectId.value === "undefined" ||
         typeof teamId.value === "undefined"
@@ -132,20 +118,6 @@ export function createScope(
           teamId.value ??= scope.owner;
           projectSlug = inferProject ? scope.projectSlug : undefined;
           teamSlug = inferTeam ? scope.ownerSlug : undefined;
-          const inferredFrom =
-            scope.source === "oidc"
-              ? "from OIDC token claims"
-              : scope.source === "project-config"
-                ? "from .vercel/project.json"
-                : scope.source === "account-default"
-                  ? "inferred from Vercel account"
-                  : "from scope inference";
-          if (inferTeam) provenance.team = inferredFrom;
-          if (inferProject)
-            provenance.project =
-              scope.source === "account-default"
-                ? "default Sandbox project"
-                : inferredFrom;
         } catch (err) {
           debug("scope inference failed: %O", err);
           const detail =
@@ -168,7 +140,6 @@ export function createScope(
         }
       }
 
-      reportProvenance?.(provenance);
       return {
         _tag: "ok",
         value: {

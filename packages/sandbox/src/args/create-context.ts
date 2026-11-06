@@ -2,7 +2,6 @@ import * as cmd from "cmd-ts";
 import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
 import { createScope, scope } from "./scope";
-import type { ScopeProvenance } from "../util/infer-scope";
 import { createTokenOption } from "./auth";
 import { managedCredentialOptions } from "./managed-credentials";
 import { CliError } from "../util/cli-error";
@@ -22,7 +21,6 @@ export type CreateContext = Parsed<typeof scope> & {
   appName?: "sandbox" | "vercel sandbox";
   creationRequested: boolean;
   interactive: boolean;
-  scopeProvenance?: ScopeProvenance;
   yes: boolean;
   managed?: ResolvedManagedCredentials;
   managedOptions?: ManagedCredentialsOptions;
@@ -81,12 +79,8 @@ export function createContext(): ArgParser<CreateContext> & ProvidesHelp {
         managedOptions.credentialsFromConfigFile !== undefined
           ? await resolveManagedCredentials(managedOptions, { token: "" })
           : undefined;
-      let scopeProvenance: ScopeProvenance | undefined;
       const auth = createScope(
         createTokenOption(!creationRequested && interactive),
-        (provenance) => {
-          scopeProvenance = provenance;
-        },
       );
       const result = await auth.parse(context);
       if (result._tag === "error") {
@@ -128,7 +122,6 @@ export function createContext(): ArgParser<CreateContext> & ProvidesHelp {
               : "sandbox",
           creationRequested,
           interactive,
-          ...(scopeProvenance ? { scopeProvenance } : {}),
           yes: run.yes,
           hasExplicitToken: context.nodes.some(
             (node) =>

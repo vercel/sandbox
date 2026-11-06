@@ -1,5 +1,4 @@
 import { CliError } from "./cli-error";
-import type { ScopeProvenance } from "./infer-scope";
 import type { ManagedCredentialsConfig } from "./managed-credentials-config";
 import type { ResolvedManagedCredentials } from "./managed-credentials-resolve";
 import {
@@ -21,10 +20,8 @@ export interface FlowContext extends ReviewScope {
   hasProjectBounds?: (scope: ReviewScope) => Promise<boolean>;
   /** Render the exact proposal as a command without executing or approving it. */
   renderCommand?: (config: ManagedCredentialsConfig) => string;
-  scopeProvenance?: ScopeProvenance;
   sandboxName?: string;
   vcpus: number;
-  vcpusExplicit: boolean;
   interactive: boolean;
   yes: boolean;
   output?: NodeJS.WritableStream;
@@ -74,18 +71,11 @@ export async function runManagedCredentialsFlow(options: {
   if (!context.yes) {
     const rows = buildReview({
       config: resolved.config,
-      originLabel: resolved.originLabel,
-      provenance: {
-        ...resolved.provenance,
-        team: context.scopeProvenance?.team ?? "provided scope",
-        project: context.scopeProvenance?.project ?? "provided scope",
-      },
       ...(resolved.actor ? { actor: resolved.actor } : {}),
       team: context.displayScope.team,
       project: context.displayScope.project,
       ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
       vcpus: context.vcpus,
-      vcpusExplicit: context.vcpusExplicit,
     });
     write(
       `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,

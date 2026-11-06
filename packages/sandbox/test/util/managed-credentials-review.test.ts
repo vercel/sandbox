@@ -25,15 +25,9 @@ const review = (overrides: Record<string, unknown> = {}) =>
         { type: "git", url: "https://github.com/vercel/api.git" },
       ),
     ),
-    originLabel: "command-line flags",
-    provenance: {
-      repository: "git-remote",
-      actor: "gh",
-    },
     team: "jacks-projects",
     project: "api",
     vcpus: 6,
-    vcpusExplicit: false,
     ...overrides,
   });
 
@@ -41,7 +35,7 @@ const valueOf = (rows: ReturnType<typeof buildReview>, label: string) =>
   rows.find((row) => row.label === label)?.value;
 
 describe("review contents", () => {
-  test("shows team, project, source, access, resources, and origin", () => {
+  test("shows team, project, source, access, and resources", () => {
     const rows = review();
     expect(valueOf(rows, "Team")).toBe("jacks-projects");
     expect(valueOf(rows, "Project")).toBe("api");
@@ -52,26 +46,13 @@ describe("review contents", () => {
     expect(valueOf(rows, "Git access")).toBeUndefined();
     expect(valueOf(rows, "Resources")).toBe("6 vCPUs");
     expect(valueOf(rows, "Configuration")).toBeUndefined();
-    expect(rows.every((row) => !!row.note)).toBe(true);
+    expect(valueOf(review({ vcpus: 2 }), "Resources")).toBe("2 vCPUs");
   });
 
   test("derives commit credit from the selected GitHub actor", () => {
     const rows = review();
     expect(valueOf(rows, "Commit credit")).toBe("from @scubbo");
     expect(valueOf(rows, "GitHub actor")).toBe("@scubbo");
-  });
-
-  test("marks the managed-credentials vCPU default as a default", () => {
-    expect(review().find((row) => row.label === "Resources")?.note).toMatch(
-      /default/,
-    );
-  });
-
-  test("attributes an explicit vCPU count to the flag", () => {
-    const rows = review({ vcpus: 2, vcpusExplicit: true });
-    expect(rows.find((row) => row.label === "Resources")?.note).toBe(
-      "from --vcpus",
-    );
   });
 
   test("shows a Git-only list without adding API defaults", () => {
@@ -82,17 +63,11 @@ describe("review contents", () => {
           url: "https://github.com/vercel/api.git",
         }),
       ),
-      originLabel: "configuration file config.json",
-      provenance: { repository: "config" },
       team: "t",
       project: "p",
       vcpus: 6,
-      vcpusExplicit: false,
     });
     expect(valueOf(rows, "Access vercel/api")).toBe("git:write");
-    expect(
-      rows.find((row) => row.label === "Access vercel/api")?.note,
-    ).toContain("configuration file");
   });
 
   test("lists each repository's access separately", () => {
@@ -103,12 +78,9 @@ describe("review contents", () => {
           credentialGroup(["acme/two"], ["github:pull-request:create"]),
         ]),
       ),
-      originLabel: "configuration file config.json",
-      provenance: { repository: "config" },
       team: "t",
       project: "p",
       vcpus: 6,
-      vcpusExplicit: false,
     });
     expect(valueOf(rows, "Access acme/one")).toBe("github:issues:read");
     expect(valueOf(rows, "Access acme/two")).toBe("github:pull-request:create");
@@ -123,12 +95,9 @@ describe("review contents", () => {
           revision: "main‮Evil",
         }),
       ),
-      originLabel: "flags",
-      provenance: {},
       team: "t\u0000eam",
       project: "p",
       vcpus: 6,
-      vcpusExplicit: false,
     });
     expect(valueOf(rows, "Team")).toBe("team");
     expect(valueOf(rows, "Revision")).toBe("mainEvil");
@@ -152,22 +121,13 @@ const input = () => ({
       },
     ),
   ),
-  originLabel: "command-line flags",
-  provenance: {
-    repository: "git-remote" as const,
-    actor: "gh" as const,
-    actions: "default" as const,
-    team: "inferred from the signed-in Vercel account",
-    project: "default Sandbox project",
-  },
   actor: { actAs: "2373726", login: "scubbo", source: "gh" as const },
   team: "vercel",
   project: "widgets",
   vcpus: 6,
-  vcpusExplicit: false,
 });
 
-describe("complete review provenance", () => {
+describe("review identities", () => {
   test("uses the resolved username without changing the authorization selector", () => {
     const proposal = input();
     const before = JSON.stringify(proposal.config);
@@ -191,93 +151,16 @@ describe("complete review provenance", () => {
     expect(actor?.value).not.toContain("2373726");
   });
 
-  test.each([
-    ["gh", "inferred from active gh account"],
-    ["vercel-account-link", "from Vercel-linked GitHub account"],
-    ["explicit", "from --credentials-github-act-as"],
-    ["config", "from configuration file permissions.json"],
-  ] as const)(
-    "uses the same %s annotation for the GitHub actor and derived commit credit",
-    (actor, annotation) => {
-      const proposal = input();
-      const rows = buildReview({
-        ...proposal,
-        originLabel: "configuration file permissions.json",
-        provenance: { ...proposal.provenance, actor },
-      });
-      expect(rows.find((row) => row.label === "GitHub actor")?.note).toBe(
-        annotation,
-      );
-      expect(rows.find((row) => row.label === "Commit credit")?.note).toBe(
-        annotation,
-      );
-      expect(rows.find((row) => row.label === "Commit credit")?.value).toBe(
-        "from @scubbo",
-      );
-    },
-  );
-
-  test("preserves the backend-default annotation when no actor is selected", () => {
+  test("shows backend-default actor and credit when no actor is selected", () => {
     const proposal = input();
     delete proposal.config.credentials.github[0].actAs;
     const rows = buildReview(proposal);
-    expect(rows.find((row) => row.label === "Commit credit")?.note).toBe(
-      rows.find((row) => row.label === "GitHub actor")?.note,
+    expect(valueOf(rows, "GitHub actor")).toBe(
+      "caller's connected GitHub account",
     );
-  });
-
-  test("gives every displayed field a source and removes the configuration row", () => {
-    const rows = buildReview(input());
-    expect(rows.every((row) => !!row.note?.trim())).toBe(true);
-    expect(rows.find((row) => row.label === "Team")?.note).toContain(
-      "signed-in Vercel account",
+    expect(valueOf(rows, "Commit credit")).toBe(
+      "from caller's connected GitHub account",
     );
-    expect(rows.find((row) => row.label === "Project")?.note).toBe(
-      "default Sandbox project",
-    );
-    expect(rows.find((row) => row.label.startsWith("Access "))?.note).toContain(
-      "default",
-    );
-    expect(
-      rows.find((row) => row.label.startsWith("GitHub actor"))?.note,
-    ).toContain("gh account");
-    expect(rows.some((row) => row.label === "Configuration")).toBe(false);
-  });
-
-  test.each([
-    ["explicit", "--credentials-github-action"],
-    ["config", "configuration file"],
-  ])("describes %s API permissions", (actions, label) => {
-    const proposal = input();
-    const rows = buildReview({
-      ...proposal,
-      originLabel: "configuration file permissions.json",
-      provenance: { ...proposal.provenance, actions },
-    } as Parameters<typeof buildReview>[0]);
-    expect(rows.find((row) => row.label.startsWith("Access "))?.note).toContain(
-      label,
-    );
-  });
-
-  test("attributes a corrected invocation to its explicit flags", () => {
-    const proposal = input();
-    const rows = buildReview({
-      ...proposal,
-      provenance: {
-        ...proposal.provenance,
-        repository: "explicit",
-        actor: "explicit",
-        actions: "explicit",
-      },
-    });
-    for (const [label, flag] of [
-      ["Source", "--credentials-github-repo"],
-      ["Access acme/widgets", "--credentials-github-action"],
-      ["GitHub actor", "--credentials-github-act-as"],
-    ])
-      expect(rows.find((row) => row.label === label)?.note).toBe(
-        `from ${flag}`,
-      );
   });
 
   test("keeps multiple configured actors associated with their own repository", () => {
@@ -291,8 +174,6 @@ describe("complete review provenance", () => {
     const rows = buildReview({
       ...proposal,
       config,
-      originLabel: "configuration file permissions.json",
-      provenance: { repository: "config", actor: "config", actions: "config" },
     } as Parameters<typeof buildReview>[0]);
     expect(
       rows.find((row) => row.label === "GitHub actor acme/one")?.value,
@@ -308,16 +189,16 @@ describe("complete review provenance", () => {
   });
 });
 
-describe("three-column review rendering", () => {
-  test("puts each source beside the value, not on an extra note line", () => {
+describe("two-column review rendering", () => {
+  test("shows complete values without a From column", () => {
     const text = renderReview([
-      { label: "Team", value: "vercel", note: "from --scope" },
-      { label: "GitHub actor", value: "@scubbo", note: "from gh" },
+      { label: "Team", value: "vercel" },
+      { label: "GitHub actor", value: "@scubbo" },
     ]);
-    expect(text).toMatch(/Setting\s+Value\s+From/);
-    expect(text).toMatch(/Team\s+vercel\s+from --scope/);
-    expect(text).toMatch(/GitHub actor\s+@scubbo\s+from gh/);
-    expect(text).not.toContain("└");
+    expect(text).toMatch(/Setting\s+Value/);
+    expect(text).toMatch(/Team\s+vercel/);
+    expect(text).toMatch(/GitHub actor\s+@scubbo/);
+    expect(text).not.toMatch(/\bFrom\b/);
   });
 
   test("wraps long values within their column without losing permissions", () => {
@@ -328,7 +209,6 @@ describe("three-column review rendering", () => {
         {
           label: "Access acme/widgets",
           value: actions,
-          note: "from --credentials-github-action",
         },
       ],
       80,
@@ -338,9 +218,9 @@ describe("three-column review rendering", () => {
     expect(text).not.toContain("…");
   });
 
-  test("strips control characters from all three columns", () => {
+  test("strips control characters from both columns", () => {
     const text = renderReview([
-      { label: "Team\u001b", value: "vercel\n", note: "from\u202e --scope" },
+      { label: "Team\u001b", value: "vercel\n\u202e" },
     ]);
     expect(text).not.toContain("\u001b");
     expect(text).not.toContain("\u202e");
