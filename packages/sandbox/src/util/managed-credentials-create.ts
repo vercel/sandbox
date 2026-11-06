@@ -84,6 +84,7 @@ export async function prepareManagedCredentials(options: {
       renderCommand: (config) =>
         renderManagedCredentialsRetryCommand({
           config,
+          ...(context.managed?.actor ? { actor: context.managed.actor } : {}),
           team: context.teamSlug ?? context.team,
           project: context.projectSlug ?? context.project,
           vcpus,

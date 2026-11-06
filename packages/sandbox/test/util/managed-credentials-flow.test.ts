@@ -201,7 +201,7 @@ describe("interactive review", () => {
       });
       expect(renderCommand).toHaveBeenCalledExactlyOnceWith(configFor());
       expect(captured.text()).toContain(
-        `Re-add other creation options if needed.\n\n${command}\n`,
+        `Edit these explicit commands as desired\n\n${command}\n`,
       );
     },
   );

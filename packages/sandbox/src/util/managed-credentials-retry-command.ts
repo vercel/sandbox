@@ -1,9 +1,11 @@
 import {
   type ManagedCredentialsConfig,
   canonicalCreationAction,
+  githubActor,
   sourceRepository,
   repositoryUrl,
 } from "./managed-credentials-config";
+import type { InferredActor } from "./managed-credentials-identity";
 
 /**
  * Print the current proposal without approving it, writing a file, or looking
@@ -14,6 +16,7 @@ export function renderManagedCredentialsRetryCommand(options: {
   team: string;
   project: string;
   vcpus: number;
+  actor?: InferredActor;
   appName?: "sandbox" | "vercel sandbox";
   /** Require the same explicit Vercel token through a non-printing placeholder. */
   hasExplicitToken?: boolean;
@@ -24,7 +27,7 @@ export function renderManagedCredentialsRetryCommand(options: {
     `--project=${project}`,
     `--vcpus=${vcpus}`,
   ];
-  const direct = directFlags(config);
+  const direct = directFlags(config, options.actor);
   const parts = [
     options.appName ?? "sandbox",
     "create",
@@ -66,8 +69,11 @@ ${delimiter}
 )`;
 }
 
-/** Only emit direct flags when their inference can reproduce every field. */
-function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
+/** Only emit direct flags when they preserve the source and requested rights. */
+function directFlags(
+  config: ManagedCredentialsConfig,
+  actor?: InferredActor,
+): string[] | undefined {
   const source = config.source;
   const repo = sourceRepository(config);
   const groups = config.credentials.github;
@@ -92,10 +98,14 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
     !group.actAs
   )
     return;
+  const username =
+    !group.actAs.startsWith("@") && actor?.actAs === group.actAs && actor.login
+      ? githubActor.safeParse(`@${actor.login.replace(/^@/, "")}`)
+      : undefined;
   return [
     `--credentials-github-repo=${repo}`,
     ...group.actions.map((action) => `--credentials-github-action=${action}`),
-    `--credentials-github-act-as=${group.actAs}`,
+    `--credentials-github-act-as=${username?.success ? username.data : group.actAs}`,
   ];
 }
 

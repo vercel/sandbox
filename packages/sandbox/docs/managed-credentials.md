@@ -232,8 +232,14 @@ vercel sandbox create \
   --credentials-github-action=github:issues:comment \
   --credentials-github-action=github:pull-request:create \
   --credentials-github-action=git:write \
-  --credentials-github-act-as=42
+  --credentials-github-act-as=@ada
 ```
+
+The output says `Edit these explicit commands as desired`. A direct command uses
+`@username` when validated metadata matches the selected actor. Otherwise it keeps
+the original selector, including a numeric ID. The flag accepts usernames with or
+without `@`, or a numeric ID.
+This only changes the printed suggestion, not the original configuration.
 
 The output always uses `create`, even after `run` or `sh`. It omits the original
 child command and other creation options, including names, environment values,

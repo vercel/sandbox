@@ -42,3 +42,6 @@ helpers and duplicate configuration-test setup are removed.
 
 The preview labels the clone source as `Repo`, lists actions one per line, and
 separates the column headings from the inferred parameter values.
+
+Rejected previews print the matching GitHub username in direct actor flags when
+available, with a numeric-ID fallback and the revised explicit-command message.

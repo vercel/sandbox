@@ -114,6 +114,47 @@ test.each(["sandbox", "vercel sandbox"] as const)(
   },
 );
 
+test("prints the matching username without mutating the numeric actor request", () => {
+  const config = proposal();
+  const before = structuredClone(config);
+  const command = render(config, {
+    actor: { actAs: "12345", login: "scubbo" },
+  });
+  expect(replay(command).args).toContain("--credentials-github-act-as=@scubbo");
+  expect(command).not.toContain("--credentials-github-act-as=12345");
+  expect(config).toEqual(before);
+});
+
+test.each([
+  undefined,
+  { actAs: "other-id", login: "another-account" },
+  { actAs: "12345", login: " padded " },
+  { actAs: "12345", login: "unsafe\nname" },
+])(
+  "keeps the ID when username metadata is unavailable or unsafe: %j",
+  (actor) => {
+    expect(replay(render(undefined, { actor })).args).toContain(
+      "--credentials-github-act-as=12345",
+    );
+  },
+);
+
+test("keeps an existing username instead of substituting display metadata", () => {
+  const config = proposal();
+  config.credentials.github[0].actAs = "@chosen";
+  const command = render(config, {
+    actor: { actAs: "@chosen", login: "another-account" },
+  });
+  expect(replay(command).args).toContain("--credentials-github-act-as=@chosen");
+});
+
+test("distinguishes a numeric username from a user ID", () => {
+  const command = render(undefined, {
+    actor: { actAs: "12345", login: "67890" },
+  });
+  expect(replay(command).args).toContain("--credentials-github-act-as=@67890");
+});
+
 test.each([
   ["12345", ["github:issues:read", "git:write"]],
   ["@Scubbo_Review", ["github:issues:read"]],
@@ -144,7 +185,7 @@ test.each([
       },
       inferActorImpl: async ({ explicit }) => {
         expect(explicit).toBe(actAs);
-        return { actAs: explicit!, source: "explicit" };
+        return { actAs: explicit! };
       },
     });
     expect(resolved?.config).toEqual(config);
