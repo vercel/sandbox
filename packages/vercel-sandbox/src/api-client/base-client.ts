@@ -18,6 +18,20 @@ const DEFAULT_AGENT = new Agent({
 });
 
 /**
+ * Resolves on the next turn of the event loop.
+ *
+ * After a response completes, undici waits one full event-loop turn
+ * (`setImmediate`) before it hands the keep-alive socket back to the pool.
+ * A request dispatched inside that window, such as `runCommand` right after
+ * `Sandbox.create` resolves, finds no idle socket, so the pool opens a new
+ * TCP + TLS connection instead of reusing the one that just finished.
+ * Waiting one turn first lets the finished socket return to the pool.
+ */
+function nextEventLoopTurn(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+/**
  * A base API client that provides a convenience wrapper for fetching where
  * we can pass query parameters as an object, support retries, debugging
  * and automatic authorization.
@@ -28,6 +42,7 @@ export class BaseClient {
   private debug: boolean;
   private baseUrl: string;
   private agent: Agent;
+  private waitForSocketRelease: boolean;
 
   constructor(params: {
     debug?: boolean;
@@ -36,6 +51,8 @@ export class BaseClient {
     fetch?: typeof globalThis.fetch;
   }) {
     this.fetch = withRetry(params.fetch ?? globalThis.fetch);
+    // Only the built-in fetch dispatches through DEFAULT_AGENT's socket pool.
+    this.waitForSocketRelease = params.fetch === undefined;
     this.baseUrl = params.baseUrl;
     this.debug = params.debug ?? process.env.DEBUG_FETCH === "true";
     this.token = params.token;
@@ -50,6 +67,10 @@ export class BaseClient {
           url.searchParams.append(key, value.toString());
         });
       }
+    }
+
+    if (this.waitForSocketRelease) {
+      await nextEventLoopTurn();
     }
 
     const start = Date.now();

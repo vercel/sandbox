@@ -147,7 +147,8 @@ export class APIClient extends BaseClient {
     fetch?: typeof globalThis.fetch;
   }) {
     super({
-      baseUrl: params.baseUrl ?? "https://vercel.com/api",
+      // Call the API host directly: `vercel.com/api` adds an extra edge hop.
+      baseUrl: params.baseUrl ?? "https://api.vercel.com",
       token: params.token,
       debug: false,
       fetch: params.fetch,
