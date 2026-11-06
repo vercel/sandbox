@@ -31,13 +31,12 @@ interface VercelApi {
   ): Promise<z.infer<typeof projectSchema>>;
 }
 
-/** One invocation, one token. Cache successful metadata only, never Bounds. */
+/** One invocation, one token. Read metadata and policy without retaining results. */
 export function createVercelApi(options: {
   token: string;
   fetch?: typeof globalThis.fetch;
 }) {
   const fetch = options.fetch ?? globalThis.fetch;
-  const metadata = new Map<string, unknown>();
   return {
     async run<T>(
       timeout: number,
@@ -64,7 +63,6 @@ export function createVercelApi(options: {
           const url = new URL(`https://vercel.com/api${path}`);
           url.search = new URLSearchParams(query).toString();
           check();
-          if (metadata.has(url.href)) return metadata.get(url.href);
           const response = await fetch(url, {
             method: "GET",
             headers: { Authorization: `Bearer ${options.token}` },
@@ -77,8 +75,6 @@ export function createVercelApi(options: {
             throw new Error("Vercel API lookup failed.");
           const body: unknown = await response.json();
           check();
-          if (path.startsWith("/v9/projects/") || path.startsWith("/v2/teams/"))
-            metadata.set(url.href, body);
           return body;
         },
         async team(id) {

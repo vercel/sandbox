@@ -241,14 +241,10 @@ export const create = cmd.command({
       const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
       const spinner =
         silent || !interactive ? undefined : ora("Creating sandbox...").start();
-      const managedSource = prepared
-        ? (prepared.config.source ??
-          (source?.type === "snapshot" ? source : undefined))
-        : source;
       const sourceOptions =
-        managedSource?.type === "snapshot"
-          ? { source: managedSource }
-          : { ...runtimeOptions, source: managedSource };
+        source?.type === "snapshot"
+          ? { source }
+          : { ...runtimeOptions, source };
       let sandbox;
       try {
         creationAttempted = true;

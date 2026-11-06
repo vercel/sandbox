@@ -1,4 +1,5 @@
 import {
+  apiConfiguration,
   configuration,
   credentialGroup,
 } from "../fixtures/managed-credentials";
@@ -95,27 +96,8 @@ describe("repository helpers", () => {
 
 describe("canonical API documents", () => {
   test("accepts complete repository arrays without normalizing or regrouping", () => {
-    const document = {
-      source: {
-        depth: 2,
-        url: "https://github.com/Acme/Source/",
-        revision: "feature/API",
-        type: "git",
-      },
-      credentials: {
-        github: [
-          credentialGroup(
-            ["acme/two", "Acme/Source"],
-            ["git:write-workflows", "github:issues:read", "git:write"],
-            "42",
-          ),
-          credentialGroup(
-            ["acme/three"],
-            ["git:write-workflows", "github:issues:read", "git:write"],
-          ),
-        ],
-      },
-    };
+    const document = apiConfiguration();
+    delete document.credentials.github[1].actAs;
     const before = structuredClone(document);
     const parsed = parseConfig(document);
     expect(parsed).toEqual(before);
@@ -124,7 +106,7 @@ describe("canonical API documents", () => {
     expect(reparsed).toEqual(before);
     expect(serialized).toBe(`${JSON.stringify(before, null, 2)}\n`);
     expect(serializeConfig(reparsed)).toBe(serialized);
-    expect(Object.keys(parsed.source!)).toEqual(Object.keys(document.source));
+    expect(Object.keys(parsed.source!)).toEqual(Object.keys(document.source!));
     expect(document).toEqual(before);
   });
 });
@@ -339,6 +321,7 @@ describe("configuration parsing", () => {
     "0",
     "01",
     "9007199254740992",
+    "",
     "@",
     " @scubbo",
   ])("rejects noncanonical file actors: %s", (actAs) => {

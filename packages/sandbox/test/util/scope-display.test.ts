@@ -197,17 +197,6 @@ describe("display-only names", () => {
       `https://vercel.com/api/v9/projects/${LEGACY_PROJECT}?slug=selected-team`,
     );
   });
-
-  test("uses the supplied fetch, or global fetch when omitted", async () => {
-    const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
-      response(requestUrl(url) === TEAM_URL ? teamMetadata : projectMetadata),
-    );
-    vi.stubGlobal("fetch", fetch);
-    expect(
-      await resolveScopeDisplay({ token: TOKEN, team: TEAM, project: PROJECT }),
-    ).toEqual({ team: "selected-team", project: "selected-project" });
-    expect(fetch).toHaveBeenCalledTimes(2);
-  });
 });
 
 describe("untrusted metadata", () => {
@@ -382,15 +371,19 @@ describe("one total lookup deadline", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  test("clears the deadline after fast success", async () => {
+  test("uses global fetch and clears the deadline after fast success", async () => {
     vi.useFakeTimers();
     const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
       response(requestUrl(input) === TEAM_URL ? teamMetadata : projectMetadata),
     );
-    expect(await lookup(fetch)).toEqual({
+    vi.stubGlobal("fetch", fetch);
+    expect(
+      await resolveScopeDisplay({ token: TOKEN, team: TEAM, project: PROJECT }),
+    ).toEqual({
       team: "selected-team",
       project: "selected-project",
     });
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
   });
 });

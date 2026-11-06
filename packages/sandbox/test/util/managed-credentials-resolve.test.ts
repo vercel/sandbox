@@ -112,20 +112,13 @@ describe("inferred single-repository defaults", () => {
     );
   });
 
-  test("supplied actions replace the defaults rather than adding to them", async () => {
+  test("supplied API actions replace defaults without implicit Git access", async () => {
     const resolved = await resolve({
       credentialsActions: ["issues:read", "issues:comment"],
     });
     expect(resolved?.config.credentials.github[0].actions).toEqual([
       "github:issues:read",
       "github:issues:comment",
-    ]);
-  });
-
-  test("explicit API actions acquire no implicit Git access", async () => {
-    const resolved = await resolve({ credentialsActions: ["labels:read"] });
-    expect(resolved?.config.credentials.github[0].actions).toEqual([
-      "github:labels:read",
     ]);
   });
 

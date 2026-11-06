@@ -57,24 +57,6 @@ describe("--yes review output", () => {
       expect(hasProjectBounds).toHaveBeenCalledTimes(1);
     },
   );
-
-  test("an unreadable project policy still stops --yes without a parameter dump", async () => {
-    const captured = captureOutput();
-    const { output } = captured;
-    const hasProjectBounds = vi
-      .fn()
-      .mockRejectedValue(
-        new CliError("Cannot read Bounds", { reason: "policy_unknown" }),
-      );
-    await expect(
-      runFlow({ yes: true, output, hasProjectBounds }),
-    ).rejects.toMatchObject({ options: { reason: "policy_unknown" } });
-    expect(captured.text()).toBe("");
-    expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
-      team: "jacks-projects",
-      project: "api",
-    });
-  });
 });
 
 describe("unbounded project confirmation", () => {
@@ -159,23 +141,28 @@ describe("unbounded project confirmation", () => {
     expect(hasProjectBounds).not.toHaveBeenCalled();
   });
 
-  test.each([false, true])(
-    "unreadable Bounds fail closed after approval (yes: %j)",
-    async (yes) => {
+  test.each([
+    [false, true],
+    [true, false],
+    [true, true],
+  ])(
+    "unreadable Bounds fail closed (interactive: %s, yes: %s)",
+    async (interactive, yes) => {
       const io = scripted(yes ? [] : ["y"]);
       const error = new CliError("Cannot read Bounds", {
         reason: "policy_unknown",
       });
+      const hasProjectBounds = vi.fn().mockRejectedValue(error);
       await expect(
-        runFlow({
-          interactive: true,
-          yes,
-          ...io,
-          hasProjectBounds: vi.fn().mockRejectedValue(error),
-        }),
+        runFlow({ interactive, yes, ...io, hasProjectBounds }),
       ).rejects.toBe(error);
+      expect(hasProjectBounds).toHaveBeenCalledExactlyOnceWith({
+        team: "jacks-projects",
+        project: "api",
+      });
       expect(io.text()).not.toContain("This project has no Bounds");
       expect(io.text()).not.toContain("Continue without project Bounds?");
+      if (yes) expect(io.text()).toBe("");
     },
   );
 });

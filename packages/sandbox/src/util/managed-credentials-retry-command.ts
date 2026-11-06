@@ -1,6 +1,5 @@
 import {
   type ManagedCredentialsConfig,
-  canonicalCreationAction,
   githubActor,
   sourceRepository,
   repositoryUrl,
@@ -62,15 +61,7 @@ function directFlags(
   )
     return;
   const group = groups[0];
-  if (
-    group.actions.length === 0 ||
-    group.actions.some(
-      (action) => canonicalCreationAction(action) !== action,
-    ) ||
-    new Set(group.actions).size !== group.actions.length ||
-    !group.actAs
-  )
-    return;
+  if (group.actAs === undefined) return;
   const username =
     !group.actAs.startsWith("@") && actor?.actAs === group.actAs && actor.login
       ? githubActor.safeParse(`@${actor.login.replace(/^@/, "")}`)

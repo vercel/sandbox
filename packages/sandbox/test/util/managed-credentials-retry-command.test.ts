@@ -211,21 +211,9 @@ const complex: [string, (c: ManagedCredentialsConfig) => void][] = [
     },
   ],
   [
-    "empty actions",
-    (c) => {
-      c.credentials.github[0].actions = [];
-    },
-  ],
-  [
     "missing actor",
     (c) => {
       delete c.credentials.github[0].actAs;
-    },
-  ],
-  [
-    "empty actor",
-    (c) => {
-      c.credentials.github[0].actAs = "";
     },
   ],
 ];

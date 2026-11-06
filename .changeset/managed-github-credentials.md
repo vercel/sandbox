@@ -49,3 +49,6 @@ separates the column headings from the inferred parameter values.
 
 Rejected previews print the matching GitHub username in direct actor flags when
 available, with a numeric-ID fallback and the revised explicit-command message.
+
+Removed unused metadata caching, repeated recovery validation, and source
+selection bookkeeping. Tests share fixtures and failure setup.

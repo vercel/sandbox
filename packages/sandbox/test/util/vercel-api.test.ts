@@ -30,7 +30,7 @@ function read(fetch: typeof globalThis.fetch, signal?: AbortSignal) {
   );
 }
 
-test("caches display metadata while project Bounds reads stay fresh", async () => {
+test("reads display metadata while project Bounds reads stay fresh", async () => {
   const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
     const { pathname } = new URL(String(input));
     return json(
@@ -46,13 +46,9 @@ test("caches display metadata while project Bounds reads stay fresh", async () =
     team: team.slug,
     project: project.name,
   });
-  expect(await resolveScopeDisplay({ ...scope, api })).toEqual({
-    team: team.slug,
-    project: project.name,
-  });
   expect(await hasProjectBounds({ ...scope, api })).toBe(false);
   expect(await hasProjectBounds({ ...scope, api })).toBe(false);
-  expect(fetch).toHaveBeenCalledTimes(4); // Metadata cached; Bounds always fresh.
+  expect(fetch).toHaveBeenCalledTimes(4); // Two metadata reads and two policy reads.
 });
 
 test("does not reuse a failed display read as an empty policy", async () => {
