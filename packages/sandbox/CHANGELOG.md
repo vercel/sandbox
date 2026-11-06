@@ -1,5 +1,30 @@
 # sandbox
 
+## 4.12.0
+
+### Minor Changes
+
+- Add detached command execution and CLI commands to inspect logs, wait for completion, and stop a running command. ([#391](https://github.com/vercel/sandbox/pull/391))
+
+- Add `sandbox read <name> <path>` (alias `cat`) and `sandbox write <name> <path>` to read a sandbox file to stdout and write stdin to a sandbox file, and `sandbox copy --recursive` to copy whole directories in either direction. Failed copies now exit with a non-zero code. ([#380](https://github.com/vercel/sandbox/pull/380))
+
+- Add `sandbox exec --stdin` to pipe local input into a foreground command. Also add detached stdin writes, selected command output, domain lookup, and Linux users and groups. ([#392](https://github.com/vercel/sandbox/pull/392))
+
+- Add `sandbox create fx` to open fx in the universal image with its default permissions. Print commands to continue the conversation with `fx -c` or stop the sandbox after exiting. ([#413](https://github.com/vercel/sandbox/pull/413))
+
+- Add `--network-policy-file <FILE>` (use `-` for stdin) to `create`, `run`, `sh`, `fork`, and `config network-policy`. It takes the whole network policy as JSON in the SDK's `NetworkPolicy` shape, so the CLI can express any rule the SDK can, such as a request header limited to `GET` and `HEAD`. The SDK exports `parseNetworkPolicy`, which validates untrusted input with the same rules as `Sandbox.create`, rejects unknown keys, and never includes values in its errors. `@vercel/sandbox-mock` re-exports both. ([#417](https://github.com/vercel/sandbox/pull/417))
+
+### Patch Changes
+
+- Use the login shell of the user for interactive sessions when `SHELL` is not set. Before, images without `SHELL` started `sh`, and on Debian-based images `sh` has no line editing. ([#438](https://github.com/vercel/sandbox/pull/438))
+
+- Telemetry now records real team and project ids when `--scope` or `--project` is given as a slug, keeps the slugs out of the id fields, and records the caller's user id. ([#441](https://github.com/vercel/sandbox/pull/441))
+
+- Update `zod` to v4.6.7. ([#450](https://github.com/vercel/sandbox/pull/450))
+
+- Updated dependencies [[`201070d07f19faa89acb9a82015331a3b38db57a`](https://github.com/vercel/sandbox/commit/201070d07f19faa89acb9a82015331a3b38db57a), [`584633045bdeda5ea013e8af8e0be3bb935e1d20`](https://github.com/vercel/sandbox/commit/584633045bdeda5ea013e8af8e0be3bb935e1d20)]:
+  - @vercel/sandbox@3.10.0
+
 ## 4.11.1
 
 ### Patch Changes
