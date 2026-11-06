@@ -15,8 +15,8 @@ Commands:
     fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
-    cat | read     <name:path>                 Print a file from a sandbox to stdout.
-    write          <name:path>                 Write stdin to a file in a sandbox, replacing it if it exists.
+    cat | read     <name> <path>               Print a file from a sandbox to stdout.
+    write          <name> <path>               Write stdin to a file in a sandbox, replacing it if it exists.
     exec           <name> <command> [...args]  Execute a command in an existing sandbox
     ssh | connect  <name>                      Start an interactive shell in an existing sandbox
     stop           <name> [...name]            Stop the current session of one or more sandboxes
@@ -59,7 +59,7 @@ Examples:
 
 – Read and write files in an existing sandbox
 
-  $ sandbox read <name>:/vercel/sandbox/package.json
+  $ sandbox read <name> /vercel/sandbox/package.json
 ```
 
 ## `sandbox list`
@@ -931,7 +931,8 @@ Print a file from a sandbox to stdout.
 
 Arguments:
 
-    <name:path>  The file to read, as SANDBOX_NAME:PATH
+    <name>  The name of the sandbox
+    <path>  The path of the file to read
 
 Auth & Scope:
 
@@ -955,7 +956,8 @@ Write stdin to a file in a sandbox, replacing it if it exists.
 
 Arguments:
 
-    <name:path>  The file to write, as SANDBOX_NAME:PATH
+    <name>  The name of the sandbox
+    <path>  The path of the file to write
 
 Options:
 
@@ -975,13 +977,13 @@ Examples:
 
 – Write a file from a heredoc
 
-  $ sandbox write my-sandbox:/vercel/sandbox/hello.js <<'EOF'
+  $ sandbox write my-sandbox /vercel/sandbox/hello.js <<'EOF'
 console.log("hello");
 EOF
 
 – Upload a local file
 
-  $ sandbox write my-sandbox:/vercel/sandbox/app.js < ./app.js
+  $ sandbox write my-sandbox /vercel/sandbox/app.js < ./app.js
 ```
 
 ## `sandbox connect`

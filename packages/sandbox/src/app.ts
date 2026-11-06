@@ -98,7 +98,7 @@ export const app = async (
       },
       {
         description: "Read and write files in an existing sandbox",
-        command: `${appName} read <name>:/vercel/sandbox/package.json`,
+        command: `${appName} read <name> /vercel/sandbox/package.json`,
       },
     ],
   });

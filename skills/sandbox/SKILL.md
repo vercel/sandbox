@@ -1069,9 +1069,9 @@ sandbox cp -r <name>:/vercel/sandbox/dist ./dist     # And back
 # Windows downloads reject filenames containing backslashes or colons.
 
 # Read and write single files (handy for coding agents)
-sandbox read <name>:/vercel/sandbox/package.json     # Raw bytes to stdout
-sandbox write <name>:/vercel/sandbox/index.js < ./index.js
-sandbox write --mode 755 <name>:/vercel/sandbox/run.sh <<'EOF'
+sandbox read <name> /vercel/sandbox/package.json     # Raw bytes to stdout
+sandbox write <name> /vercel/sandbox/index.js < ./index.js
+sandbox write --mode 755 <name> /vercel/sandbox/run.sh <<'EOF'
 #!/bin/sh
 npm test
 EOF

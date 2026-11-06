@@ -67,7 +67,8 @@ describe("built package", () => {
       ]);
 
       expect(status).toBe(0);
-      expect(output).toContain("<name:path>");
+      expect(output).toContain("<name>");
+      expect(output).toContain("<path>");
       expect(output).toContain(
         command === "write"
           ? "Write stdin to a file in a sandbox"

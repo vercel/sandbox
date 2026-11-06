@@ -4,7 +4,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { sandboxClient } from "../client";
 import { scope } from "../args/scope";
-import { remotePath } from "./cp";
+import { sandboxName } from "../args/sandbox-name";
 import { output } from "../util/output";
 
 export const read = cmd.command({
@@ -12,27 +12,27 @@ export const read = cmd.command({
   description: "Print a file from a sandbox to stdout.",
   aliases: ["cat"],
   args: {
-    file: cmd.positional({
-      displayName: "name:path",
-      description: "The file to read, as SANDBOX_NAME:PATH",
-      type: remotePath,
+    sandbox: cmd.positional({ type: sandboxName }),
+    path: cmd.positional({
+      displayName: "path",
+      description: "The path of the file to read",
     }),
     scope,
   },
-  async handler({ file, scope }) {
+  async handler({ sandbox: name, path: filePath, scope }) {
     const sandbox = await sandboxClient.get({
-      name: file.sandboxName,
+      name,
       teamId: scope.team,
       token: scope.token,
       projectId: scope.project,
     });
-    const stream = await sandbox.readFile({ path: file.path });
+    const stream = await sandbox.readFile({ path: filePath });
     if (!stream) {
       process.exitCode = 1;
       output.error(
         [
-          `File not found: ${file.path} in sandbox ${file.sandboxName}.`,
-          `${chalk.bold("hint:")} List the directory with \`sandbox exec ${file.sandboxName} -- ls ${path.posix.dirname(file.path)}\`.`,
+          `File not found: ${filePath} in sandbox ${name}.`,
+          `${chalk.bold("hint:")} List the directory with \`sandbox exec ${name} -- ls ${path.posix.dirname(filePath)}\`.`,
         ].join("\n"),
       );
       return;

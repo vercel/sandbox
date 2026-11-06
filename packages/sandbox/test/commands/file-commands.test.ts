@@ -254,14 +254,14 @@ describe("file commands against a fake sandbox", () => {
         return true;
       },
     );
-    await cmd.run(read, ["sbx:/hello.txt", ...scopeArgs]);
+    await cmd.run(read, ["sbx", "/hello.txt", ...scopeArgs]);
     expect(Buffer.concat(chunks).toString()).toBe("hello\nworld\n");
   });
 
   test("read of a missing file exits non-zero", async () => {
     const { read } = await import("../../src/commands/read");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    await cmd.run(read, ["sbx:/nope.txt", ...scopeArgs]);
+    await cmd.run(read, ["sbx", "/nope.txt", ...scopeArgs]);
     expect(process.exitCode).toBe(1);
   });
 
@@ -270,7 +270,13 @@ describe("file commands against a fake sandbox", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const stdin = Readable.from([Buffer.from("#!/bin/sh\necho hi\n")]);
     vi.spyOn(process, "stdin", "get").mockReturnValue(stdin as any);
-    await cmd.run(write, ["sbx:/bin/hi.sh", "--mode", "755", ...scopeArgs]);
+    await cmd.run(write, [
+      "sbx",
+      "/bin/hi.sh",
+      "--mode",
+      "755",
+      ...scopeArgs,
+    ]);
     expect(
       await fs.readFile(path.join(remoteRoot, "bin", "hi.sh"), "utf8"),
     ).toBe("#!/bin/sh\necho hi\n");
