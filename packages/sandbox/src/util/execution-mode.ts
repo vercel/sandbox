@@ -1,7 +1,6 @@
 import { detectAgentName } from "../telemetry/agent";
 
 export async function isInteractive(options: {
-  nonInteractive?: boolean;
   payloadStdin: boolean;
 }): Promise<boolean> {
   const forced =
@@ -10,9 +9,5 @@ export async function isInteractive(options: {
     !process.stdin.isTTY ||
     !process.stderr.isTTY;
   const agent = await detectAgentName();
-  return (
-    !forced &&
-    options.nonInteractive !== true &&
-    (!agent || options.nonInteractive === false)
-  );
+  return !forced && !agent;
 }

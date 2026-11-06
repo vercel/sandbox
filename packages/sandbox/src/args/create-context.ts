@@ -37,11 +37,6 @@ export function createContext(): ArgParser<CreateContext> & ProvidesHelp {
       description:
         "Confirm granting managed access. Does not supply missing inputs.",
     }),
-    nonInteractive: cmd.flag({
-      long: "non-interactive",
-      type: cmd.optional(cmd.boolean),
-      description: "Never prompt; fail if input or consent is missing.",
-    }),
   };
   const options = { ...managedCredentialOptions, ...execution };
   return {
@@ -70,7 +65,6 @@ export function createContext(): ArgParser<CreateContext> & ProvidesHelp {
       assertCompatibleOptions(managedOptions);
       const creationRequested = hasManagedCredentialsRequest(managedOptions);
       const interactive = await isInteractive({
-        nonInteractive: run.nonInteractive,
         payloadStdin: managedOptions.credentialsFromConfigFile === "-",
       });
       // Read and validate files before authentication, including piped input.

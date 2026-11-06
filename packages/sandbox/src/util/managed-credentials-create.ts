@@ -82,15 +82,19 @@ export async function prepareManagedCredentials(options: {
       // Recovery keeps the selector spelling the user typed, not the review
       // labels: a slug the user supplied, otherwise the selected ID.
       renderCommand: (config) =>
-        renderManagedCredentialsRetryCommand({
-          config,
-          ...(context.managed?.actor ? { actor: context.managed.actor } : {}),
-          team: context.teamSlug ?? context.team,
-          project: context.projectSlug ?? context.project,
-          vcpus,
-          hasExplicitToken: context.hasExplicitToken,
-          appName: context.appName,
-        }),
+        context.managed?.fromConfigFile
+          ? undefined
+          : renderManagedCredentialsRetryCommand({
+              config,
+              ...(context.managed?.actor
+                ? { actor: context.managed.actor }
+                : {}),
+              team: context.teamSlug ?? context.team,
+              project: context.projectSlug ?? context.project,
+              vcpus,
+              hasExplicitToken: context.hasExplicitToken,
+              appName: context.appName,
+            }),
     },
   });
 

@@ -11,11 +11,13 @@ a Sandbox. The CLI infers the repository from local Git fetch remotes and the
 API actor from `gh` or the default github.com OAuth login on the Vercel account,
 applies explicit flags on top with `--credentials-github-*` options, and shows
 the resolved actions and GitHub actor in the two-column `Inferred Parameters`
-review before anything is created. Rejecting prints a credentials-focused
-`create` command with the reviewed team, project, and vCPU count.
-Other creation options must be added again.
+review before anything is created. Rejection prints a credentials-focused
+`create` command only when direct flags can represent the configuration and the
+input did not come from a configuration file. It does not print JSON or a shell
+script. Other creation options must be added again.
 An explicit Vercel token uses a required placeholder, never its value.
-`--yes` approves without the review.
+`--yes` approves without the review. The CLI detects non-interactive sessions
+without a `--non-interactive` flag.
 The CLI reuses its existing team and project selection. It does not read the
 team selected by `vercel switch`.
 

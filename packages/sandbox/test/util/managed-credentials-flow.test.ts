@@ -242,6 +242,20 @@ describe("interactive review", () => {
     expect(captured.text()).toContain(command);
   });
 
+  test.each([false, true])(
+    "omits the recovery hint when no direct command is available (interactive: %s)",
+    async (interactive) => {
+      const captured = scripted(["n"]);
+      await expect(
+        runFlow({ ...captured, interactive, renderCommand: () => undefined }),
+      ).rejects.toMatchObject({
+        options: { reason: interactive ? "canceled" : "confirmation_required" },
+      });
+      expect(captured.text()).not.toContain("Edit these explicit commands");
+      expect(captured.text()).not.toContain("sandbox create");
+    },
+  );
+
   test("does not render a rejected command on success", async () => {
     const renderCommand = vi.fn();
     await expect(

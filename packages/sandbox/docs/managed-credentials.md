@@ -51,8 +51,9 @@ existing account-based selection. It does not read the team selected by
 `vercel switch`. Use `--scope` to select a team and `--project` to select a project.
 
 The command shows the proposed access before it asks for approval. Enter `n`
-to cancel and print the explicit flags. No Sandbox or configuration file is
-created after rejection. There is no separate dry-run command.
+to cancel. It prints explicit flags only when the configuration did not come from
+a file and those flags can represent it. Rejection creates no Sandbox or
+configuration file. There is no separate dry-run command.
 
 Normal authentication and project selection happen before the preview. They
 can refresh credentials or create a missing default project.
@@ -70,8 +71,8 @@ flags / Git / gh / Vercel account
          |              |
          n              y
          |              |
- print explicit      check project Bounds
- flags and exit      (ask again if none)
+ cancel and exit     check project Bounds
+                     (ask again if none)
                         |
                         v
                   Sandbox.create
@@ -189,9 +190,9 @@ If a numeric selector has no matching username metadata, the review shows
 ID as a username.
 
 Answer `y` or `yes` at `Create this sandbox? (y/n)` to approve. Any other answer,
-including Enter, cancels: the CLI prints the editable command below and exits 130
-before creating anything. There is no interactive editing menu, and approval
-refers only to the proposal that invocation showed.
+including Enter, cancels and exits 130 before creation. Eligible configurations
+also print the editable command described below. There is no interactive editing
+menu. Approval refers only to the proposal that invocation showed.
 
 ### Project Bounds
 
@@ -219,8 +220,9 @@ disable the Bounds check or hide warnings and errors.
 
 ### Reject and correct the command
 
-Cancelling prints a `create` command with the reviewed credentials, team,
-project, and vCPU count to stderr. Edit those values and run it again:
+For input from direct flags or another Sandbox, cancellation prints a `create`
+command only when direct flags can represent the configuration. It includes the
+reviewed credentials, team, project, and vCPU count. Edit those values and run it again:
 
 ```sh
 vercel sandbox create \
@@ -251,11 +253,9 @@ If the original command used `--token`, the output requires `VERCEL_AUTH_TOKEN`
 to contain that same Vercel token. The placeholder prevents silent use of another
 login. The output never contains the token value. Do not paste secrets into logs.
 
-If direct flags cannot express the configuration, the output includes its
-resolved JSON and a temporary-file command. Only running that command creates the
-private temporary file. The command removes that file on exit and leaves stdin
-available for other inputs. It does not read permissions from the original
-configuration file or Sandbox again.
+Configuration-file input and configurations that direct flags cannot represent
+print no recovery command, JSON block, or shell script. For file input, edit the
+configuration file and run the original command again.
 
 ## Configuration files
 
@@ -388,19 +388,19 @@ Beyond the Bounds rules above:
 
 ## Non-interactive use
 
-CI, piped input, and `--non-interactive` never prompt. In those modes
-a managed-credentials request needs `--yes`, which grants consent — never a
-missing input or a missing permission. `--silent` alone does not suppress the review
-or bypass consent. One approval covers creation with the displayed rights; it
-does not change project-wide policy. `--enable-github-credentials` selects
+CI, piped input, non-terminal sessions, and detected agents never prompt.
+These sessions require `--yes` for managed credentials. The flag grants consent,
+not missing input or permission. `--silent` alone does not suppress the review
+or bypass consent. One approval covers creation with the displayed rights.
+It does not change project-wide policy. `--enable-github-credentials` selects
 defaults, not consent.
 
 Command output is text. Credential validation failures exit 2, operational failures
 exit 1, and cancellation exits 130. To export reusable JSON after successful creation, pass
 `--credentials-github-persist-configuration=FILE`.
 
-Without `--yes`, a non-interactive request prints the proposed access and explicit
-command, then stops without creating a Sandbox.
+Without `--yes`, a non-interactive request prints the proposed access and stops
+before creation. It prints a recovery command only for eligible configurations.
 
 `run` and `sh` accept the same creation inputs. `exec`, `connect`, and `fork`
 do not accept credential mutations.

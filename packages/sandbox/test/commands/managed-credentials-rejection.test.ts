@@ -1,4 +1,7 @@
 import * as cmd from "cmd-ts";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { CliError } from "../../src/util/cli-error";
 
@@ -48,6 +51,47 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+});
+
+test("omits recovery commands for file input even when direct flags could express it", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "sandbox-rejected-config-"));
+  try {
+    const path = join(directory, "credentials.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        source: { type: "git", url: "https://github.com/acme/widgets.git" },
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/widgets"],
+              actions: ["git:write"],
+              actAs: "42",
+            },
+          ],
+        },
+      }),
+    );
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const { create } = await import("../../src/commands/create");
+    await expect(
+      cmd.run(create, [
+        "--scope=team",
+        "--project=project",
+        `--credentials-github-from-config-file=${path}`,
+      ]),
+    ).rejects.toMatchObject({ options: { reason: "canceled", exitCode: 130 } });
+    const text = stderr.mock.calls.flat().join("");
+    expect(text).toContain("Inferred Parameters");
+    expect(text).not.toContain("Edit these explicit commands");
+    expect(text).not.toContain("sandbox create");
+    expect(text).not.toContain('"credentials"');
+    expect(text).not.toContain("mktemp");
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockHasProjectBounds).not.toHaveBeenCalled();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test.each(

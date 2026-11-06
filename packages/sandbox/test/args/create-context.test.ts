@@ -5,6 +5,10 @@ import { prepareManagedCredentials } from "../../src/util/managed-credentials-cr
 import { CliError } from "../../src/util/cli-error";
 import { getVercelToken } from "@vercel/oidc";
 import { fetchSandboxCredentialSnapshot } from "../../src/util/managed-credentials-client";
+import { inferScope } from "../../src/util/infer-scope";
+vi.mock("../../src/util/infer-scope", () => ({
+  inferScope: vi.fn(),
+}));
 vi.mock("../../src/util/managed-credentials-client", () => ({
   fetchSandboxCredentialSnapshot: vi.fn(),
 }));
@@ -24,12 +28,19 @@ const parser = cmd.command({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("VERCEL_AUTH_TOKEN", "existing");
+  vi.stubEnv("CI", "1");
 });
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
-test.each(["--dry-run", "--json"])("does not register %s", async (flag) => {
+test.each([
+  "--dry-run",
+  "--json",
+  "--non-interactive",
+  "--non-interactive=true",
+  "--non-interactive=false",
+])("does not register %s", async (flag) => {
   expect(
     (await cmd.runSafely(parser, ["--scope=team", "--project=project", flag]))
       ._tag,
@@ -37,7 +48,7 @@ test.each(["--dry-run", "--json"])("does not register %s", async (flag) => {
   expect(
     createContext()
       .helpTopics()
-      .some((topic) => topic.usage?.includes(flag)),
+      .some((topic) => topic.usage?.includes(flag.split("=")[0])),
   ).toBe(false);
 });
 test.each(["sandbox", "vercel sandbox"])(
@@ -57,7 +68,6 @@ test.each(["sandbox", "vercel sandbox"])(
       "create",
       "--scope=team",
       "--project=project",
-      "--non-interactive",
       "--credentials-github-repo=acme/widgets",
       "--credentials-github-action=issues:read",
       "--credentials-github-action=git:write",
@@ -99,6 +109,18 @@ test("invalid configuration is rejected before authentication", async () => {
     ]),
   ).rejects.toThrow("Can't read");
   expect(getVercelToken).not.toHaveBeenCalled();
+});
+test.each(["--yes", "-y"])("accepts %s as explicit consent", async (flag) => {
+  await expect(
+    cmd.run(parser, ["--scope=team", "--project=project", flag]),
+  ).resolves.toMatchObject({ yes: true, interactive: false });
+});
+test("--yes does not bypass missing context", async () => {
+  vi.mocked(inferScope).mockRejectedValueOnce(new Error("No project context"));
+  await expect(
+    cmd.run(parser, ["--yes", "--credentials-github-repo=acme/widgets"]),
+  ).rejects.toMatchObject({ options: { reason: "missing_context" } });
+  expect(inferScope).toHaveBeenCalledOnce();
 });
 test("rejects repeated approval flags", async () => {
   await expect(cmd.run(parser, ["--yes", "--yes"])).rejects.toBeInstanceOf(

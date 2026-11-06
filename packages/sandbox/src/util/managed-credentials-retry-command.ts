@@ -8,8 +8,8 @@ import {
 import type { InferredActor } from "./managed-credentials-identity";
 
 /**
- * Print the current proposal without approving it, writing a file, or looking
- * up mutable context. Non-inferable configurations travel as resolved JSON.
+ * Print a direct-flag proposal without approving it or looking up mutable context.
+ * Omit configurations that direct flags cannot preserve.
  */
 export function renderManagedCredentialsRetryCommand(options: {
   config: ManagedCredentialsConfig;
@@ -20,15 +20,16 @@ export function renderManagedCredentialsRetryCommand(options: {
   appName?: "sandbox" | "vercel sandbox";
   /** Require the same explicit Vercel token through a non-printing placeholder. */
   hasExplicitToken?: boolean;
-}): string {
+}): string | undefined {
   const { config, team, project, vcpus } = options;
+  const direct = directFlags(config, options.actor);
+  if (!direct) return;
   const explicit = [
     `--scope=${team}`,
     `--project=${project}`,
     `--vcpus=${vcpus}`,
   ];
-  const direct = directFlags(config, options.actor);
-  const parts = [
+  return [
     options.appName ?? "sandbox",
     "create",
     ...explicit.map(shellQuote),
@@ -37,36 +38,8 @@ export function renderManagedCredentialsRetryCommand(options: {
           '--token="${VERCEL_AUTH_TOKEN:?Set VERCEL_AUTH_TOKEN to the original Vercel token}"',
         ]
       : []),
-    ...(direct
-      ? direct.map(shellQuote)
-      : ['--credentials-github-from-config-file="$SANDBOX_RETRY_CONFIG"']),
-  ];
-  const command = parts.join(" ");
-  if (direct) return command;
-
-  // JSON escaping also prevents terminal control sequences from reaching the
-  // review screen. Quoting the delimiter disables ALL heredoc expansion.
-  const json = JSON.stringify(config, null, 2).replace(
-    /[\u007f-\u009f\u2028-\u202e\u2066-\u2069]/g,
-    unicodeEscape,
-  );
-  let delimiter = "SANDBOX_MANAGED_CREDENTIALS";
-  while (json.includes(delimiter)) delimiter += "_";
-  // This is only text until the user runs it. Use a regular, private file so
-  // stdin stays available for the creation confirmation.
-  // All shell variable names/trap bodies are fixed, never taken from inputs.
-  return `(
-  umask 077
-  SANDBOX_RETRY_CONFIG=$(mktemp "\${TMPDIR:-/tmp}/sandbox-managed-credentials.XXXXXXXXXX") || exit
-  trap 'rm -f -- "$SANDBOX_RETRY_CONFIG"' EXIT
-  trap 'exit 129' HUP
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
-  cat >"$SANDBOX_RETRY_CONFIG" <<'${delimiter}' || exit
-${json}
-${delimiter}
-  ${command}
-)`;
+    ...direct.map(shellQuote),
+  ].join(" ");
 }
 
 /** Only emit direct flags when they preserve the source and requested rights. */
@@ -107,10 +80,6 @@ function directFlags(
     ...group.actions.map((action) => `--credentials-github-action=${action}`),
     `--credentials-github-act-as=${username?.success ? username.data : group.actAs}`,
   ];
-}
-
-function unicodeEscape(char: string): string {
-  return `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`;
 }
 
 function shellQuote(value: string): string {

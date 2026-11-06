@@ -18,8 +18,8 @@ export interface FlowContext extends ReviewScope {
   displayScope: ReviewScope;
   /** Check for project Bounds only after the proposal is approved. */
   hasProjectBounds?: (scope: ReviewScope) => Promise<boolean>;
-  /** Render the exact proposal as a command without executing or approving it. */
-  renderCommand?: (config: ManagedCredentialsConfig) => string;
+  /** Render a direct-flag proposal without executing or approving it. */
+  renderCommand?: (config: ManagedCredentialsConfig) => string | undefined;
   interactive: boolean;
   yes: boolean;
   output?: NodeJS.WritableStream;

@@ -66,6 +66,7 @@ export interface ResolvedManagedCredentials {
   config: ManagedCredentialsConfig;
   /** The actor inference result, kept for review and re-computation. */
   actor?: InferredActor;
+  fromConfigFile?: true;
 }
 
 export interface ResolveContext {
@@ -172,6 +173,7 @@ export async function resolveManagedCredentials(
     );
     return {
       config: parseConfig(payload),
+      fromConfigFile: true,
     };
   }
 

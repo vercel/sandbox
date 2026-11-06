@@ -1,8 +1,6 @@
 import * as cmd from "cmd-ts";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { existsSync } from "node:fs";
 import { expect, test } from "vitest";
 import { managedCredentialOptions } from "../../src/args/managed-credentials";
 import { type ManagedCredentialsConfig } from "../../src/util/managed-credentials-config";
@@ -36,62 +34,37 @@ function render(
   });
 }
 
-// Execute a shell stub, never the real CLI. It reads any fallback file while
-// the command runs, then the shell trap must remove that file and preserve stdin.
-const stub = `const fs = require("node:fs");
-const args = process.argv.slice(1);
-const file = args.find(x => x.startsWith("--credentials-github-from-config-file="))?.split("=")[1];
-const stat = file ? fs.statSync(file) : undefined;
-process.stdout.write(JSON.stringify({ args, input: fs.readFileSync(0, "utf8"), file,
-config: file ? JSON.parse(fs.readFileSync(file, "utf8")) : undefined,
-mode: stat ? stat.mode & 511 : undefined, regular: stat?.isFile() }));
-process.exitCode = Number(process.env.TEST_EXIT || 0);`;
+// Execute a shell stub, never the real CLI, and leave stdin for approval.
+const stub = `process.stdout.write(JSON.stringify({
+args: process.argv.slice(1), input: require("node:fs").readFileSync(0, "utf8") }));`;
 const shells = ["/bin/bash", "/bin/zsh"].filter(existsSync);
 function replay(
-  command: string,
+  command: string | undefined,
   shell = "/bin/bash",
-  exit = 0,
   env: Record<string, string> = {},
 ) {
-  const directory = mkdtempSync(join(tmpdir(), "sandbox-recovery-"));
-  try {
-    const result = spawnSync(
-      shell,
-      [
-        "-c",
-        `sandbox() { node -e '${stub}' -- "$@"; }
+  if (command === undefined)
+    throw new Error("Expected a direct recovery command");
+  const result = spawnSync(
+    shell,
+    [
+      "-c",
+      `sandbox() { node -e '${stub}' -- "$@"; }
 vercel() { sandbox "$@"; }
 ${command}`,
-      ],
-      {
-        encoding: "utf8",
-        input: "approval input\n",
-        env: {
-          PATH: process.env.PATH,
-          TMPDIR: directory,
-          TEST_EXIT: String(exit),
-          ...env,
-        },
-      },
-    );
-    expect(result.error).toBeUndefined();
-    expect(result.status).toBe(exit);
-    expect(result.stderr).toBe("");
-    const output = JSON.parse(result.stdout) as {
-      args: string[];
-      input: string;
-      config?: ManagedCredentialsConfig;
-      file?: string;
-      mode?: number;
-      regular?: boolean;
-    };
-    expect(output.input).toBe("approval input\n");
-    expect(readdirSync(directory)).toEqual([]);
-    if (output.file) expect(existsSync(output.file)).toBe(false);
-    return output;
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
+    ],
+    {
+      encoding: "utf8",
+      input: "approval input\n",
+      env: { PATH: process.env.PATH, ...env },
+    },
+  );
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(0);
+  expect(result.stderr).toBe("");
+  const output = JSON.parse(result.stdout) as { args: string[]; input: string };
+  expect(output.input).toBe("approval input\n");
+  return output;
 }
 
 test.each(["sandbox", "vercel sandbox"] as const)(
@@ -195,19 +168,16 @@ test.each([
 const complex: [string, (c: ManagedCredentialsConfig) => void][] = [
   [
     "multiple groups",
-    (c) => {
+    (c) =>
       c.credentials.github.push({
         repositories: ["acme/other"],
         actions: ["github:issues:read"],
         actAs: "9",
-      });
-    },
+      }),
   ],
   [
     "multiple repositories",
-    (c) => {
-      c.credentials.github[0].repositories.push("acme/other");
-    },
+    (c) => c.credentials.github[0].repositories.push("acme/other"),
   ],
   [
     "no clone source",
@@ -259,28 +229,12 @@ const complex: [string, (c: ManagedCredentialsConfig) => void][] = [
     },
   ],
 ];
-test.each(
-  shells.flatMap((shell) =>
-    complex.map(([name, change]) => ({ shell, name, change })),
-  ),
-)("replays $name as exact JSON in $shell", ({ shell, change }) => {
+test.each(complex)("omits recovery output for %s", (_, change) => {
   const config = proposal();
   change(config);
   const before = structuredClone(config);
-  const command = render(config);
-  const result = replay(command, shell);
-  expect(result.config).toEqual(config);
+  expect(render(config)).toBeUndefined();
   expect(config).toEqual(before);
-  expect(result.mode).toBe(0o600);
-  expect(result.regular).toBe(true);
-  expect(result.args).toEqual([
-    "create",
-    "--scope=team_selected",
-    "--project=prj_selected",
-    "--vcpus=6",
-    `--credentials-github-from-config-file=${result.file}`,
-  ]);
-  expect(command).not.toContain("--yes");
 });
 
 test.each(shells)(
@@ -302,7 +256,7 @@ test.each(shells)(
       });
       expect(command).not.toContain("original-token-canary");
       expect(command).not.toMatch(/[\u0000-\u001f\u007f-\u009f\u202e]/);
-      const { args } = replay(command, shell, 0, {
+      const { args } = replay(command, shell, {
         VERCEL_AUTH_TOKEN: "original-token-canary",
       });
       expect(args).toContain(`--scope=${team}`);
@@ -311,7 +265,7 @@ test.each(shells)(
     }
     const missing = spawnSync(
       shell,
-      ["-c", render(undefined, { hasExplicitToken: true })],
+      ["-c", render(undefined, { hasExplicitToken: true }) ?? ""],
       { encoding: "utf8", env: { PATH: process.env.PATH } },
     );
     expect(missing.status).not.toBe(0);
@@ -319,20 +273,5 @@ test.each(shells)(
     expect(missing.stderr).toContain(
       "Set VERCEL_AUTH_TOKEN to the original Vercel token",
     );
-  },
-);
-
-test.each(shells)(
-  "keeps JSON inert, avoids delimiter collisions, and cleans up on CLI failure in %s",
-  (shell) => {
-    const config = proposal();
-    config.source!.revision =
-      "SANDBOX_MANAGED_CREDENTIALS\nSANDBOX_MANAGED_CREDENTIALS_\n$(printf BAD >&2)\nO'Neil\n\u001b[31m\u009b\u202e";
-    const command = render(config);
-    const marker = /<<'([^']+)'/.exec(command)?.[1];
-    expect(marker).toBeTruthy();
-    expect(JSON.stringify(config)).not.toContain(marker);
-    expect(command).not.toMatch(/[\u001b\u007f-\u009f\u202e]/);
-    expect(replay(command, shell, 7).config).toEqual(config);
   },
 );

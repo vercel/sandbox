@@ -160,7 +160,6 @@ Flags:
     --connect                    Start an interactive shell session after creating the sandbox [optional]
     --enable-github-credentials  Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental) [optional]
     --yes, -y                    Confirm granting managed access. Does not supply missing inputs. [optional]
-    --non-interactive            Never prompt; fail if input or consent is missing. [optional]
     --sudo                       Give extended privileges to the command. [optional]
     --interactive, -i            Run the command in a secure interactive shell [optional]
     --no-extend-timeout          Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
@@ -248,7 +247,6 @@ Flags:
     --connect                    Start an interactive shell session after creating the sandbox [optional]
     --enable-github-credentials  Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental) [optional]
     --yes, -y                    Confirm granting managed access. Does not supply missing inputs. [optional]
-    --non-interactive            Never prompt; fail if input or consent is missing. [optional]
     --help, -h                   show help [optional]
 
 Auth & Scope:
@@ -342,7 +340,6 @@ Flags:
     --silent                     Don't write sandbox name to stdout [optional]
     --enable-github-credentials  Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental) [optional]
     --yes, -y                    Confirm granting managed access. Does not supply missing inputs. [optional]
-    --non-interactive            Never prompt; fail if input or consent is missing. [optional]
     --rm                         Automatically remove the sandbox when the shell exits. [optional]
     --help, -h                   show help [optional]
 
