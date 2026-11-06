@@ -12,6 +12,36 @@ import { APIError } from "./api-client/api-error.js";
 
 const auth = { token: "test-token", teamId: "team_123", projectId: "prj_123" };
 
+const deniedFetch = (status = 403) =>
+  vi.fn<typeof fetch>(async () => new Response("{}", { status }));
+
+const sessionResponse = (managedCredentials?: unknown, vcpus = 1) =>
+  Response.json({
+    sandbox: {
+      name: "mock-sandbox",
+      persistent: true,
+      currentSessionId: "sbx_test",
+      status: "running",
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    session: {
+      id: "sbx_test",
+      memory: 2048,
+      vcpus,
+      region: "iad1",
+      timeout: 300000,
+      status: "running",
+      requestedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      cwd: "/vercel",
+      interactivePort: 8443,
+      managedCredentials,
+    },
+    routes: [],
+  });
+
 describe("managed credential transport", () => {
   it("exports separate logical and create action registries", () => {
     expect(MANAGED_GIT_ACTIONS).toEqual([
@@ -68,9 +98,7 @@ describe("managed credential transport", () => {
   it.each([undefined, "node24" as const])(
     "serializes unified groups and plain source fields with runtime %s",
     async (runtime) => {
-      const mockFetch = vi.fn<typeof fetch>(
-        async () => new Response("{}", { status: 403 }),
-      );
+      const mockFetch = deniedFetch();
       const source = {
         type: "git" as const,
         url: "https://github.com/acme/widgets.git",
@@ -122,9 +150,7 @@ describe("managed credential transport", () => {
   it.each([undefined, "node24" as const])(
     "preserves an explicit empty list with runtime %s",
     async (runtime) => {
-      const mockFetch = vi.fn<typeof fetch>(
-        async () => new Response("{}", { status: 403 }),
-      );
+      const mockFetch = deniedFetch();
       await expect(
         Sandbox.create({
           ...auth,
@@ -141,9 +167,7 @@ describe("managed credential transport", () => {
   );
 
   it("does not forward retired commitAs options", async () => {
-    const mockFetch = vi.fn<typeof fetch>(
-      async () => new Response("{}", { status: 403 }),
-    );
+    const mockFetch = deniedFetch();
     const options = {
       ...auth,
       commitAs: { name: "Ada", email: "ada@example.com" },
@@ -157,9 +181,7 @@ describe("managed credential transport", () => {
   });
 
   it("omits managed fields when they were not supplied", async () => {
-    const mockFetch = vi.fn<typeof fetch>(
-      async () => new Response("{}", { status: 403 }),
-    );
+    const mockFetch = deniedFetch();
     await expect(
       Sandbox.create({ ...auth, fetch: mockFetch }),
     ).rejects.toBeInstanceOf(APIError);
@@ -171,9 +193,7 @@ describe("managed credential transport", () => {
   it.each([undefined, "node24" as const])(
     "never retries creation on a server error with runtime %s",
     async (runtime) => {
-      const mockFetch = vi.fn<typeof fetch>(
-        async () => new Response("{}", { status: 503 }),
-      );
+      const mockFetch = deniedFetch(503);
       await expect(
         Sandbox.create({
           ...auth,
@@ -191,9 +211,7 @@ describe("managed credential transport", () => {
     async (runtime) => {
       // Actions are pass-through, so one request carrying the whole registry
       // proves the contract that one request per action would prove 13 times.
-      const mockFetch = vi.fn<typeof fetch>(
-        async () => new Response("{}", { status: 403 }),
-      );
+      const mockFetch = deniedFetch();
       const credentials = {
         github: [
           {
@@ -239,36 +257,8 @@ describe("managed credential transport", () => {
         ],
       },
     };
-    const mockFetch = vi.fn<typeof fetch>(
-      async () =>
-        new Response(
-          JSON.stringify({
-            sandbox: {
-              name: "mock-sandbox",
-              persistent: true,
-              currentSessionId: "sbx_test",
-              status: "running",
-              createdAt: 1,
-              updatedAt: 1,
-            },
-            session: {
-              id: "sbx_test",
-              memory: 2048,
-              vcpus: 6,
-              region: "iad1",
-              timeout: 300000,
-              status: "running",
-              requestedAt: 1,
-              createdAt: 1,
-              updatedAt: 1,
-              cwd: "/vercel",
-              interactivePort: 8443,
-              managedCredentials,
-            },
-            routes: [],
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      sessionResponse(managedCredentials, 6),
     );
 
     const sandbox = await Sandbox.create({ ...auth, fetch: mockFetch });
@@ -279,36 +269,7 @@ describe("managed credential transport", () => {
   });
 
   it("reports no managed-credential request for an ordinary sandbox", async () => {
-    const mockFetch = vi.fn<typeof fetch>(
-      async () =>
-        new Response(
-          JSON.stringify({
-            sandbox: {
-              name: "mock-sandbox",
-              persistent: true,
-              currentSessionId: "sbx_test",
-              status: "running",
-              createdAt: 1,
-              updatedAt: 1,
-            },
-            session: {
-              id: "sbx_test",
-              memory: 2048,
-              vcpus: 1,
-              region: "iad1",
-              timeout: 300000,
-              status: "running",
-              requestedAt: 1,
-              createdAt: 1,
-              updatedAt: 1,
-              cwd: "/vercel",
-              interactivePort: 8443,
-            },
-            routes: [],
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-    );
+    const mockFetch = vi.fn<typeof fetch>(async () => sessionResponse());
 
     const sandbox = await Sandbox.create({ ...auth, fetch: mockFetch });
 

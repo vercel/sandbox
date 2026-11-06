@@ -1,3 +1,8 @@
+import {
+  configuration,
+  credentialGroup,
+} from "../fixtures/managed-credentials";
+import { scriptedInput as scripted } from "../fixtures/managed-credentials";
 import { describe, expect, test, vi } from "vitest";
 import { PassThrough } from "node:stream";
 import { runManagedCredentialsFlow } from "../../src/util/managed-credentials-flow";
@@ -6,18 +11,12 @@ import type { ResolvedManagedCredentials } from "../../src/util/managed-credenti
 import { CliError } from "../../src/util/cli-error";
 
 const configFor = (repo = "vercel/api") =>
-  parseConfig({
-    source: { type: "git", url: `https://github.com/${repo}.git` },
-    credentials: {
-      github: [
-        {
-          repositories: [repo],
-          actions: ["github:issues:read", "git:write"],
-          actAs: "@scubbo",
-        },
-      ],
-    },
-  });
+  parseConfig(
+    configuration(
+      [credentialGroup([repo], ["github:issues:read", "git:write"], "@scubbo")],
+      { type: "git", url: `https://github.com/${repo}.git` },
+    ),
+  );
 
 const resolved = (repo = "vercel/api"): ResolvedManagedCredentials => ({
   config: configFor(repo),
@@ -28,28 +27,6 @@ const resolved = (repo = "vercel/api"): ResolvedManagedCredentials => ({
     actor: "gh",
   },
 });
-
-/** Drive the flow with a scripted sequence of answers. */
-function scripted(answers: string[]) {
-  const input = new PassThrough();
-  const output = new PassThrough();
-  output.resume();
-  let index = 0;
-  // readline emits "line" per newline; queue the answers so each question is
-  // answered in order without racing the prompt.
-  const feed = () => {
-    if (index < answers.length) {
-      const answer = answers[index++];
-      setImmediate(() => input.write(`${answer}\n`));
-    }
-  };
-  output.on("data", (chunk: Buffer) => {
-    const text = chunk.toString();
-    if (text.includes("? ") || text.endsWith(": ")) feed();
-  });
-  feed();
-  return { input, output };
-}
 
 const baseContext = (overrides: Record<string, unknown> = {}) => ({
   team: "jacks-projects",

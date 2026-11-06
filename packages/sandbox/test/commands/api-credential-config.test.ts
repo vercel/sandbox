@@ -63,7 +63,11 @@ const apiDocument = (): ManagedCredentialsConfig => ({
     github: [
       {
         repositories: ["acme/Widgets", "acme/tools"],
-        actions: ["github:pull-request:create", "git:write"],
+        actions: [
+          "github:pull-request:create",
+          "git:write",
+          "git:write-workflows",
+        ],
         actAs: "@octocat",
       },
       {

@@ -1,4 +1,8 @@
-import { PassThrough } from "node:stream";
+import {
+  configuration,
+  credentialGroup,
+} from "../fixtures/managed-credentials";
+import { scriptedInput as io } from "../fixtures/managed-credentials";
 import { describe, expect, test, vi } from "vitest";
 import { parseConfig } from "../../src/util/managed-credentials-config";
 import {
@@ -9,18 +13,18 @@ import {
 
 const review = (overrides: Record<string, unknown> = {}) =>
   buildReview({
-    config: parseConfig({
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [
-          {
-            repositories: ["vercel/api"],
-            actions: ["github:issues:read", "git:write"],
-            actAs: "@scubbo",
-          },
+    config: parseConfig(
+      configuration(
+        [
+          credentialGroup(
+            ["vercel/api"],
+            ["github:issues:read", "git:write"],
+            "@scubbo",
+          ),
         ],
-      },
-    }),
+        { type: "git", url: "https://github.com/vercel/api.git" },
+      ),
+    ),
     originLabel: "command-line flags",
     provenance: {
       repository: "git-remote",
@@ -37,28 +41,6 @@ const valueOf = (rows: ReturnType<typeof buildReview>, label: string) =>
   rows.find((row) => row.label === label)?.value;
 
 describe("review contents", () => {
-  test("associates each repository's API access with its actor", () => {
-    const rows = review({
-      config: parseConfig({
-        credentials: {
-          github: [
-            {
-              repositories: ["one/repo"],
-              actions: ["github:issues:read"],
-              actAs: "@one",
-            },
-            {
-              repositories: ["two/repo"],
-              actions: ["github:issues:comment"],
-              actAs: "@two",
-            },
-          ],
-        },
-      }),
-    });
-    expect(valueOf(rows, "GitHub actor one/repo")).toBe("@one");
-    expect(valueOf(rows, "GitHub actor two/repo")).toBe("@two");
-  });
   test("shows team, project, source, access, resources, and origin", () => {
     const rows = review();
     expect(valueOf(rows, "Team")).toBe("jacks-projects");
@@ -94,12 +76,12 @@ describe("review contents", () => {
 
   test("shows a Git-only list without adding API defaults", () => {
     const rows = buildReview({
-      config: parseConfig({
-        source: { type: "git", url: "https://github.com/vercel/api.git" },
-        credentials: {
-          github: [{ repositories: ["vercel/api"], actions: ["git:write"] }],
-        },
-      }),
+      config: parseConfig(
+        configuration([credentialGroup(["vercel/api"], ["git:write"])], {
+          type: "git",
+          url: "https://github.com/vercel/api.git",
+        }),
+      ),
       originLabel: "configuration file config.json",
       provenance: { repository: "config" },
       team: "t",
@@ -115,17 +97,12 @@ describe("review contents", () => {
 
   test("lists each repository's access separately", () => {
     const rows = buildReview({
-      config: parseConfig({
-        credentials: {
-          github: [
-            { repositories: ["acme/one"], actions: ["github:issues:read"] },
-            {
-              repositories: ["acme/two"],
-              actions: ["github:pull-request:create"],
-            },
-          ],
-        },
-      }),
+      config: parseConfig(
+        configuration([
+          credentialGroup(["acme/one"], ["github:issues:read"]),
+          credentialGroup(["acme/two"], ["github:pull-request:create"]),
+        ]),
+      ),
       originLabel: "configuration file config.json",
       provenance: { repository: "config" },
       team: "t",
@@ -139,16 +116,13 @@ describe("review contents", () => {
 
   test("strips control characters from displayed values", () => {
     const rows = buildReview({
-      config: parseConfig({
-        source: {
+      config: parseConfig(
+        configuration([credentialGroup(["vercel/api"], ["git:write"])], {
           type: "git",
           url: "https://github.com/vercel/api.git",
           revision: "main‮Evil",
-        },
-        credentials: {
-          github: [{ repositories: ["vercel/api"], actions: ["git:write"] }],
-        },
-      }),
+        }),
+      ),
       originLabel: "flags",
       provenance: {},
       team: "t\u0000eam",
@@ -162,22 +136,22 @@ describe("review contents", () => {
 });
 
 const input = () => ({
-  config: parseConfig({
-    source: {
-      type: "git",
-      url: "https://github.com/acme/widgets.git",
-      revision: "main",
-    },
-    credentials: {
-      github: [
-        {
-          repositories: ["acme/widgets"],
-          actions: ["git:write", "github:issues:read"],
-          actAs: "2373726",
-        },
+  config: parseConfig(
+    configuration(
+      [
+        credentialGroup(
+          ["acme/widgets"],
+          ["git:write", "github:issues:read"],
+          "2373726",
+        ),
       ],
-    },
-  }),
+      {
+        type: "git",
+        url: "https://github.com/acme/widgets.git",
+        revision: "main",
+      },
+    ),
+  ),
   originLabel: "command-line flags",
   provenance: {
     repository: "git-remote" as const,
@@ -308,22 +282,12 @@ describe("complete review provenance", () => {
 
   test("keeps multiple configured actors associated with their own repository", () => {
     const proposal = input();
-    const config = parseConfig({
-      credentials: {
-        github: [
-          {
-            repositories: ["acme/one"],
-            actions: ["github:issues:read"],
-            actAs: "@one",
-          },
-          {
-            repositories: ["acme/two"],
-            actions: ["github:issues:read"],
-            actAs: "@two",
-          },
-        ],
-      },
-    });
+    const config = parseConfig(
+      configuration([
+        credentialGroup(["acme/one"], ["github:issues:read"], "@one"),
+        credentialGroup(["acme/two"], ["github:issues:comment"], "@two"),
+      ]),
+    );
     const rows = buildReview({
       ...proposal,
       config,
@@ -339,6 +303,8 @@ describe("complete review provenance", () => {
     expect(
       rows.filter((row) => row.label.startsWith("GitHub actor")),
     ).toHaveLength(2);
+    expect(valueOf(rows, "Access acme/one")).toBe("github:issues:read");
+    expect(valueOf(rows, "Access acme/two")).toBe("github:issues:comment");
   });
 });
 
@@ -382,26 +348,6 @@ describe("three-column review rendering", () => {
 });
 
 describe("creation consent prompt", () => {
-  /** Answer each question the prompt asks, in order. */
-  function io(answers: string[]) {
-    const input = new PassThrough();
-    const output = new PassThrough();
-    let text = "";
-    let index = 0;
-    output.on("data", (chunk: Buffer) => {
-      const part = chunk.toString();
-      text += part;
-      if (
-        (part.includes("? ") || part.endsWith(": ")) &&
-        index < answers.length
-      ) {
-        const answer = answers[index++];
-        setImmediate(() => input.write(`${answer}\n`));
-      }
-    });
-    return { input, output, text: () => text };
-  }
-
   test("asks exactly the y/n question, with no edit menu", async () => {
     const streams = io(["n"]);
     await expect(promptReviewDecision(streams)).resolves.toEqual({

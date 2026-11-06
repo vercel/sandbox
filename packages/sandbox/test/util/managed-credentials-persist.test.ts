@@ -1,3 +1,7 @@
+import {
+  configuration,
+  credentialGroup,
+} from "../fixtures/managed-credentials";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -13,18 +17,18 @@ import {
 } from "../../src/util/managed-credentials-reuse";
 import { CliError } from "../../src/util/cli-error";
 
-const config = parseConfig({
-  source: { type: "git", url: "https://github.com/vercel/api.git" },
-  credentials: {
-    github: [
-      {
-        repositories: ["vercel/api"],
-        actions: ["github:issues:read", "git:write"],
-        actAs: "@scubbo",
-      },
+const config = parseConfig(
+  configuration(
+    [
+      credentialGroup(
+        ["vercel/api"],
+        ["github:issues:read", "git:write"],
+        "@scubbo",
+      ),
     ],
-  },
-});
+    { type: "git", url: "https://github.com/vercel/api.git" },
+  ),
+);
 
 describe("output path resolution", () => {
   test.each([
@@ -60,22 +64,16 @@ describe("writing", () => {
   });
 
   test("persists source-free multi-repository groups without coalescing or inferring rights", async () => {
-    const grouped = parseConfig({
-      credentials: {
-        github: [
-          {
-            repositories: ["acme/reference", "acme/widgets"],
-            actions: ["github:issues:read", "github:labels:read"],
-            actAs: "42",
-          },
-          {
-            repositories: ["acme/widgets"],
-            actions: ["github:issues:comment"],
-            actAs: "42",
-          },
-        ],
-      },
-    });
+    const grouped = parseConfig(
+      configuration([
+        credentialGroup(
+          ["acme/reference", "acme/widgets"],
+          ["github:issues:read", "github:labels:read"],
+          "42",
+        ),
+        credentialGroup(["acme/widgets"], ["github:issues:comment"], "42"),
+      ]),
+    );
     const path = join(directory, "grouped.json");
     await persistConfiguration({ config: grouped, path });
     const written = await readFile(path, "utf8");

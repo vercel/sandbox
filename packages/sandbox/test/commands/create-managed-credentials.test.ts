@@ -138,10 +138,6 @@ describe("create with managed credentials", () => {
       // Six vCPUs is a managed-credentials workaround, not a new global
       // default.
       expect(params.resources).toBeUndefined();
-    });
-
-    test("does not consult local Git or gh", async () => {
-      await createWith(["--silent"]);
       expect(mockInferRepository).not.toHaveBeenCalled();
       expect(mockInferActor).not.toHaveBeenCalled();
     });
@@ -195,68 +191,6 @@ describe("create with managed credentials", () => {
   });
 
   describe("configuration input", () => {
-    const writeConfig = async (value: unknown) => {
-      const path = join(directory, "config.json");
-      await writeFile(path, JSON.stringify(value), "utf8");
-      return path;
-    };
-
-    test("sends multiple repositories with their own identities", async () => {
-      const path = await writeConfig({
-        source: { type: "git", url: "https://github.com/vercel/infra.git" },
-        credentials: {
-          github: [
-            {
-              repositories: ["vercel/infra"],
-              actions: ["git:write-workflows"],
-              actAs: "@some-alias",
-            },
-            {
-              repositories: ["vercel/front"],
-              actions: ["github:issues:comment", "github:pull-request:create"],
-              actAs: "@fake-alias",
-            },
-            {
-              repositories: ["vercel/another-repo"],
-              actions: ["github:issues:read"],
-              actAs: "123456",
-            },
-          ],
-        },
-      });
-
-      await createWith([
-        `--credentials-github-from-config-file=${path}`,
-        "--yes",
-        "--silent",
-      ]);
-
-      const params = mockCreate.mock.calls[0][0];
-      expect(params.source).toEqual({
-        type: "git",
-        url: "https://github.com/vercel/infra.git",
-      });
-      // Attribution remains attached to each repository's selected actor.
-      expect(params).not.toHaveProperty("commitAs");
-      expect(params.credentials.github).toEqual([
-        {
-          repositories: ["vercel/infra"],
-          actions: ["git:write-workflows"],
-          actAs: "@some-alias",
-        },
-        {
-          repositories: ["vercel/front"],
-          actions: ["github:issues:comment", "github:pull-request:create"],
-          actAs: "@fake-alias",
-        },
-        {
-          repositories: ["vercel/another-repo"],
-          actions: ["github:issues:read"],
-          actAs: "123456",
-        },
-      ]);
-    });
-
     test("copies configuration without resuming the source sandbox", async () => {
       mockGet.mockResolvedValue({
         currentSession: () => ({

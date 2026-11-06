@@ -1,3 +1,7 @@
+import {
+  configuration,
+  credentialGroup,
+} from "../fixtures/managed-credentials";
 import { beforeEach, expect, test, vi } from "vitest";
 import type { CreateContext } from "../../src/args/create-context";
 import type { FlowContext } from "../../src/util/managed-credentials-flow";
@@ -13,18 +17,18 @@ vi.mock("../../src/util/managed-credentials-flow", () => ({
   runManagedCredentialsFlow: flow,
 }));
 
-const config = parseConfig({
-  source: { type: "git", url: "https://github.com/acme/widgets.git" },
-  credentials: {
-    github: [
-      {
-        repositories: ["acme/widgets"],
-        actions: ["git:write", "github:issues:read"],
-        actAs: "42",
-      },
+const config = parseConfig(
+  configuration(
+    [
+      credentialGroup(
+        ["acme/widgets"],
+        ["git:write", "github:issues:read"],
+        "42",
+      ),
     ],
-  },
-});
+    { type: "git", url: "https://github.com/acme/widgets.git" },
+  ),
+);
 const context = (): CreateContext => ({
   token: "existing-token",
   team: "team_Original",
