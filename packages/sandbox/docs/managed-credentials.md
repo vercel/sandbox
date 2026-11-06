@@ -1,411 +1,205 @@
 # Managed credentials (experimental)
 
-Managed credentials let a sandbox clone a private GitHub repository and call
-the GitHub API without a raw GitHub token ever reaching the sandbox, the CLI's
-output, or an exported configuration file. Vercel brokers the access.
+Vercel brokers Git and GitHub API access without exposing a raw GitHub token in
+the sandbox, CLI output, logs, Git URLs, or exported configuration. Only GitHub is
+supported; its flags use `--credentials-github-*` so other providers can have
+separate namespaces.
 
-These inputs require the server-side managed credential feature gates and
-permissions for the project. The flags are available without a local opt-in.
+The project needs the server-side feature gates, permissions, and unified action
+contract from [API PR #103992](https://github.com/vercel/api/pull/103992).
+Flags need no local opt-in. The CLI does not deploy backend support or retry with
+older request fields. Sandbox reuse also needs readable request metadata.
 
-The unified action contract follows [API PR #103992](https://github.com/vercel/api/pull/103992).
-The backend must support that contract before these requests can create a Sandbox.
-The CLI does not deploy backend support or retry a rejected request with older fields.
-Configuration reuse also requires the API to return request metadata.
+## Quick start and scope
 
-Only GitHub is supported today. GitHub-specific flags use the
-`--credentials-github-*` namespace. Other providers can use their own namespace
-without changing these flags.
-
-## Contents
-
-- [Quick start](#quick-start)
-- [Requesting access](#requesting-access)
-- [Inference](#inference)
-- [Review, approval and Bounds](#review-approval-and-bounds)
-- [Configuration files](#configuration-files)
-- [Reusing a configuration](#reusing-a-configuration)
-- [Resources](#resources)
-- [Safety rules](#safety-rules)
-- [Non-interactive use](#non-interactive-use)
-- [Testing locally](#testing-locally)
-
-## Quick start
-
-Sign in with `vercel login`, then run from inside a GitHub repository:
+Sign in with `vercel login`, then run inside a GitHub repository:
 
 ```sh
 vercel sandbox create --enable-github-credentials
 ```
 
-That flag infers the repository, clone source, and GitHub actor. It requests
-`git:write`, `github:issues:read`, `github:issues:comment`, and
-`github:pull-request:create`. The broker derives Git commit attribution from
-the selected actor. The CLI does not read local Git name or email for this request.
+The enable flag infers the repository, clone source, and GitHub actor.
+The defaults are `git:write`, `github:issues:read`, `github:issues:comment`, and
+`github:pull-request:create`. A bare `create` is unchanged: local Git context
+alone never requests access. `run` and `sh` accept the same creation inputs;
+`exec`, `connect`, and `fork` do not accept credential mutations.
 
-A bare `vercel sandbox create` is unchanged. Running inside a Git repository is
-never on its own a request for repository access.
+Explicit team (`--scope`) and project (`--project`) selectors win. Otherwise,
+the CLI uses OIDC claims, a linked local project, or account-based selection,
+never `vercel switch`.
+Authentication and selection happen before review and can refresh credentials or
+create a missing default project. The CLI resolves one complete proposal before
+approval, then checks Bounds, creates the sandbox once, and optionally saves its
+configuration. There is no separate dry-run mode.
 
-`--scope` and `--project` are optional when the CLI can discover them. Explicit
-flags win. Otherwise, the CLI uses OIDC claims, the linked local project, or its
-existing account-based selection. It does not read the team selected by
-`vercel switch`. Use `--scope` to select a team and `--project` to select a project.
+## Actions and identity
 
-The command shows the proposed access before it asks for approval. Enter `n`
-to cancel. It prints explicit flags only when the configuration did not come from
-a file and those flags can represent it. Rejection creates no Sandbox or
-configuration file. There is no separate dry-run command.
-
-Normal authentication and project selection happen before the preview. They
-can refresh credentials or create a missing default project.
-
-## Requesting access
-
-```text
-flags / Git / gh / Vercel account
-             |
-             v
-     complete proposal <--- configuration file or copied Sandbox
-             |
-             v
-    Create this sandbox? (y/n)
-         |              |
-         n              y
-         |              |
- cancel and exit     check project Bounds
-                     (ask again if none)
-                        |
-                        v
-                  Sandbox.create
-                        |
-                        v
-              optional configuration save
-```
-
-Every permission travels in `credentials.github[].actions`. The clone source
-contains only clone options; the CLI never sends `source.credentials`.
-
-### Explicit actions
-
-Explicit `--credentials-github-action` flags replace the entire default set.
-They do not preserve implicit Git write or add omitted API actions:
+Every permission is in `credentials.github[].actions`. The clone source contains
+only clone options, never `source.credentials`. Explicit repeated
+`--credentials-github-action` flags replace the entire default set, including Git
+access. API-only requests gain no implicit Git access; cloning a private source
+can therefore fail. Use a configuration without `source` when no clone is wanted.
 
 ```sh
-vercel sandbox create \
-  --credentials-github-action=git:write \
+vercel sandbox create --credentials-github-action=git:write \
   --credentials-github-action=github:pull-request:create
 ```
 
-This requests exactly those two actions. A Git-only request is also valid. An
-API-only request does not gain Git permission, so an inferred clone can fail if
-a private source requires Git access the request does not include. Use a
-complete configuration without `source` when no initial clone is wanted.
+Flags accept `issues:read` and `github:issues:read`; Git actions keep `git:`.
+Comma-separated lists, duplicates, unknown actions, and missing flag values fail
+before authentication. `git:write-workflows` is required explicitly for workflow
+files. `git:read` is unsupported and is never replaced with write access.
 
-The supported Git actions are `git:write` and `git:write-workflows`.
-Workflow-file writes require the latter explicitly; normal writes never imply it.
-The current creation contract does not accept `git:read`, which the CLI rejects
-rather than substituting write access for an unsupported read request.
+The CLI infers GitHub HTTPS or SSH fetch remotes, preferring `origin`.
+`--credentials-github-repo OWNER/REPO` overrides inference and also selects the
+clone source. Direct flags describe one repository; files can describe many.
+Git-only groups and groups without a source retain their actions and actors.
+Git rights are not moved to the source, which need not match every group.
 
-GitHub API actions accept short aliases such as `issues:read` and canonical
-names such as `github:issues:read`. Git actions retain their `git:` prefix.
-Repeat the flag for multiple actions. Comma-separated lists, duplicates, and
-unknown actions fail before authentication.
+Actor precedence is explicit `--credentials-github-act-as`, active `gh` account,
+then Vercel's linked GitHub account. Flags accept bare or `@`-prefixed usernames
+and numeric IDs. `gh auth status` and `gh api user` read only account metadata,
+never a token. A transient `gh` failure stops the command instead of selecting
+another account. Only an absent login permits the Vercel fallback.
 
-Git-only groups, groups without a source, and groups for multiple repositories
-retain their selected actions and actors. The CLI does not move Git rights onto
-the source or require the source to match every credential group.
+That fallback reads `GET /v1/integrations/account-links` and requires one default
+`github.com` OAuth login connection. Other providers, enterprise hosts, limited
+connections, and ambiguous lists require an explicit actor instead of a guess.
+When available, an immutable numeric ID authorizes the request while its matching
+username is displayed, so an account rename cannot redirect the grant.
 
-## Inference
+The same `actAs` selects Git and API identity. The broker derives the Git name
+and email, not local Git configuration. No flag sets commit credit, and files
+reject deprecated `commitAs` like any unknown field.
 
-Inference runs before any question is asked. Explicit values always win.
+## Review, consent, and Bounds
 
-| Value         | Inferred from                                                     |
-| ------------- | ----------------------------------------------------------------- |
-| Team          | the effective Vercel team context                                 |
-| Project       | the effective Vercel project context                              |
-| Repository    | local Git remotes, preferring `origin`                            |
-| Clone source  | the same repository as the credential request                     |
-| Commit credit | the broker derives it from the selected GitHub actor              |
-| GitHub actor  | the active `gh` account, then the GitHub account linked to Vercel |
+`Inferred Parameters` shows Team, Project, Repo, Actions, and GitHub actor in two
+columns with a dashed heading separator. Actions appear one per line, including
+Git actions. Long values wrap without hiding rights. Sandbox name, Resources,
+and a separate Commit credit row are omitted.
 
-### Repository
+Multiple groups include repository names in action and actor values. A single
+action target is named if it differs from the clone source or no source exists.
+Name lookups are read-only display requests: they never replace selected API IDs,
+authentication, or the Bounds check. Failed lookups retain IDs. Unmatched numeric
+actors show `GitHub username unavailable`, never a guessed username or an ID
+presented as a username.
 
-HTTPS and SSH `github.com` remotes are both recognized. Override with
-`--credentials-github-repo OWNER/REPO`, which also becomes the clone source — in
-single-repository mode there is no separate source flag to pass.
+Answer `y` or `yes` to `Create this sandbox? (y/n)` to approve that proposal.
+Any other answer, including Enter, exits 130 before creation. There is no editing
+menu. Rejection creates no Sandbox, Grant, policy change, or local file.
 
-### GitHub actor
+A Bound limits managed access for a project; a Grant gives one Sandbox access to
+one repository. After approval, one project-scoped read resolves exact names or
+IDs and returns all Bounds, with backend pagination. The token needs project
+read access; verified user tokens and project-scoped OIDC tokens are supported.
+The CLI never creates or changes Bounds. Existing Bounds are enforced by the API.
 
-1. An explicit `--credentials-github-act-as` wins.
-2. Otherwise `gh` takes precedence.
-3. Vercel's linked GitHub identity is queried **only** when `gh` is not logged
-   in.
+Without Bounds, the warning explains that no project-wide limit exists and asks
+`Continue without project Bounds? (y/N)`. Only `y` or `yes` continues. The sandbox
+still gets only the shown rights. An unreadable policy stops creation, never
+means unrestricted access, and does not trigger creation of missing Bounds.
 
-Only read-only `gh` metadata is used (`gh auth status`, `gh api user`). The CLI
-never retrieves a GitHub token or passes one to the sandbox.
-
-If a logged-in `gh` fails transiently, the command fails. It does not quietly
-fall through to a different account — that would grant access as the wrong
-user.
-
-Vercel's fallback reads `GET /v1/integrations/account-links` and accepts only
-the default `github.com` OAuth **login** connection. Another provider, an
-enterprise host, a limited connection, or an ambiguous account list is treated
-as unknown, and the CLI asks for `--credentials-github-act-as` instead of guessing.
-
-`--credentials-github-act-as` accepts a username (with or without `@`) or a numeric
-user ID. When `gh` reports a numeric ID, the CLI authorizes with that immutable
-ID while displaying the readable login, so a later rename cannot redirect the
-grant.
-
-### Commit attribution
-
-The same `actAs` selects the GitHub identity for Git actions and API actions.
-The broker derives the Git name and email. A local Git name or email does not
-select or prove that identity.
-
-No flag sets commit credit. Configuration files reject the deprecated `commitAs`
-field like any other unknown field.
-
-## Review, approval and Bounds
-
-The `Inferred Parameters` review uses two columns: the setting and its value.
-It shows the team, project, `Repo`, complete action sets, and GitHub actor.
-A dashed separator follows the heading. Each action appears on its own line.
-Git actions such as `git:write` stay in the same `Actions` entry as API actions.
-The Sandbox name, resource allocation, and a separate commit-credit row are omitted.
-Long values wrap without hiding requested rights.
-
-The CLI looks up team and project names through read-only requests. These names
-are for display only; API requests keep the selected IDs and token. If a lookup
-fails, the review keeps the ID. Name lookup does not replace or skip the Bounds
-check.
-
-When more than one credential group is shown, repository names appear in the
-`Actions` and `GitHub actor` values to keep their association clear. A single
-repository is named in `Actions` if it differs from the clone source or no source
-is selected. The request still uses its original authorization selector, including
-a numeric ID when available.
-If a numeric selector has no matching username metadata, the review shows
-`GitHub username unavailable`. It never guesses another account or displays an
-ID as a username.
-
-Answer `y` or `yes` at `Create this sandbox? (y/n)` to approve. Any other answer,
-including Enter, cancels and exits 130 before creation. Eligible configurations
-also print the editable command described below. There is no interactive editing
-menu. Approval refers only to the proposal that invocation showed.
-
-### Project Bounds
-
-A Bound sets a project-wide limit on managed-credential access; a Grant gives one
-particular Sandbox access to one repository. The CLI reads whether Bounds exist
-but never creates or changes them:
-
-- If Bounds exist, the API enforces them. The CLI does not add missing Bounds.
-- If no Bounds exist, the CLI warns that there is no project-wide limit and asks
-  `Continue without project Bounds? (y/N)`. Any answer other than `y` or `yes`
-  cancels before creation. The Sandbox still receives only the rights shown in
-  the proposal: no Bounds does not give it every permission.
-- If the policy cannot be read, the command stops. A failed lookup never means
-  that access is unrestricted.
-
-The check runs after approval, using the final approved team and project.
-One project-scoped request resolves IDs or exact names and returns all project
-Bounds. The backend handles pagination. The current token must have read access
-to that project. The endpoint supports verified user and project-scoped OIDC
-authentication. A failed read still stops creation instead of implying that
-Bounds are absent.
-
-`--yes` skips the parameter review and accepts both confirmations. It does not
-disable the Bounds check or hide warnings and errors.
-
-### Reject and correct the command
-
-For input from direct flags or another Sandbox, cancellation prints a `create`
-command only when direct flags can represent the configuration. It includes the
-reviewed credentials, team, project, and vCPU count. Edit those values and run it again:
-
-```sh
-vercel sandbox create \
-  --scope=team_example \
-  --project=prj_example \
-  --vcpus=6 \
-  --credentials-github-repo=acme/widgets \
-  --credentials-github-action=github:issues:read \
-  --credentials-github-action=github:issues:comment \
-  --credentials-github-action=github:pull-request:create \
-  --credentials-github-action=git:write \
-  --credentials-github-act-as=@ada
-```
-
-The output says `Edit these explicit commands as desired`. A direct command uses
-`@username` when validated metadata matches the selected actor. Otherwise it keeps
-the original selector, including a numeric ID. The flag accepts usernames with or
-without `@`, or a numeric ID.
-This only changes the printed suggestion, not the original configuration.
-
-The output always uses `create`, even after `run` or `sh`. It omits the original
-child command and other creation options, including names, environment values,
-network options, and configuration output paths. Add any options you need.
-It does not add `--yes`, so running it still requires approval. Rejection creates
-no Sandbox, Grant, policy change, or local file.
-
-If the original command used `--token`, the output requires `VERCEL_AUTH_TOKEN`
-to contain that same Vercel token. The placeholder prevents silent use of another
-login. The output never contains the token value. Do not paste secrets into logs.
-
-Configuration-file input and configurations that direct flags cannot represent
-print no recovery command, JSON block, or shell script. For file input, edit the
-configuration file and run the original command again.
+`--yes` skips review and accepts both confirmations, but never hides warnings,
+errors, or the Bounds check. CI, piped input, non-terminal sessions, and detected
+agents never prompt and require `--yes`; there is no `--non-interactive` flag.
+Without consent, the CLI prints the proposal and stops. `--silent` does not skip
+review or consent. `--yes` does not supply missing inputs or permissions, or change
+project-wide policy. The enable flag selects defaults, not consent.
 
 ## Configuration files
 
-Direct flags describe one repository. A file uses the API's managed-credential
-fields, not a separate CLI format. Groups can contain multiple repositories
-with the same action set and actor:
+Files use the API's managed-credential fields, not a separate CLI schema:
 
 ```sh
 vercel sandbox create --credentials-github-from-config-file config.json
 ```
 
-```json
-{
-  "source": { "type": "git", "url": "https://github.com/vercel/infra.git" },
-  "credentials": {
-    "github": [
-      {
-        "repositories": ["vercel/infra", "vercel/tools"],
-        "actions": ["git:write"],
-        "actAs": "@some-alias"
-      },
-      {
-        "repositories": ["vercel/front"],
-        "actions": ["github:issues:comment", "github:pull-request:create"],
-        "actAs": "@fake-alias"
-      },
-      {
-        "repositories": ["vercel/another-repo"],
-        "actions": ["github:issues:read"],
-        "actAs": "123456"
-      }
-    ]
-  }
-}
-```
+See [the complete multi-repository example](./managed-credentials.example.json),
+which includes separate groups, actors, Git actions, and API actions.
 
-The file contains the managed-credential portion of a Sandbox creation request:
-`source` and `credentials`. Team, project, resources, and other creation fields
-still come from CLI flags or context.
-The same managed fields can be included in an API creation request unchanged.
+| Field                              | Meaning                                                            |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `source`                           | Optional initial checkout; omitting it does not remove credentials |
+| `source.type`, `source.url`        | `git` and a GitHub HTTPS repository URL                            |
+| `source.revision`, `source.depth`  | Optional revision and clone depth                                  |
+| `credentials.github`               | Groups of repositories, actions, and an optional actor             |
+| `repositories`, `actions`, `actAs` | Each group's targets, complete rights, and GitHub identity         |
 
-The CLI preserves source options, repository arrays, group order, actions, and
-actors during creation, persistence, and replay. It does not regroup permissions
-or rename fields. Old `source.repo` and group `repo` fields are rejected.
+The file contains only `source` and `credentials`, which can be sent unchanged in
+an API creation request. Team, project, resources, and other creation fields come
+from CLI flags or context. Repository arrays, group order, source options,
+actions, and actors survive creation, persistence, and replay without regrouping.
+Each group selects its own actor, including Git attribution.
 
-A file states the access it wants. The CLI never injects default permissions or
-merges it with direct credential flags. Combining them is an error. Each group
-selects its GitHub actor independently, and the broker derives attribution for
-Git writing from that actor. An optional `source` only selects the initial
-checkout; omitting it does not remove credential groups or their actions.
+Files require full canonical action names and `actAs` as an `@username` or quoted
+numeric ID. Short action aliases, bare usernames, numeric JSON actors,
+`source.repo`, group `repo`, raw passwords/tokens, and unknown fields are rejected.
+Each group needs at least one repository and action, with no duplicate entries.
+An empty `github` array grants nothing. Embedded URL credentials, query
+parameters, and fragments are rejected.
 
-Notes:
+Inputs are UTF-8 JSON, at most 64 KiB and 25 distinct repositories including the
+source. `-` reads stdin with a 30-second limit. Files supply complete access;
+they receive no inferred permissions and cannot be combined with direct
+credential flags. File and Sandbox inputs cannot be merged, or combined with
+`--enable-github-credentials`.
 
-- Files require canonical API values. Actions use their full names, such as
-  `github:issues:read`. `actAs` is an `@`-prefixed username or a quoted numeric
-  ID. Short action names, bare usernames, and numeric JSON actors are rejected.
-  Convenience aliases remain available in command-line flags.
-- Each group must list at least one repository and action. Duplicate entries
-  are rejected. Granting nothing is expressed with an empty `github` array.
-- A managed source uses `type: "git"` and a GitHub HTTPS URL. URLs with embedded
-  credentials, query parameters, or fragments are rejected.
-- Files are UTF-8 JSON, at most 64 KiB, at most 25 distinct repositories
-  including the source. `-` reads stdin (bounded to 30 seconds).
-- Raw passwords, tokens, and unknown fields are rejected.
-
-See [`managed-credentials.example.json`](./managed-credentials.example.json).
-
-## Reusing a configuration
-
-### Persist to a file
+## Export and Sandbox reuse
 
 ```sh
 vercel sandbox create --enable-github-credentials \
-  --credentials-github-persist-configuration=./widgets-credentials.json
-```
-
-The flag always takes an explicit path; a relative one resolves against the
-working directory. The API-shaped file is written **after** successful creation
-and round-trips through `--credentials-github-from-config-file` without field
-translation.
-
-An existing file is never overwritten: the CLI reports the path and stops. If
-the write fails, the error names the sandbox that was already created; the CLI
-never creates a second sandbox to retry a local write.
-
-### Copy from another sandbox
-
-```sh
-vercel sandbox create --credentials-github-from-sandbox sbx_132456789
+  --credentials-github-persist-configuration=./credentials.json
 vercel sandbox create --credentials-github-from-sandbox my-sandbox
 ```
 
-Both names and `sbx_*` identifiers are accepted, resolved through an
-authorized read-only lookup. The source sandbox is never resumed and no command
-is run in it just to read its configuration.
+Export requires an explicit path; relative paths use the working directory.
+It writes API-shaped JSON after successful creation, readable through the file
+input flag without translation. Existing files are never overwritten. A write
+failure identifies the already-created sandbox and never creates another one to
+retry the local write.
 
-Reuse copies **configuration, not authorization**. Tokens, grant IDs,
-attestations, and the original creator's approval are never copied, and consent
-and permissions are rechecked for the new sandbox and target context.
+Reuse accepts a sandbox name or `sbx_*` identifier through an authorized,
+read-only lookup. It never resumes the source or runs commands inside it.
+Only configuration is copied, never tokens, grant IDs, attestations, or the
+creator's approval. The new sandbox and target context require fresh consent and
+permission checks. If the API omits the original request metadata, reuse reports
+that no configuration is available rather than inventing one.
 
-> Reading a configuration back from an existing sandbox requires the Sandbox API
-> to report the managed-credential request it was created with. Against a
-> deployment that does not return it, the CLI reports that there is nothing to
-> reuse rather than inventing a configuration.
+## Reject and correct
 
-## Resources
+Eligible direct-flag or Sandbox inputs print `Edit these explicit commands as
+desired`, followed by a `create` command containing credentials, team, project,
+and vCPU count. It always uses `create`, even after `run` or `sh`, and omits the
+child command, names, environment values, network options, and export path.
+Add any other creation options you need. It never adds `--yes`.
 
-Managed-credential creations default to **6 vCPUs**. This is a workaround, not
-a performance choice: that size does not come from the warm pool, and managed
-Git initialization currently fails on warm-pool instances. A default-capacity
-creation (`sandbox-2cpu-4gb`) failed to clone a private repository with
-"could not read Username", while the same image at six vCPUs cloned it
-successfully with a read-only Git grant.
+Direct recovery uses `@username` only when validated metadata matches the
+selected actor; otherwise it keeps the original selector, including a numeric
+ID. This changes the suggestion, not the original configuration. Configuration
+files and requests that direct flags cannot represent print no recovery command,
+JSON block, or shell script. Edit the file and rerun its original command.
 
-An explicit `--vcpus` takes precedence, and the review shows the effective
-allocation. Ordinary creation defaults are unchanged.
+With an explicit original `--token`, recovery requires `VERCEL_AUTH_TOKEN` to
+hold that same Vercel token through a non-printing placeholder. It never prints
+the token or silently chooses another login. Do not paste secrets into logs.
 
-## Safety rules
+## Resources and failure safety
 
-Beyond the Bounds rules above:
+Managed requests default to 6 vCPUs to avoid warm-pool managed-Git initialization
+failures. The default `sandbox-2cpu-4gb` image failed private cloning with
+`could not read Username`; the same image at six vCPUs succeeded with a read-only
+Git Grant. Explicit `--vcpus` wins; ordinary creation defaults stay unchanged.
+Resources are not shown in the current preview.
 
-- Creation is never retried automatically, and neither are policy writes.
-- Raw GitHub tokens never enter sandbox environment variables, Git URLs,
-  exported configuration, logs, or CLI output.
-- Git read is never broadened to write to work around a backend limitation.
-- After a failure, existing policy is not rolled back and unrelated resources
-  are not deleted.
-- If the creation outcome is uncertain, inspect the Sandbox list before retrying.
-  A failed response does not prove that the server created no resources.
+Creation and policy writes are never retried automatically. Failure does not roll
+back existing policy or delete unrelated resources. If creation is uncertain,
+inspect the Sandbox list before retrying: a failed response does not prove that
+nothing was created. Output is text. Validation errors exit 2, operational errors
+exit 1, and cancellation exits 130.
 
-## Non-interactive use
-
-CI, piped input, non-terminal sessions, and detected agents never prompt.
-These sessions require `--yes` for managed credentials. The flag grants consent,
-not missing input or permission. `--silent` alone does not suppress the review
-or bypass consent. One approval covers creation with the displayed rights.
-It does not change project-wide policy. `--enable-github-credentials` selects
-defaults, not consent.
-
-Command output is text. Credential validation failures exit 2, operational failures
-exit 1, and cancellation exits 130. To export reusable JSON after successful creation, pass
-`--credentials-github-persist-configuration=FILE`.
-
-Without `--yes`, a non-interactive request prints the proposed access and stops
-before creation. It prints a recovery command only for eligible configurations.
-
-`run` and `sh` accept the same creation inputs. `exec`, `connect`, and `fork`
-do not accept credential mutations.
-
-## Testing locally
+## Local testing and managed Git
 
 From the repository root:
 
@@ -413,34 +207,24 @@ From the repository root:
 pnpm --filter @vercel/sandbox build
 pnpm --filter sandbox build
 node packages/sandbox/bin/sandbox.mjs create --help
-```
-
-Run the command, inspect the preview, and enter `n` to print the explicit flags:
-
-```sh
 node packages/sandbox/bin/sandbox.mjs create --enable-github-credentials
 ```
 
-Use the built binary by its full path to keep another directory as the working
-directory, which is what inference reads. It uses saved Vercel login
-credentials, or `VERCEL_TOKEN`.
+Inspect the preview and enter `n` to test eligible recovery. Use the binary's
+absolute path to infer another working directory's repository. Authentication
+uses saved Vercel login credentials or `VERCEL_TOKEN`.
 
-### Managed Git behavior in the sandbox
-
-Managed Git wraps `clone`, `fetch`, `pull`, and `push`; it does not add
-credentials to `git ls-remote`. Signed push does not accept `git -C ... push`
-or mapped refspecs. For a new branch, track the remote base branch and push the
-branch by name:
+Managed Git wraps `clone`, `fetch`, `pull`, and `push`, but not `git ls-remote`.
+Signed push does not accept `git -C ... push` or mapped refspecs. Track the remote
+base branch, then push the new branch by name:
 
 ```sh
 git checkout -b my-branch --track origin/main
 git push origin my-branch
 ```
 
-GitHub pull-request listing through the broker requires `state=open` or
-`state=all`, for example `GET /repos/acme/widgets/pulls?state=open&per_page=1`.
-A list request without `state` is denied even with pull-request read access.
-
-The sandbox's working directory comes from the image (`/vercel` for the default
-image); deferred cloning uses that actual directory rather than a hardcoded
-path.
+Brokered pull-request listing requires `state=open` or `state=all`, such as
+`GET /repos/acme/widgets/pulls?state=open&per_page=1`; omitting `state` is denied
+even with read access. The sandbox working directory comes from its image
+(`/vercel` by default). Deferred cloning uses that actual directory, not a
+hardcoded path.

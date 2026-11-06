@@ -4,51 +4,27 @@
 "@vercel/sandbox-mock": patch
 ---
 
-Add managed GitHub credentials to `create`, `run`, and `sh`.
+Add experimental managed GitHub credentials to `create`, `run`, and `sh`.
+Infer repository and actor from Git, `gh`, or Vercel, with explicit flag overrides.
+Reuse existing scope selection, not `vercel switch`, and never copy a raw GitHub token.
 
-`--enable-github-credentials` requests short-lived Git and GitHub API access for
-a Sandbox. The CLI infers the repository from local Git fetch remotes and the
-API actor from `gh` or the default github.com OAuth login on the Vercel account,
-applies explicit flags on top with `--credentials-github-*` options, and shows
-the resolved actions and GitHub actor in the two-column `Inferred Parameters`
-review before anything is created. Rejection prints a credentials-focused
-`create` command only when direct flags can represent the configuration and the
-input did not come from a configuration file. It does not print JSON or a shell
-script. Other creation options must be added again.
-An explicit Vercel token uses a required placeholder, never its value.
-`--yes` approves without the review. The CLI detects non-interactive sessions
-without a `--non-interactive` flag.
-The CLI reuses its existing team and project selection. It does not read the
-team selected by `vercel switch`.
+Use unified API-shaped actions and JSON for configuration input/export and
+read-only Sandbox reuse. Reuse requires nonsecret request metadata and fresh
+consent. Git attribution comes from `actAs`; deprecated `commitAs` is rejected.
+The SDK adds managed-credential request types and optional nonsecret session metadata.
 
-Configurations are read from and persisted to API-shaped JSON files
-(`source.type`, `source.url`, `credentials.github[].repositories`), and can be
-reused from an existing Sandbox without resuming it or copying consent.
-The confirmation preview replaces a separate dry-run mode. Normal authentication
-and project selection happen before the preview. Project Bounds are read before
-creation using one project-scoped request with backend selector resolution and
-pagination. An unreadable policy stops the command.
-A project with no Bounds warns and requires a second confirmation.
+Show the two-column `Inferred Parameters` preview with `Repo`, one action per
+line, and a heading separator. `--yes` grants consent without review. Agents,
+CI, and piped/non-terminal sessions are detected without `--non-interactive`.
+Read project Bounds through one backend-resolved, paginated endpoint. Missing
+Bounds require a warning and second consent; unreadable policy stops creation.
 
-The SDK gains managed Git and GitHub API credential request contracts and
-optional nonsecret session request metadata, and no longer retries creation, so
-an uncertain response cannot produce a duplicate Sandbox or grant. Unreadable
-successful responses require inspection before retrying. Credential flags reject
-missing values, and configuration-reuse lookup errors use safe error messages.
-Command output is text. JSON configuration input, file export, and Sandbox reuse
-remain supported. Git attribution comes from `actAs`. The deprecated `commitAs`
-field is not supported and is rejected in configuration files.
+Rejection prints direct flags only for eligible non-file configurations, with
+matching usernames preferred and token values replaced by a required placeholder.
+It creates no file and prints no JSON/shell recovery. Other options need re-adding.
+Export occurs after creation. Missing values and lookup failures use safe errors.
+SDK creation is not retried; inspect uncertain outcomes before retrying manually.
 
-The CLI reads only account IDs and usernames for actor selection. Unused private
-helpers, action exports, and persistence return values are removed. Configuration
-and transport tests share coverage. The CLI handles display-name requests without
-adding them to SDK authentication.
-
-The preview labels the clone source as `Repo`, lists actions one per line, and
-separates the column headings from the inferred parameter values.
-
-Rejected previews print the matching GitHub username in direct actor flags when
-available, with a numeric-ID fallback and the revised explicit-command message.
-
-Removed unused metadata caching, repeated recovery validation, and source
-selection bookkeeping. Tests share fixtures and failure setup.
+Remove unused helpers, action exports, return values, validation/cache bookkeeping,
+and duplicate test setup. Display-name reads remain in the CLI, not SDK auth.
+See the managed-credentials guide for the full contract, safety rules, and examples.
