@@ -29,8 +29,7 @@ configuration. There is no separate dry-run mode.
 
 ## Actions and identity
 
-Every permission is in `credentials.github[].actions`. The clone source contains
-only clone options, never `source.credentials`. Explicit repeated
+Every permission is in `credentials.github[].actions`. Explicit repeated
 `--credentials-github-action` flags replace the entire default set, including Git
 access. API-only requests gain no implicit Git access; cloning a private source
 can therefore fail. Use a configuration without `source` when no clone is wanted.
@@ -40,7 +39,7 @@ vercel sandbox create --credentials-github-action=git:write \
   --credentials-github-action=github:pull-request:create
 ```
 
-Flags accept `issues:read` and `github:issues:read`; Git actions keep `git:`.
+Flags accept `issues:read` or `github:issues:read`; Git actions keep `git:`.
 Comma-separated lists, duplicates, unknown actions, and missing flag values fail
 before authentication. `git:write-workflows` is required explicitly for workflow
 files. `git:read` is unsupported and is never replaced with write access.
@@ -165,8 +164,8 @@ that no configuration is available rather than inventing one.
 ## Reject and correct
 
 Eligible direct-flag or Sandbox inputs print `Edit these explicit commands as
-desired`, followed by a `create` command containing credentials, team, project,
-and vCPU count. It always uses `create`, even after `run` or `sh`, and omits the
+desired`, followed by a `create` command containing appropriate flags.
+It always uses `create`, even after `run` or `sh`, and omits the
 child command, names, environment values, network options, and export path.
 Add any other creation options you need. It never adds `--yes`.
 
@@ -182,44 +181,8 @@ the token or silently chooses another login. Do not paste secrets into logs.
 
 ## Resources and failure safety
 
-Managed requests default to 6 vCPUs to avoid warm-pool managed-Git initialization
-failures. The default `sandbox-2cpu-4gb` image failed private cloning with
-`could not read Username`; the same image at six vCPUs succeeded with a read-only
-Git Grant. Explicit `--vcpus` wins; ordinary creation defaults stay unchanged.
-Resources are not shown in the current preview.
-
 Creation and policy writes are never retried automatically. Failure does not roll
 back existing policy or delete unrelated resources. If creation is uncertain,
 inspect the Sandbox list before retrying: a failed response does not prove that
 nothing was created. Output is text. Validation errors exit 2, operational errors
 exit 1, and cancellation exits 130.
-
-## Local testing and managed Git
-
-From the repository root:
-
-```sh
-pnpm --filter @vercel/sandbox build
-pnpm --filter sandbox build
-node packages/sandbox/bin/sandbox.mjs create --help
-node packages/sandbox/bin/sandbox.mjs create --enable-github-credentials
-```
-
-Inspect the preview and enter `n` to test eligible recovery. Use the binary's
-absolute path to infer another working directory's repository. Authentication
-uses saved Vercel login credentials or `VERCEL_TOKEN`.
-
-Managed Git wraps `clone`, `fetch`, `pull`, and `push`, but not `git ls-remote`.
-Signed push does not accept `git -C ... push` or mapped refspecs. Track the remote
-base branch, then push the new branch by name:
-
-```sh
-git checkout -b my-branch --track origin/main
-git push origin my-branch
-```
-
-Brokered pull-request listing requires `state=open` or `state=all`, such as
-`GET /repos/acme/widgets/pulls?state=open&per_page=1`; omitting `state` is denied
-even with read access. The sandbox working directory comes from its image
-(`/vercel` by default). Deferred cloning uses that actual directory, not a
-hardcoded path.
