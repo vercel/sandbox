@@ -44,13 +44,13 @@ export const commandMetadata = {
     name: "read",
     description: "Print a file from a sandbox to stdout.",
     aliases: ["cat"],
-    positionals: ["<name:path>"],
+    positionals: ["<name>", "<path>"],
   },
   write: {
     name: "write",
     description:
       "Write stdin to a file in a sandbox, replacing it if it exists.",
-    positionals: ["<name:path>"],
+    positionals: ["<name>", "<path>"],
   },
   exec: {
     name: "exec",
