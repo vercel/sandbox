@@ -15,6 +15,10 @@ class TestClient extends BaseClient {
   get(path: string) {
     return this.request(path);
   }
+
+  post(path: string) {
+    return this.request(path, { method: "POST" });
+  }
 }
 
 describe("BaseClient", () => {
@@ -75,6 +79,20 @@ describe("BaseClient", () => {
     await expect(response.json()).resolves.toEqual({ stubbed: true });
     expect(stub).toHaveBeenCalledTimes(1);
     expect(remotePorts).toHaveLength(0);
+  });
+
+  it("routes non-idempotent requests to a separate agent", async () => {
+    const injected = vi.fn<typeof fetch>(async () => new Response("ok"));
+    const client = new TestClient({ baseUrl, fetch: injected });
+    await client.get("/v1/ping");
+    await client.post("/v1/ping");
+    const getOptions = injected.mock.calls[0][1] as RequestInit & {
+      dispatcher: unknown;
+    };
+    const postOptions = injected.mock.calls[1][1] as RequestInit & {
+      dispatcher: unknown;
+    };
+    expect(postOptions.dispatcher).not.toBe(getOptions.dispatcher);
   });
 
   it("prefers an injected fetch over the default", async () => {

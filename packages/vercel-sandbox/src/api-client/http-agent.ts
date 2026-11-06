@@ -32,7 +32,10 @@ export const H2_MAX_CONCURRENT_REQUESTS = 100;
  *
  * @param tls - Extra TLS/connect options. Intended for tests.
  */
-export function createHttpAgent(tls?: buildConnector.BuildOptions): Agent {
+export function createHttpAgent(
+  tls?: buildConnector.BuildOptions,
+  multiplex = true,
+): Agent {
   return new Agent({
     bodyTimeout: 0, // disable body timeout to allow long logs streaming
     keepAliveTimeout: 60_000,
@@ -42,7 +45,7 @@ export function createHttpAgent(tls?: buildConnector.BuildOptions): Agent {
       new Pool(origin, {
         ...agentOptions,
         factory: (poolOrigin, clientOptions) =>
-          createClient(poolOrigin, clientOptions, tls),
+          createClient(poolOrigin, clientOptions, tls, multiplex),
       }),
   });
 }
@@ -50,7 +53,8 @@ export function createHttpAgent(tls?: buildConnector.BuildOptions): Agent {
 function createClient(
   origin: string | URL,
   options: Client.Options,
-  tls?: buildConnector.BuildOptions,
+  tls: buildConnector.BuildOptions | undefined,
+  multiplex: boolean,
 ): Client {
   const connector = buildConnector({ ...tls, allowH2: true });
   const client: Client = new Client(origin, {
@@ -63,7 +67,7 @@ function createClient(
           // Re-evaluated on every (re)connect, so a client that reconnects
           // over HTTP/1.1 goes back to one request at a time.
           client.pipelining =
-            (socket as TLSSocket).alpnProtocol === "h2"
+            multiplex && (socket as TLSSocket).alpnProtocol === "h2"
               ? H2_MAX_CONCURRENT_REQUESTS
               : 1;
         }

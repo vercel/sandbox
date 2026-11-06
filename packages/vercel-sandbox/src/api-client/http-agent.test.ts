@@ -139,6 +139,40 @@ describe.skipIf(!hasOpenssl())("createHttpAgent", () => {
     await agent.close();
   });
 
+  it.each(["GET", "POST"])(
+    "does not queue a POST behind an open %s response",
+    async (method) => {
+      const server = await startServer((handler) =>
+        http2.createSecureServer({ ...tlsOptions, allowHTTP1: true }, handler),
+      );
+      servers.push(server);
+      const agent = createHttpAgent({ rejectUnauthorized: false });
+      const writeAgent = createHttpAgent({ rejectUnauthorized: false }, false);
+      const first = fetch(server.url, {
+        dispatcher: method === "GET" ? agent : writeAgent,
+        method,
+        body: method === "POST" ? "{}" : undefined,
+      }).then((r) => r.text());
+      await server.waitForArrivals(1);
+      const post = fetch(server.url, {
+        dispatcher: writeAgent,
+        method: "POST",
+        body: "{}",
+      }).then((r) => r.text());
+      const arrivedBeforeRelease = await Promise.race([
+        server.waitForArrivals(2).then(() => true),
+        new Promise<false>((resolve) => setTimeout(() => resolve(false), 1_000)),
+      ]);
+      server.release();
+      await first;
+      await server.waitForArrivals(2);
+      server.release();
+      await post;
+      await Promise.all([agent.close(), writeAgent.close()]);
+      expect(arrivedBeforeRelease).toBe(true);
+    },
+  );
+
   it("does not pipeline requests when the server only speaks HTTP/1.1", async () => {
     const server = await startServer((handler) =>
       https.createServer(tlsOptions, handler),

@@ -15,6 +15,8 @@ export interface RequestParams extends RequestInit {
 }
 
 const DEFAULT_AGENT = createHttpAgent();
+// Non-idempotent requests must not queue behind long-lived GET streams.
+const DEFAULT_WRITE_AGENT = createHttpAgent(undefined, false);
 
 /**
  * The runtime's `fetch` as it was when this module loaded. Used to detect
@@ -83,7 +85,10 @@ export class BaseClient {
         ? { Authorization: `Bearer ${this.token}`, ...opts?.headers }
         : opts?.headers,
       // @ts-expect-error Node.js' and undici's Agent have different types
-      dispatcher: this.agent,
+      dispatcher:
+        !opts?.method || opts.method === "GET" || opts.method === "HEAD"
+          ? this.agent
+          : DEFAULT_WRITE_AGENT,
       signal: opts?.signal,
     });
 
