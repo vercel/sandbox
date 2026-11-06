@@ -95,7 +95,7 @@ test("one API-shaped document survives file input, request construction, persist
   const document = apiDocument();
   const sdkFields: Pick<
     NonNullable<Parameters<typeof Sandbox.create>[0]>,
-    "source" | "credentials" | "commitAs"
+    "source" | "credentials"
   > = document;
   expect(sdkFields).toBe(document);
   const original = JSON.stringify(document, null, 4) + "\n";
@@ -109,7 +109,7 @@ test("one API-shaped document survives file input, request construction, persist
   const first = createSandbox.mock.calls[0][0];
   expect(first.source).toEqual(document.source);
   expect(first.credentials).toEqual(document.credentials);
-  expect(first.commitAs).toBeUndefined();
+  expect(first).not.toHaveProperty("commitAs");
   expect(first.teamId).toBe("team_fixture");
   expect(first.projectId).toBe("project_fixture");
   expect(await readFile(input, "utf8")).toBe(original);
@@ -127,6 +127,22 @@ test("one API-shaped document survives file input, request construction, persist
   expect(second.source).toEqual(document.source);
   expect(second.credentials).toEqual(document.credentials);
   expect(inferActor).not.toHaveBeenCalled();
+});
+
+test("rejects commitAs in configuration files before requesting access", async () => {
+  const input = join(directory, "retired-field.json");
+  await writeFile(
+    input,
+    JSON.stringify({
+      ...apiDocument(),
+      commitAs: { name: "Ada", email: "ada@example.com" },
+    }),
+  );
+  await expect(invoke(input)).rejects.toThrow(
+    "Unknown fields are not supported.",
+  );
+  expect(createSandbox).not.toHaveBeenCalled();
+  expect(hasBounds).not.toHaveBeenCalled();
 });
 
 test("rejects duplicate repository entries just as the API schema does", async () => {

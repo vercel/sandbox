@@ -280,7 +280,6 @@ export class APIClient extends BaseClient {
           projectId: params.projectId,
           ports: params.ports,
           source: params.source,
-          commitAs: params.commitAs,
           credentials: params.credentials,
           timeout: params.timeout,
           resources: params.resources,

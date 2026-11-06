@@ -599,7 +599,7 @@ describe("unsupported source fields and old CLI shapes", () => {
     expect(() => parseConfig(value)).toThrow(CliError);
   });
 
-  test("rejects a transport read marker even alongside commit metadata", () => {
+  test("rejects a transport read marker", () => {
     expect(() =>
       parseConfig({
         source: {
@@ -607,7 +607,6 @@ describe("unsupported source fields and old CLI shapes", () => {
           url: "https://github.com/acme/widgets.git",
           credentials: "read",
         },
-        commitAs: { name: "Grace Hopper", email: "grace@example.com" },
         credentials: {
           github: [
             { repositories: ["acme/widgets"], actions: ["github:issues:read"] },
@@ -621,7 +620,6 @@ describe("unsupported source fields and old CLI shapes", () => {
     expect(() =>
       parseConfig({
         source: { type: "git", url: "https://github.com/acme/widgets.git" },
-        commitAs: { name: "Grace Hopper", email: "grace@example.com" },
       }),
     ).toThrow(CliError);
   });
@@ -636,119 +634,13 @@ describe("unsupported source fields and old CLI shapes", () => {
   });
 });
 
-describe("legacy commitAs never widens permissions", () => {
-  const commitAs = { name: "Ada", email: "ada@example.com" };
-
-  // commitAs makes the API infer git:write for the source and apply it to
-  // every writing repository, so it is accepted only when that exact Git
-  // write was explicitly requested for the source and nothing else.
-  test.each([
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: { github: [] },
-    },
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [
-          { repositories: ["vercel/api"], actions: ["github:issues:read"] },
-        ],
-      },
-    },
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [
-          {
-            repositories: ["vercel/api", "vercel/other"],
-            actions: ["git:write"],
-          },
-        ],
-      },
-    },
-    {
-      credentials: {
-        github: [{ repositories: ["vercel/api"], actions: ["git:write"] }],
-      },
-    },
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [{ repositories: ["vercel/other"], actions: ["git:write"] }],
-      },
-    },
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [
-          { repositories: ["vercel/api"], actions: ["git:write"] },
-          { repositories: ["vercel/other"], actions: ["git:write-workflows"] },
-        ],
-      },
-    },
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [
-          { repositories: ["vercel/api"], actions: ["git:write"] },
-          { repositories: ["vercel/other"], actions: ["git:write"] },
-        ],
-      },
-    },
-    {
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      credentials: {
-        github: [
-          { repositories: ["vercel/api"], actions: ["git:write-workflows"] },
-        ],
-      },
-    },
-  ])(
-    "rejects overrides that cannot preserve exact permissions: %j",
-    (config) => {
-      expect(() => parseConfig({ ...config, commitAs })).toThrow(/commitAs/);
-    },
-  );
-
-  test("rejects unsupported git:read even alongside commit metadata", () => {
-    expect(() =>
-      parseConfig({
-        source: { type: "git", url: "https://github.com/o/r.git" },
-        commitAs,
-        credentials: {
-          github: [{ repositories: ["o/r"], actions: ["git:read"] }],
-        },
-      }),
-    ).toThrow(CliError);
-  });
-
-  test("retains metadata for a sole writing source with unrelated API groups", () => {
-    const config = parseConfig({
-      source: { type: "git", url: "https://github.com/vercel/api.git" },
-      commitAs,
-      credentials: {
-        github: [
-          {
-            repositories: ["vercel/api"],
-            actions: ["git:write-workflows", "git:write"],
-            actAs: "42",
-          },
-          {
-            repositories: ["vercel/reference"],
-            actions: ["github:issues:read"],
-            actAs: "43",
-          },
-        ],
-      },
-    });
-    expect(config.commitAs).toEqual(commitAs);
-    expect(config.credentials.github[0]).toEqual({
-      repositories: ["vercel/api"],
-      actions: ["git:write-workflows", "git:write"],
-      actAs: "42",
-    });
-    expect(gitAccessFor(config, "vercel/api")).toBe("git:write-workflows");
-  });
+test("rejects commitAs like any other unknown configuration field", () => {
+  expect(() =>
+    parseConfig({
+      ...base,
+      commitAs: { name: "Ada", email: "ada@example.com" },
+    }),
+  ).toThrow("Unknown fields are not supported.");
 });
 
 describe("round trip", () => {
@@ -760,7 +652,6 @@ describe("round trip", () => {
         revision: "main",
         depth: 1,
       },
-      commitAs: { name: "Ada Lovelace", email: "ada@example.com" },
       credentials: {
         github: [
           {

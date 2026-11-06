@@ -32,4 +32,5 @@ an uncertain response cannot produce a duplicate Sandbox or grant. Unreadable
 successful responses require inspection before retrying. Credential flags reject
 missing values, and configuration-reuse lookup errors use safe error messages.
 Command output is text. JSON configuration input, file export, and Sandbox reuse
-remain supported.
+remain supported. Git attribution comes from `actAs`. The deprecated `commitAs`
+field is not supported and is rejected in configuration files.

@@ -72,7 +72,6 @@ export interface ConfigProvenance {
   team?: string;
   project?: string;
   repository?: "explicit" | "git-remote" | "config";
-  commitAs?: "config" | "omitted" | "actor-derived";
   actor?: IdentitySource | "config" | "unresolved";
   actions?: "default" | "explicit" | "config";
   gitAccess?: "default" | "explicit" | "config";
@@ -195,7 +194,6 @@ export async function resolveManagedCredentials(
           : `configuration file ${options.credentialsFromConfigFile}`,
       provenance: {
         repository: "config",
-        commitAs: "config",
         actor: "config",
         actions: "config",
         gitAccess: "config",
@@ -218,7 +216,6 @@ export async function resolveManagedCredentials(
       originLabel: `Sandbox ${options.credentialsFromSandbox}`,
       provenance: {
         repository: "config",
-        commitAs: "config",
         actor: "config",
         actions: "config",
         gitAccess: "config",
@@ -284,14 +281,6 @@ async function resolveFromFlags(
       },
     );
   }
-
-  // The broker derives Git attribution from actAs. Flags never set commitAs:
-  // it survives only in an imported configuration that already carried it.
-  provenance.commitAs = actions.some(
-    (action) => action === "git:write" || action === "git:write-workflows",
-  )
-    ? "actor-derived"
-    : "omitted";
 
   // Validated through the same schema a configuration file goes through, so an
   // inferred or flag-supplied value cannot reach the API in a shape a file

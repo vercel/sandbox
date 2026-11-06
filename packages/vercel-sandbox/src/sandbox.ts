@@ -799,7 +799,6 @@ export class Sandbox implements ExecutionContext {
     const privateParams = getPrivateParams(params);
     const response = await client.createSandbox({
       source: params?.source,
-      commitAs: params?.commitAs,
       credentials: params?.credentials,
       projectId: credentials.projectId,
       ports: params?.ports ?? [],

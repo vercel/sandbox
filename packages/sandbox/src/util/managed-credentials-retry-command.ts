@@ -92,9 +92,6 @@ function directFlags(config: ManagedCredentialsConfig): string[] | undefined {
     !group.actAs
   )
     return;
-  // No flag can express imported commit credit, so such a configuration
-  // travels as exact JSON rather than being normalized or silently dropped.
-  if (config.commitAs) return;
   return [
     `--credentials-github-repo=${repo}`,
     ...group.actions.map((action) => `--credentials-github-action=${action}`),

@@ -53,8 +53,8 @@ describe("request detection", () => {
     );
     expect(first?.config.credentials.github[0].actAs).toBe("1");
     expect(next?.config.credentials.github[0].actAs).toBe("2");
-    expect(first?.config.commitAs).toBeUndefined();
-    expect(next?.config.commitAs).toBeUndefined();
+    expect(first?.config).not.toHaveProperty("commitAs");
+    expect(next?.config).not.toHaveProperty("commitAs");
   });
   test("a bare create requests nothing", () => {
     expect(hasManagedCredentialsRequest(options())).toBe(false);
@@ -111,7 +111,6 @@ describe("inferred single-repository defaults", () => {
     });
     expect(resolved?.provenance).toEqual({
       repository: "git-remote",
-      commitAs: "actor-derived",
       actor: "gh",
       actions: "default",
       gitAccess: "default",
@@ -195,10 +194,7 @@ describe("identity resolution", () => {
         }),
       }),
     );
-    // The broker derives Git attribution from actAs. No flag sets commitAs,
-    // so it can only reach a request through an imported configuration.
-    expect(resolved?.config.commitAs).toBeUndefined();
-    expect(resolved?.provenance.commitAs).toBe("actor-derived");
+    expect(resolved?.config).not.toHaveProperty("commitAs");
     expect(resolved?.config.credentials.github[0].actAs).toBe("2373726");
   });
 

@@ -21,7 +21,6 @@ export interface SandboxCredentialSnapshot {
     depth?: number;
     credentials?: true | "read";
   };
-  commitAs?: { name: string; email: string };
   credentials?: {
     github: {
       repositories: string[];
@@ -102,8 +101,6 @@ export function toConfig(
   });
   const writing = (action: string) =>
     action === "git:write" || action === "git:write-workflows";
-  let derivedAttribution =
-    !snapshot.source && groups.some((group) => group.actions.some(writing));
   let source:
     | { type: "git"; url: string; revision?: string; depth?: number }
     | undefined;
@@ -124,10 +121,10 @@ export function toConfig(
       group.repositories.some(
         (value) => value.toLowerCase() === repo.toLowerCase(),
       );
-    derivedAttribution = groups.some(
+    const hasSourceWrite = groups.some(
       (group) => matchesSource(group) && group.actions.some(writing),
     );
-    if (snapshot.source.credentials === true && !derivedAttribution) {
+    if (snapshot.source.credentials === true && !hasSourceWrite) {
       const index = groups.findIndex(matchesSource);
       if (index === -1)
         groups.push({ repositories: [repo], actions: ["git:write"] });
@@ -155,9 +152,6 @@ export function toConfig(
   }
   return {
     ...(source ? { source } : {}),
-    ...(snapshot.commitAs && !derivedAttribution
-      ? { commitAs: { ...snapshot.commitAs } }
-      : {}),
     credentials: { github: groups },
   };
 }

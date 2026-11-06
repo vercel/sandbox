@@ -145,7 +145,6 @@ export const ManagedCredentialsResponseValidator = z.object({
       credentials: z.union([z.literal(true), z.literal("read")]).optional(),
     })
     .optional(),
-  commitAs: z.object({ name: z.string(), email: z.string() }).optional(),
   credentials: z
     .object({
       github: z.array(

@@ -15,7 +15,6 @@ vi.mock("../../src/util/managed-credentials-flow", () => ({
 
 const config = parseConfig({
   source: { type: "git", url: "https://github.com/acme/widgets.git" },
-  commitAs: { name: "Grace Hopper", email: "grace@example.com" },
   credentials: {
     github: [
       {

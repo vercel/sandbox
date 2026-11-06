@@ -48,6 +48,8 @@ describe("managed credential transport", () => {
       ManagedCredentialOptions["credentials"]
     >();
     expectTypeOf<ApiGitSource>().not.toHaveProperty("credentials");
+    expectTypeOf<CreateParams>().not.toHaveProperty("commitAs");
+    expectTypeOf<ApiCreateParams>().not.toHaveProperty("commitAs");
     expectTypeOf<
       GithubGroup["actions"][number]
     >().toEqualTypeOf<SandboxGithubCredentialAction>();
@@ -75,7 +77,6 @@ describe("managed credential transport", () => {
         revision: "main",
         depth: 1,
       };
-      const commitAs = { name: "Grace Hopper", email: "grace@example.com" };
       const credentials: ManagedCredentialOptions["credentials"] = {
         github: [
           {
@@ -99,7 +100,6 @@ describe("managed credential transport", () => {
           ...auth,
           runtime,
           source,
-          commitAs,
           credentials,
           fetch: mockFetch,
         }),
@@ -110,7 +110,8 @@ describe("managed credential transport", () => {
         runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes",
       );
       const body = JSON.parse(String(init?.body));
-      expect(body).toMatchObject({ source, commitAs, credentials });
+      expect(body).toMatchObject({ source, credentials });
+      expect(body).not.toHaveProperty("commitAs");
       expect(body.source).not.toHaveProperty("credentials");
       expect(body).not.toHaveProperty("__commitAs");
       expect(body).not.toHaveProperty("__credentials");
@@ -138,6 +139,22 @@ describe("managed credential transport", () => {
       expect(body).not.toHaveProperty("source");
     },
   );
+
+  it("does not forward retired commitAs options", async () => {
+    const mockFetch = vi.fn<typeof fetch>(
+      async () => new Response("{}", { status: 403 }),
+    );
+    const options = {
+      ...auth,
+      commitAs: { name: "Ada", email: "ada@example.com" },
+    };
+    await expect(
+      Sandbox.create({ ...options, fetch: mockFetch }),
+    ).rejects.toBeInstanceOf(APIError);
+    expect(
+      JSON.parse(String(mockFetch.mock.calls[0][1]?.body)),
+    ).not.toHaveProperty("commitAs");
+  });
 
   it("omits managed fields when they were not supplied", async () => {
     const mockFetch = vi.fn<typeof fetch>(
@@ -212,7 +229,6 @@ describe("managed credential transport", () => {
         url: "https://github.com/acme/widgets.git",
         credentials: "read" as const,
       },
-      commitAs: { name: "Grace Hopper", email: "grace@example.com" },
       credentials: {
         github: [
           {

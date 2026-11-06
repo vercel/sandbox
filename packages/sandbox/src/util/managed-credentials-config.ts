@@ -182,17 +182,6 @@ const sourceConfig = z
 export const configSchema = z
   .object({
     source: sourceConfig.optional(),
-    commitAs: z
-      .object({
-        name: z
-          .string()
-          .min(1)
-          .max(256)
-          .refine((value) => value.trim().length > 0),
-        email: z.email().max(320),
-      })
-      .strict()
-      .optional(),
     credentials: z
       .object({ github: z.array(githubGroup).max(MAX_REPOSITORIES) })
       .strict(),
@@ -281,32 +270,6 @@ export function validateConfig(
     throw new CliError(
       `Managed credentials support at most ${MAX_REPOSITORIES} distinct repositories, including the source.`,
     );
-  }
-
-  // Legacy commitAs makes the API infer git:write for the source and applies to
-  // every writing repository. Never silently omit metadata or broaden access:
-  // it is safe only when the exact same Git write was explicitly requested.
-  if (config.commitAs) {
-    const writingGroups = config.credentials.github.filter((group) =>
-      group.actions.some(
-        (action) => action === "git:write" || action === "git:write-workflows",
-      ),
-    );
-    const writingRepositories = new Set(
-      writingGroups.flatMap((group) =>
-        group.repositories.map((repo) => repo.toLowerCase()),
-      ),
-    );
-    if (
-      sourceRepo === undefined ||
-      writingRepositories.size !== 1 ||
-      !writingRepositories.has(sourceRepo.toLowerCase()) ||
-      !writingGroups.some((group) => group.actions.includes("git:write"))
-    ) {
-      throw new CliError(
-        "commitAs requires exactly one writing repository matching source.url and explicitly requesting git:write. Omit commitAs to use per-repository managed identities.",
-      );
-    }
   }
 
   return config;

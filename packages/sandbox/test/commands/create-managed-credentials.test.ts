@@ -132,7 +132,7 @@ describe("create with managed credentials", () => {
     test("requests no managed credentials and keeps default resources", async () => {
       await createWith(["--silent"]);
       const params = mockCreate.mock.calls[0][0];
-      expect(params.commitAs).toBeUndefined();
+      expect(params).not.toHaveProperty("commitAs");
       expect(params.credentials).toBeUndefined();
       expect(params.source).toBeUndefined();
       // Six vCPUs is a managed-credentials workaround, not a new global
@@ -156,7 +156,6 @@ describe("create with managed credentials", () => {
             type: "git",
             url: "https://github.com/vercel/api.git",
           },
-          commitAs: undefined,
           credentials: {
             github: [
               {
@@ -238,7 +237,7 @@ describe("create with managed credentials", () => {
         url: "https://github.com/vercel/infra.git",
       });
       // Attribution remains attached to each repository's selected actor.
-      expect(params.commitAs).toBeUndefined();
+      expect(params).not.toHaveProperty("commitAs");
       expect(params.credentials.github).toEqual([
         {
           repositories: ["vercel/infra"],
@@ -269,7 +268,6 @@ describe("create with managed credentials", () => {
               url: "https://github.com/acme/widgets.git",
               credentials: true,
             },
-            commitAs: { name: "Grace Hopper", email: "grace@example.com" },
             credentials: {
               github: [
                 {

@@ -267,7 +267,6 @@ export const create = cmd.command({
           token: scope.token,
           ports,
           ...sourceOptions,
-          commitAs: prepared?.config.commitAs,
           credentials: prepared?.config.credentials,
           timeout: ms(timeout),
           resources,

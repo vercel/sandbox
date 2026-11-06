@@ -15,7 +15,6 @@ import { CliError } from "../../src/util/cli-error";
 
 const config = parseConfig({
   source: { type: "git", url: "https://github.com/vercel/api.git" },
-  commitAs: { name: "Ada Lovelace", email: "ada@example.com" },
   credentials: {
     github: [
       {
@@ -113,7 +112,6 @@ describe("reuse from an existing sandbox", () => {
         url: "https://github.com/acme/widgets.git",
         credentials: true,
       },
-      commitAs: { name: "Grace Hopper", email: "grace@example.com" },
       credentials: {
         github: [
           {
@@ -133,7 +131,6 @@ describe("reuse from an existing sandbox", () => {
     expect(fetchSnapshot).toHaveBeenCalledWith("sbx_123");
     expect(result).toEqual({
       source: { type: "git", url: "https://github.com/acme/widgets.git" },
-      commitAs: { name: "Grace Hopper", email: "grace@example.com" },
       credentials: {
         github: [
           {
@@ -152,7 +149,7 @@ describe("reuse from an existing sandbox", () => {
   });
 
   test.each([false, true])(
-    "preserves modern grouped rights without replaying derived commit credit (source: %s)",
+    "preserves modern grouped rights and source options (source: %s)",
     async (withSource) => {
       const source = withSource
         ? {
@@ -166,7 +163,6 @@ describe("reuse from an existing sandbox", () => {
         : {};
       const snapshot = {
         ...source,
-        commitAs: { name: "Derived GitHub Name", email: "derived@example.com" },
         credentials: {
           github: [
             {

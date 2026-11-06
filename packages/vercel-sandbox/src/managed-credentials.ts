@@ -42,8 +42,6 @@ export type SandboxGithubCredentialAction =
 /** @hidden */
 export interface ManagedCredentialOptions {
   /** @hidden */
-  commitAs?: { name: string; email: string };
-  /** @hidden */
   credentials?: {
     github: {
       repositories: string[];

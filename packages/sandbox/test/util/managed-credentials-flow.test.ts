@@ -8,7 +8,6 @@ import { CliError } from "../../src/util/cli-error";
 const configFor = (repo = "vercel/api") =>
   parseConfig({
     source: { type: "git", url: `https://github.com/${repo}.git` },
-    commitAs: { name: "Jack Jackson", email: "scubbojj@gmail.com" },
     credentials: {
       github: [
         {
@@ -26,7 +25,6 @@ const resolved = (repo = "vercel/api"): ResolvedManagedCredentials => ({
   originLabel: "command-line flags",
   provenance: {
     repository: "git-remote",
-    commitAs: "actor-derived",
     actor: "gh",
   },
 });

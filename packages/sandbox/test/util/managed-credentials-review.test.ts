@@ -11,7 +11,6 @@ const review = (overrides: Record<string, unknown> = {}) =>
   buildReview({
     config: parseConfig({
       source: { type: "git", url: "https://github.com/vercel/api.git" },
-      commitAs: { name: "Jack Jackson", email: "scubbojj@gmail.com" },
       credentials: {
         github: [
           {
@@ -25,7 +24,6 @@ const review = (overrides: Record<string, unknown> = {}) =>
     originLabel: "command-line flags",
     provenance: {
       repository: "git-remote",
-      commitAs: "actor-derived",
       actor: "gh",
     },
     team: "jacks-projects",
@@ -75,13 +73,9 @@ describe("review contents", () => {
     expect(rows.every((row) => !!row.note)).toBe(true);
   });
 
-  test("keeps commit credit and the GitHub actor as separate fields", () => {
+  test("derives commit credit from the selected GitHub actor", () => {
     const rows = review();
-    // Git user.name/user.email are metadata, not proof of GitHub identity, so
-    // they must never be presented as the same thing as the GitHub actor.
-    expect(valueOf(rows, "Commit credit")).toBe(
-      "Jack Jackson <scubbojj@gmail.com>",
-    );
+    expect(valueOf(rows, "Commit credit")).toBe("from @scubbo");
     expect(valueOf(rows, "GitHub actor")).toBe("@scubbo");
   });
 
@@ -146,8 +140,11 @@ describe("review contents", () => {
   test("strips control characters from displayed values", () => {
     const rows = buildReview({
       config: parseConfig({
-        source: { type: "git", url: "https://github.com/vercel/api.git" },
-        commitAs: { name: "Ada‮Evil", email: "ada@example.com" },
+        source: {
+          type: "git",
+          url: "https://github.com/vercel/api.git",
+          revision: "main‮Evil",
+        },
         credentials: {
           github: [{ repositories: ["vercel/api"], actions: ["git:write"] }],
         },
@@ -160,7 +157,7 @@ describe("review contents", () => {
       vcpusExplicit: false,
     });
     expect(valueOf(rows, "Team")).toBe("team");
-    expect(valueOf(rows, "Commit credit")).toBe("AdaEvil <ada@example.com>");
+    expect(valueOf(rows, "Revision")).toBe("mainEvil");
   });
 });
 
@@ -171,7 +168,6 @@ const input = () => ({
       url: "https://github.com/acme/widgets.git",
       revision: "main",
     },
-    commitAs: { name: "Grace Hopper", email: "grace@example.com" },
     credentials: {
       github: [
         {
@@ -185,7 +181,6 @@ const input = () => ({
   originLabel: "command-line flags",
   provenance: {
     repository: "git-remote" as const,
-    commitAs: "actor-derived" as const,
     actor: "gh" as const,
     actions: "default" as const,
     team: "inferred from the signed-in Vercel account",
@@ -231,7 +226,6 @@ describe("complete review provenance", () => {
     "uses the same %s annotation for the GitHub actor and derived commit credit",
     (actor, annotation) => {
       const proposal = input();
-      delete proposal.config.commitAs;
       const rows = buildReview({
         ...proposal,
         originLabel: "configuration file permissions.json",
@@ -251,7 +245,6 @@ describe("complete review provenance", () => {
 
   test("preserves the backend-default annotation when no actor is selected", () => {
     const proposal = input();
-    delete proposal.config.commitAs;
     delete proposal.config.credentials.github[0].actAs;
     const rows = buildReview(proposal);
     expect(rows.find((row) => row.label === "Commit credit")?.note).toBe(

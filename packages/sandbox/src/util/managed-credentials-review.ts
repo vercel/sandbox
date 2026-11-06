@@ -37,7 +37,7 @@ export interface ReviewRow {
  *
  * Pure so tests can inspect the exact permissions and actor for every
  * repository, including Git-only groups without a clone source. Normal Git
- * attribution comes from the selected actor. Legacy overrides stay explicit.
+ * attribution comes from the selected actor.
  */
 export function buildReview(input: ReviewInput): ReviewRow[] {
   const { config, provenance } = input;
@@ -139,18 +139,15 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
   const creditSources = [
     ...new Set(writingGroups.map((group) => sourceForActor(group.actAs))),
   ];
-  const creditSource = config.commitAs
-    ? `${origin}; legacy override`
-    : writingGroups.length
-      ? creditSources.length === 1
-        ? creditSources[0]
-        : "from each repository's GitHub actor"
-      : "no Git writing requested";
+  const creditSource = writingGroups.length
+    ? creditSources.length === 1
+      ? creditSources[0]
+      : "from each repository's GitHub actor"
+    : "no Git writing requested";
   rows.push({
     label: "Commit credit",
-    value: config.commitAs
-      ? `${safeText(config.commitAs.name)} <${safeText(config.commitAs.email)}>`
-      : writingGroups.length === 1
+    value:
+      writingGroups.length === 1
         ? `from ${displayActor(writingGroups[0].actAs, input.actor)}`
         : writingGroups.length
           ? "from each repository's GitHub actor"

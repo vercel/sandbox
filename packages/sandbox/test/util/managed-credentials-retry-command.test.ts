@@ -194,12 +194,6 @@ const complex: [string, (c: ManagedCredentialsConfig) => void][] = [
     },
   ],
   [
-    "commit credit",
-    (c) => {
-      c.commitAs = { name: "Jack O'Neil", email: "jack@example.com" };
-    },
-  ],
-  [
     "empty groups",
     (c) => {
       c.credentials.github = [];
@@ -292,11 +286,7 @@ test.each(shells)(
   (shell) => {
     const config = proposal();
     config.source!.revision =
-      "SANDBOX_MANAGED_CREDENTIALS\nSANDBOX_MANAGED_CREDENTIALS_\n$(printf BAD >&2)";
-    config.commitAs = {
-      name: "O'Neil\n\u001b[31m\u009b\u202e",
-      email: "jack@example.com",
-    };
+      "SANDBOX_MANAGED_CREDENTIALS\nSANDBOX_MANAGED_CREDENTIALS_\n$(printf BAD >&2)\nO'Neil\n\u001b[31m\u009b\u202e";
     const command = render(config);
     const marker = /<<'([^']+)'/.exec(command)?.[1];
     expect(marker).toBeTruthy();

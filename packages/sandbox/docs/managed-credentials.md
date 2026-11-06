@@ -162,12 +162,8 @@ The same `actAs` selects the GitHub identity for Git actions and API actions.
 The broker derives the Git name and email. A local Git name or email does not
 select or prove that identity.
 
-No flag sets commit credit. A configuration file or a reused Sandbox may still
-carry the deprecated `commitAs` field, which is accepted only when one writing
-repository matches the clone source and explicitly requests `git:write`. An
-ambiguous one is rejected rather than adding permissions or applying a single
-identity across repositories, and a rejected proposal that carries it replays as
-exact JSON because no flag can express it.
+No flag sets commit credit. Configuration files reject the deprecated `commitAs`
+field like any other unknown field.
 
 ## Review, approval and Bounds
 
@@ -288,8 +284,8 @@ vercel sandbox create --credentials-github-from-config-file config.json
 ```
 
 The file contains the managed-credential portion of a Sandbox creation request:
-`source`, `credentials`, and an optional deprecated `commitAs`. Team, project,
-resources, and other creation fields still come from CLI flags or context.
+`source` and `credentials`. Team, project, resources, and other creation fields
+still come from CLI flags or context.
 The same managed fields can be included in an API creation request unchanged.
 
 The CLI preserves source options, repository arrays, group order, actions, and
