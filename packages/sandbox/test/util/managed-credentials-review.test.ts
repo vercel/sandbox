@@ -27,7 +27,6 @@ const review = (overrides: Record<string, unknown> = {}) =>
     ),
     team: "jacks-projects",
     project: "api",
-    vcpus: 6,
     ...overrides,
   });
 
@@ -35,24 +34,15 @@ const valueOf = (rows: ReturnType<typeof buildReview>, label: string) =>
   rows.find((row) => row.label === label)?.value;
 
 describe("review contents", () => {
-  test("shows team, project, source, access, and resources", () => {
+  test("shows only the requested parameter rows with Git and API actions together", () => {
     const rows = review();
-    expect(valueOf(rows, "Team")).toBe("jacks-projects");
-    expect(valueOf(rows, "Project")).toBe("api");
-    expect(valueOf(rows, "Source")).toBe("vercel/api");
-    expect(valueOf(rows, "Access vercel/api")).toBe(
-      "github:issues:read, git:write",
-    );
-    expect(valueOf(rows, "Git access")).toBeUndefined();
-    expect(valueOf(rows, "Resources")).toBe("6 vCPUs");
-    expect(valueOf(rows, "Configuration")).toBeUndefined();
-    expect(valueOf(review({ vcpus: 2 }), "Resources")).toBe("2 vCPUs");
-  });
-
-  test("derives commit credit from the selected GitHub actor", () => {
-    const rows = review();
-    expect(valueOf(rows, "Commit credit")).toBe("from @scubbo");
-    expect(valueOf(rows, "GitHub actor")).toBe("@scubbo");
+    expect(rows).toEqual([
+      { label: "Team", value: "jacks-projects" },
+      { label: "Project", value: "api" },
+      { label: "Source", value: "vercel/api" },
+      { label: "Actions", value: "github:issues:read, git:write" },
+      { label: "GitHub actor", value: "@scubbo" },
+    ]);
   });
 
   test("shows a Git-only list without adding API defaults", () => {
@@ -65,12 +55,11 @@ describe("review contents", () => {
       ),
       team: "t",
       project: "p",
-      vcpus: 6,
     });
-    expect(valueOf(rows, "Access vercel/api")).toBe("git:write");
+    expect(valueOf(rows, "Actions")).toBe("git:write");
   });
 
-  test("lists each repository's access separately", () => {
+  test("lists each repository's actions separately", () => {
     const rows = buildReview({
       config: parseConfig(
         configuration([
@@ -80,11 +69,76 @@ describe("review contents", () => {
       ),
       team: "t",
       project: "p",
-      vcpus: 6,
     });
-    expect(valueOf(rows, "Access acme/one")).toBe("github:issues:read");
-    expect(valueOf(rows, "Access acme/two")).toBe("github:pull-request:create");
+    expect(
+      rows.filter((row) => row.label === "Actions").map((row) => row.value),
+    ).toEqual([
+      "acme/one: github:issues:read",
+      "acme/two: github:pull-request:create",
+    ]);
   });
+
+  test("keeps a long repository's Git write in the same Actions row", () => {
+    const config = parseConfig(
+      configuration(
+        [
+          credentialGroup(
+            ["vercel-labs/agent-factory"],
+            [
+              "github:issues:read",
+              "github:issues:comment",
+              "github:pull-request:create",
+              "git:write",
+            ],
+            "@scubbo",
+          ),
+        ],
+        {
+          type: "git",
+          url: "https://github.com/vercel-labs/agent-factory.git",
+        },
+      ),
+    );
+    const before = JSON.stringify(config);
+    const rows = review({ config });
+    expect(rows.filter((row) => row.label === "Actions")).toEqual([
+      {
+        label: "Actions",
+        value:
+          "github:issues:read, github:issues:comment, github:pull-request:create, git:write",
+      },
+    ]);
+    const text = renderReview(rows, 80);
+    expect(text).toMatch(/Source\s+vercel-labs\/agent-factory/);
+    expect(text).toMatch(/Actions\s+github:issues:read/);
+    expect(text).toContain("git:write");
+    expect(text).not.toContain("Access");
+    expect(JSON.stringify(config)).toBe(before);
+  });
+
+  test.each([
+    undefined,
+    { type: "git", url: "https://github.com/acme/clone.git" },
+  ])(
+    "names the action target when it is not the clone source: %j",
+    (source) => {
+      const rows = review({
+        config: parseConfig(
+          configuration(
+            [
+              credentialGroup(
+                ["acme/target"],
+                ["github:issues:read"],
+                "@scubbo",
+              ),
+            ],
+            source,
+          ),
+        ),
+      });
+      expect(valueOf(rows, "Actions")).toBe("acme/target: github:issues:read");
+    },
+  );
 
   test("strips control characters from displayed values", () => {
     const rows = buildReview({
@@ -97,7 +151,6 @@ describe("review contents", () => {
       ),
       team: "t\u0000eam",
       project: "p",
-      vcpus: 6,
     });
     expect(valueOf(rows, "Team")).toBe("team");
     expect(valueOf(rows, "Revision")).toBe("mainEvil");
@@ -124,7 +177,6 @@ const input = () => ({
   actor: { actAs: "2373726", login: "scubbo" },
   team: "vercel",
   project: "widgets",
-  vcpus: 6,
 });
 
 describe("review identities", () => {
@@ -151,15 +203,12 @@ describe("review identities", () => {
     expect(actor?.value).not.toContain("2373726");
   });
 
-  test("shows backend-default actor and credit when no actor is selected", () => {
+  test("shows the backend-default actor when no actor is selected", () => {
     const proposal = input();
     delete proposal.config.credentials.github[0].actAs;
     const rows = buildReview(proposal);
     expect(valueOf(rows, "GitHub actor")).toBe(
       "caller's connected GitHub account",
-    );
-    expect(valueOf(rows, "Commit credit")).toBe(
-      "from caller's connected GitHub account",
     );
   });
 
@@ -176,16 +225,16 @@ describe("review identities", () => {
       config,
     } as Parameters<typeof buildReview>[0]);
     expect(
-      rows.find((row) => row.label === "GitHub actor acme/one")?.value,
-    ).toBe("@one");
+      rows
+        .filter((row) => row.label === "GitHub actor")
+        .map((row) => row.value),
+    ).toEqual(["acme/one: @one", "acme/two: @two"]);
     expect(
-      rows.find((row) => row.label === "GitHub actor acme/two")?.value,
-    ).toBe("@two");
-    expect(
-      rows.filter((row) => row.label.startsWith("GitHub actor")),
-    ).toHaveLength(2);
-    expect(valueOf(rows, "Access acme/one")).toBe("github:issues:read");
-    expect(valueOf(rows, "Access acme/two")).toBe("github:issues:comment");
+      rows.filter((row) => row.label === "Actions").map((row) => row.value),
+    ).toEqual([
+      "acme/one: github:issues:read",
+      "acme/two: github:issues:comment",
+    ]);
   });
 });
 
@@ -207,7 +256,7 @@ describe("two-column review rendering", () => {
     const text = renderReview(
       [
         {
-          label: "Access acme/widgets",
+          label: "Actions",
           value: actions,
         },
       ],

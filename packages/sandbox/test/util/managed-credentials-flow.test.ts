@@ -29,7 +29,6 @@ const baseContext = (overrides: Record<string, unknown> = {}) => ({
   team: "jacks-projects",
   project: "api",
   displayScope: { team: "jacks-projects", project: "api" },
-  vcpus: 6,
   interactive: false,
   yes: false,
   output: new PassThrough(),
@@ -147,7 +146,7 @@ describe("unbounded project confirmation", () => {
       );
       expect(io.text()).not.toContain("Continue without project Bounds?");
       expect(io.text()).not.toContain("Create this sandbox?");
-      expect(io.text()).not.toContain("Managed credentials for this sandbox");
+      expect(io.text()).not.toContain("Inferred Parameters");
       expect(io.text()).not.toContain("Setting");
     },
   );
@@ -282,6 +281,11 @@ describe("review display metadata", () => {
       }),
     ).rejects.toMatchObject({ options: { reason: "canceled" } });
     const text = captured.text();
+    expect(text).toContain("Inferred Parameters:");
+    expect(text).not.toContain("Managed credentials");
+    expect(text).not.toMatch(
+      /\b(?:Sandbox|Resources|Commit credit|Access)\s{2,}/,
+    );
     expect(text).toMatch(/Team\s+jacks-projects/);
     expect(text).not.toMatch(/\bFrom\b/);
     expect(text).toMatch(/GitHub actor\s+@scubbo/);

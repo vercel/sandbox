@@ -167,17 +167,22 @@ field like any other unknown field.
 
 ## Review, approval and Bounds
 
-The review uses two columns: the setting and its value. It shows the team,
-project, complete action sets, GitHub actor, commit attribution, and resource
-allocation. Long values wrap within their column without hiding requested rights.
+The `Inferred Parameters` review uses two columns: the setting and its value.
+It shows the team, project, source, complete action sets, and GitHub actor.
+Git actions such as `git:write` appear in the same `Actions` value as API actions.
+The Sandbox name, resource allocation, and a separate commit-credit row are omitted.
+Long values wrap without hiding requested rights.
 
 The CLI looks up team and project names through read-only requests. These names
 are for display only; API requests keep the selected IDs and token. If a lookup
 fails, the review keeps the ID. Name lookup does not replace or skip the Bounds
 check.
 
-Each repository's requested actions have one actor row with a GitHub username. The request
-still uses its original authorization selector, including a numeric ID when available.
+When more than one credential group is shown, repository names appear in the
+`Actions` and `GitHub actor` values to keep their association clear. A single
+repository is named in `Actions` if it differs from the clone source or no source
+is selected. The request still uses its original authorization selector, including
+a numeric ID when available.
 If a numeric selector has no matching username metadata, the review shows
 `GitHub username unavailable`. It never guesses another account or displays an
 ID as a username.

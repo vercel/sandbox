@@ -16,8 +16,6 @@ export interface ReviewInput {
   actor?: InferredActor;
   team: string;
   project: string;
-  sandboxName?: string;
-  vcpus: number;
 }
 
 export interface ReviewRow {
@@ -45,12 +43,6 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
       value: safeText(input.project),
     },
     {
-      label: "Sandbox",
-      value: input.sandboxName
-        ? safeText(input.sandboxName)
-        : "new sandbox (name assigned by the server)",
-    },
-    {
       label: "Source",
       value: config.source
         ? safeText(sourceRepository(config) ?? config.source.url)
@@ -64,16 +56,18 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     });
 
   for (const group of groups) {
+    const repo = safeText(group.repo);
+    const showRepo =
+      groups.length > 1 ||
+      group.repo.toLowerCase() !== sourceRepository(config)?.toLowerCase();
     rows.push({
-      label: `Access ${safeText(group.repo)}`,
-      value: group.actions.join(", "),
+      label: "Actions",
+      value: `${showRepo ? `${repo}: ` : ""}${group.actions.join(", ")}`,
     });
+    const actor = displayActor(group.actAs, input.actor);
     rows.push({
-      label:
-        groups.length === 1
-          ? "GitHub actor"
-          : `GitHub actor ${safeText(group.repo)}`,
-      value: displayActor(group.actAs, input.actor),
+      label: "GitHub actor",
+      value: groups.length > 1 ? `${repo}: ${actor}` : actor,
     });
   }
   if (groups.length === 0) {
@@ -83,24 +77,6 @@ export function buildReview(input: ReviewInput): ReviewRow[] {
     });
   }
 
-  const writingGroups = groups.filter((group) =>
-    group.actions.some(
-      (action) => action === "git:write" || action === "git:write-workflows",
-    ),
-  );
-  rows.push({
-    label: "Commit credit",
-    value:
-      writingGroups.length === 1
-        ? `from ${displayActor(writingGroups[0].actAs, input.actor)}`
-        : writingGroups.length
-          ? "from each repository's GitHub actor"
-          : "none",
-  });
-  rows.push({
-    label: "Resources",
-    value: `${input.vcpus} vCPUs`,
-  });
   return rows;
 }
 

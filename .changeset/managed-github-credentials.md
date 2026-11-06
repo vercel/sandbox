@@ -10,9 +10,10 @@ Add managed GitHub credentials to `create`, `run`, and `sh`.
 a Sandbox. The CLI infers the repository from local Git fetch remotes and the
 API actor from `gh` or the default github.com OAuth login on the Vercel account,
 applies explicit flags on top with `--credentials-github-*` options, and shows
-the resolved access and identities in a two-column review before anything is
-created. Rejecting prints a credentials-focused `create` command with the
-reviewed team, project, and vCPU count. Other creation options must be added again.
+the resolved actions and GitHub actor in the two-column `Inferred Parameters`
+review before anything is created. Rejecting prints a credentials-focused
+`create` command with the reviewed team, project, and vCPU count.
+Other creation options must be added again.
 An explicit Vercel token uses a required placeholder, never its value.
 `--yes` approves without the review.
 The CLI reuses its existing team and project selection. It does not read the

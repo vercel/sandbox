@@ -20,8 +20,6 @@ export interface FlowContext extends ReviewScope {
   hasProjectBounds?: (scope: ReviewScope) => Promise<boolean>;
   /** Render the exact proposal as a command without executing or approving it. */
   renderCommand?: (config: ManagedCredentialsConfig) => string;
-  sandboxName?: string;
-  vcpus: number;
   interactive: boolean;
   yes: boolean;
   output?: NodeJS.WritableStream;
@@ -74,12 +72,8 @@ export async function runManagedCredentialsFlow(options: {
       ...(resolved.actor ? { actor: resolved.actor } : {}),
       team: context.displayScope.team,
       project: context.displayScope.project,
-      ...(context.sandboxName ? { sandboxName: context.sandboxName } : {}),
-      vcpus: context.vcpus,
     });
-    write(
-      `\n  Managed credentials for this sandbox:\n\n${renderReview(rows)}\n`,
-    );
+    write(`\n  Inferred Parameters:\n\n${renderReview(rows)}\n`);
   }
 
   if (!context.yes && !context.interactive) {

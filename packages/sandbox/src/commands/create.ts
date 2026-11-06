@@ -237,7 +237,6 @@ export const create = cmd.command({
       // Approval always refers to this exact parsed proposal.
       const prepared = await prepareManagedCredentials({
         context: scope,
-        ...(name !== undefined ? { sandboxName: name } : {}),
         ...(vcpus !== undefined ? { vcpus } : {}),
       });
       const resources = prepared

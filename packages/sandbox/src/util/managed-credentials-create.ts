@@ -45,7 +45,6 @@ export interface PreparedManagedCredentials {
  */
 export async function prepareManagedCredentials(options: {
   context: CreateContext;
-  sandboxName?: string;
   vcpus?: number;
 }): Promise<PreparedManagedCredentials | undefined> {
   const { context } = options;
@@ -76,8 +75,6 @@ export async function prepareManagedCredentials(options: {
       team: context.team,
       project: context.project,
       displayScope,
-      ...(options.sandboxName ? { sandboxName: options.sandboxName } : {}),
-      vcpus,
       interactive: context.interactive,
       yes: context.yes,
       hasProjectBounds: ({ team, project }) =>
