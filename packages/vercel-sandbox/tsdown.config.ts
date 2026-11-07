@@ -1,7 +1,12 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/auth/index.ts", "src/proxy.ts"],
+  entry: [
+    "src/index.ts",
+    "src/auth/index.ts",
+    "src/api-client/index.ts",
+    "src/proxy.ts",
+  ],
   outDir: "dist",
   format: ["esm", "cjs"],
   outExtensions: ({ format }) => ({

@@ -1872,6 +1872,34 @@ describe("APIClient", () => {
     });
   });
 
+  describe("listNpmRegistries", () => {
+    it("lists the npm registries from the team's npm configuration", async () => {
+      const registries = [
+        { scope: null, url: "https://registry.npmjs.org/" },
+        { scope: "@acme", url: "https://npm.pkg.github.com/" },
+      ];
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ registries }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+
+      const response = await client.listNpmRegistries({
+        projectId: "proj_123",
+      });
+
+      expect(response.json.registries).toEqual(registries);
+      const url = new URL(String(mockFetch.mock.calls[0][0]));
+      expect(url.pathname).toBe("/api/v2/sandboxes/credentials/npm");
+      expect(url.searchParams.get("projectId")).toBe("proj_123");
+    });
+  });
+
   describe("createSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
@@ -1972,6 +2000,18 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       expect(JSON.parse(opts.body)).not.toHaveProperty("networkId");
+    });
+
+    it("forwards credentials in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        credentials: { npm: true },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).credentials).toEqual({ npm: true });
     });
 
     it("forwards region and failoverRegions in the request body", async () => {
