@@ -7,7 +7,8 @@ import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
 import { scope } from "../args/scope";
-import { sandboxClient } from "../client";
+import { APIClient } from "@vercel/sandbox/api-client";
+import { fetchWithUserAgent, sandboxClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
 import { publishPorts } from "../args/ports";
 import { snapshotRetentionArgs } from "../args/snapshot-retention";
@@ -22,6 +23,7 @@ import { mounts } from "../args/drive";
 import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
+import { credentials } from "../args/credentials";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
 
@@ -79,6 +81,7 @@ export const args = {
   region,
   failoverRegions,
   networkId,
+  credentials,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -108,6 +111,11 @@ export const create = cmd.command({
       description: "Create and connect to a sandbox without a network access",
       command: `sandbox run --network-policy=none --connect`,
     },
+    {
+      description:
+        "Create a sandbox that can install your team's private npm packages",
+      command: `sandbox create --credentials=npm`,
+    },
   ],
   async handler(input) {
     const {
@@ -129,6 +137,7 @@ export const create = cmd.command({
       region,
       failoverRegions,
       networkId,
+      credentials,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
@@ -184,6 +193,20 @@ export const create = cmd.command({
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
     const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
+    const credentialsObj = credentials?.includes("npm")
+      ? { npm: true as const }
+      : undefined;
+    const npmRegistries =
+      !silent && credentials?.includes("npm")
+        ? new APIClient({
+            teamId: scope.team,
+            token: scope.token,
+            fetch: fetchWithUserAgent,
+          })
+            .listNpmRegistries({ projectId: scope.project })
+            .then((response) => response.json.registries)
+            .catch(() => undefined)
+        : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -207,6 +230,7 @@ export const create = cmd.command({
             ? ms(snapshotExpiration)
             : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
+          credentials: credentialsObj,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -230,6 +254,7 @@ export const create = cmd.command({
             ? ms(snapshotExpiration)
             : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
+          credentials: credentialsObj,
           __interactive: true,
         });
     spinner?.stop();
@@ -250,6 +275,7 @@ export const create = cmd.command({
         scope,
         action: "created",
         connectHint: !agent && !connect && __printConnectHint,
+        npmRegistries: await npmRegistries,
       });
       versionCheck?.report();
     }

@@ -108,7 +108,7 @@ function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {
   }
 }
 
-const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
+export const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   const headers = new Headers(
     init?.headers ??
       (input && typeof input === "object" && "headers" in input

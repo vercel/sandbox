@@ -408,6 +408,17 @@ export const SandboxesPaginationResponse = z.object({
   pagination: CursorPagination,
 });
 
+export const NpmRegistry = z.object({
+  scope: z.string().nullable(),
+  url: z.string(),
+});
+
+export type NpmRegistryData = z.infer<typeof NpmRegistry>;
+
+export const NpmRegistriesResponse = z.object({
+  registries: z.array(NpmRegistry),
+});
+
 export const UpdateSandboxResponse = z.object({
   sandbox: Sandbox,
   routes: z.array(SandboxRoute).optional(),

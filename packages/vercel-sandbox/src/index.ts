@@ -3,6 +3,7 @@ export {
   type NetworkPolicyKeyValueMatcher,
   type NetworkPolicyMatch,
   type NetworkPolicyMatcher,
+  type SandboxCredentials,
   type SandboxMountMode,
   type SandboxMounts,
   Sandbox,

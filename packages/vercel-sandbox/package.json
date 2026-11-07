@@ -25,6 +25,12 @@
       "require": "./dist/auth/index.cjs",
       "default": "./dist/auth/index.cjs"
     },
+    "./api-client": {
+      "types": "./dist/api-client/index.d.ts",
+      "import": "./dist/api-client/index.js",
+      "require": "./dist/api-client/index.cjs",
+      "default": "./dist/api-client/index.cjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [

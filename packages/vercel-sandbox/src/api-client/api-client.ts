@@ -23,6 +23,7 @@ import {
   CreateSnapshotResponse,
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
+  NpmRegistriesResponse,
   UpdateSandboxResponse,
   DrivesResponse,
   DriveResponse,
@@ -43,6 +44,7 @@ import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type { SandboxCredentials } from "../sandbox.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
@@ -261,6 +263,7 @@ export class APIClient extends BaseClient {
       mounts?: SandboxMetaData["mounts"];
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
+      credentials?: SandboxCredentials;
       signal?: AbortSignal;
     }>,
   ) {
@@ -292,6 +295,7 @@ export class APIClient extends BaseClient {
           mounts: params.mounts,
           region: params.region,
           failoverRegions: params.failoverRegions,
+          credentials: params.credentials,
           ...privateParams,
         }),
         signal: params.signal,
@@ -1217,6 +1221,17 @@ export class APIClient extends BaseClient {
       SandboxAndSessionResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         query,
+        signal: params.signal,
+      }),
+    );
+  }
+
+  async listNpmRegistries(params: { projectId: string; signal?: AbortSignal }) {
+    return parseOrThrow(
+      NpmRegistriesResponse,
+      await this.request(`/v2/sandboxes/credentials/npm`, {
+        query: { projectId: params.projectId },
+        method: "GET",
         signal: params.signal,
       }),
     );
