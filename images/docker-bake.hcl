@@ -26,16 +26,13 @@ variable "BUN_IMAGE" {
   default = "oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d"
 }
 
-variable "NODE_22_VERSION" {
-  default = "22.23.4"
-}
-
-variable "NODE_24_VERSION" {
-  default = "24.22.1"
-}
-
-variable "NODE_26_VERSION" {
-  default = "26.12.1"
+variable "NODE_VERSIONS" {
+  type = map(string)
+  default = {
+    "22" = "22.23.4"
+    "24" = "24.22.1"
+    "26" = "26.12.1"
+  }
 }
 
 variable "PNPM_VERSION" {
@@ -117,20 +114,7 @@ target "ubuntu" {
 
 target "node" {
   matrix = {
-    node = [
-      {
-        major   = "22"
-        version = NODE_22_VERSION
-      },
-      {
-        major   = "24"
-        version = NODE_24_VERSION
-      },
-      {
-        major   = "26"
-        version = NODE_26_VERSION
-      },
-    ]
+    node = [for major, version in NODE_VERSIONS : { major = major, version = version }]
   }
 
   name     = "node-${node.major}"
@@ -173,15 +157,15 @@ target "universal" {
 
   contexts = {
     base = "target:ubuntu"
+    bun  = "docker-image://${BUN_IMAGE}"
   }
 
   args = {
-    BUN_IMAGE           = BUN_IMAGE
     CLAUDE_CODE_VERSION = CLAUDE_CODE_VERSION
     CODEX_VERSION       = CODEX_VERSION
     FX_VERSION          = FX_VERSION
     GH_VERSION          = GH_VERSION
-    NODE_VERSION        = NODE_24_VERSION
+    NODE_VERSION        = NODE_VERSIONS["24"]
     OPENCODE_VERSION    = OPENCODE_VERSION
     PI_VERSION          = PI_VERSION
     PNPM_VERSION        = PNPM_VERSION
@@ -229,20 +213,7 @@ target "al-base" {
 
 target "al-node" {
   matrix = {
-    node = [
-      {
-        major   = "22"
-        version = NODE_22_VERSION
-      },
-      {
-        major   = "24"
-        version = NODE_24_VERSION
-      },
-      {
-        major   = "26"
-        version = NODE_26_VERSION
-      },
-    ]
+    node = [for major, version in NODE_VERSIONS : { major = major, version = version }]
   }
 
   name       = "al-node-${node.major}"

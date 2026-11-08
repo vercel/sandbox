@@ -1,6 +1,3 @@
-ARG BUN_IMAGE
-FROM ${BUN_IMAGE} AS bun
-
 FROM base AS node
 USER root
 ENV HOME=/root
