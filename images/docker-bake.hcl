@@ -26,6 +26,18 @@ variable "BUN_IMAGE" {
   default = "oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d"
 }
 
+variable "NODE_22_VERSION" {
+  default = "22.23.4"
+}
+
+variable "NODE_24_VERSION" {
+  default = "24.22.1"
+}
+
+variable "NODE_26_VERSION" {
+  default = "26.12.1"
+}
+
 variable "PNPM_VERSION" {
   default = "11.28.10"
 }
@@ -60,6 +72,10 @@ variable "OPENCODE_VERSION" {
 
 variable "PI_VERSION" {
   default = "1.5.0"
+}
+
+variable "FX_VERSION" {
+  default = "0.0.14"
 }
 
 variable "YAY_BIN_COMMIT" {
@@ -104,15 +120,15 @@ target "node" {
     node = [
       {
         major   = "22"
-        version = "22.23.4"
+        version = NODE_22_VERSION
       },
       {
         major   = "24"
-        version = "24.22.1"
+        version = NODE_24_VERSION
       },
       {
         major   = "26"
-        version = "26.12.1"
+        version = NODE_26_VERSION
       },
     ]
   }
@@ -163,9 +179,9 @@ target "universal" {
     BUN_IMAGE           = BUN_IMAGE
     CLAUDE_CODE_VERSION = CLAUDE_CODE_VERSION
     CODEX_VERSION       = CODEX_VERSION
-    FX_VERSION          = "0.0.14"
+    FX_VERSION          = FX_VERSION
     GH_VERSION          = GH_VERSION
-    NODE_VERSION        = "24.22.1"
+    NODE_VERSION        = NODE_24_VERSION
     OPENCODE_VERSION    = OPENCODE_VERSION
     PI_VERSION          = PI_VERSION
     PNPM_VERSION        = PNPM_VERSION
@@ -216,15 +232,15 @@ target "al-node" {
     node = [
       {
         major   = "22"
-        version = "22.23.4"
+        version = NODE_22_VERSION
       },
       {
         major   = "24"
-        version = "24.22.1"
+        version = NODE_24_VERSION
       },
       {
         major   = "26"
-        version = "26.12.1"
+        version = NODE_26_VERSION
       },
     ]
   }
