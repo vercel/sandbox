@@ -14,8 +14,10 @@ RUN mkdir -p /vercel/runtimes/python && \
 
 ENV PATH="/opt/git/bin:/vercel/runtimes/python/bin:/home/vercel-sandbox/.local/bin:/usr/local/bin:${PATH}"
 
-RUN python3 -m pip install --upgrade pip && \
-    pip install uv
+ARG PIP_VERSION
+ARG UV_VERSION
+RUN python3 -m pip install "pip==${PIP_VERSION}" && \
+    pip install "uv==${UV_VERSION}"
 
 RUN rm -rf \
   /vercel/runtimes/python/lib/python3.13/test \
@@ -39,7 +41,9 @@ ENV PATH="/vercel/runtimes/python/bin:${PATH}"
 
 USER vercel-sandbox
 
+ARG PIP_VERSION
+ARG UV_VERSION
 RUN python3 --version && \
-    pip3 --version && \
+    pip3 --version | grep -F "pip ${PIP_VERSION} " && \
     python3 -m venv -h && \
-    uv --version
+    uv --version | grep -F "uv ${UV_VERSION} "

@@ -4,6 +4,7 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PYTHON_VERSION=3.14
+ARG UV_VERSION
 
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
@@ -14,7 +15,7 @@ RUN apt-get update && \
   python-is-python3 && \
   rm -f /usr/lib/python3*/EXTERNALLY-MANAGED && \
   rm -rf /var/lib/apt/lists/* && \
-  pip install uv && \
+  pip install "uv==${UV_VERSION}" && \
   rm -rf /root/.cache/pip
 
 RUN chown -R ubuntu:ubuntu /vercel
@@ -30,4 +31,4 @@ RUN git --version && \
   python --version | grep -F "Python ${PYTHON_VERSION}." && \
   python3 --version && \
   pip --version && \
-  uv --version
+  uv --version | grep -F "uv ${UV_VERSION} "

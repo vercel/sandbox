@@ -10,6 +10,62 @@ variable "PUSH" {
   default = false
 }
 
+variable "UBUNTU_IMAGE" {
+  default = "ubuntu:resolute-20261024.1@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c"
+}
+
+variable "ARCH_IMAGE" {
+  default = "archlinux:base-20261101.0.620205@sha256:b1c2fe6e717bfd5673af8fc217e1e1c3ce0dcbb1d53c3414c8425e7ce79fc6d9"
+}
+
+variable "AMAZONLINUX_IMAGE" {
+  default = "amazonlinux:2023.12.20261102.0@sha256:3ccfbe800f864982b0a4e124a614b2382518cbd04b3c1cd35202bd46f392675b"
+}
+
+variable "BUN_IMAGE" {
+  default = "oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d"
+}
+
+variable "PNPM_VERSION" {
+  default = "11.28.10"
+}
+
+variable "AL_PNPM_VERSION" {
+  default = "10.34.9"
+}
+
+variable "UV_VERSION" {
+  default = "0.13.7"
+}
+
+variable "AL_PIP_VERSION" {
+  default = "26.3"
+}
+
+variable "GH_VERSION" {
+  default = "2.103.3"
+}
+
+variable "CLAUDE_CODE_VERSION" {
+  default = "2.1.317"
+}
+
+variable "CODEX_VERSION" {
+  default = "0.166.0"
+}
+
+variable "OPENCODE_VERSION" {
+  default = "1.19.5"
+}
+
+variable "PI_VERSION" {
+  default = "1.5.0"
+}
+
+variable "YAY_BIN_COMMIT" {
+  default = "a2812a593d4017a657bbedf98761db78072b5e4c"
+}
+
 group "default" {
   targets = ["runtimes", "vmi"]
 }
@@ -37,6 +93,10 @@ target "ubuntu" {
   inherits = ["_common"]
   context  = "ubuntu"
   tags     = ["${REGISTRY}/ubuntu:latest${TAG_SUFFIX}"]
+
+  args = {
+    UBUNTU_IMAGE = UBUNTU_IMAGE
+  }
 }
 
 target "node" {
@@ -71,6 +131,7 @@ target "node" {
 
   args = {
     NODE_VERSION = node.version
+    PNPM_VERSION = PNPM_VERSION
   }
 }
 
@@ -85,6 +146,7 @@ target "python" {
 
   args = {
     PYTHON_VERSION = "3.14"
+    UV_VERSION     = UV_VERSION
   }
 }
 
@@ -98,9 +160,17 @@ target "universal" {
   }
 
   args = {
-    FX_VERSION     = "0.0.14"
-    NODE_VERSION   = "24.22.1"
-    PYTHON_VERSION = "3.14"
+    BUN_IMAGE           = BUN_IMAGE
+    CLAUDE_CODE_VERSION = CLAUDE_CODE_VERSION
+    CODEX_VERSION       = CODEX_VERSION
+    FX_VERSION          = "0.0.14"
+    GH_VERSION          = GH_VERSION
+    NODE_VERSION        = "24.22.1"
+    OPENCODE_VERSION    = OPENCODE_VERSION
+    PI_VERSION          = PI_VERSION
+    PNPM_VERSION        = PNPM_VERSION
+    PYTHON_VERSION      = "3.14"
+    UV_VERSION          = UV_VERSION
   }
 }
 
@@ -108,6 +178,11 @@ target "arch" {
   inherits = ["_common"]
   context  = "arch"
   tags     = ["${REGISTRY}/arch:latest${TAG_SUFFIX}"]
+
+  args = {
+    ARCH_IMAGE     = ARCH_IMAGE
+    YAY_BIN_COMMIT = YAY_BIN_COMMIT
+  }
 }
 
 target "al-builder-base" {
@@ -115,6 +190,10 @@ target "al-builder-base" {
   context    = "al-base"
   dockerfile = "Dockerfile"
   target     = "builder-base"
+
+  args = {
+    AMAZONLINUX_IMAGE = AMAZONLINUX_IMAGE
+  }
 }
 
 target "al-base" {
@@ -125,6 +204,10 @@ target "al-base" {
 
   contexts = {
     src = "al-base"
+  }
+
+  args = {
+    AMAZONLINUX_IMAGE = AMAZONLINUX_IMAGE
   }
 }
 
@@ -163,6 +246,7 @@ target "al-node" {
     NODE_ARCH    = "x64"
     NODE_MAJOR   = node.major
     NODE_VERSION = node.version
+    PNPM_VERSION = AL_PNPM_VERSION
   }
 }
 
@@ -178,6 +262,8 @@ target "al-python" {
   }
 
   args = {
+    PIP_VERSION    = AL_PIP_VERSION
     PYTHON_VERSION = "3.13.1"
+    UV_VERSION     = UV_VERSION
   }
 }

@@ -1,3 +1,6 @@
+ARG BUN_IMAGE
+FROM ${BUN_IMAGE} AS bun
+
 FROM base AS node
 USER root
 ENV HOME=/root
@@ -19,22 +22,21 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PYTHON_VERSION=3.14
+ARG GH_VERSION
+ARG UV_VERSION
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
-    install -d -m 0755 /etc/apt/keyrings && \
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
-    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-      > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && \
+    cd /tmp && \
+    curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb" && \
+    curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_checksums.txt" && \
+    awk -v f="gh_${GH_VERSION}_linux_amd64.deb" '$2 == f' "gh_${GH_VERSION}_checksums.txt" | sha256sum -c && \
     apt-get install -y --no-install-recommends \
+      "/tmp/gh_${GH_VERSION}_linux_amd64.deb" \
       bzip2 \
       dnsutils \
       file \
       fzf \
-      gh \
       git \
       git-lfs \
       gnupg \
@@ -63,27 +65,32 @@ RUN apt-get update && \
       wget \
       xz-utils \
       zip && \
+    rm -f "/tmp/gh_${GH_VERSION}_linux_amd64.deb" "/tmp/gh_${GH_VERSION}_checksums.txt" && \
     rm -f /usr/lib/python3*/EXTERNALLY-MANAGED && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install uv && \
+    pip install "uv==${UV_VERSION}" && \
     rm -rf /root/.cache/pip && \
     git lfs install --system
 
 COPY --from=node /opt/node /usr/local
 
-RUN npm install -g pnpm@11 && \
+ARG PNPM_VERSION
+RUN npm install -g "pnpm@${PNPM_VERSION}" && \
     npm cache clean --force
 
-# Bun.
-COPY --from=oven/bun:latest /usr/local/bin/bun /usr/local/bin/
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
 RUN ln -s bun /usr/local/bin/bunx
 
 # Coding agents.
+ARG CLAUDE_CODE_VERSION
+ARG CODEX_VERSION
+ARG OPENCODE_VERSION
+ARG PI_VERSION
 RUN npm install -g \
-      opencode-ai \
-      @anthropic-ai/claude-code \
-      @openai/codex && \
-    npm install -g --ignore-scripts @earendil-works/pi-coding-agent && \
+      "opencode-ai@${OPENCODE_VERSION}" \
+      "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+      "@openai/codex@${CODEX_VERSION}" && \
+    npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}" && \
     npm cache clean --force
 
 RUN chown -R ubuntu:ubuntu /vercel
@@ -110,16 +117,18 @@ RUN mkdir -p ~/.local/bin && \
     tar -xzf fx-linux-x86_64.tar.gz -C ~/.local/bin fx && \
     rm fx-linux-x86_64.tar.gz fx-linux-x86_64.tar.gz.sha256
 
-RUN node --version && \
+ARG NODE_VERSION
+RUN node --version | grep -Fx "v${NODE_VERSION}" && \
+    pnpm --version | grep -Fx "${PNPM_VERSION}" && \
     bun --version && \
     python --version | grep -F "Python ${PYTHON_VERSION}." && \
     pip --version && \
-    uv --version && \
+    uv --version | grep -F "uv ${UV_VERSION} " && \
     git --version && \
-    gh --version && \
+    gh --version | grep -F "gh version ${GH_VERSION} " && \
     sudo whoami && \
-    opencode --version && \
-    claude --version && \
-    codex --version && \
-    pi --version && \
+    opencode --version | grep -Fx "${OPENCODE_VERSION}" && \
+    claude --version | grep -F "${CLAUDE_CODE_VERSION} " && \
+    codex --version | grep -Fx "codex-cli ${CODEX_VERSION}" && \
+    pi --version | grep -Fx "${PI_VERSION}" && \
     fx --version

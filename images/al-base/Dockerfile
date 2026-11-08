@@ -1,4 +1,5 @@
-FROM amazonlinux:2023 AS builder-base
+ARG AMAZONLINUX_IMAGE
+FROM ${AMAZONLINUX_IMAGE} AS builder-base
 
 WORKDIR /sandbox
 
@@ -50,7 +51,7 @@ RUN cd /tmp && \
     make install && \
     cd / && rm -rf /tmp/git-2.49.0
 
-FROM amazonlinux:2023 AS sandbox-base
+FROM ${AMAZONLINUX_IMAGE} AS sandbox-base
 
 RUN dnf update -y && \
     echo "install_weak_deps=False" >> /etc/dnf/dnf.conf && \

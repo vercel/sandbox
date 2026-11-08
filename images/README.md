@@ -15,6 +15,19 @@ Dockerfiles for Vercel Managed Images published to Vercel Container Registry (VC
 
 All images are built for `linux/amd64`.
 
+## Pinned versions
+
+Base images and tools are pinned in [`docker-bake.hcl`](./docker-bake.hcl). To change what an
+image contains, change the value there.
+
+| Input                                                          | Pinned by                                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Base images (`ubuntu`, `archlinux`, `amazonlinux`, `oven/bun`) | Versioned tag and digest                                                       |
+| Tools (pnpm, uv, gh, coding agents, Node.js, fx)               | Exact version                                                                  |
+| `yay`                                                          | `YAY_BIN_COMMIT`, a commit of the `yay-bin` AUR package                        |
+| Ubuntu and Arch packages                                       | Not pinned: each build installs the current updates                            |
+| Amazon Linux packages                                          | The `amazonlinux` base image, whose release version locks its package versions |
+
 ## Building locally
 
 ```sh

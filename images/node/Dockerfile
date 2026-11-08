@@ -24,7 +24,8 @@ RUN apt-get update && \
 
 COPY --from=fetch /opt/node /usr/local
 
-RUN npm install -g pnpm@11 && \
+ARG PNPM_VERSION
+RUN npm install -g "pnpm@${PNPM_VERSION}" && \
     npm cache clean --force
 
 RUN chown -R ubuntu:ubuntu /vercel
@@ -40,7 +41,8 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
+ARG NODE_VERSION
 RUN git --version && \
-    node --version && \
+    node --version | grep -Fx "v${NODE_VERSION}" && \
     npm --version && \
-    pnpm --version
+    pnpm --version | grep -Fx "${PNPM_VERSION}"
