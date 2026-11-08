@@ -14,6 +14,10 @@ variable "UBUNTU_IMAGE" {
   default = "ubuntu:resolute-20261024.1@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c"
 }
 
+variable "UBUNTU_SNAPSHOT" {
+  default = "20261108T000000Z"
+}
+
 variable "ARCH_IMAGE" {
   default = "archlinux:base-20261101.0.620205@sha256:b1c2fe6e717bfd5673af8fc217e1e1c3ce0dcbb1d53c3414c8425e7ce79fc6d9"
 }
@@ -108,7 +112,8 @@ target "ubuntu" {
   tags     = ["${REGISTRY}/ubuntu:latest${TAG_SUFFIX}"]
 
   args = {
-    UBUNTU_IMAGE = UBUNTU_IMAGE
+    UBUNTU_IMAGE    = UBUNTU_IMAGE
+    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
   }
 }
 
@@ -130,8 +135,9 @@ target "node" {
   }
 
   args = {
-    NODE_VERSION = node.version
-    PNPM_VERSION = PNPM_VERSION
+    NODE_VERSION    = node.version
+    PNPM_VERSION    = PNPM_VERSION
+    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
   }
 }
 
@@ -145,8 +151,9 @@ target "python" {
   }
 
   args = {
-    PYTHON_VERSION = "3.14"
-    UV_VERSION     = UV_VERSION
+    PYTHON_VERSION  = "3.14"
+    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
+    UV_VERSION      = UV_VERSION
   }
 }
 
@@ -170,6 +177,7 @@ target "universal" {
     PI_VERSION          = PI_VERSION
     PNPM_VERSION        = PNPM_VERSION
     PYTHON_VERSION      = "3.14"
+    UBUNTU_SNAPSHOT     = UBUNTU_SNAPSHOT
     UV_VERSION          = UV_VERSION
   }
 }

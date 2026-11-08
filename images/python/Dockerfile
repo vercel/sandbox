@@ -3,11 +3,12 @@ USER root
 ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_SNAPSHOT
 ARG PYTHON_VERSION=3.14
 ARG UV_VERSION
 
-RUN apt-get update && \
-  apt-get install -y --no-install-recommends \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
+  apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" \
   git \
   "python${PYTHON_VERSION}" \
   "python${PYTHON_VERSION}-venv" \

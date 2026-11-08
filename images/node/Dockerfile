@@ -3,8 +3,9 @@ USER root
 ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl libarchive-tools && \
+ARG UBUNTU_SNAPSHOT
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
 ARG NODE_VERSION
@@ -17,9 +18,10 @@ FROM base
 USER root
 ENV HOME=/root
 
+ARG UBUNTU_SNAPSHOT
 # Node.js requires libatomic.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git libatomic1 && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" git libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=fetch /opt/node /usr/local

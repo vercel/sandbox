@@ -9,4 +9,4 @@
 "sandbox-image-al-python": patch
 ---
 
-Pin base images by digest and tools by exact version in `docker-bake.hcl`.
+Pin image inputs in `docker-bake.hcl`: base images by digest, tools by exact version, and Ubuntu packages by an Ubuntu archive snapshot.
