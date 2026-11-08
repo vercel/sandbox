@@ -41,15 +41,17 @@ RUN dnf update -y && \
 
 FROM builder-base AS builder-git
 
-# Compile git 2.49.0 from source to /opt/git
+ARG GIT_VERSION
+
+# Compile git from source to /opt/git
 RUN cd /tmp && \
-    curl -L https://github.com/git/git/archive/v2.49.0.tar.gz | tar -zx && \
-    cd git-2.49.0 && \
+    curl -L "https://github.com/git/git/archive/v${GIT_VERSION}.tar.gz" | tar -zx && \
+    cd "git-${GIT_VERSION}" && \
     make configure && \
     ./configure --prefix=/opt/git && \
     make all && \
     make install && \
-    cd / && rm -rf /tmp/git-2.49.0
+    cd / && rm -rf "/tmp/git-${GIT_VERSION}"
 
 FROM ${AMAZONLINUX_IMAGE} AS sandbox-base
 
@@ -83,7 +85,7 @@ RUN dnf update -y && \
 
 COPY --from=builder-git /opt/git /opt/git
 
-# Note: Installing package manager git for dependencies, but PATH prioritizes our compiled git 2.49.0
+# Note: Installing package manager git for dependencies, but PATH prioritizes our compiled git
 ENV PATH="/vercel/bin:/opt/git/bin:/home/vercel-sandbox/.local/bin:/usr/local/bin:${PATH}"
 
 COPY --from=src ./sudoers /etc/sudoers

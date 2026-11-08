@@ -55,6 +55,10 @@ variable "AL_PIP_VERSION" {
   default = "26.3"
 }
 
+variable "AL_GIT_VERSION" {
+  default = "2.49.0"
+}
+
 variable "GH_VERSION" {
   default = "2.103.3"
 }
@@ -216,6 +220,7 @@ target "al-base" {
 
   args = {
     AMAZONLINUX_IMAGE = AMAZONLINUX_IMAGE
+    GIT_VERSION       = AL_GIT_VERSION
   }
 }
 
