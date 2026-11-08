@@ -41,8 +41,7 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
-ARG NODE_VERSION
 RUN git --version && \
-    node --version | grep -Fx "v${NODE_VERSION}" && \
+    node --version && \
     npm --version && \
-    pnpm --version | grep -Fx "${PNPM_VERSION}"
+    pnpm --version

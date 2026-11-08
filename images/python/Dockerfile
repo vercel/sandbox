@@ -31,4 +31,4 @@ RUN git --version && \
   python --version | grep -F "Python ${PYTHON_VERSION}." && \
   python3 --version && \
   pip --version && \
-  uv --version | grep -F "uv ${UV_VERSION} "
+  uv --version

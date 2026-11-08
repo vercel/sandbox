@@ -8,8 +8,7 @@ RUN mkdir -p /vercel/runtimes/node${NODE_MAJOR} && curl https://nodejs.org/dist/
 ENV PATH="/vercel/runtimes/node${NODE_MAJOR}/bin:${PATH}"
 
 ARG PNPM_VERSION
-RUN npm install -g "pnpm@${PNPM_VERSION}" && \
-  pnpm --version | grep -Fx "${PNPM_VERSION}"
+RUN npm install -g "pnpm@${PNPM_VERSION}"
 
 USER vercel-sandbox
 

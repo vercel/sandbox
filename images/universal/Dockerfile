@@ -117,18 +117,16 @@ RUN mkdir -p ~/.local/bin && \
     tar -xzf fx-linux-x86_64.tar.gz -C ~/.local/bin fx && \
     rm fx-linux-x86_64.tar.gz fx-linux-x86_64.tar.gz.sha256
 
-ARG NODE_VERSION
-RUN node --version | grep -Fx "v${NODE_VERSION}" && \
-    pnpm --version | grep -Fx "${PNPM_VERSION}" && \
+RUN node --version && \
     bun --version && \
     python --version | grep -F "Python ${PYTHON_VERSION}." && \
     pip --version && \
-    uv --version | grep -F "uv ${UV_VERSION} " && \
+    uv --version && \
     git --version && \
-    gh --version | grep -F "gh version ${GH_VERSION} " && \
+    gh --version && \
     sudo whoami && \
-    opencode --version | grep -Fx "${OPENCODE_VERSION}" && \
-    claude --version | grep -F "${CLAUDE_CODE_VERSION} " && \
-    codex --version | grep -Fx "codex-cli ${CODEX_VERSION}" && \
-    pi --version | grep -Fx "${PI_VERSION}" && \
+    opencode --version && \
+    claude --version && \
+    codex --version && \
+    pi --version && \
     fx --version

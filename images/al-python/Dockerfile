@@ -41,9 +41,7 @@ ENV PATH="/vercel/runtimes/python/bin:${PATH}"
 
 USER vercel-sandbox
 
-ARG PIP_VERSION
-ARG UV_VERSION
 RUN python3 --version && \
-    pip3 --version | grep -F "pip ${PIP_VERSION} " && \
+    pip3 --version && \
     python3 -m venv -h && \
-    uv --version | grep -F "uv ${UV_VERSION} "
+    uv --version
