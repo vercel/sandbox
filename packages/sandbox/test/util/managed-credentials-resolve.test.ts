@@ -48,10 +48,7 @@ describe("request detection", () => {
         }),
     });
     const first = await resolve({ credentialProviders: "github" }, ctx);
-    const next = await resolve(
-      { credentialProviders: "github", credentialsActAs: "2" },
-      ctx,
-    );
+    const next = await resolve({ credentialsActAs: "2" }, ctx);
     expect(first?.config.credentials.github[0].actAs).toBe("1");
     expect(next?.config.credentials.github[0].actAs).toBe("2");
     expect(first?.config).not.toHaveProperty("commitAs");
@@ -295,6 +292,22 @@ describe("explicit configuration sources", () => {
 });
 
 describe("conflicting inputs", () => {
+  test.each([
+    ["--credentials-github-repo", { credentialsRepo: "acme/widgets" }],
+    ["--credentials-github-action", { credentialsActions: ["git:write"] }],
+    ["--credentials-github-act-as", { credentialsActAs: "@example" }],
+  ])(
+    "rejects defaults combined with %s before inference",
+    async (flag, overrides) => {
+      const ctx = context();
+      await expect(
+        resolve({ credentialProviders: "github", ...overrides }, ctx),
+      ).rejects.toThrow(flag);
+      expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
+      expect(ctx.inferActorImpl).not.toHaveBeenCalled();
+    },
+  );
+
   test("rejects a file combined with another sandbox", async () => {
     await expect(
       resolve({

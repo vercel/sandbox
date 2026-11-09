@@ -45,7 +45,7 @@ export const managedCredentialOptions = {
   credentialProviders: optionalString(
     "credentials",
     "PROVIDERS",
-    "Comma-separated credential providers to request using inferred defaults. Supported: github. (experimental)",
+    "Comma-separated credential providers to request using inferred defaults. Cannot be combined with GitHub credential inputs. Supported: github. (experimental)",
   ),
   credentialsRepo: optionalString(
     "credentials-github-repo",

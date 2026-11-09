@@ -46,12 +46,12 @@ afterEach(async () => {
 });
 
 test("selects GitHub credentials with a provider argument and preserves defaults", async () => {
-  const options = await parse([
-    "--credentials=github",
-    "--credentials-github-repo=acme/widgets",
-    "--credentials-github-act-as=@example",
-  ]);
-  const result = await resolveManagedCredentials(options, { token: "unused" });
+  const options = await parse(["--credentials=github"]);
+  const result = await resolveManagedCredentials(options, {
+    token: "unused",
+    inferRepositoryImpl: async () => "acme/widgets",
+    inferActorImpl: async () => ({ actAs: "@example" }),
+  });
   expect(result?.config.credentials.github[0]).toEqual({
     repositories: ["acme/widgets"],
     actions: [

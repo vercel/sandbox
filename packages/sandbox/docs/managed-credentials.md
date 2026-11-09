@@ -13,8 +13,15 @@ Sign in with `vercel login`, then run inside a GitHub repository:
 vercel sandbox create --credentials=github
 ```
 
-`--credentials=github` infers the repository, clone source, and GitHub actor.
-The defaults are `git:write`, `github:issues:read`, `github:issues:comment`, and
+`--credentials=github` selects only inferred defaults for the repository,
+clone source, GitHub actor, and actions. Do not combine it with
+`--credentials-github-repo`, `--credentials-github-action`,
+`--credentials-github-act-as`, `--credentials-file`, or
+`--credentials-github-from-sandbox`. Those inputs request credentials on their
+own, without `--credentials`. Normal creation and authentication options remain
+independent, as does the path for exporting credentials.
+
+The default actions are `git:write`, `github:issues:read`, `github:issues:comment`, and
 `github:pull-request:create`. A bare `create` is unchanged: local Git context
 alone never requests access. `run` and `sh` accept the same creation inputs;
 `exec`, `connect`, and `fork` do not accept credential mutations.

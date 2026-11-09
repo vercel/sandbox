@@ -109,6 +109,11 @@ export function assertCompatibleOptions(
   if (options.credentialsActions.length > 0)
     parseActions(options.credentialsActions);
   const direct = suppliedDirectFlags(options);
+  if (options.credentialProviders !== undefined && direct.length > 0) {
+    throw new CliError(
+      `--credentials=github selects inferred defaults and cannot be combined with ${direct.join(", ")}. Drop --credentials to use explicit GitHub options.`,
+    );
+  }
 
   // Persisting only says where to write a configuration. On its own it would
   // otherwise exit successfully having written nothing.
@@ -225,7 +230,7 @@ async function resolveFromFlags(
     repo = await (context.inferRepositoryImpl ?? inferRepository)(context.cwd);
     if (repo === undefined) {
       throw new CliError(
-        "Can't infer the repository for managed credentials. Run the command inside a GitHub repository with a github.com remote, or pass --credentials-github-repo OWNER/REPOSITORY.",
+        "Can't infer the repository for managed credentials. Run the command inside a GitHub repository with a github.com remote, or use --credentials-github-repo OWNER/REPOSITORY without --credentials.",
         {
           reason: "missing_context",
         },
@@ -251,7 +256,7 @@ async function resolveFromFlags(
 
   if (!actor && actions.length > 0) {
     throw new CliError(
-      "Can't resolve the GitHub account to act as. Log in with gh, or pass --credentials-github-act-as with a GitHub username or numeric user ID.",
+      "Can't resolve the GitHub account to act as. Log in with gh, or use --credentials-github-act-as with a GitHub username or numeric user ID without --credentials.",
       {
         reason: "missing_context",
       },

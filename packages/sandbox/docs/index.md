@@ -145,7 +145,7 @@ Options:
       pair    = { "key"?: matcher, "value"?: matcher }
     A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
     Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
-    --credentials <PROVIDERS>                          Comma-separated credential providers to request using inferred defaults. Supported: github. (experimental) [optional]
+    --credentials <PROVIDERS>                          Comma-separated credential providers to request using inferred defaults. Cannot be combined with GitHub credential inputs. Supported: github. (experimental) [optional]
     --credentials-github-repo <REPOSITORY>             GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental) [optional]
     --credentials-github-action <ACTIONS>              Comma-separated Git or GitHub API actions to request. Explicit actions replace the entire default set, including Git access. Accepted: git:write, git:write-workflows, pull-request:create, pull-request:get, pull-request:update, pull-request:comment, issues:read, issues:create, issues:update, issues:comment, labels:read, labels:write, ci-status:read. (experimental)
     --credentials-github-act-as <USER>                 GitHub username or numeric user ID for the requested credentials and Git commit attribution. Defaults to the active gh account, then the Vercel-linked GitHub account. (experimental) [optional]
@@ -233,7 +233,7 @@ Options:
       pair    = { "key"?: matcher, "value"?: matcher }
     A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
     Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
-    --credentials <PROVIDERS>                          Comma-separated credential providers to request using inferred defaults. Supported: github. (experimental) [optional]
+    --credentials <PROVIDERS>                          Comma-separated credential providers to request using inferred defaults. Cannot be combined with GitHub credential inputs. Supported: github. (experimental) [optional]
     --credentials-github-repo <REPOSITORY>             GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental) [optional]
     --credentials-github-action <ACTIONS>              Comma-separated Git or GitHub API actions to request. Explicit actions replace the entire default set, including Git access. Accepted: git:write, git:write-workflows, pull-request:create, pull-request:get, pull-request:update, pull-request:comment, issues:read, issues:create, issues:update, issues:comment, labels:read, labels:write, ci-status:read. (experimental)
     --credentials-github-act-as <USER>                 GitHub username or numeric user ID for the requested credentials and Git commit attribution. Defaults to the active gh account, then the Vercel-linked GitHub account. (experimental) [optional]
@@ -327,7 +327,7 @@ Options:
       pair    = { "key"?: matcher, "value"?: matcher }
     A domain may use "*" wildcards like --allowed-domain. An empty rule list allows the domain with no rules. Rules on a domain run in order and the first match wins; a rule without "match" matches every request. Methods in one list are ORed; query-string and header pairs are ANDed.
     Example: {"allow":{"*":[],"registry.npmjs.org":[{"match":{"method":["GET","HEAD"]},"transform":[{"headers":{"authorization":"Bearer ..."}}]}]}} [optional]
-    --credentials <PROVIDERS>                          Comma-separated credential providers to request using inferred defaults. Supported: github. (experimental) [optional]
+    --credentials <PROVIDERS>                          Comma-separated credential providers to request using inferred defaults. Cannot be combined with GitHub credential inputs. Supported: github. (experimental) [optional]
     --credentials-github-repo <REPOSITORY>             GitHub OWNER/REPOSITORY for managed credentials; also the clone source. Defaults to the local Git remote. (experimental) [optional]
     --credentials-github-action <ACTIONS>              Comma-separated Git or GitHub API actions to request. Explicit actions replace the entire default set, including Git access. Accepted: git:write, git:write-workflows, pull-request:create, pull-request:get, pull-request:update, pull-request:comment, issues:read, issues:create, issues:update, issues:comment, labels:read, labels:write, ci-status:read. (experimental)
     --credentials-github-act-as <USER>                 GitHub username or numeric user ID for the requested credentials and Git commit attribution. Defaults to the active gh account, then the Vercel-linked GitHub account. (experimental) [optional]

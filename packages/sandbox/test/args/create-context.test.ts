@@ -101,6 +101,31 @@ test.each(["sandbox", "vercel sandbox"])(
   },
 );
 
+test.each([
+  ["--credentials-github-repo", "acme/widgets"],
+  ["--credentials-github-action", "git:write"],
+  ["--credentials-github-act-as", "@example"],
+])(
+  "rejects defaults combined with %s before authentication",
+  async (flag, value) => {
+    for (const argv of [
+      ["--credentials=github", `${flag}=${value}`],
+      [`${flag}=${value}`, "--credentials=github"],
+    ]) {
+      const result = await cmd.run(parser, argv).catch((error) => error);
+      expect(result).toBeInstanceOf(CliError);
+      expect(result).toMatchObject({
+        message: expect.stringContaining("--credentials=github"),
+      });
+      expect(result.exitCode).toBe(2);
+      expect(result.message).toContain(flag);
+    }
+    expect(getVercelToken).not.toHaveBeenCalled();
+    expect(inferScope).not.toHaveBeenCalled();
+    expect(fetchSandboxCredentialSnapshot).not.toHaveBeenCalled();
+  },
+);
+
 test("invalid configuration is rejected before authentication", async () => {
   await expect(
     cmd.run(parser, ["--credentials-file=/nonexistent/sandbox-config.json"]),
