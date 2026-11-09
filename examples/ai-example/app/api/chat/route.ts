@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: gateway("anthropic/claude-4-sonnet-20250514"),
     system: SYSTEM_PROMPT,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     onError: (error) => {
       console.error("Error communicating with AI", error);
     },
