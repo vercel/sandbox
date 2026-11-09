@@ -29,13 +29,3 @@ docker buildx bake universal
 docker buildx bake python
 docker buildx bake python-315
 ```
-
-Both Python versions use the same Dockerfile. To build another release, override
-`PYTHON_VERSION` with a full CPython version and set a matching local tag:
-
-```sh
-docker buildx bake python --set python.args.PYTHON_VERSION=3.15.0 --set python.tags=python-local:3.15.0
-```
-
-The default and `vmi` groups build both Python versions. To add a release, configure
-its version and tags in `docker-bake.hcl`.
