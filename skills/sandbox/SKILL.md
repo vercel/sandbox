@@ -334,6 +334,10 @@ await writer.stop();
 const reader = await Sandbox.create({ mounts: { "/cache": cache.snapshot() } });
 ```
 
+pnpm can't use a store on a read-only snapshot mount, because its index needs
+write access. Copy the store to local disk first:
+`cp -r /cache /tmp/store`, then `pnpm install --store-dir /tmp/store`.
+
 Mount paths must be absolute and cannot overlap. A drive's region and maximum
 size are fixed at creation.
 
