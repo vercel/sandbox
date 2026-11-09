@@ -19,7 +19,7 @@ Show the files using custom code blocks with the following format:
 export async function getAIResponse(prompt: string) {
   const { textStream } = streamText({
     messages: [{ role: "user", content: prompt }],
-    model: gateway("anthropic/claude-4-sonnet-20250514"),
+    model: gateway("anthropic/claude-sonnet-4.6"),
     system: SYSTEM_PROMPT,
     onError: (error) => {
       console.error("Error communicating with AI", error);
