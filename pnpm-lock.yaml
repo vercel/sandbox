@@ -407,8 +407,8 @@ importers:
         specifier: 3.1.7
         version: 3.1.7
       undici:
-        specifier: ^7.27.1
-        version: 7.27.1
+        specifier: ^8.12.4
+        version: 8.12.4
       xdg-app-paths:
         specifier: 5.1.0
         version: 5.1.0
@@ -5992,9 +5992,9 @@ packages:
     resolution: {integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==}
     engines: {node: '>=20.18.1'}
 
-  undici@7.27.1:
-    resolution: {integrity: sha512-UDdpiex+mzigiyrXrGbiUaF4HzTNhKbh2vRNFaTMzcqmLIPrZxaCtwo/1TMSuWoM1Xz3WiTo9KdgI3kRqYzJGg==}
-    engines: {node: '>=20.18.1'}
+  undici@8.12.4:
+    resolution: {integrity: sha512-8Mx+uNKKER2bA4AdtedkqRbwUCIJFr2nJckXRe5yrDqzePqwLP7VNcctN8/XdmDSbF7mS+jJKIszlL+vbam1VA==}
+    engines: {node: '>=22.19.0'}
 
   unicorn-magic@0.1.0:
     resolution: {integrity: sha512-lRfVq8fE8gz6QMBuDM6a+LO3IAzTi05H6gCVaUpir2E1Rwpo4ZUog45KpNXKC/Mn3Yb9UDuHumeFTo9iV/D9FQ==}
@@ -12349,7 +12349,7 @@ snapshots:
 
   undici@7.22.0: {}
 
-  undici@7.27.1: {}
+  undici@8.12.4: {}
 
   unicorn-magic@0.1.0: {}
 

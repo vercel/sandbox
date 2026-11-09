@@ -5,9 +5,15 @@ import {
 } from "@workflow/core/serialization";
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetch as undiciFetch } from "undici";
 import type { DriveMetadata } from "./api-client";
 import { APIClient } from "./api-client";
 import { Drive, type SerializedDrive } from "./drive";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 
 describe("Drive serialization", () => {
   const mockDriveMetadata: DriveMetadata = {
@@ -48,6 +54,7 @@ describe("Drive serialization", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.mocked(undiciFetch).mockReset();
   });
 
   describe("WORKFLOW_SERIALIZE", () => {
@@ -98,7 +105,9 @@ describe("Drive serialization", () => {
             { status: 201, headers: { "content-type": "application/json" } },
           ),
       );
-      vi.stubGlobal("fetch", mockFetch);
+      vi.mocked(undiciFetch).mockImplementation(
+        mockFetch as typeof undiciFetch,
+      );
       const drive = FreshDrive[WORKFLOW_DESERIALIZE]({
         drive: mockDriveMetadata,
         projectId: "proj_test",
