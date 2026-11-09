@@ -1,19 +1,19 @@
 # Managed credentials (experimental)
 
 Vercel brokers Git and GitHub API access without exposing a raw GitHub token in
-the sandbox, CLI output, logs, Git URLs, or exported configuration. Only GitHub is
-supported; its flags use `--credentials-github-*` so other providers can have
-separate namespaces.
+the sandbox, CLI output, logs, Git URLs, or exported configuration. Select providers
+with `--credentials`, which takes a comma-separated list. Only `github` is
+supported. GitHub-specific overrides use `--credentials-github-*`.
 
 ## Quick start and scope
 
 Sign in with `vercel login`, then run inside a GitHub repository:
 
 ```sh
-vercel sandbox create --enable-github-credentials
+vercel sandbox create --credentials=github
 ```
 
-The enable flag infers the repository, clone source, and GitHub actor.
+`--credentials=github` infers the repository, clone source, and GitHub actor.
 The defaults are `git:write`, `github:issues:read`, `github:issues:comment`, and
 `github:pull-request:create`. A bare `create` is unchanged: local Git context
 alone never requests access. `run` and `sh` accept the same creation inputs;
@@ -29,20 +29,40 @@ configuration. There is no separate dry-run mode.
 
 ## Actions and identity
 
-Every permission is in `credentials.github[].actions`. Explicit repeated
-`--credentials-github-action` flags replace the entire default set, including Git
-access. API-only requests gain no implicit Git access; cloning a private source
-can therefore fail. Use a configuration without `source` when no clone is wanted.
+Every permission is in `credentials.github[].actions`. A comma-separated
+`--credentials-github-action` list replaces the entire default set, including Git
+access. API-only requests gain no implicit Git access. Cloning a private source
+can therefore fail. Use `--credentials-file` when no clone is wanted.
 
 ```sh
-vercel sandbox create --credentials-github-action=git:write \
-  --credentials-github-action=github:pull-request:create
+vercel sandbox create --credentials-github-action=git:write,github:pull-request:create
 ```
 
-Flags accept `issues:read` or `github:issues:read`; Git actions keep `git:`.
-Comma-separated lists, duplicates, unknown actions, and missing flag values fail
-before authentication. `git:write-workflows` is required explicitly for workflow
-files. `git:read` is unsupported and is never replaced with write access.
+`git:*` actions authorize Git operations. `github:*` actions authorize GitHub API
+operations, such as reading issues or creating pull requests. The creation API
+accepts these exact actions:
+
+| Action                        | Access                         |
+| ----------------------------- | ------------------------------ |
+| `git:write`                   | Git operations, including push |
+| `git:write-workflows`         | Workflow-file writes           |
+| `github:pull-request:create`  | Create pull requests           |
+| `github:pull-request:get`     | Read pull requests             |
+| `github:pull-request:update`  | Update pull requests           |
+| `github:pull-request:comment` | Comment on pull requests       |
+| `github:issues:read`          | Read issues                    |
+| `github:issues:create`        | Create issues                  |
+| `github:issues:update`        | Update issues                  |
+| `github:issues:comment`       | Comment on issues              |
+| `github:labels:read`          | Read labels                    |
+| `github:labels:write`         | Write labels                   |
+| `github:ci-status:read`       | Read CI status                 |
+
+Flags accept `issues:read` or `github:issues:read`. Git actions keep `git:`.
+Repeated flags also accept lists. Duplicates, empty list entries, unknown actions,
+and missing flag values fail before authentication. `git:write-workflows` is
+required explicitly for workflow files. There are no read/write preset flags.
+`git:read` is unsupported and is never replaced with write access.
 
 The CLI infers GitHub HTTPS or SSH fetch remotes, preferring `origin`.
 `--credentials-github-repo OWNER/REPO` overrides inference and also selects the
@@ -100,57 +120,56 @@ errors, or the Bounds check. CI, piped input, non-terminal sessions, and detecte
 agents never prompt and require `--yes`; there is no `--non-interactive` flag.
 Without consent, the CLI prints the proposal and stops. `--silent` does not skip
 review or consent. `--yes` does not supply missing inputs or permissions, or change
-project-wide policy. The enable flag selects defaults, not consent.
+project-wide policy. `--credentials=github` selects defaults, not consent.
 
 ## Configuration files
 
-Files use the API's managed-credential fields, not a separate CLI schema:
+Files contain the API's complete `credentials` object, without an outer
+`credentials` key:
 
 ```sh
-vercel sandbox create --credentials-github-from-config-file config.json
+vercel sandbox create --credentials-file config.json
 ```
 
 See [the complete multi-repository example](./managed-credentials.example.json),
 which includes separate groups, actors, Git actions, and API actions.
 
-| Field                              | Meaning                                                            |
-| ---------------------------------- | ------------------------------------------------------------------ |
-| `source`                           | Optional initial checkout; omitting it does not remove credentials |
-| `source.type`, `source.url`        | `git` and a GitHub HTTPS repository URL                            |
-| `source.revision`, `source.depth`  | Optional revision and clone depth                                  |
-| `credentials.github`               | Groups of repositories, actions, and an optional actor             |
-| `repositories`, `actions`, `actAs` | Each group's targets, complete rights, and GitHub identity         |
+| Field                              | Meaning                                                    |
+| ---------------------------------- | ---------------------------------------------------------- |
+| `github`                           | Groups of repositories, actions, and an optional actor     |
+| `repositories`, `actions`, `actAs` | Each group's targets, complete rights, and GitHub identity |
 
-The file contains only `source` and `credentials`, which can be sent unchanged in
-an API creation request. Team, project, resources, and other creation fields come
-from CLI flags or context. Repository arrays, group order, source options,
-actions, and actors survive creation, persistence, and replay without regrouping.
-Each group selects its own actor, including Git attribution.
+Set the API request's `credentials` field to the file contents. The file format
+uses provider keys, so additional providers can share this flag when supported.
+Unknown providers are rejected. Team, project, resources, and other creation
+fields come from CLI flags or context. Files do not select or infer a clone
+source. Repository arrays, group order, actions, and actors survive creation,
+persistence, and replay without regrouping. Each group selects its own actor,
+including Git attribution.
 
 Files require full canonical action names and `actAs` as an `@username` or quoted
 numeric ID. Short action aliases, bare usernames, numeric JSON actors,
-`source.repo`, group `repo`, raw passwords/tokens, and unknown fields are rejected.
+`source`, group `repo`, raw passwords/tokens, and unknown fields are rejected.
 Each group needs at least one repository and action, with no duplicate entries.
-An empty `github` array grants nothing. Embedded URL credentials, query
-parameters, and fragments are rejected.
+An empty `github` array grants no repository access.
 
-Inputs are UTF-8 JSON, at most 64 KiB and 25 distinct repositories including the
-source. `-` reads stdin with a 30-second limit. Files supply complete access;
+Inputs are UTF-8 JSON, at most 64 KiB and 25 distinct repositories. `-` reads stdin with a 30-second limit. Files supply complete access;
 they receive no inferred permissions and cannot be combined with direct
 credential flags. File and Sandbox inputs cannot be merged, or combined with
-`--enable-github-credentials`.
+`--credentials=github`.
 
 ## Export and Sandbox reuse
 
 ```sh
-vercel sandbox create --enable-github-credentials \
+vercel sandbox create --credentials=github \
   --credentials-github-persist-configuration=./credentials.json
 vercel sandbox create --credentials-github-from-sandbox my-sandbox
 ```
 
 Export requires an explicit path; relative paths use the working directory.
-It writes API-shaped JSON after successful creation, readable through the file
-input flag without translation. Existing files are never overwritten. A write
+It writes the API credentials object after successful creation, readable through
+`--credentials-file` without translation. It does not save the clone source.
+Existing files are never overwritten. A write
 failure identifies the already-created sandbox and never creates another one to
 retry the local write.
 

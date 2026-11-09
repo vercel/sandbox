@@ -8,7 +8,7 @@ import { CliError } from "./cli-error";
 /**
  * The API-compatible managed-credentials subset of Sandbox creation fields.
  *
- * Files, persistence and transport use this same shape. Flag aliases are
+ * File input and persistence use its credentials object. Flag aliases are
  * normalized before constructing it, never while parsing a configuration file.
  * Other creation fields, such as project and resources, come from CLI context.
  */
@@ -21,7 +21,7 @@ export type CredentialAction =
   (typeof SANDBOX_GITHUB_CREDENTIAL_ACTIONS)[number];
 
 /**
- * The API actions a bare `--enable-github-credentials` requests.
+ * The API actions a bare `--credentials=github` requests.
  *
  * Supplying any `--credentials-github-action` replaces this set rather than adding to
  * it, so an explicit narrow request is never silently widened.
@@ -155,7 +155,7 @@ export function parseConfig(value: unknown): ManagedCredentialsConfig {
     );
   }
   // The schema has no transformations. Keep the original canonical object so
-  // source-option and other object-key ordering also survive persistence.
+  // credential object-key ordering also survives persistence.
   const config = value as ManagedCredentialsConfig;
   const repositories = new Set<string>();
   const sourceRepo = sourceRepository(config);
@@ -212,11 +212,11 @@ export function sourceRepository(
 /**
  * Serialize a configuration for `--credentials-github-persist-configuration`.
  *
- * The output round-trips through {@link parseConfig}, so a persisted file can
- * be replayed with `--credentials-github-from-config-file`.
+ * Files contain the API credentials object, without creation fields such as
+ * source, so they can be replayed with `--credentials-file`.
  */
 export function serializeConfig(config: ManagedCredentialsConfig): string {
-  return `${JSON.stringify(config, null, 2)}\n`;
+  return `${JSON.stringify(config.credentials, null, 2)}\n`;
 }
 
 /** Extract `OWNER/REPOSITORY` from an HTTPS github.com URL. */

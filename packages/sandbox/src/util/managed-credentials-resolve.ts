@@ -20,7 +20,7 @@ import { readJsonPayload } from "./managed-credentials-payload";
  * supplied, matching the specified "explicit file path or a bare flag".
  */
 export interface ManagedCredentialsOptions {
-  enableManagedCredentials?: boolean;
+  credentialProviders?: string;
   credentialsRepo?: string;
   credentialsActions: string[];
   credentialsActAs?: string;
@@ -55,7 +55,7 @@ export function hasManagedCredentialsRequest(
   options: ManagedCredentialsOptions,
 ): boolean {
   return (
-    options.enableManagedCredentials === true ||
+    options.credentialProviders !== undefined ||
     options.credentialsFromConfigFile !== undefined ||
     options.credentialsFromSandbox !== undefined ||
     suppliedDirectFlags(options).length > 0
@@ -91,6 +91,21 @@ export interface ResolveContext {
 export function assertCompatibleOptions(
   options: ManagedCredentialsOptions,
 ): void {
+  if (options.credentialProviders !== undefined) {
+    const providers = options.credentialProviders
+      .split(",")
+      .map((value) => value.trim());
+    if (providers.some((provider) => provider !== "github")) {
+      throw new CliError(
+        "Unsupported --credentials provider. Supported: github.",
+      );
+    }
+    if (new Set(providers).size !== providers.length) {
+      throw new CliError(
+        "Duplicate --credentials providers are not supported.",
+      );
+    }
+  }
   if (options.credentialsActions.length > 0)
     parseActions(options.credentialsActions);
   const direct = suppliedDirectFlags(options);
@@ -102,7 +117,7 @@ export function assertCompatibleOptions(
     !hasManagedCredentialsRequest(options)
   ) {
     throw new CliError(
-      "--credentials-github-persist-configuration saves a managed-credentials configuration, but none was requested. Add --enable-github-credentials, or one of the other --credentials-github-* options.",
+      "--credentials-github-persist-configuration saves a managed-credentials configuration, but none was requested. Add --credentials=github, or one of the other --credentials-github-* options.",
     );
   }
   if (options.credentialsPersistConfiguration === "") {
@@ -116,13 +131,13 @@ export function assertCompatibleOptions(
     options.credentialsFromSandbox !== undefined
   ) {
     throw new CliError(
-      "--credentials-github-from-config-file and --credentials-github-from-sandbox both supply a complete configuration. Pass one.",
+      "--credentials-file and --credentials-github-from-sandbox both supply a complete configuration. Pass one.",
     );
   }
 
   const explicitSource =
     options.credentialsFromConfigFile !== undefined
-      ? "--credentials-github-from-config-file"
+      ? "--credentials-file"
       : options.credentialsFromSandbox !== undefined
         ? "--credentials-github-from-sandbox"
         : undefined;
@@ -133,15 +148,15 @@ export function assertCompatibleOptions(
     );
   }
 
-  if (explicitSource && options.enableManagedCredentials === true) {
+  if (explicitSource && options.credentialProviders !== undefined) {
     throw new CliError(
-      `--enable-github-credentials selects the inferred defaults, which would contradict ${explicitSource}. Drop the enable flag; the configuration already enables managed credentials.`,
+      `--credentials selects the inferred defaults, which would contradict ${explicitSource}. Drop --credentials; the configuration already requests managed credentials.`,
     );
   }
 
   if (options.credentialsFromConfigFile === "") {
     throw new CliError(
-      "--credentials-github-from-config-file requires a file path, or - to read stdin.",
+      "--credentials-file requires a file path, or - to read stdin.",
     );
   }
 
@@ -169,10 +184,10 @@ export async function resolveManagedCredentials(
   if (options.credentialsFromConfigFile !== undefined) {
     const payload = await readJsonPayload(
       options.credentialsFromConfigFile,
-      "--credentials-github-from-config-file",
+      "--credentials-file",
     );
     return {
-      config: parseConfig(payload),
+      config: parseConfig({ credentials: payload }),
       fromConfigFile: true,
     };
   }
@@ -268,12 +283,7 @@ async function resolveFromFlags(
 /** Validate and canonicalize `--credentials-github-action` values. */
 export function parseActions(values: readonly string[]): CredentialAction[] {
   const actions: CredentialAction[] = [];
-  for (const value of values) {
-    if (value.includes(",")) {
-      throw new CliError(
-        `--credentials-github-action takes one action per flag. Repeat the flag instead of a comma-separated list. Received: ${value}`,
-      );
-    }
+  for (const value of values.flatMap((value) => value.split(","))) {
     const canonical = canonicalCreationAction(value);
     if (!canonical) {
       throw new CliError(

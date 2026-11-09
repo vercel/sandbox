@@ -36,18 +36,17 @@ const optionalString = (
 };
 
 /**
- * The `--credentials-github-*` option surface.
+ * Managed credential inputs for Sandbox creation.
  *
- * These flags configure GitHub credentials. Other providers can use their own
- * namespace without changing the meaning of these options.
+ * Shared options select providers or read their API configuration. GitHub
+ * overrides use a provider-specific namespace.
  */
 export const managedCredentialOptions = {
-  enableManagedCredentials: cmd.flag({
-    long: "enable-github-credentials",
-    type: cmd.optional(cmd.boolean),
-    description:
-      "Request Vercel-managed GitHub credentials using inferred defaults for this repository. (experimental)",
-  }),
+  credentialProviders: optionalString(
+    "credentials",
+    "PROVIDERS",
+    "Comma-separated credential providers to request using inferred defaults. Supported: github. (experimental)",
+  ),
   credentialsRepo: optionalString(
     "credentials-github-repo",
     "REPOSITORY",
@@ -55,8 +54,8 @@ export const managedCredentialOptions = {
   ),
   credentialsActions: cmd.multioption({
     long: "credentials-github-action",
-    type: cmd.array({ ...cmd.string, displayName: "ACTION" }),
-    description: `Git or GitHub API action to request. Repeat the flag to add actions. Explicit actions replace the entire default set, including Git access. Accepted: ${ACCEPTED_CREATE_ACTION_NAMES.join(", ")}. (experimental)`,
+    type: cmd.array({ ...cmd.string, displayName: "ACTIONS" }),
+    description: `Comma-separated Git or GitHub API actions to request. Explicit actions replace the entire default set, including Git access. Accepted: ${ACCEPTED_CREATE_ACTION_NAMES.join(", ")}. (experimental)`,
   }),
   credentialsActAs: optionalString(
     "credentials-github-act-as",
@@ -64,9 +63,9 @@ export const managedCredentialOptions = {
     "GitHub username or numeric user ID for the requested credentials and Git commit attribution. Defaults to the active gh account, then the Vercel-linked GitHub account. (experimental)",
   ),
   credentialsFromConfigFile: optionalString(
-    "credentials-github-from-config-file",
+    "credentials-file",
     "FILE",
-    "Read API-shaped source and credentials fields from JSON; - reads stdin. Uses source.url and credentials.github[].repositories. (experimental)",
+    "Read the API credentials object from JSON; - reads stdin. GitHub groups are under github. (experimental)",
   ),
   credentialsFromSandbox: optionalString(
     "credentials-github-from-sandbox",
@@ -76,6 +75,6 @@ export const managedCredentialOptions = {
   credentialsPersistConfiguration: optionalString(
     "credentials-github-persist-configuration",
     "FILE",
-    "After successful creation, write the API-shaped credential configuration as JSON to this path. (experimental)",
+    "After successful creation, write the API credentials object as JSON to this path. (experimental)",
   ),
 };

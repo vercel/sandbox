@@ -47,9 +47,9 @@ describe("request detection", () => {
           actAs: "2",
         }),
     });
-    const first = await resolve({ enableManagedCredentials: true }, ctx);
+    const first = await resolve({ credentialProviders: "github" }, ctx);
     const next = await resolve(
-      { enableManagedCredentials: true, credentialsActAs: "2" },
+      { credentialProviders: "github", credentialsActAs: "2" },
       ctx,
     );
     expect(first?.config.credentials.github[0].actAs).toBe("1");
@@ -63,7 +63,7 @@ describe("request detection", () => {
 
   test("the enable flag requests managed credentials", () => {
     expect(
-      hasManagedCredentialsRequest(options({ enableManagedCredentials: true })),
+      hasManagedCredentialsRequest(options({ credentialProviders: "github" })),
     ).toBe(true);
   });
 
@@ -89,7 +89,7 @@ describe("request detection", () => {
 
 describe("inferred single-repository defaults", () => {
   test("infers the repository, source, identity, and default actions", async () => {
-    const resolved = await resolve({ enableManagedCredentials: true });
+    const resolved = await resolve({ credentialProviders: "github" });
     expect(resolved?.config).toEqual({
       source: { type: "git", url: "https://github.com/vercel/api.git" },
       credentials: {
@@ -147,7 +147,7 @@ describe("inferred single-repository defaults", () => {
   test("reports a missing repository instead of guessing", async () => {
     await expect(
       resolve(
-        { enableManagedCredentials: true },
+        { credentialProviders: "github" },
         context({ inferRepositoryImpl: vi.fn().mockResolvedValue(undefined) }),
       ),
     ).rejects.toThrow(/Can't infer the repository/);
@@ -157,7 +157,7 @@ describe("inferred single-repository defaults", () => {
 describe("identity resolution", () => {
   test("never derives commit credit from an actor profile or local Git", async () => {
     const resolved = await resolve(
-      { enableManagedCredentials: true },
+      { credentialProviders: "github" },
       context({
         inferActorImpl: vi.fn().mockResolvedValue({
           actAs: "2373726",
@@ -172,7 +172,7 @@ describe("identity resolution", () => {
   test("requires an actor when API actions are requested", async () => {
     await expect(
       resolve(
-        { enableManagedCredentials: true },
+        { credentialProviders: "github" },
         context({ inferActorImpl: vi.fn().mockResolvedValue(undefined) }),
       ),
     ).rejects.toThrow(/Can't resolve the GitHub account/);
@@ -194,10 +194,11 @@ describe("identity resolution", () => {
 });
 
 describe("--credentials-github-action validation", () => {
-  test("rejects comma-separated lists", () => {
-    expect(() => parseActions(["issues:read,issues:comment"])).toThrow(
-      /one action per flag/,
-    );
+  test("accepts comma-separated lists", () => {
+    expect(parseActions(["issues:read,issues:comment"])).toEqual([
+      "github:issues:read",
+      "github:issues:comment",
+    ]);
   });
 
   test("rejects duplicates", () => {
@@ -239,9 +240,7 @@ describe("explicit configuration sources", () => {
     // empty `github` array, not with an empty `actions` list.
     const path = await withTempFile(
       JSON.stringify({
-        credentials: {
-          github: [{ repositories: ["acme/widgets"], actions: [] }],
-        },
+        github: [{ repositories: ["acme/widgets"], actions: [] }],
       }),
     );
 
@@ -254,9 +253,7 @@ describe("explicit configuration sources", () => {
   });
 
   test("an empty github array acquires no default actions", async () => {
-    const path = await withTempFile(
-      JSON.stringify({ credentials: { github: [] } }),
-    );
+    const path = await withTempFile(JSON.stringify({ github: [] }));
 
     const resolved = await resolve({ credentialsFromConfigFile: path });
     expect(resolved?.config.credentials.github).toEqual([]);
@@ -264,14 +261,12 @@ describe("explicit configuration sources", () => {
 
   test("accepts an API-shaped file and preserves complete repository groups exactly", async () => {
     const document = apiConfiguration();
-    const path = await withTempFile(JSON.stringify(document));
+    const path = await withTempFile(JSON.stringify(document.credentials));
     const ctx = context();
 
     const resolved = await resolve({ credentialsFromConfigFile: path }, ctx);
-    expect(resolved?.config).toEqual(document);
-    expect(Object.keys(resolved!.config.source!)).toEqual(
-      Object.keys(document.source!),
-    );
+    expect(resolved?.config).toEqual({ credentials: document.credentials });
+    expect(resolved?.config.source).toBeUndefined();
     expect(ctx.inferRepositoryImpl).not.toHaveBeenCalled();
     expect(ctx.inferActorImpl).not.toHaveBeenCalled();
   });
@@ -322,7 +317,7 @@ describe("conflicting inputs", () => {
     await expect(
       resolve({
         credentialsFromConfigFile: "a.json",
-        enableManagedCredentials: true,
+        credentialProviders: "github",
       }),
     ).rejects.toThrow(/would contradict/);
   });

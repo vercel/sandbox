@@ -60,16 +60,13 @@ test("omits recovery commands for file input even when direct flags could expres
     await writeFile(
       path,
       JSON.stringify({
-        source: { type: "git", url: "https://github.com/acme/widgets.git" },
-        credentials: {
-          github: [
-            {
-              repositories: ["acme/widgets"],
-              actions: ["git:write"],
-              actAs: "42",
-            },
-          ],
-        },
+        github: [
+          {
+            repositories: ["acme/widgets"],
+            actions: ["git:write"],
+            actAs: "42",
+          },
+        ],
       }),
     );
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
@@ -78,7 +75,7 @@ test("omits recovery commands for file input even when direct flags could expres
       cmd.run(create, [
         "--scope=team",
         "--project=project",
-        `--credentials-github-from-config-file=${path}`,
+        `--credentials-file=${path}`,
       ]),
     ).rejects.toMatchObject({ options: { reason: "canceled", exitCode: 130 } });
     const text = stderr.mock.calls.flat().join("");
@@ -160,9 +157,8 @@ test.each(
       expect(command).toContain("--vcpus=8");
       expect(command).toContain("--credentials-github-repo=acme/widgets");
       expect(command).toContain(
-        "--credentials-github-action=github:issues:read",
+        "--credentials-github-action=github:issues:read,git:write",
       );
-      expect(command).toContain("--credentials-github-action=git:write");
       expect(command).toContain("--credentials-github-act-as=42");
       expect(command).not.toContain("--yes");
       expect(command).not.toContain("secret-rejection-test-token");

@@ -60,8 +60,10 @@ describe("writing", () => {
     const path = join(directory, "config.json");
     await persistConfiguration({ config, path });
 
-    const loaded = parseConfig(JSON.parse(await readFile(path, "utf8")));
-    expect(loaded).toEqual(config);
+    const loaded = parseConfig({
+      credentials: JSON.parse(await readFile(path, "utf8")),
+    });
+    expect(loaded).toEqual({ credentials: config.credentials });
   });
 
   test("persists source-free multi-repository groups without coalescing or inferring rights", async () => {
@@ -78,8 +80,8 @@ describe("writing", () => {
     const path = join(directory, "grouped.json");
     await persistConfiguration({ config: grouped, path });
     const written = await readFile(path, "utf8");
-    expect(written).toBe(`${JSON.stringify(grouped, null, 2)}\n`);
-    expect(parseConfig(JSON.parse(written))).toEqual(grouped);
+    expect(written).toBe(`${JSON.stringify(grouped.credentials, null, 2)}\n`);
+    expect(parseConfig({ credentials: JSON.parse(written) })).toEqual(grouped);
   });
 
   test("does not overwrite an existing file", async () => {

@@ -120,7 +120,7 @@ describe("create with managed credentials", () => {
   describe("project Bounds", () => {
     test("--yes --silent keeps the Bounds warning visible", async () => {
       mockHasProjectBounds.mockResolvedValue(false);
-      await createWith(["--enable-github-credentials", "--yes", "--silent"]);
+      await createWith(["--credentials=github", "--yes", "--silent"]);
       expect(errText()).toContain("This project has no Bounds");
       expect(stdout).not.toHaveBeenCalled();
       expect(mockCreate).toHaveBeenCalledOnce();
@@ -144,7 +144,7 @@ describe("create with managed credentials", () => {
 
   describe("requested access reaches the API", () => {
     test("sends the inferred source, identity, actions, and six vCPUs", async () => {
-      await createWith(["--enable-github-credentials", "--yes", "--silent"]);
+      await createWith(["--credentials=github", "--yes", "--silent"]);
       expect(mockCreate).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           source: {
@@ -172,7 +172,7 @@ describe("create with managed credentials", () => {
 
     test("an explicit --vcpus overrides the managed default", async () => {
       await createWith([
-        "--enable-github-credentials",
+        "--credentials=github",
         "--vcpus=2",
         "--yes",
         "--silent",
@@ -183,7 +183,7 @@ describe("create with managed credentials", () => {
     test("creates nothing when no actor can be resolved", async () => {
       mockInferActor.mockResolvedValue(undefined);
       await expect(
-        createWith(["--enable-github-credentials", "--yes", "--silent"]),
+        createWith(["--credentials=github", "--yes", "--silent"]),
       ).rejects.toThrow(/Can't resolve the GitHub account/);
       expect(mockCreate).not.toHaveBeenCalled();
     });
@@ -237,14 +237,14 @@ describe("create with managed credentials", () => {
     test("writes an explicit path", async () => {
       const path = join(directory, "explicit.json");
       await createWith([
-        "--enable-github-credentials",
+        "--credentials=github",
         `--credentials-github-persist-configuration=${path}`,
         "--yes",
         "--silent",
       ]);
-      expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
-        source: { type: "git", url: "https://github.com/vercel/api.git" },
-      });
+      expect(JSON.parse(await readFile(path, "utf8"))).toEqual(
+        mockCreate.mock.calls[0][0].credentials,
+      );
     });
 
     test("reports the created sandbox when the local write fails", async () => {
@@ -253,7 +253,7 @@ describe("create with managed credentials", () => {
 
       await expect(
         createWith([
-          "--enable-github-credentials",
+          "--credentials=github",
           `--credentials-github-persist-configuration=${path}`,
           "--yes",
           "--silent",
@@ -273,7 +273,7 @@ describe("create with managed credentials", () => {
       const path = join(directory, "never.json");
       await expect(
         createWith([
-          "--enable-github-credentials",
+          "--credentials=github",
           `--credentials-github-persist-configuration=${path}`,
           "--yes",
           "--silent",
@@ -286,7 +286,7 @@ describe("create with managed credentials", () => {
   describe("consent", () => {
     test("requires --yes before creating", async () => {
       await expect(
-        createWith(["--enable-github-credentials", "--silent"]),
+        createWith(["--credentials=github", "--silent"]),
       ).rejects.toMatchObject({ options: { reason: "confirmation_required" } });
       expect(mockCreate).not.toHaveBeenCalled();
     });
@@ -355,7 +355,7 @@ describe("create with managed credentials", () => {
           "--scope=team",
           "--project=project",
           "--name=existing",
-          "--enable-github-credentials",
+          "--credentials=github",
           "--yes",
           "echo",
         ]),
@@ -369,7 +369,7 @@ describe("create with managed credentials", () => {
     test("does not retry a rejected creation", async () => {
       mockCreate.mockRejectedValue(new Error("rejected"));
       await expect(
-        createWith(["--enable-github-credentials", "--yes", "--silent"]),
+        createWith(["--credentials=github", "--yes", "--silent"]),
       ).rejects.toThrow();
       expect(mockCreate).toHaveBeenCalledOnce();
     });

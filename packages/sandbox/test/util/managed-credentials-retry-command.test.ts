@@ -79,8 +79,7 @@ test.each(["sandbox", "vercel sandbox"] as const)(
       "--project=prj_selected",
       "--vcpus=6",
       "--credentials-github-repo=acme/widgets",
-      "--credentials-github-action=github:issues:read",
-      "--credentials-github-action=git:write",
+      "--credentials-github-action=github:issues:read,git:write",
       "--credentials-github-act-as=12345",
     ]);
     expect(command).not.toContain("--yes");

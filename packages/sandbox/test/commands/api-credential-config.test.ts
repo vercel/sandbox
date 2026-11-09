@@ -56,7 +56,7 @@ async function invoke(file: string, extra: string[] = []) {
   return cmd.run(create, [
     "--scope=team_fixture",
     "--project=project_fixture",
-    `--credentials-github-from-config-file=${file}`,
+    `--credentials-file=${file}`,
     "--yes",
     "--silent",
     ...extra,
@@ -70,7 +70,7 @@ test("one API-shaped document survives file input, request construction, persist
     "source" | "credentials"
   > = document;
   expect(sdkFields).toBe(document);
-  const original = JSON.stringify(document, null, 4) + "\n";
+  const original = JSON.stringify(document.credentials, null, 4) + "\n";
   const input = join(directory, "request.json");
   const persisted = join(directory, "persisted.json");
   await writeFile(input, original);
@@ -79,24 +79,22 @@ test("one API-shaped document survives file input, request construction, persist
   ]);
   expect(createSandbox).toHaveBeenCalledOnce();
   const first = createSandbox.mock.calls[0][0];
-  expect(first.source).toEqual(document.source);
+  expect(first.source).toBeUndefined();
   expect(first.credentials).toEqual(document.credentials);
   expect(first).not.toHaveProperty("commitAs");
   expect(first.teamId).toBe("team_fixture");
   expect(first.projectId).toBe("project_fixture");
   expect(await readFile(input, "utf8")).toBe(original);
   const saved = JSON.parse(await readFile(persisted, "utf8"));
-  expect(saved).toEqual(document);
-  expect(Object.keys(saved.source)).toEqual(Object.keys(document.source!));
+  expect(saved).toEqual(document.credentials);
+  expect(saved).not.toHaveProperty("source");
   expect(
-    saved.credentials.github.map(
-      (group: { repositories: string[] }) => group.repositories,
-    ),
+    saved.github.map((group: { repositories: string[] }) => group.repositories),
   ).toEqual(document.credentials.github.map((group) => group.repositories));
   createSandbox.mockClear();
   await invoke(persisted);
   const second = createSandbox.mock.calls[0][0];
-  expect(second.source).toEqual(document.source);
+  expect(second.source).toBeUndefined();
   expect(second.credentials).toEqual(document.credentials);
   expect(inferActor).not.toHaveBeenCalled();
 });
@@ -106,7 +104,7 @@ test("rejects commitAs in configuration files before requesting access", async (
   await writeFile(
     input,
     JSON.stringify({
-      ...apiDocument(),
+      ...apiDocument().credentials,
       commitAs: { name: "Ada", email: "ada@example.com" },
     }),
   );

@@ -33,7 +33,7 @@ export function resolvePersistPath(options: {
 
 /**
  * Write the configuration so it round-trips through
- * `--credentials-github-from-config-file`.
+ * `--credentials-file`.
  *
  * Uses an exclusive create so an existing file is never silently overwritten;
  * the user is told the path and asked to move it or choose another. Failures

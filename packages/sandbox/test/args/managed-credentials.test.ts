@@ -12,7 +12,7 @@ describe("managed credential arguments", () => {
   test("keeps absent flags absent", async () => {
     const args = await cmd.run(parser, []);
     expect(args.credentialsActions).toEqual([]);
-    expect(args.enableManagedCredentials).toBeUndefined();
+    expect(args.credentialProviders).toBeUndefined();
     expect(args.credentialsPersistConfiguration).toBeUndefined();
   });
   test("parses explicit rights and independent identities", async () => {
@@ -56,9 +56,10 @@ describe("managed credential arguments", () => {
 });
 
 test.each([
+  "credentials",
   "credentials-github-repo",
   "credentials-github-act-as",
-  "credentials-github-from-config-file",
+  "credentials-file",
   "credentials-github-from-sandbox",
   "credentials-github-persist-configuration",
 ])("--%s requires a nonempty value when present", async (flag) => {

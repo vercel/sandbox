@@ -91,9 +91,8 @@ test.each(["sandbox", "vercel sandbox"])(
       expect(command).toContain("--vcpus=8");
       expect(command).toContain("--credentials-github-repo=acme/widgets");
       expect(command).toContain(
-        "--credentials-github-action=github:issues:read",
+        "--credentials-github-action=github:issues:read,git:write",
       );
-      expect(command).toContain("--credentials-github-action=git:write");
       expect(command).toContain("--credentials-github-act-as=42");
       expect(command).not.toContain("secret-test-token");
       expect(command).not.toContain("--yes");
@@ -104,9 +103,7 @@ test.each(["sandbox", "vercel sandbox"])(
 
 test("invalid configuration is rejected before authentication", async () => {
   await expect(
-    cmd.run(parser, [
-      "--credentials-github-from-config-file=/nonexistent/sandbox-config.json",
-    ]),
+    cmd.run(parser, ["--credentials-file=/nonexistent/sandbox-config.json"]),
   ).rejects.toThrow("Can't read");
   expect(getVercelToken).not.toHaveBeenCalled();
 });

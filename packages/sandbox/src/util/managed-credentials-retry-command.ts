@@ -68,7 +68,7 @@ function directFlags(
       : undefined;
   return [
     `--credentials-github-repo=${repo}`,
-    ...group.actions.map((action) => `--credentials-github-action=${action}`),
+    `--credentials-github-action=${group.actions.join(",")}`,
     `--credentials-github-act-as=${username?.success ? username.data : group.actAs}`,
   ];
 }

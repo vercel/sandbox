@@ -102,9 +102,9 @@ describe("canonical API documents", () => {
     const parsed = parseConfig(document);
     expect(parsed).toEqual(before);
     const serialized = serializeConfig(parsed);
-    const reparsed = parseConfig(JSON.parse(serialized));
-    expect(reparsed).toEqual(before);
-    expect(serialized).toBe(`${JSON.stringify(before, null, 2)}\n`);
+    const reparsed = parseConfig({ credentials: JSON.parse(serialized) });
+    expect(reparsed).toEqual({ credentials: before.credentials });
+    expect(serialized).toBe(`${JSON.stringify(before.credentials, null, 2)}\n`);
     expect(serializeConfig(reparsed)).toBe(serialized);
     expect(Object.keys(parsed.source!)).toEqual(Object.keys(document.source!));
     expect(document).toEqual(before);
