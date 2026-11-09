@@ -11,9 +11,13 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 ARG PYTHON_VERSION
+ARG PYTHON_SHA256
 
 # Build separately so compilers and headers are not shipped in the runtime image.
-RUN curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz" -o /tmp/python.tar.xz && \
+# Require a repository-pinned digest before downloading or extracting sources.
+RUN test -n "${PYTHON_SHA256}" && \
+    curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz" -o /tmp/python.tar.xz && \
+    printf '%s  /tmp/python.tar.xz\n' "${PYTHON_SHA256}" | sha256sum --check --strict && \
     mkdir /tmp/python && \
     bsdtar -xJf /tmp/python.tar.xz --strip-components=1 -C /tmp/python && \
     cd /tmp/python && \
