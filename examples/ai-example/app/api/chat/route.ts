@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: gateway("anthropic/claude-sonnet-4.6"),
+    model: gateway("anthropic/claude-sonnet-5.5"),
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     onError: (error) => {
