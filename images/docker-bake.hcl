@@ -84,7 +84,9 @@ target "python" {
   }
 
   args = {
+    # XZ source checksum: https://www.python.org/downloads/release/python-3148/
     PYTHON_VERSION = "3.14.8"
+    PYTHON_SHA256  = "c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73"
   }
 }
 
@@ -98,7 +100,9 @@ target "python-315" {
   }
 
   args = {
+    # XZ source checksum: https://www.python.org/downloads/release/python-3150/
     PYTHON_VERSION = "3.15.0"
+    PYTHON_SHA256  = "ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
   }
 }
 
