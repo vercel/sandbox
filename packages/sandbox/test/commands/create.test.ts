@@ -4,10 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const { mockCreate, mockListNpmRegistries } = vi.hoisted(() => ({
-  mockCreate: vi.fn(),
-  mockListNpmRegistries: vi.fn(),
-}));
+const { mockCreate } = vi.hoisted(() => ({ mockCreate: vi.fn() }));
 
 vi.mock("../../src/client", () => ({
   sandboxClient: {
@@ -17,15 +14,6 @@ vi.mock("../../src/client", () => ({
     list: vi.fn(),
   },
   snapshotClient: { get: vi.fn(), list: vi.fn(), tree: vi.fn() },
-  fetchWithUserAgent: vi.fn(),
-}));
-
-vi.mock("@vercel/sandbox/api-client", () => ({
-  APIClient: vi.fn(() => ({ listNpmRegistries: mockListNpmRegistries })),
-}));
-
-vi.mock("../../src/util/check-latest-version", () => ({
-  startLatestVersionCheck: () => ({ report: vi.fn() }),
 }));
 
 vi.mock("@vercel/oidc", () => ({
@@ -74,54 +62,6 @@ describe("create command", () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ credentials: { npm: true } }),
     );
-  });
-
-  async function createWithNpmPreview(registries: unknown[]) {
-    mockListNpmRegistries.mockResolvedValue({ json: { registries } });
-    const stderr = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
-    const stdout = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
-    try {
-      const { create } = await import("../../src/commands/create.ts");
-      await cmd.run(create, [
-        "--credentials=npm",
-        "--scope=team",
-        "--project=proj",
-      ]);
-      return stderr.mock.calls.flat().join("");
-    } finally {
-      stderr.mockRestore();
-      stdout.mockRestore();
-    }
-  }
-
-  test("lists the team's npm registries after creating with --credentials=npm", async () => {
-    const output = await createWithNpmPreview([
-      { scope: null, url: "https://registry.npmjs.org/" },
-      { scope: "@acme", url: "https://npm.pkg.github.com/" },
-    ]);
-
-    expect(output).toContain(
-      "npm: https://registry.npmjs.org/, https://npm.pkg.github.com/ (@acme/*)",
-    );
-  });
-
-  test("warns when the team has no npm credentials", async () => {
-    const output = await createWithNpmPreview([]);
-
-    expect(output).toContain("npm: this team has no npm credentials");
-  });
-
-  test("strips terminal escapes from team registry URLs", async () => {
-    const output = await createWithNpmPreview([
-      { scope: null, url: "https://registry.npmjs.org/\u001b]8;;evil\u0007" },
-    ]);
-
-    expect(output).toContain("https://registry.npmjs.org/]8;;evil");
-    expect(output).not.toContain("\u001b");
   });
 
   test("rejects credentials it does not support, listing the supported ones", async () => {

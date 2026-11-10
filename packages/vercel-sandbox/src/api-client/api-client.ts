@@ -23,7 +23,6 @@ import {
   CreateSnapshotResponse,
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
-  NpmRegistriesResponse,
   UpdateSandboxResponse,
   DrivesResponse,
   DriveResponse,
@@ -1221,17 +1220,6 @@ export class APIClient extends BaseClient {
       SandboxAndSessionResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
         query,
-        signal: params.signal,
-      }),
-    );
-  }
-
-  async listNpmRegistries(params: { projectId: string; signal?: AbortSignal }) {
-    return parseOrThrow(
-      NpmRegistriesResponse,
-      await this.request(`/v2/sandboxes/credentials/npm`, {
-        query: { projectId: params.projectId },
-        method: "GET",
         signal: params.signal,
       }),
     );

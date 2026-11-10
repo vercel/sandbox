@@ -7,8 +7,7 @@ import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
 import { scope } from "../args/scope";
-import { APIClient } from "@vercel/sandbox/api-client";
-import { fetchWithUserAgent, sandboxClient } from "../client";
+import { sandboxClient } from "../client";
 import { snapshotId } from "../args/snapshot-id";
 import { publishPorts } from "../args/ports";
 import { snapshotRetentionArgs } from "../args/snapshot-retention";
@@ -196,17 +195,6 @@ export const create = cmd.command({
     const credentialsObj = credentials?.includes("npm")
       ? { npm: true as const }
       : undefined;
-    const npmRegistries =
-      !silent && credentials?.includes("npm")
-        ? new APIClient({
-            teamId: scope.team,
-            token: scope.token,
-            fetch: fetchWithUserAgent,
-          })
-            .listNpmRegistries({ projectId: scope.project })
-            .then((response) => response.json.registries)
-            .catch(() => undefined)
-        : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -275,7 +263,6 @@ export const create = cmd.command({
         scope,
         action: "created",
         connectHint: !agent && !connect && __printConnectHint,
-        npmRegistries: await npmRegistries,
       });
       versionCheck?.report();
     }

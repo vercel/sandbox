@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import type { Sandbox } from "@vercel/sandbox";
-import type { NpmRegistryData } from "@vercel/sandbox/api-client";
 
 interface Scope {
   team: string;
@@ -25,9 +24,8 @@ export function printSandboxSummary(opts: {
   action: string;
   /** Append a "connect with" hint so the output never ends at a dead end. */
   connectHint?: boolean;
-  npmRegistries?: NpmRegistryData[];
 }) {
-  const { sandbox, scope, action, connectHint, npmRegistries } = opts;
+  const { sandbox, scope, action, connectHint } = opts;
   const teamDisplay = scope.teamSlug ?? scope.team;
   const projectDisplay = scope.projectSlug ?? scope.project;
   const routes = sandbox.routes.filter(
@@ -49,25 +47,6 @@ export function printSandboxSummary(opts: {
       chalk.dim("   │ ") +
         "secure compute network: " +
         chalk.cyan(sandbox.networkId) +
-        "\n",
-    );
-  }
-
-  if (npmRegistries) {
-    const registries = npmRegistries.map((registry) =>
-      chalk.cyan(
-        stripControlCharacters(
-          registry.scope
-            ? `${registry.url} (${registry.scope}/*)`
-            : registry.url,
-        ),
-      ),
-    );
-    process.stderr.write(
-      chalk.dim("   │ ") +
-        "npm: " +
-        (registries.join(", ") ||
-          chalk.yellow("this team has no npm credentials")) +
         "\n",
     );
   }
@@ -107,9 +86,4 @@ export function printSandboxSummary(opts: {
         "\n",
     );
   }
-}
-
-// Scopes and URLs come from team-controlled config, so drop terminal escapes.
-function stripControlCharacters(value: string) {
-  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, "");
 }
