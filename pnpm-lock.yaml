@@ -404,8 +404,8 @@ importers:
         specifier: 3.1.7
         version: 3.1.7
       undici:
-        specifier: ^7.30.1
-        version: 7.30.2
+        specifier: ^8.12.4
+        version: 8.12.4
       xdg-app-paths:
         specifier: 5.1.0
         version: 5.1.0
@@ -6367,6 +6367,10 @@ packages:
   undici@7.22.0:
     resolution: {integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==}
     engines: {node: '>=20.18.1'}
+
+  undici@8.12.4:
+    resolution: {integrity: sha512-8Mx+uNKKER2bA4AdtedkqRbwUCIJFr2nJckXRe5yrDqzePqwLP7VNcctN8/XdmDSbF7mS+jJKIszlL+vbam1VA==}
+    engines: {node: '>=22.19.0'}
 
   undici@7.30.0:
     resolution: {integrity: sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==}
@@ -13142,6 +13146,8 @@ snapshots:
   undici-types@7.16.0: {}
 
   undici@7.22.0: {}
+
+  undici@8.12.4: {}
 
   undici@7.30.0: {}
 
