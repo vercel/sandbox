@@ -12,5 +12,6 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 - Node.js 22.23.4, 24.22.1, or 26.12.1 (depending on the image tag), with
   `npm`, `npx` and `corepack`
 - `pnpm` 11
+- `curl`
 - `git`
 - `libatomic1`
