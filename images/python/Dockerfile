@@ -21,7 +21,7 @@ RUN test -n "${PYTHON_SHA256}" && \
     mkdir /tmp/python && \
     bsdtar -xJf /tmp/python.tar.xz --strip-components=1 -C /tmp/python && \
     cd /tmp/python && \
-    ./configure --prefix=/usr/local --with-ensurepip=install --disable-test-modules && \
+    ./configure --prefix=/usr/local --with-ensurepip=install --disable-test-modules --enable-loadable-sqlite-extensions && \
     make -j "$(nproc)" && \
     make install && \
     ln -s python3 /usr/local/bin/python && \
@@ -57,6 +57,7 @@ RUN curl --version && \
     python3 --version && \
     "python${PYTHON_VERSION%.*}" --version && \
     python -c "import _decimal, bz2, ctypes, curses, dbm.ndbm, lzma, readline, sqlite3, ssl, uuid, zlib; from compression import zstd" && \
+    python -c "import sqlite3, unittest; t = unittest.TestCase(); c = sqlite3.connect(':memory:'); c.enable_load_extension(True); t.assertRaisesRegex(sqlite3.OperationalError, 'cannot open shared object file', c.load_extension, '/nonexistent/ext'); c.enable_load_extension(False); t.assertRaisesRegex(sqlite3.OperationalError, 'not authorized', c.load_extension, '/nonexistent/ext')" && \
     python -c "import packaging, setuptools, wheel; from zoneinfo import ZoneInfo; ZoneInfo('America/New_York'); import socket; assert socket.getservbyname('https', 'tcp') == 443; from pathlib import Path; assert Path('/etc/mime.types').is_file()" && \
     python -c "from importlib.util import find_spec; assert find_spec('test') is None; assert find_spec('_testcapi') is None" && \
     pip --version && \

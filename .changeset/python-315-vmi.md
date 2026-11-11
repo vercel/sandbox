@@ -2,4 +2,4 @@
 "sandbox-image-python": minor
 ---
 
-Add a Python 3.15 Vercel Managed Image with pip, venv, uv, and uvx, publishing both `3.15` and `3.15.0` tags. Share a single source-build Dockerfile parameterized by `PYTHON_VERSION` with the Python 3.14 image, now pinned to CPython 3.14.8. Preserve the Ubuntu image's runtime data, Berkeley DB support, and Python packaging tools while excluding CPython's test modules.
+Add a Python 3.15 Vercel Managed Image with pip, venv, uv, and uvx, publishing both `3.15` and `3.15.0` tags. Share a single source-build Dockerfile parameterized by `PYTHON_VERSION` with the Python 3.14 image, now pinned to CPython 3.14.8. Preserve the Ubuntu image's runtime data, Berkeley DB support, loadable SQLite extensions (`Connection.enable_load_extension()` and `Connection.load_extension()`), and Python packaging tools while excluding CPython's test modules.

@@ -19,3 +19,4 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 - `uv` and `uvx` (installed via pip)
 - `media-types`, `netbase`, and `tzdata` (MIME types, network services, and time zones)
 - Standard-library extension dependencies, including Berkeley DB for `dbm.ndbm`
+- Loadable SQLite extension support (`sqlite3.Connection.enable_load_extension()` and `load_extension()`)
