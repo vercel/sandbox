@@ -43,6 +43,7 @@ import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type { SandboxCredentials } from "../sandbox.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
@@ -306,6 +307,7 @@ export class APIClient extends BaseClient {
       mounts?: SandboxMetaData["mounts"];
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
+      credentials?: SandboxCredentials;
       signal?: AbortSignal;
     }>,
   ) {
@@ -337,6 +339,7 @@ export class APIClient extends BaseClient {
           mounts: params.mounts,
           region: params.region,
           failoverRegions: params.failoverRegions,
+          credentials: params.credentials,
           ...privateParams,
         }),
         signal: params.signal,

@@ -1974,6 +1974,18 @@ describe("APIClient", () => {
       expect(JSON.parse(opts.body)).not.toHaveProperty("networkId");
     });
 
+    it("forwards credentials in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        credentials: { npm: true },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).credentials).toEqual({ npm: true });
+    });
+
     it("forwards region and failoverRegions in the request body", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 

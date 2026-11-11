@@ -152,6 +152,13 @@ export interface BaseCreateSandboxParams {
    */
   persistent?: boolean;
   /**
+   * Vercel managed credentials injected into the sandbox network policy.
+   *
+   * @example
+   * await Sandbox.create({ credentials: { npm: true } });
+   */
+  credentials?: SandboxCredentials;
+  /**
    * Default snapshot expiration in milliseconds.
    * When set, snapshots created for this sandbox will expire after this duration.
    * Use `0` for no expiration.
@@ -182,6 +189,16 @@ export interface BaseCreateSandboxParams {
    * Use this to re-warm caches, restore transient state, or run other setup logic.
    */
   onResume?: (sandbox: Sandbox) => Promise<void>;
+}
+
+/**
+ * Vercel managed credentials injected into the sandbox network policy.
+ */
+export interface SandboxCredentials {
+  /**
+   * Let the sandbox install your team's private npm packages.
+   */
+  npm?: true;
 }
 
 export type SandboxMountMode = "read-write" | "snapshot";
@@ -815,6 +832,7 @@ export class Sandbox implements ExecutionContext {
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
+      credentials: params?.credentials,
       ...privateParams,
     });
 

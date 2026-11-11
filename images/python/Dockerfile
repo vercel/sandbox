@@ -7,6 +7,7 @@ ARG PYTHON_VERSION=3.14
 
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
+  curl \
   git \
   "python${PYTHON_VERSION}" \
   "python${PYTHON_VERSION}-venv" \
@@ -26,7 +27,8 @@ WORKDIR /vercel
 # User-installed console scripts (pip, uv tool) land in ~/.local/bin.
 ENV PATH="/vercel/.local/bin:${PATH}"
 
-RUN git --version && \
+RUN curl --version && \
+  git --version && \
   python --version | grep -F "Python ${PYTHON_VERSION}." && \
   python3 --version && \
   pip --version && \
