@@ -50,6 +50,22 @@ describe("token", () => {
   });
 
   describe("environment variable fallbacks", () => {
+    test("preserves OIDC precedence over the VERCEL_TOKEN alias", async () => {
+      vi.stubEnv("VERCEL_TOKEN", "alias-token");
+      vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc-token");
+      mockGetVercelOidcToken.mockResolvedValue("refreshed-oidc");
+      try {
+        const { token } = await import("../../src/args/auth.ts");
+        const command = cmd.command({
+          name: "test",
+          args: { token },
+          handler: (args) => args,
+        });
+        expect((await cmd.run(command, [])).token).toBe("refreshed-oidc");
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
     test("uses VERCEL_AUTH_TOKEN when set", async () => {
       process.env.VERCEL_AUTH_TOKEN = "env-auth-token";
 

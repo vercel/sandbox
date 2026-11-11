@@ -25,7 +25,7 @@ export const sandboxClient: Pick<
       const sandbox = await Sandbox.create({ fetch: fetchWithUserAgent, ...params });
       trackSession(sandbox, "created");
       return sandbox;
-    }),
+    }, "raw"),
   fork: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
@@ -145,7 +145,19 @@ const fetchWithUserAgent: typeof globalThis.fetch = async (input, init) => {
   return fetch(input, { ...init, headers });
 };
 
-async function withErrorHandling<T>(factory: () => Promise<T>): Promise<T> {
+/**
+ * Creation is deliberately exempt from both behaviors.
+ *
+ * A retry after an uncertain response can leave a duplicate Sandbox and a
+ * duplicate credential grant, and the caller classifies the API's rejection
+ * itself. Formatting here would write the response to a temporary file only
+ * for that caller to unwrap the error and classify it again.
+ */
+async function withErrorHandling<T>(
+  factory: () => Promise<T>,
+  mode: "retry-auth" | "raw" = "retry-auth",
+): Promise<T> {
+  if (mode === "raw") return factory();
   try {
     return await withFreshAuthRetry(factory);
   } catch (error) {
