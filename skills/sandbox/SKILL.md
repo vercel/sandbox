@@ -188,8 +188,8 @@ const sandbox = await Sandbox.create({ credentials: { npm: true } });
 await sandbox.runCommand("npm", ["install"]);
 ```
 
-- Covers installs with npm, pnpm, and Yarn 1. Publishing from the sandbox stays unauthenticated.
-- When the team has no npm credentials, the sandbox is created without them.
+- Covers installs with npm, pnpm, and Bun. Publishing from the sandbox stays unauthenticated.
+- When the team has no npm credentials, creation fails with a 400 error.
 - CLI: `sandbox create --credentials=npm`.
 
 ### From Tarball
