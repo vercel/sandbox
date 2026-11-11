@@ -1,3 +1,5 @@
+import { testConfig } from "../../test/config.js";
+import { APIError } from "./api-error.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getVercelOidcToken } = vi.hoisted(() => ({
@@ -5,10 +7,10 @@ const { getVercelOidcToken } = vi.hoisted(() => ({
 }));
 vi.mock("@vercel/oidc", () => ({ getVercelOidcToken }));
 
-import { APIClient } from "./api-client.js";
+import { AuthenticatedClient } from "./authenticated-client.js";
 import type { RequestParams } from "./base-client.js";
 
-class TestClient extends APIClient {
+class TestClient extends AuthenticatedClient {
   send(path = "/v2/sandboxes", params?: RequestParams) {
     return this.request(path, params);
   }
@@ -38,7 +40,13 @@ describe("APIClient OIDC token refresh", () => {
     new Headers(fetchMock.mock.calls[call][1]?.headers).get("authorization");
 
   const client = (token: string) =>
-    new TestClient({ teamId: "team_fallback", token, fetch: fetchMock });
+    new TestClient({
+      teamId: "team_fallback",
+      token,
+      fetch: fetchMock,
+      config: testConfig,
+      apiError: APIError,
+    });
 
   it("does not consult @vercel/oidc while the token is far from expiring", async () => {
     const token = jwt({ owner_id: "team_1", exp: nowSeconds() + 3600 });

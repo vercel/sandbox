@@ -1,10 +1,6 @@
 import os from "os";
 import { z } from "zod";
-import { VERSION } from "../version.js";
-
-const USER_AGENT = `${os.hostname()} @ vercel/sandbox/${VERSION} node-${
-  process.version
-} ${os.platform()} (${os.arch()})`;
+import type { SDKConfig } from "../config.js";
 
 const ISSUER = new URL("https://vercel.com");
 const CLIENT_ID = "cl_HYyOPBNtFMfHhaUn9L4QPfTZz6TP47bp";
@@ -43,13 +39,15 @@ const IntrospectionResponse = z
  * @see https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest
  * @see https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse
  */
-async function authorizationServerMetadata(): Promise<AuthorizationServerMetadata> {
+async function authorizationServerMetadata(
+  userAgent: string,
+): Promise<AuthorizationServerMetadata> {
   if (_as) return _as;
 
   const response = await fetch(
     new URL(".well-known/openid-configuration", ISSUER),
     {
-      headers: { "Content-Type": "application/json", "user-agent": USER_AGENT },
+      headers: { "Content-Type": "application/json", "user-agent": userAgent },
     },
   );
 
@@ -57,8 +55,9 @@ async function authorizationServerMetadata(): Promise<AuthorizationServerMetadat
   return _as;
 }
 
-export async function OAuth() {
-  const as = await authorizationServerMetadata();
+export async function OAuth(config: SDKConfig) {
+  const userAgent = `${os.hostname()} @ ${config.name}/${config.version} node-${process.version} ${os.platform()} (${os.arch()})`;
+  const as = await authorizationServerMetadata(userAgent);
   return {
     /**
      * Perform the Device Authorization Request
@@ -71,7 +70,7 @@ export async function OAuth() {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "user-agent": USER_AGENT,
+          "user-agent": userAgent,
         },
         body: new URLSearchParams({
           client_id: CLIENT_ID,
@@ -113,7 +112,7 @@ export async function OAuth() {
             method: "POST",
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
-              "user-agent": USER_AGENT,
+              "user-agent": userAgent,
             },
             body: new URLSearchParams({
               client_id: CLIENT_ID,
@@ -165,7 +164,7 @@ export async function OAuth() {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "user-agent": USER_AGENT,
+          "user-agent": userAgent,
         },
         body: new URLSearchParams({ token, client_id: CLIENT_ID }),
       });
@@ -185,7 +184,7 @@ export async function OAuth() {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "user-agent": USER_AGENT,
+          "user-agent": userAgent,
         },
         body: new URLSearchParams({
           client_id: CLIENT_ID,
@@ -210,7 +209,7 @@ export async function OAuth() {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "user-agent": USER_AGENT,
+          "user-agent": userAgent,
         },
         body: new URLSearchParams({ token }),
       });

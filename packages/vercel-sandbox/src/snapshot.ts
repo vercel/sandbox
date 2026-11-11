@@ -3,7 +3,7 @@ import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { SnapshotMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
-import { attachPaginator } from "./utils/paginator.js";
+import { attachPaginator } from "../../shared/src/utils/paginator.js";
 
 export interface SerializedSnapshot {
   snapshot: SnapshotMetadata;
@@ -209,8 +209,9 @@ export class Snapshot {
    * ```
    */
   static async tree(
-    params: { snapshotId: string } &
-      Partial<Parameters<APIClient["getSnapshotTree"]>[0]> &
+    params: { snapshotId: string } & Partial<
+      Parameters<APIClient["getSnapshotTree"]>[0]
+    > &
       Partial<Credentials> &
       WithFetchOptions,
   ) {

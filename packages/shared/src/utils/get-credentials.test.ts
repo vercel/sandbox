@@ -1,3 +1,4 @@
+import { testConfig } from "../../test/config.js";
 import { test, expect, beforeEach, vi } from "vitest";
 import {
   getCredentials,
@@ -21,10 +22,14 @@ beforeEach(() => {
 
 test("explains how to set up oidc in local", async () => {
   delete process.env.VERCEL_URL;
-  await expect(getCredentials()).rejects.toThrowError(LocalOidcContextError);
+  await expect(getCredentials(undefined, testConfig)).rejects.toThrowError(
+    LocalOidcContextError,
+  );
 });
 
 test("explains how to set up oidc in vercel", async () => {
   process.env.VERCEL_URL = "example.vercel.sh";
-  await expect(getCredentials()).rejects.toThrowError(VercelOidcContextError);
+  await expect(getCredentials(undefined, testConfig)).rejects.toThrowError(
+    VercelOidcContextError,
+  );
 });

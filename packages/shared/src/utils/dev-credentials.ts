@@ -1,7 +1,8 @@
 import pico from "picocolors";
 import type { Credentials } from "./get-credentials.js";
 import ms from "ms";
-import * as Log from "./log.js";
+import { createLogger } from "./log.js";
+import type { SDKConfig } from "../config.js";
 
 async function importAuth() {
   const auth = await import("../auth/index.js");
@@ -17,42 +18,43 @@ export function shouldPromptForCredentials(): boolean {
   );
 }
 
-/**
- * Returns cached credentials for the given team/project combination.
- *
- * @remarks
- * The cache is keyed by `teamId` and `projectId`. A new credential generation
- * is triggered only when these values change or when a previous attempt failed.
- *
- * **Important:** Successfully resolved credentials are cached indefinitely and
- * will not be refreshed even if the token expires. Cache invalidation only occurs
- * on rejection (error). This is intentional for development use cases where
- * short-lived sessions don't require proactive token refresh.
- */
-export const cachedGenerateCredentials = (() => {
-  let cache:
-    | [{ teamId?: string; projectId?: string }, Promise<Credentials>]
-    | null = null;
-  return async (opts: { projectId?: string; teamId?: string }) => {
-    if (
-      !cache ||
-      cache[0].teamId !== opts.teamId ||
-      cache[0].projectId !== opts.projectId
-    ) {
-      const promise = generateCredentials(opts).catch((err) => {
-        cache = null;
-        throw err;
-      });
-      cache = [opts, promise];
-    }
-    const v = await cache[1];
-    Log.write(
-      "warn",
-      `using inferred credentials team=${v.teamId} project=${v.projectId}`,
-    );
-    return v;
-  };
-})();
+const credentialsCacheSymbol = Symbol.for("@vercel/sandbox/credentials-cache");
+type CredentialsCache =
+  | [{ teamId?: string; projectId?: string }, Promise<Credentials>]
+  | null;
+const credentialsState = globalThis as typeof globalThis & {
+  [credentialsCacheSymbol]?: CredentialsCache;
+};
+
+// Share credentials with Sandbox and Drives to avoid duplicate sign-in flows.
+// Resolved credentials stay cached until the scope changes or a request fails.
+export async function cachedGenerateCredentials(
+  opts: {
+    projectId?: string;
+    teamId?: string;
+  },
+  config: SDKConfig,
+): Promise<Credentials> {
+  const Log = createLogger(config.name);
+  let cache = credentialsState[credentialsCacheSymbol];
+  if (
+    !cache ||
+    cache[0].teamId !== opts.teamId ||
+    cache[0].projectId !== opts.projectId
+  ) {
+    const promise = generateCredentials(opts, config).catch((err) => {
+      credentialsState[credentialsCacheSymbol] = null;
+      throw err;
+    });
+    credentialsState[credentialsCacheSymbol] = cache = [opts, promise];
+  }
+  const credentials = await cache[1];
+  Log.write(
+    "warn",
+    `using inferred credentials team=${credentials.teamId} project=${credentials.projectId}`,
+  );
+  return credentials;
+}
 
 /**
  * Generates credentials by authenticating and inferring scope.
@@ -61,10 +63,14 @@ export const cachedGenerateCredentials = (() => {
  * {@link cachedGenerateCredentials} instead, which caches the result
  * to avoid redundant authentication flows.
  */
-export async function generateCredentials(opts: {
-  teamId?: string;
-  projectId?: string;
-}): Promise<Credentials> {
+export async function generateCredentials(
+  opts: {
+    teamId?: string;
+    projectId?: string;
+  },
+  config: SDKConfig,
+): Promise<Credentials> {
+  const Log = createLogger(config.name);
   const { OAuth, pollForToken, getAuth, updateAuthConfig, inferScope } =
     await importAuth();
   let auth = getAuth();
@@ -72,14 +78,18 @@ export async function generateCredentials(opts: {
     const timeout: ms.StringValue = process.env.VERCEL_URL
       ? /* when deployed to vercel we don't want to have a long timeout */ "1 minute"
       : "5 minutes";
-    auth = await signInAndGetToken({ OAuth, pollForToken, getAuth }, timeout);
+    auth = await signInAndGetToken(
+      { OAuth: () => OAuth(config), pollForToken, getAuth },
+      timeout,
+      config,
+    );
   }
   if (
     auth?.refreshToken &&
     auth.expiresAt &&
     auth.expiresAt.getTime() <= Date.now()
   ) {
-    const oauth = await OAuth();
+    const oauth = await OAuth(config);
     const newToken = await oauth.refreshToken(auth.refreshToken);
     auth = {
       expiresAt: new Date(Date.now() + newToken.expires_in * 1000),
@@ -94,7 +104,7 @@ export async function generateCredentials(opts: {
       [
         `Failed to retrieve authentication token.`,
         `${pico.bold("hint:")} Set VERCEL_OIDC_TOKEN or provide a Vercel API token.`,
-        "├▶ Sandbox docs: https://vercel.com/docs/vercel-sandbox",
+        `├▶ ${config.docsLabel} docs: ${config.docsUrl}`,
         "╰▶ Access tokens: https://vercel.com/kb/guide/how-do-i-use-a-vercel-api-access-token",
       ].join("\n"),
     );
@@ -127,10 +137,14 @@ export async function generateCredentials(opts: {
 export async function signInAndGetToken(
   auth: Pick<
     Awaited<ReturnType<typeof importAuth>>,
-    "OAuth" | "getAuth" | "pollForToken"
-  >,
+    "getAuth" | "pollForToken"
+  > & {
+    OAuth: () => ReturnType<Awaited<ReturnType<typeof importAuth>>["OAuth"]>;
+  },
   timeout: ms.StringValue,
+  config: SDKConfig,
 ) {
+  const Log = createLogger(config.name);
   Log.write("warn", [
     `No VERCEL_OIDC_TOKEN environment variable found, initiating device authorization flow...`,
     `│  ${pico.bold("help:")} this flow only happens on development environment.`,

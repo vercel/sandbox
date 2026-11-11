@@ -27,7 +27,7 @@ import type {
   NetworkPolicyMatcher,
 } from "./network-policy.js";
 import { fromAPINetworkPolicy } from "./utils/network-policy.js";
-import { attachPaginator } from "./utils/paginator.js";
+import { attachPaginator } from "../../shared/src/utils/paginator.js";
 import { FileSystem } from "./filesystem.js";
 import { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 import type { ExecutionContext } from "./execution-context.js";

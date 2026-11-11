@@ -8,10 +8,12 @@ let agentNamePromise: Promise<string | undefined> | undefined;
  * Attribution honors the telemetry opt-out variables: disabling telemetry
  * also stops the agent phrase from being added to the user-agent header.
  */
-export function detectAgentName(): Promise<string | undefined> {
+export function detectAgentName(
+  telemetryDisabledEnv: string[],
+): Promise<string | undefined> {
   if (
     process.env.VERCEL_TELEMETRY_DISABLED ||
-    process.env.VERCEL_SANDBOX_TELEMETRY_DISABLED
+    telemetryDisabledEnv.some((name) => process.env[name])
   ) {
     return Promise.resolve(undefined);
   }

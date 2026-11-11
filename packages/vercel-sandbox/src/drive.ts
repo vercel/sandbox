@@ -3,7 +3,7 @@ import type { WithFetchOptions } from "./api-client/api-client.js";
 import type { DriveMetadata } from "./api-client/index.js";
 import { APIClient } from "./api-client/index.js";
 import { type Credentials, getCredentials } from "./utils/get-credentials.js";
-import { attachPaginator } from "./utils/paginator.js";
+import { attachPaginator } from "../../shared/src/utils/paginator.js";
 import { DEFAULT_SANDBOX_REGION, type SandboxRegion } from "./constants.js";
 
 export interface SerializedDrive {

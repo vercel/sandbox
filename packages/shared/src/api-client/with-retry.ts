@@ -17,6 +17,7 @@ export interface RequestOptions {
  */
 export function withRetry<T extends RequestInit>(
   rawFetch: (url: URL | string, init?: T) => Promise<Response>,
+  ErrorConstructor: typeof APIError = APIError,
 ) {
   return async (
     url: URL | string,
@@ -58,7 +59,7 @@ export function withRetry<T extends RequestInit>(
             // Bail if the retry-after is in more than 20 seconds, as we don't
             // want to wait for that long before returning to the client.
             if (retryAfter > 20) {
-              return bail(new APIError(response));
+              return bail(new ErrorConstructor(response));
             }
 
             const hasRetriesRemaining =
@@ -67,7 +68,7 @@ export function withRetry<T extends RequestInit>(
               await waitForRetry(retryAfter * 1000, opts.signal);
             }
 
-            throw new APIError(response);
+            throw new ErrorConstructor(response);
           }
 
           /**
@@ -75,7 +76,7 @@ export function withRetry<T extends RequestInit>(
            * order to retry.
            */
           if (response.status >= 500 && response.status < 600) {
-            throw new APIError(response);
+            throw new ErrorConstructor(response);
           }
 
           return response;
@@ -105,7 +106,7 @@ export function withRetry<T extends RequestInit>(
        * ran out of attempts we will respond with the last response
        * we obtained.
        */
-      if (error instanceof APIError) {
+      if (error instanceof ErrorConstructor) {
         return error.response;
       }
 

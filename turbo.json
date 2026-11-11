@@ -10,7 +10,7 @@
       "cache": false
     },
     "typecheck": {
-      "dependsOn": ["build", "^build"],
+      "dependsOn": ["build", "^build", "^typecheck"],
       "inputs": ["tsconfig.json", "src/**", "node_modules/**"],
       "outputs": []
     },
@@ -28,7 +28,7 @@
       "cache": false
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^typecheck"],
       "inputs": ["src/**", "test/**"],
       "outputs": []
     },

@@ -1,0 +1,29 @@
+{
+  "name": "@vercel/sandbox-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vercel/detect-agent": "1.2.5",
+    "@vercel/oidc": "4.0.0",
+    "async-retry": "1.3.3",
+    "ms": "2.1.3",
+    "picocolors": "^1.1.1",
+    "undici": "^8.12.4",
+    "xdg-app-paths": "5.1.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/async-retry": "1.4.9",
+    "@types/ms": "2.1.0",
+    "@types/node": "22.15.12",
+    "dotenv": "16.5.0",
+    "factoree": "^0.1.2",
+    "typescript": "5.8.3",
+    "vitest": "catalog:"
+  }
+}

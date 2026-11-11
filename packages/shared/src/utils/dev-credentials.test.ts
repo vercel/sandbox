@@ -1,8 +1,9 @@
+import { testConfig } from "../../test/config.js";
 import { signInAndGetToken, generateCredentials } from "./dev-credentials.js";
 import { describe, expect, test, vi, beforeEach, type Mock } from "vitest";
 import { factory } from "factoree";
 import { setTimeout } from "node:timers/promises";
-import { DeviceAuthorizationRequest, OAuth } from "../auth.js";
+import { DeviceAuthorizationRequest, OAuth } from "../auth/oauth.js";
 
 vi.mock("picocolors");
 
@@ -39,6 +40,7 @@ describe("signInAndGetToken", () => {
         },
       },
       `100 milliseconds`,
+      testConfig,
     );
 
     await expect(promise).rejects.toThrowError(
@@ -47,15 +49,15 @@ describe("signInAndGetToken", () => {
 
     const printed = consoleError.mock.calls.map((x) => x.join(" ")).join("\n");
     expect(printed).toMatchInlineSnapshot(`
-      "<yellow><dim>[vercel/sandbox]</dim> No VERCEL_OIDC_TOKEN environment variable found, initiating device authorization flow...
-      <dim>[vercel/sandbox]</dim> │  <bold>help:</bold> this flow only happens on development environment.
-      <dim>[vercel/sandbox]</dim> │  In production, make sure to set up a proper token, or set up Vercel OIDC [https://vercel.com/docs/oidc].</yellow>
-      <blue><dim>[vercel/sandbox]</dim> ╰▶ To authenticate, visit: https://example.vercel.sh/device_code?code=user_code
-      <dim>[vercel/sandbox]</dim>    or visit <italic>https://example.vercel.sh/device_code</italic> and type <bold>user_code</bold>
-      <dim>[vercel/sandbox]</dim>    Press <bold><return></bold> to open in your browser</blue>
-      <red><dim>[vercel/sandbox]</dim> <bold>error:</bold> Authentication failed: Authentication flow timed out after 100 milliseconds.
-      <dim>[vercel/sandbox]</dim> │  Make sure to provide a token to avoid prompting an interactive flow.
-      <dim>[vercel/sandbox]</dim> ╰▶ <bold>help:</bold> Link your project with <italic><dim>\`</dim>npx vercel link<dim>\`</dim></italic> to refresh OIDC token automatically.</red>"
+      "<yellow><dim>[vercel/drives]</dim> No VERCEL_OIDC_TOKEN environment variable found, initiating device authorization flow...
+      <dim>[vercel/drives]</dim> │  <bold>help:</bold> this flow only happens on development environment.
+      <dim>[vercel/drives]</dim> │  In production, make sure to set up a proper token, or set up Vercel OIDC [https://vercel.com/docs/oidc].</yellow>
+      <blue><dim>[vercel/drives]</dim> ╰▶ To authenticate, visit: https://example.vercel.sh/device_code?code=user_code
+      <dim>[vercel/drives]</dim>    or visit <italic>https://example.vercel.sh/device_code</italic> and type <bold>user_code</bold>
+      <dim>[vercel/drives]</dim>    Press <bold><return></bold> to open in your browser</blue>
+      <red><dim>[vercel/drives]</dim> <bold>error:</bold> Authentication failed: Authentication flow timed out after 100 milliseconds.
+      <dim>[vercel/drives]</dim> │  Make sure to provide a token to avoid prompting an interactive flow.
+      <dim>[vercel/drives]</dim> ╰▶ <bold>help:</bold> Link your project with <italic><dim>\`</dim>npx vercel link<dim>\`</dim></italic> to refresh OIDC token automatically.</red>"
     `);
   });
 });
@@ -100,7 +102,7 @@ describe("generateCredentials", () => {
       created: false,
     });
 
-    const result = await generateCredentials({});
+    const result = await generateCredentials({}, testConfig);
 
     expect(auth.pollForToken).toHaveBeenCalled();
     expect(result).toEqual({
@@ -137,7 +139,7 @@ describe("generateCredentials", () => {
       created: false,
     });
 
-    await generateCredentials({});
+    await generateCredentials({}, testConfig);
 
     expect(auth.pollForToken).toHaveBeenCalled();
   });
@@ -151,7 +153,7 @@ describe("generateCredentials", () => {
       created: false,
     });
 
-    const result = await generateCredentials({});
+    const result = await generateCredentials({}, testConfig);
 
     expect(auth.pollForToken).not.toHaveBeenCalled();
     expect(auth.OAuth).not.toHaveBeenCalled();
@@ -171,7 +173,7 @@ describe("generateCredentials", () => {
       created: false,
     });
 
-    await generateCredentials({});
+    await generateCredentials({}, testConfig);
 
     expect(auth.inferScope).toHaveBeenCalledTimes(1);
   });
@@ -179,10 +181,13 @@ describe("generateCredentials", () => {
   test("does not call inferScope when both teamId and projectId are provided", async () => {
     (auth.getAuth as Mock).mockReturnValue({ token: "valid_token" });
 
-    const result = await generateCredentials({
-      teamId: "provided_team",
-      projectId: "provided_project",
-    });
+    const result = await generateCredentials(
+      {
+        teamId: "provided_team",
+        projectId: "provided_project",
+      },
+      testConfig,
+    );
 
     expect(auth.inferScope).not.toHaveBeenCalled();
     expect(result).toEqual({
@@ -201,7 +206,10 @@ describe("generateCredentials", () => {
       created: false,
     });
 
-    const result = await generateCredentials({ teamId: "provided_team" });
+    const result = await generateCredentials(
+      { teamId: "provided_team" },
+      testConfig,
+    );
 
     expect(auth.inferScope).toHaveBeenCalledTimes(1);
     expect(auth.inferScope).toHaveBeenCalledWith({

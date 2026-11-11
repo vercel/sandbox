@@ -101,7 +101,11 @@ describe("attachPaginator", () => {
   });
 
   it("stops iteration when signal is aborted between pages", async () => {
-    const pages = makePages([[1, 2], [3, 4], [5, 6]]);
+    const pages = makePages([
+      [1, 2],
+      [3, 4],
+      [5, 6],
+    ]);
     const controller = new AbortController();
     const fetchNext = vi.fn(async (cursor: string) => {
       if (cursor === "cursor-2") controller.abort();

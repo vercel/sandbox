@@ -1,10 +1,13 @@
-// This file can also be imported as `@vercel/sandbox/dist/auth`, which is completely fine.
-// The only valid importer of this would be the CLI as we share the same codebase.
+import { OAuth as createOAuth } from "../../../shared/src/auth/oauth.js";
+import { sdkConfig } from "../config.js";
 
-export * from "./file.js";
-export type * from "./file.js";
-export * from "./oauth.js";
-export type * from "./oauth.js";
-export { pollForToken } from "./poll-for-token.js";
-export { inferScope } from "./project.js";
-export { NotOk } from "./error.js";
+export * from "../../../shared/src/auth/file.js";
+export { pollForToken } from "../../../shared/src/auth/poll-for-token.js";
+export { inferScope } from "../../../shared/src/auth/project.js";
+export { NotOk } from "../../../shared/src/auth/error.js";
+export * from "../../../shared/src/auth/oauth.js";
+
+export function OAuth() {
+  return createOAuth(sdkConfig);
+}
+export type OAuth = Awaited<ReturnType<typeof OAuth>>;
