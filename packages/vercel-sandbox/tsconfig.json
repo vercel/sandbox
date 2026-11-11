@@ -11,6 +11,6 @@
     "moduleResolution": "node",
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "test-types/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "vitest.config.ts", "vitest.setup.ts"]
 }

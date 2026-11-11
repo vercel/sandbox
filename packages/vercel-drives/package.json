@@ -1,0 +1,74 @@
+{
+  "name": "@vercel/drives",
+  "version": "0.0.0",
+  "description": "Software Development Kit for Vercel Drives",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
+    },
+    "./dist/api-client/api-error.js": {
+      "types": "./dist/api-client/api-error.d.ts",
+      "import": "./dist/api-client/api-error.js",
+      "require": "./dist/api-client/api-error.cjs",
+      "default": "./dist/api-client/api-error.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "rm -rf node_modules dist",
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "version:bump": "ts-node scripts/inject-version.ts"
+  },
+  "keywords": [
+    "vercel",
+    "drives",
+    "sdk"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/sandbox.git",
+    "directory": "packages/vercel-drives"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "@vercel/detect-agent": "1.2.5",
+    "@vercel/oidc": "4.0.0",
+    "@workflow/serde": "4.1.0-beta.2",
+    "async-retry": "1.3.3",
+    "ms": "2.1.3",
+    "picocolors": "^1.1.1",
+    "undici": "^8.12.4",
+    "xdg-app-paths": "5.1.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/async-retry": "1.4.9",
+    "@types/ms": "2.1.0",
+    "@types/node": "22.15.12",
+    "@vercel/sandbox-shared": "workspace:*",
+    "@workflow/core": "4.2.0-beta.73",
+    "dotenv": "16.5.0",
+    "tsdown": "catalog:",
+    "typescript": "5.8.3",
+    "vitest": "catalog:"
+  }
+}

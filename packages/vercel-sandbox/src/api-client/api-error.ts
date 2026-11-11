@@ -1,4 +1,4 @@
-export { APIError } from "../../../shared/src/api-client/api-error.js";
+export { APIError } from "@vercel/drives/dist/api-client/api-error.js";
 
 /**
  * Error thrown when a stream error is received streaming.
