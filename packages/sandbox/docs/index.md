@@ -116,6 +116,7 @@ Options:
     --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -196,6 +197,7 @@ Options:
     --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -256,6 +258,10 @@ Examples:
 – Create and connect to a sandbox without a network access
 
   $ sandbox run --network-policy=none --connect
+
+– Create a sandbox that can install your team's private npm packages
+
+  $ sandbox create --credentials=npm
 ```
 
 ## `sandbox sh`
@@ -282,6 +288,7 @@ Options:
     --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
