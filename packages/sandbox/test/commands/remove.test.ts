@@ -18,9 +18,24 @@ vi.mock("@vercel/oidc", () => ({
 }));
 
 const args = ["my-sandbox", "--scope=team", "--project=proj"];
+const MiB = 1024 * 1024;
+const inThirtyDays = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
-function snapshot(id: string, sizeBytes: number, status = "created") {
-  return { id, sizeBytes, status };
+function snapshot(
+  id: string,
+  sizeBytes: number,
+  overrides: { status?: string; expiresAt?: number | null } = {},
+) {
+  return {
+    id,
+    sizeBytes,
+    status: overrides.status ?? "created",
+    expiresAt: "expiresAt" in overrides ? overrides.expiresAt : inThirtyDays,
+  };
+}
+
+function page(snapshots: unknown[], next: string | null = null) {
+  return { snapshots, pagination: { next } };
 }
 
 describe("remove command", () => {
@@ -42,68 +57,121 @@ describe("remove command", () => {
     vi.restoreAllMocks();
   });
 
-  test("reports the snapshots the removal kept and how to delete them", async () => {
-    mockSnapshotList.mockResolvedValue({
-      snapshots: [snapshot("snap_one", 784 * 1024 * 1024)],
-      pagination: { next: null },
-    });
-
+  async function run(extraArgs: string[] = []) {
     const { remove } = await import("../../src/commands/remove.ts");
-    await cmd.run(remove, args);
+    await cmd.run(remove, [...args, ...extraArgs]);
+  }
+
+  test("reports a single kept snapshot with its expiry and delete command", async () => {
+    mockSnapshotList.mockResolvedValue(page([snapshot("snap_one", 784 * MiB)]));
+
+    await run();
 
     expect(mockDelete).toHaveBeenCalledWith({ deleteOrphanSnapshots: false });
     expect(stderr).toContain("kept snapshot snap_one");
     expect(stderr).toContain("784 MiB");
+    expect(stderr).toContain("expires in");
     expect(stderr).toContain("sandbox snapshots delete snap_one");
   });
 
-  test("totals multiple snapshots and skips ones already deleted", async () => {
-    mockSnapshotList.mockResolvedValue({
-      snapshots: [
-        snapshot("snap_one", 1024 * 1024),
-        snapshot("snap_two", 1024 * 1024),
-        snapshot("snap_gone", 999 * 1024 * 1024, "deleted"),
-      ],
-      pagination: { next: null },
-    });
+  test("says no expiry instead of claiming the snapshot expires", async () => {
+    mockSnapshotList.mockResolvedValue(
+      page([snapshot("snap_one", MiB, { expiresAt: null })]),
+    );
 
-    const { remove } = await import("../../src/commands/remove.ts");
-    await cmd.run(remove, args);
+    await run();
+
+    expect(stderr).toContain("no expiry");
+    expect(stderr).not.toContain("expires in");
+  });
+
+  test("counts only created snapshots, not failed or deleted ones", async () => {
+    mockSnapshotList.mockResolvedValue(
+      page([
+        snapshot("snap_one", MiB),
+        snapshot("snap_two", MiB),
+        snapshot("snap_failed", 999 * MiB, { status: "failed" }),
+        snapshot("snap_gone", 999 * MiB, { status: "deleted" }),
+      ]),
+    );
+
+    await run();
 
     expect(stderr).toContain("kept 2 snapshots");
     expect(stderr).toContain("2 MiB");
+    expect(stderr).not.toContain("snap_failed");
     expect(stderr).not.toContain("snap_gone");
   });
 
-  test("says nothing when the sandbox has no snapshots", async () => {
-    mockSnapshotList.mockResolvedValue({
-      snapshots: [],
-      pagination: { next: null },
-    });
+  test("marks the size as partial and truncates ids when the listing paginates", async () => {
+    mockSnapshotList.mockResolvedValue(
+      page(
+        Array.from({ length: 6 }, (_, i) => snapshot(`snap_${i}`, MiB)),
+        "cursor_next",
+      ),
+    );
 
-    const { remove } = await import("../../src/commands/remove.ts");
-    await cmd.run(remove, args);
+    await run();
+
+    expect(stderr).toContain("kept 6+ snapshots");
+    expect(stderr).toContain("so far");
+    expect(stderr).toContain("...");
+    expect(stderr).not.toContain("snap_5");
+  });
+
+  test("hedges the hint for multiple snapshots, which may be shared", async () => {
+    mockSnapshotList.mockResolvedValue(
+      page([snapshot("snap_one", MiB), snapshot("snap_two", MiB)]),
+    );
+
+    await run();
+
+    expect(stderr).toContain("Delete the ones no other sandbox uses");
+  });
+
+  test("says the snapshots could not be checked when the listing fails", async () => {
+    mockSnapshotList.mockRejectedValue(new Error("listing unavailable"));
+
+    await run();
+
+    expect(mockDelete).toHaveBeenCalledWith({ deleteOrphanSnapshots: false });
+    expect(process.exitCode).not.toBe(1);
+    expect(stderr).toContain("could not list snapshots");
+    expect(stderr).toContain("sandbox snapshots ls");
+  });
+
+  test("says nothing when the sandbox has no snapshots", async () => {
+    mockSnapshotList.mockResolvedValue(page([]));
+
+    await run();
 
     expect(stderr).not.toContain("kept");
   });
 
   test("does not list snapshots when --delete-orphan-snapshots is passed", async () => {
-    const { remove } = await import("../../src/commands/remove.ts");
-    await cmd.run(remove, [...args, "--delete-orphan-snapshots"]);
+    await run(["--delete-orphan-snapshots"]);
 
     expect(mockSnapshotList).not.toHaveBeenCalled();
     expect(mockDelete).toHaveBeenCalledWith({ deleteOrphanSnapshots: true });
     expect(stderr).not.toContain("kept");
   });
 
-  test("removes the sandbox even when the snapshot listing fails", async () => {
-    mockSnapshotList.mockRejectedValue(new Error("listing unavailable"));
+  test("still reports a sandbox that was removed when another removal fails", async () => {
+    mockGet.mockImplementation(async ({ name }: { name: string }) => {
+      if (name === "broken") throw new Error("sandbox not found");
+      return { delete: mockDelete };
+    });
+    mockSnapshotList.mockResolvedValue(page([snapshot("snap_one", MiB)]));
 
     const { remove } = await import("../../src/commands/remove.ts");
-    await cmd.run(remove, args);
+    await cmd.run(remove, [
+      "my-sandbox",
+      "broken",
+      "--scope=team",
+      "--project=proj",
+    ]);
 
-    expect(mockDelete).toHaveBeenCalledWith({ deleteOrphanSnapshots: false });
-    expect(process.exitCode).not.toBe(1);
-    expect(stderr).not.toContain("kept");
+    expect(process.exitCode).toBe(1);
+    expect(stderr).toContain("kept snapshot snap_one");
   });
 });
