@@ -1,5 +1,11 @@
 # sandbox-image-python
 
+## 0.1.1
+
+### Patch Changes
+
+- Add `curl` to the `node` and `python` images so common install scripts and HTTP calls work without installing it first. ([#463](https://github.com/vercel/sandbox/pull/463))
+
 ## 0.1.0
 
 ### Minor Changes

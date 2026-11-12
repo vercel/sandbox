@@ -50,6 +50,30 @@ describe("create command", () => {
     );
   });
 
+  test("requests the team's npm credentials with --credentials=npm", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--credentials=npm",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ credentials: { npm: true } }),
+    );
+  });
+
+  test("rejects credentials it does not support, listing the supported ones", async () => {
+    const { credentialProviderListType } = await import(
+      "../../src/args/credentials.ts"
+    );
+
+    await expect(credentialProviderListType.from("npm,github")).rejects.toThrow(
+      "Unsupported credentials: github. Supported: npm.",
+    );
+  });
+
   test("defaults the network policy to allow-all", async () => {
     const { create } = await import("../../src/commands/create.ts");
     await cmd.run(create, ["--scope=team", "--project=proj", "--silent"]);

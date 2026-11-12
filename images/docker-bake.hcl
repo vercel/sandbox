@@ -33,9 +33,9 @@ variable "BUN_IMAGE" {
 variable "NODE_VERSIONS" {
   type = map(string)
   default = {
-    "22" = "22.23.4"
-    "24" = "24.22.1"
-    "26" = "26.12.1"
+    "22" = "22.23.5"
+    "24" = "24.22.3"
+    "26" = "26.13.1"
   }
 }
 
