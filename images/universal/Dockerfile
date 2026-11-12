@@ -4,8 +4,8 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" curl libarchive-tools && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
 ARG NODE_VERSION
@@ -24,13 +24,13 @@ ARG PYTHON_VERSION=3.14
 ARG GH_VERSION
 ARG UV_VERSION
 
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" curl && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl && \
     cd /tmp && \
     curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb" && \
     curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_checksums.txt" && \
     awk -v f="gh_${GH_VERSION}_linux_amd64.deb" '$2 == f' "gh_${GH_VERSION}_checksums.txt" | sha256sum -c && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
       "/tmp/gh_${GH_VERSION}_linux_amd64.deb" \
       bzip2 \
       dnsutils \
