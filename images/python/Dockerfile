@@ -3,10 +3,12 @@ USER root
 ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_SNAPSHOT
 ARG PYTHON_VERSION=3.14
+ARG UV_VERSION
 
-RUN apt-get update && \
-  apt-get install -y --no-install-recommends \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+  apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
   curl \
   git \
   "python${PYTHON_VERSION}" \
@@ -15,7 +17,7 @@ RUN apt-get update && \
   python-is-python3 && \
   rm -f /usr/lib/python3*/EXTERNALLY-MANAGED && \
   rm -rf /var/lib/apt/lists/* && \
-  pip install uv && \
+  pip install "uv==${UV_VERSION}" && \
   rm -rf /root/.cache/pip
 
 RUN chown -R ubuntu:ubuntu /vercel
