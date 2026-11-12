@@ -1,5 +1,13 @@
 # sandbox-image-node
 
+## 0.1.3
+
+### Patch Changes
+
+- Add `curl` to the `node` and `python` images so common install scripts and HTTP calls work without installing it first. ([#463](https://github.com/vercel/sandbox/pull/463))
+
+- Update Node.js images to the November 2026 security releases. ([#468](https://github.com/vercel/sandbox/pull/468))
+
 ## 0.1.2
 
 ### Patch Changes
