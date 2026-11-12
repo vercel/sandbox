@@ -1,5 +1,28 @@
 # @vercel/sandbox
 
+## 4.0.0
+
+### Major Changes
+
+- Update Undici to version 8, and use it instead of the Node.js' bundled Undici for API requests. ([#456](https://github.com/vercel/sandbox/pull/456))
+  This also enables HTTP/2, which reuses connections and improves performance.
+
+  The minimum required Node.js version is now 22.19.0.
+
+### Minor Changes
+
+- Add `credentials: { npm: true }` to `Sandbox.create` and `--credentials=npm` to `create`, `run`, and `sh`, so a sandbox can install your team's private npm packages with Vercel managed credentials injected into the sandbox network policy. `--credentials` takes a comma-separated list, so later credential types share the same flag. ([#453](https://github.com/vercel/sandbox/pull/453))
+
+- Add `--network-policy-file <FILE>` (use `-` for stdin) to `create`, `run`, `sh`, `fork`, and `config network-policy`. It takes the whole network policy as JSON in the SDK's `NetworkPolicy` shape, so the CLI can express any rule the SDK can, such as a request header limited to `GET` and `HEAD`. The SDK exports `parseNetworkPolicy`, which validates untrusted input with the same rules as `Sandbox.create`, rejects unknown keys, and never includes values in its errors. `@vercel/sandbox-mock` re-exports both. ([#417](https://github.com/vercel/sandbox/pull/417))
+
+### Patch Changes
+
+- Send API requests to `https://api.vercel.com` instead of `https://vercel.com/api`, removing an extra edge hop from every request. ([#452](https://github.com/vercel/sandbox/pull/452))
+
+- Skip the per-request OIDC token check while the current token is more than 5 minutes from expiring, and share one refresh between concurrent requests. ([#448](https://github.com/vercel/sandbox/pull/448))
+
+- Update `zod` to v4.6.7. ([#450](https://github.com/vercel/sandbox/pull/450))
+
 ## 3.9.1
 
 ### Patch Changes

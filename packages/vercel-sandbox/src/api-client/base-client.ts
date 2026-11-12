@@ -3,7 +3,7 @@ import { APIError } from "./api-error.js";
 import { z, ZodType } from "zod";
 import { array } from "../utils/array.js";
 import { withRetry, type RequestOptions } from "./with-retry.js";
-import { Agent } from "undici";
+import { Agent, Dispatcher1Wrapper, fetch as undiciFetch } from "undici";
 
 export interface RequestParams extends RequestInit {
   headers?: Record<string, string>;
@@ -16,6 +16,7 @@ export interface RequestParams extends RequestInit {
 const DEFAULT_AGENT = new Agent({
   bodyTimeout: 0, // disable body timeout to allow long logs streaming
 });
+const LEGACY_COMPATIBLE_AGENT = new Dispatcher1Wrapper(DEFAULT_AGENT);
 
 /**
  * A base API client that provides a convenience wrapper for fetching where
@@ -27,7 +28,7 @@ export class BaseClient {
   private fetch: ReturnType<typeof withRetry<RequestInit>>;
   private debug: boolean;
   private baseUrl: string;
-  private agent: Agent;
+  private agent: Agent | Dispatcher1Wrapper;
 
   constructor(params: {
     debug?: boolean;
@@ -35,11 +36,13 @@ export class BaseClient {
     token?: string;
     fetch?: typeof globalThis.fetch;
   }) {
-    this.fetch = withRetry(params.fetch ?? globalThis.fetch);
+    this.fetch = withRetry(
+      params.fetch ?? (undiciFetch as typeof globalThis.fetch),
+    );
     this.baseUrl = params.baseUrl;
     this.debug = params.debug ?? process.env.DEBUG_FETCH === "true";
     this.token = params.token;
-    this.agent = DEFAULT_AGENT;
+    this.agent = params.fetch ? LEGACY_COMPATIBLE_AGENT : DEFAULT_AGENT;
   }
 
   protected async request(path: string, opts?: RequestParams) {

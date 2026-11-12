@@ -7,8 +7,9 @@ ARG UBUNTU_SNAPSHOT
 ARG PYTHON_VERSION=3.14
 ARG UV_VERSION
 
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
-  apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+  apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
+  curl \
   git \
   "python${PYTHON_VERSION}" \
   "python${PYTHON_VERSION}-venv" \
@@ -28,7 +29,8 @@ WORKDIR /vercel
 # User-installed console scripts (pip, uv tool) land in ~/.local/bin.
 ENV PATH="/vercel/.local/bin:${PATH}"
 
-RUN git --version && \
+RUN curl --version && \
+  git --version && \
   python --version | grep -F "Python ${PYTHON_VERSION}." && \
   python3 --version && \
   pip --version && \

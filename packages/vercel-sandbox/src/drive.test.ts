@@ -76,7 +76,7 @@ describe("Drive", () => {
 
     const [url, init] = mockFetch.mock.calls[1];
     const requestUrl = new URL(String(url));
-    expect(requestUrl.pathname).toBe("/api/v2/sandboxes/drives/workspace/fork");
+    expect(requestUrl.pathname).toBe("/v2/sandboxes/drives/workspace/fork");
     expect(requestUrl.searchParams.get("teamId")).toBe("team_123");
     expect(requestUrl.searchParams.get("projectId")).toBe("proj_123");
     expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -90,7 +90,7 @@ describe("Drive", () => {
 
     const [deleteUrl, deleteInit] = mockFetch.mock.calls[2];
     expect(new URL(String(deleteUrl)).pathname).toBe(
-      "/api/v2/sandboxes/drives/workspace-fork",
+      "/v2/sandboxes/drives/workspace-fork",
     );
     expect(deleteInit?.method).toBe("DELETE");
   });
@@ -163,7 +163,7 @@ describe("Drive", () => {
 
     const [url, init] = mockFetch.mock.calls[0];
     const requestUrl = new URL(String(url));
-    expect(requestUrl.pathname).toBe("/api/v2/sandboxes/drives/workspace");
+    expect(requestUrl.pathname).toBe("/v2/sandboxes/drives/workspace");
     expect(requestUrl.searchParams.get("teamId")).toBe("team_123");
     expect(requestUrl.searchParams.get("projectId")).toBe("proj_123");
     expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -214,7 +214,7 @@ describe("Drive", () => {
 
     const [url, init] = mockFetch.mock.calls[1];
     expect(new URL(String(url)).pathname).toBe(
-      "/api/v2/sandboxes/drives/workspace",
+      "/v2/sandboxes/drives/workspace",
     );
     expect(init?.method).toBe("DELETE");
   });

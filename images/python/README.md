@@ -10,6 +10,7 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ## Packages
 
+- `curl`
 - `git`
 - `python3.14` and `python3.14-venv` (pinned versioned packages)
 - `python3-pip`

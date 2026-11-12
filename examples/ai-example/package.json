@@ -9,15 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "1.0.0-beta.1",
-    "@ai-sdk/react": "2.0.0-beta.1",
-    "@ai-sdk/vercel": "1.0.0-alpha.7",
-    "ai": "5.0.0-beta.1",
+    "@ai-sdk/gateway": "4.0.137",
+    "@ai-sdk/react": "4.0.168",
     "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-scroll-area": "^1.2.9",
     "@radix-ui/react-slot": "^1.2.3",
     "@vercel/sandbox": "workspace:*",
+    "ai": "7.0.164",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
@@ -35,7 +34,7 @@
     "tailwind-merge": "^3.3.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
-    "zod": "3.25.67"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

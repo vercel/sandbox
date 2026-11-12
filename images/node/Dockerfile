@@ -4,8 +4,8 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" curl libarchive-tools && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
 ARG NODE_VERSION
@@ -20,8 +20,8 @@ ENV HOME=/root
 
 ARG UBUNTU_SNAPSHOT
 # Node.js requires libatomic.
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" git libatomic1 && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl git libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=fetch /opt/node /usr/local
@@ -43,7 +43,8 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
-RUN git --version && \
+RUN curl --version && \
+    git --version && \
     node --version && \
     npm --version && \
     pnpm --version

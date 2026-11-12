@@ -5,10 +5,10 @@ ENV LANG=C.UTF-8
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::https::Verify-Peer=false && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::https::Verify-Peer=false ca-certificates && \
-    apt-get upgrade -y --snapshot "${UBUNTU_SNAPSHOT}" && \
-    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" sudo && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 -o Acquire::https::Verify-Peer=false && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 -o Acquire::https::Verify-Peer=false ca-certificates && \
+    apt-get upgrade -y --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 sudo && \
     rm -rf /var/lib/apt/lists/*
 
 RUN printf '%s\n' \

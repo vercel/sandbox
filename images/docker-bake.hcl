@@ -11,15 +11,15 @@ variable "PUSH" {
 }
 
 variable "UBUNTU_IMAGE" {
-  default = "ubuntu:resolute-20261024.1@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c"
+  default = "ubuntu:resolute-20261105.1@sha256:66b8084a0d45bd4877992bd38e04b51bfa99bd57293364cb6391fb674771846e"
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261108T000000Z"
+  default = "20261112T140000Z"
 }
 
 variable "ARCH_IMAGE" {
-  default = "archlinux:base-20261101.0.620205@sha256:b1c2fe6e717bfd5673af8fc217e1e1c3ce0dcbb1d53c3414c8425e7ce79fc6d9"
+  default = "archlinux:base-20261108.0.623074@sha256:d4594bb2300cba11f41c2f27923eb56f63d9988909c402f9c95517d1e362c899"
 }
 
 variable "AMAZONLINUX_IMAGE" {
@@ -33,14 +33,14 @@ variable "BUN_IMAGE" {
 variable "NODE_VERSIONS" {
   type = map(string)
   default = {
-    "22" = "22.23.4"
-    "24" = "24.22.1"
-    "26" = "26.12.1"
+    "22" = "22.23.5"
+    "24" = "24.22.3"
+    "26" = "26.13.1"
   }
 }
 
 variable "PNPM_VERSION" {
-  default = "11.28.10"
+  default = "11.28.11"
 }
 
 variable "AL_PNPM_VERSION" {
@@ -64,11 +64,11 @@ variable "GH_VERSION" {
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.317"
+  default = "2.1.322"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.166.0"
+  default = "0.167.2"
 }
 
 variable "OPENCODE_VERSION" {
@@ -76,7 +76,7 @@ variable "OPENCODE_VERSION" {
 }
 
 variable "PI_VERSION" {
-  default = "1.5.0"
+  default = "1.5.2"
 }
 
 variable "FX_VERSION" {

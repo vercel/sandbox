@@ -6,8 +6,8 @@ Dockerfiles for Vercel Managed Images published to Vercel Container Registry (VC
 | Image                                            | Base                    | Contents                                                  |
 | ------------------------------------------------ | ----------------------- | --------------------------------------------------------- |
 | [`vercel/sandbox/universal:latest`](./universal) | `vercel/sandbox/ubuntu` | Node.js LTS (24), Python (3.14), coding agents, utilities |
-| [`vercel/sandbox/node:22\|24\|26`](./node)       | `vercel/sandbox/ubuntu` | Node.js (major pinned), pnpm                              |
-| [`vercel/sandbox/python:3.14`](./python)         | `vercel/sandbox/ubuntu` | Python 3.14 (pinned), pip, venv, uv                       |
+| [`vercel/sandbox/node:22\|24\|26`](./node)       | `vercel/sandbox/ubuntu` | Node.js (major pinned), pnpm, curl                        |
+| [`vercel/sandbox/python:3.14`](./python)         | `vercel/sandbox/ubuntu` | Python 3.14 (pinned), pip, venv, uv, curl                 |
 | [`vercel/sandbox/arch:latest`](./arch)           | `archlinux:latest`      | Arch Linux, yay (AUR), base-devel, git                    |
 | [`vercel/sandbox/ubuntu:latest`](./ubuntu)       | `ubuntu:26.04`          | Ubuntu + sudo                                             |
 | [`vercel/sandbox/node:al-22\|24\|26`](./al-node) | `al-base`               | Node.js (major pinned), pnpm                              |
@@ -26,7 +26,7 @@ contains, change the value there.
 | Tools (pnpm, uv, gh, coding agents, Node.js, fx)               | Exact version                                                                      |
 | `yay`                                                          | `YAY_BIN_COMMIT`, a commit of the `yay-bin` AUR package                            |
 | Ubuntu packages                                                | `UBUNTU_SNAPSHOT`, a [snapshot.ubuntu.com](https://snapshot.ubuntu.com/) timestamp |
-| Arch packages                                                  | Not pinned: Arch is a rolling release, so each build installs the current packages |
+| Packages pacman installs on Arch                               | Not pinned: Arch is a rolling release, so `pacman -Syu` installs current versions  |
 | Amazon Linux packages                                          | The `amazonlinux` base image, whose release version locks its package versions     |
 
 The snapshot controls only what's preinstalled in the images. Inside a sandbox, `apt install` gets
