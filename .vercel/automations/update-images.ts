@@ -51,7 +51,7 @@ Upgrade apt to the new snapshot (apt-get update and upgrade with --snapshot and 
 - Bun: add a dependency and run a TypeScript file.
 - Coding agents: run claude, codex, opencode, and pi with a short prompt and no credentials. Each passes when it answers or reports missing credentials.
 - Breaking changes: one check for each breaking change the release notes describe.
-When NODE_VERSIONS or an AL_ variable changes, repeat the HTTPS and Node.js checks in a sandbox from vercel/sandbox/node:al-24. Keep the updates whose checks pass.
+When NODE_VERSIONS or an AL_ variable changes, repeat the HTTPS and Node.js checks in a sandbox from vercel/sandbox/node:al-24. Leave out an update only when one of its checks fails. Sandboxes start from a fresh image, so changes to saved state or stored data don't affect them; when a breaking change can't be checked, keep the update and name the change in the description.
 4. Open or update one pull request: reuse the open one containing <!-- vercel-managed-images:update-pins -->, updated from main. Change images/docker-bake.hcl and add .changeset/update-images.md with a patch entry per changed image. In the description, list security fixes with their CVEs, other updates with release-note links, a Tested section with each check's command and result, and updates left out with the reason, then end with the marker.
 
 Stop the sandboxes and return slackMessage: at most two lines that link the pull request and name its CVEs, or say what blocked you.`,
