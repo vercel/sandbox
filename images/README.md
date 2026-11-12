@@ -26,7 +26,7 @@ contains, change the value there.
 | Tools (pnpm, uv, gh, coding agents, Node.js, fx)               | Exact version                                                                      |
 | `yay`                                                          | `YAY_BIN_COMMIT`, a commit of the `yay-bin` AUR package                            |
 | Ubuntu packages                                                | `UBUNTU_SNAPSHOT`, a [snapshot.ubuntu.com](https://snapshot.ubuntu.com/) timestamp |
-| Arch packages                                                  | Not pinned: Arch is a rolling release, so each build installs the current packages |
+| Packages pacman installs on Arch                               | Not pinned: Arch is a rolling release, so `pacman -Syu` installs current versions  |
 | Amazon Linux packages                                          | The `amazonlinux` base image, whose release version locks its package versions     |
 
 The snapshot controls only what's preinstalled in the images. Inside a sandbox, `apt install` gets
