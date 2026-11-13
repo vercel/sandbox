@@ -13,9 +13,9 @@ Follow these instructions before starting on any sandbox-related tasks:
 
 ### Official Resources
 
-- **Documentation**: https://vercel.com/docs/vercel-sandbox
-- **SDK Reference**: https://vercel.com/docs/vercel-sandbox/sdk-reference
-- **CLI Reference**: https://vercel.com/docs/vercel-sandbox/cli-reference
+- **Documentation**: https://vercel.com/docs/sandbox
+- **SDK Reference**: https://vercel.com/docs/sandbox/sdk-reference
+- **CLI Reference**: https://vercel.com/docs/sandbox/cli-reference
 - **GitHub**: https://github.com/vercel/sandbox
 - **REST API**: https://vercel.com/docs/rest-api/sandboxes
 
@@ -317,6 +317,43 @@ await worker.stop();
 The worker's writes stay on `workerDrive`; the base drive keeps the starter
 files. Fork the base drive again with a different name for another worker.
 
+### Drive, snapshot, or custom image
+
+A snapshot is the computer you start. A drive is the files you work on. Keep
+the starting environment lean:
+
+- **Custom image**: stable setup that many sandboxes need, such as OS packages,
+  language runtimes, package managers, agents, and common tools.
+- **Snapshot**: reusable runtime state that should be ready at startup. Each
+  sandbox gets an independent copy of the filesystem.
+- **Drive**: heavy working state, such as cloned repositories, generated files,
+  datasets, build output, dependency caches, logs, and agent workspace state.
+  A drive persists until you delete it.
+
+If a snapshot is large and rarely reused, move stable setup into a custom image
+and changing project data into a drive. This keeps the boot path smaller.
+
+For a shared dependency cache, one sandbox fills the drive through the only
+read-write mount, and later sandboxes mount read-only snapshots of it:
+
+```typescript
+const cache = await Drive.getOrCreate({ name: "shared-deps" });
+
+const writer = await Sandbox.create({ mounts: { "/cache": cache } });
+await writer.writeFiles([{ path: "package.json", content: packageJson }]);
+await writer.runCommand("pnpm", ["install", "--store-dir", "/cache"]);
+await writer.stop();
+
+const reader = await Sandbox.create({ mounts: { "/cache": cache.snapshot() } });
+```
+
+pnpm can't use a store on a read-only snapshot mount, because its index needs
+write access. Copy the store to local disk first:
+`cp -r /cache /tmp/store`, then `pnpm install --store-dir /tmp/store`.
+
+Mount paths must be absolute and cannot overlap. A drive's region and maximum
+size are fixed at creation.
+
 ### Auto-Dispose Pattern
 
 Use `await using` for automatic cleanup:
@@ -340,13 +377,21 @@ if (result.exitCode !== 0) {
 }
 ```
 
+`runCommand` runs the executable directly, without a shell, and does not throw
+on a non-zero exit, so check `exitCode`. For pipes, redirects, `&&`, or globs,
+use `bash -c`:
+
+```typescript
+await sandbox.runCommand("bash", ["-c", "npm ci && npm test > test.log"]);
+```
+
 ### With Options
 
 ```typescript
 const result = await sandbox.runCommand({
   cmd: "npm",
   args: ["run", "build"],
-  cwd: "/vercel/sandbox/app",
+  cwd: "/vercel/app",
   env: { NODE_ENV: "production" },
   sudo: false,
   stdout: process.stdout, // Stream output
@@ -393,11 +438,11 @@ await sandbox.runCommand({
 ```typescript
 await sandbox.writeFiles([
   {
-    path: "/vercel/sandbox/config.json",
+    path: "/vercel/config.json",
     content: Buffer.from(JSON.stringify({ key: "value" })),
   },
   {
-    path: "/vercel/sandbox/script.sh",
+    path: "/vercel/script.sh",
     content: Buffer.from("#!/bin/bash\necho 'Hello'"),
     mode: 0o755,
   },
@@ -407,14 +452,14 @@ await sandbox.writeFiles([
 ### Read Files
 
 ```typescript
-// Returns a Buffer object
+// Returns a Buffer, or null if the file does not exist
 const buffer = await sandbox.readFileToBuffer({
-  path: "/vercel/sandbox/output.txt",
+  path: "/vercel/output.txt",
 });
 
 // Returns a NodeJS.ReadableStream
 const stream = await sandbox.readFile({
-  path: "/vercel/sandbox/large-file.bin",
+  path: "/vercel/large-file.bin",
 });
 ```
 
@@ -422,7 +467,7 @@ const stream = await sandbox.readFile({
 
 ```typescript
 const localPath = await sandbox.downloadFile(
-  { path: "/vercel/sandbox/report.pdf" }, // source path on the sandbox
+  { path: "/vercel/report.pdf" }, // source path on the sandbox
   { path: "./downloads/report.pdf" }, // destination path on the local machine
   { mkdirRecursive: true },
 );
@@ -431,7 +476,7 @@ const localPath = await sandbox.downloadFile(
 ### Create Directories
 
 ```typescript
-await sandbox.mkDir("/vercel/sandbox/my-app/src");
+await sandbox.mkDir("/vercel/my-app/src");
 ```
 
 ### `sandbox.fs` — `node:fs/promises`-compatible API
@@ -991,11 +1036,12 @@ const result = await sandbox.runCommand({
 | Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
 | Max ports       | 15 exposed ports                                                                |
 | Max tags        | 5 key-value tags per sandbox                                                    |
+| Max drives      | 4 mounted per sandbox. Default size 1 TiB (1 GiB on Hobby), 16 TiB max quota    |
 | Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                   |
 | Default timeout | 5 minutes                                                                       |
 | Base system     | Ubuntu 26.04                                                                    |
 | User context    | `ubuntu` user                                                                   |
-| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                              |
+| Working dir     | `/vercel` on managed images (also `HOME`). Custom images use `WORKDIR`, else `/` |
 | Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
@@ -1075,16 +1121,16 @@ sandbox stop <name>
 sandbox connect <name>
 
 # Copy files
-sandbox cp local-file.txt <name>:/vercel/sandbox/local-file.txt
-sandbox cp -r ./my-app <name>:/vercel/sandbox/app    # Directory: contents of ./my-app land in /app
-sandbox cp -r <name>:/vercel/sandbox/dist ./dist     # And back
+sandbox cp local-file.txt <name>:/vercel/local-file.txt
+sandbox cp -r ./my-app <name>:/vercel/app    # Directory: contents of ./my-app land in /app
+sandbox cp -r <name>:/vercel/dist ./dist     # And back
 # Recursive copies preserve empty directories, symlinks, and permissions.
 # Windows downloads reject filenames containing backslashes or colons.
 
 # Read and write single files (handy for coding agents)
-sandbox read <name> /vercel/sandbox/package.json     # Raw bytes to stdout
-sandbox write <name> /vercel/sandbox/index.js < ./index.js
-sandbox write --mode 755 <name> /vercel/sandbox/run.sh <<'EOF'
+sandbox read <name> /vercel/package.json     # Raw bytes to stdout
+sandbox write <name> /vercel/index.js < ./index.js
+sandbox write --mode 755 <name> /vercel/run.sh <<'EOF'
 #!/bin/sh
 npm test
 EOF
@@ -1272,7 +1318,7 @@ async function runFromBase(code: string) {
     persistent: false,
   });
   await sandbox.writeFiles([
-    { path: "/vercel/sandbox/index.ts", content: Buffer.from(code) },
+    { path: "/vercel/index.ts", content: Buffer.from(code) },
   ]);
   return sandbox.runCommand("tsx", ["index.ts"]);
 }
