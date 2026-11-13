@@ -15,7 +15,7 @@ variable "UBUNTU_IMAGE" {
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261112T140000Z"
+  default = "20261113T060000Z"
 }
 
 variable "ARCH_IMAGE" {
@@ -48,7 +48,7 @@ variable "AL_PNPM_VERSION" {
 }
 
 variable "UV_VERSION" {
-  default = "0.13.7"
+  default = "0.13.8"
 }
 
 variable "AL_PIP_VERSION" {
@@ -60,15 +60,15 @@ variable "AL_GIT_VERSION" {
 }
 
 variable "GH_VERSION" {
-  default = "2.103.3"
+  default = "2.104.0"
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.322"
+  default = "2.1.323"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.167.2"
+  default = "0.168.0"
 }
 
 variable "OPENCODE_VERSION" {
@@ -80,7 +80,7 @@ variable "PI_VERSION" {
 }
 
 variable "FX_VERSION" {
-  default = "0.0.14"
+  default = "0.0.16"
 }
 
 variable "YAY_BIN_COMMIT" {
