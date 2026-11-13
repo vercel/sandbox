@@ -3,8 +3,9 @@ USER root
 ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+ARG UBUNTU_SNAPSHOT
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
       build-essential curl libarchive-tools pkg-config \
       libbz2-dev libdb-dev libffi-dev liblzma-dev libmpdec-dev libncurses-dev libreadline-dev \
       libsqlite3-dev libssl-dev libzstd-dev uuid-dev zlib1g-dev && \
@@ -32,15 +33,17 @@ USER root
 ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+ARG UBUNTU_SNAPSHOT
+ARG UV_VERSION
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
       curl git libbz2-1.0 libdb5.3t64 libffi8 liblzma5 libmpdec4 libncursesw6 libreadline8t64 \
       libsqlite3-0 libssl3t64 libuuid1 libzstd1 media-types netbase tzdata zlib1g && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local /usr/local
 
-RUN python -m pip install --no-cache-dir packaging setuptools wheel uv && \
+RUN python -m pip install --no-cache-dir packaging setuptools wheel "uv==${UV_VERSION}" && \
     chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel

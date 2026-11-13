@@ -1,5 +1,11 @@
 # sandbox-image-universal
 
+## 0.1.3
+
+### Patch Changes
+
+- Update Node.js images to the November 2026 security releases. ([#468](https://github.com/vercel/sandbox/pull/468))
+
 ## 0.1.2
 
 ### Patch Changes

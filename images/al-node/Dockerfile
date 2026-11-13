@@ -7,7 +7,8 @@ ARG NODE_VERSION
 RUN mkdir -p /vercel/runtimes/node${NODE_MAJOR} && curl https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-$NODE_ARCH.tar.gz | tar -zx --strip-components=1 -C /vercel/runtimes/node${NODE_MAJOR} && /vercel/runtimes/node${NODE_MAJOR}/bin/node --version
 ENV PATH="/vercel/runtimes/node${NODE_MAJOR}/bin:${PATH}"
 
-RUN npm install -g pnpm@10
+ARG PNPM_VERSION
+RUN npm install -g "pnpm@${PNPM_VERSION}"
 
 USER vercel-sandbox
 
