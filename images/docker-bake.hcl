@@ -166,10 +166,7 @@ target "python" {
 target "python-315" {
   inherits = ["_common"]
   context  = "python"
-  tags = [
-    "${REGISTRY}/python:3.15${TAG_SUFFIX}",
-    "${REGISTRY}/python:3.15.0${TAG_SUFFIX}",
-  ]
+  tags = ["${REGISTRY}/python:3.15${TAG_SUFFIX}"]
 
   contexts = {
     base = "target:ubuntu"
