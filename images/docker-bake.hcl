@@ -15,7 +15,7 @@ variable "UBUNTU_IMAGE" {
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261113T060000Z"
+  default = "20261114T060000Z"
 }
 
 variable "ARCH_IMAGE" {
@@ -40,7 +40,7 @@ variable "NODE_VERSIONS" {
 }
 
 variable "PNPM_VERSION" {
-  default = "11.28.11"
+  default = "11.28.12"
 }
 
 variable "AL_PNPM_VERSION" {
@@ -64,11 +64,11 @@ variable "GH_VERSION" {
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.323"
+  default = "2.1.325"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.168.0"
+  default = "0.169.0"
 }
 
 variable "OPENCODE_VERSION" {
