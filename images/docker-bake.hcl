@@ -39,6 +39,21 @@ variable "NODE_VERSIONS" {
   }
 }
 
+# Each sha256 is the XZ source checksum from the release's page on python.org.
+variable "PYTHON_VERSIONS" {
+  type = map(object({ version = string, sha256 = string }))
+  default = {
+    "3.14" = {
+      version = "3.14.8"
+      sha256  = "c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73"
+    }
+    "3.15" = {
+      version = "3.15.0"
+      sha256  = "ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
+    }
+  }
+}
+
 variable "PNPM_VERSION" {
   default = "11.28.11"
 }
@@ -51,7 +66,19 @@ variable "UV_VERSION" {
   default = "0.13.8"
 }
 
-variable "AL_PIP_VERSION" {
+variable "PIP_VERSION" {
+  default = "26.3"
+}
+
+variable "SETUPTOOLS_VERSION" {
+  default = "84.2.1"
+}
+
+variable "WHEEL_VERSION" {
+  default = "0.48.0"
+}
+
+variable "PACKAGING_VERSION" {
   default = "26.3"
 }
 
@@ -96,7 +123,7 @@ group "runtimes" {
 }
 
 group "vmi" {
-  targets = ["ubuntu", "node", "python", "python-315", "universal", "arch"]
+  targets = ["ubuntu", "node", "python", "universal", "arch"]
 }
 
 target "_common" {
@@ -146,38 +173,28 @@ target "node" {
 }
 
 target "python" {
+  matrix = {
+    python = [for minor, release in PYTHON_VERSIONS : merge(release, { minor = minor })]
+  }
+
+  name     = "python-${replace(python.minor, ".", "")}"
   inherits = ["_common"]
   context  = "python"
-  tags     = ["${REGISTRY}/python:3.14${TAG_SUFFIX}"]
+  tags     = ["${REGISTRY}/python:${python.minor}${TAG_SUFFIX}"]
 
   contexts = {
     base = "target:ubuntu"
   }
 
   args = {
-    # XZ source checksum: https://www.python.org/downloads/release/python-3148/
-    PYTHON_VERSION = "3.14.8"
-    PYTHON_SHA256  = "c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73"
-    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
-    UV_VERSION      = UV_VERSION
-  }
-}
-
-target "python-315" {
-  inherits = ["_common"]
-  context  = "python"
-  tags = ["${REGISTRY}/python:3.15${TAG_SUFFIX}"]
-
-  contexts = {
-    base = "target:ubuntu"
-  }
-
-  args = {
-    # XZ source checksum: https://www.python.org/downloads/release/python-3150/
-    PYTHON_VERSION = "3.15.0"
-    PYTHON_SHA256  = "ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
-    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
-    UV_VERSION      = UV_VERSION
+    PACKAGING_VERSION  = PACKAGING_VERSION
+    PIP_VERSION        = PIP_VERSION
+    PYTHON_SHA256      = python.sha256
+    PYTHON_VERSION     = python.version
+    SETUPTOOLS_VERSION = SETUPTOOLS_VERSION
+    UBUNTU_SNAPSHOT    = UBUNTU_SNAPSHOT
+    UV_VERSION         = UV_VERSION
+    WHEEL_VERSION      = WHEEL_VERSION
   }
 }
 
@@ -282,7 +299,7 @@ target "al-python" {
   }
 
   args = {
-    PIP_VERSION    = AL_PIP_VERSION
+    PIP_VERSION    = PIP_VERSION
     PYTHON_VERSION = "3.13.1"
     UV_VERSION     = UV_VERSION
   }

@@ -43,7 +43,16 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
 
 COPY --from=builder /usr/local /usr/local
 
-RUN python -m pip install --no-cache-dir packaging setuptools wheel "uv==${UV_VERSION}" && \
+ARG PACKAGING_VERSION
+ARG PIP_VERSION
+ARG SETUPTOOLS_VERSION
+ARG WHEEL_VERSION
+RUN python -m pip install --no-cache-dir \
+      "pip==${PIP_VERSION}" \
+      "packaging==${PACKAGING_VERSION}" \
+      "setuptools==${SETUPTOOLS_VERSION}" \
+      "wheel==${WHEEL_VERSION}" \
+      "uv==${UV_VERSION}" && \
     chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel
