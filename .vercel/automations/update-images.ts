@@ -2,14 +2,14 @@
 export const meta = {
   name: 'Update Vercel Managed Images',
   description:
-    'Every night, check the pinned inputs of the managed images for new releases and security fixes, test the updates in a sandbox, and open a pull request on vercel/sandbox.',
+    'Every weekday, check the pinned inputs of the managed images for new releases and security fixes, test the updates in a sandbox, and open a pull request on vercel/sandbox.',
   config: {
     vercelProjectId: { type: 'string', default: 'vercel_project_id' },
     slackWorkspace: { type: 'string', default: 'slack-workspace' },
     slackChannel: { type: 'string', default: 'slack-channel' },
   },
   triggers: [
-    { type: 'cron', schedule: '0 6 * * *', key: 'update-images/{cron.scheduledAt}' },
+    { type: 'cron', schedule: '0 6 * * 1-5', key: 'update-images/{cron.scheduledAt}' },
     { type: 'manual' },
   ],
   plan: {
