@@ -131,12 +131,14 @@ unavailable, you can also authenticate using an access token:
   sure it is scoped to the team ID from the previous step.
 
 Set your team ID, project ID, and token to the environment variables
-`VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`, and `VERCEL_TOKEN`. When
-`VERCEL_OIDC_TOKEN` is unavailable, the SDK and the `sandbox` CLI read these
-variables, so `create` needs no credentials:
+`VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`, and `VERCEL_TOKEN`. Then pass these to
+the `create` method:
 
 ```ts
 const sandbox = await Sandbox.create({
+  teamId: process.env.VERCEL_TEAM_ID!,
+  projectId: process.env.VERCEL_PROJECT_ID!,
+  token: process.env.VERCEL_TOKEN!,
   source: {
     url: "https://github.com/vercel/sandbox-example-next.git",
     type: "git",

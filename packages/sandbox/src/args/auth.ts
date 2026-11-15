@@ -29,7 +29,7 @@ function markTokenAsFresh(): void {
 export const token = cmd.option({
   long: "token",
   description:
-    "A Vercel authentication token. If not provided, uses `VERCEL_AUTH_TOKEN`, `VERCEL_OIDC_TOKEN`, `VERCEL_TOKEN`, or the token stored in your system, and otherwise starts a log in process.",
+    "A Vercel authentication token. If not provided, will use the token stored in your system from `VERCEL_AUTH_TOKEN` or will start a log in process.",
   type: {
     ...cmd.string,
     displayName: "pat_or_oidc",
