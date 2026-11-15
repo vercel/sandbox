@@ -47,6 +47,8 @@ describe("token", () => {
     // Clear relevant env vars
     delete process.env.VERCEL_AUTH_TOKEN;
     delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.VERCEL_TOKEN;
+    delete process.env.CI;
   });
 
   describe("environment variable fallbacks", () => {
@@ -82,6 +84,36 @@ describe("token", () => {
       expect(result.token).toBe("refreshed-oidc-token");
       expect(mockGetVercelOidcToken).toHaveBeenCalled();
       expect(mockGetVercelCliToken).not.toHaveBeenCalled();
+    });
+
+    test("uses VERCEL_TOKEN instead of the stored token", async () => {
+      process.env.VERCEL_TOKEN = "env-vercel-token";
+
+      const { token } = await import("../../src/args/auth.ts");
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.run(command, []);
+      expect(result.token).toBe("env-vercel-token");
+      expect(mockGetVercelCliToken).not.toHaveBeenCalled();
+    });
+
+    test("prefers VERCEL_AUTH_TOKEN over VERCEL_TOKEN", async () => {
+      process.env.VERCEL_AUTH_TOKEN = "env-auth-token";
+      process.env.VERCEL_TOKEN = "env-vercel-token";
+
+      const { token } = await import("../../src/args/auth.ts");
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.run(command, []);
+      expect(result.token).toBe("env-auth-token");
     });
 
     test("falls back to getVercelToken when no env vars set", async () => {
@@ -139,6 +171,22 @@ describe("token", () => {
       expect(mockLogin).toHaveBeenCalled();
       expect(mockGetVercelCliToken).toHaveBeenCalledTimes(2);
       expect(result.token).toBe("token-after-login");
+    });
+
+    test("fails without starting a login in CI when there is no token", async () => {
+      process.env.CI = "true";
+      mockGetVercelCliToken.mockRejectedValue(new AccessTokenMissingError());
+
+      const { token } = await import("../../src/args/auth.ts");
+      const command = cmd.command({
+        name: "test",
+        args: { token },
+        handler: (args) => args,
+      });
+
+      const result = await cmd.runSafely(command, []);
+      expect(result._tag).toBe("error");
+      expect(mockLogin).not.toHaveBeenCalled();
     });
 
     test("triggers login when getVercelToken throws RefreshAccessTokenFailedError", async () => {

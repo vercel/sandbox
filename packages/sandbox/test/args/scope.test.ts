@@ -10,6 +10,14 @@ vi.mock("../../src/commands/login", () => ({
   login: { handler: vi.fn() },
 }));
 
+const { mockInferScope } = vi.hoisted(() => ({ mockInferScope: vi.fn() }));
+vi.mock("../../src/util/infer-scope", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../src/util/infer-scope")>();
+  mockInferScope.mockImplementation(actual.inferScope);
+  return { ...actual, inferScope: mockInferScope };
+});
+
 describe("scope", () => {
   const command = cmd.command({
     name: "test",
@@ -50,6 +58,34 @@ describe("scope", () => {
       token: "123",
       projectSlug: undefined,
       teamSlug: undefined,
+    });
+  });
+
+  test("reads VERCEL_TEAM_ID and VERCEL_PROJECT_ID when the token's scope can't be inferred", async () => {
+    mockInferScope.mockRejectedValueOnce(new Error("FORBIDDEN"));
+    process.env.VERCEL_TEAM_ID = "team_from_env";
+    process.env.VERCEL_PROJECT_ID = "prj_from_env";
+
+    const result = await cmd.run(command, ["--token=policy-token"]);
+    expect(result.scope).toEqual({
+      team: "team_from_env",
+      project: "prj_from_env",
+      token: "policy-token",
+    });
+  });
+
+  test("keeps --project over VERCEL_PROJECT_ID", async () => {
+    mockInferScope.mockRejectedValueOnce(new Error("FORBIDDEN"));
+    process.env.VERCEL_TEAM_ID = "team_from_env";
+    process.env.VERCEL_PROJECT_ID = "prj_from_env";
+
+    const result = await cmd.run(command, [
+      "--token=policy-token",
+      "--project=prj_from_flag",
+    ]);
+    expect(result.scope).toMatchObject({
+      team: "team_from_env",
+      project: "prj_from_flag",
     });
   });
 

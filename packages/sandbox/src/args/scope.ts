@@ -14,7 +14,7 @@ const project = cmd.option({
   long: "project",
   type: { ...cmd.optional(cmd.string), displayName: "my-project" },
   description:
-    "The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN.",
+    "The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN, or read from VERCEL_PROJECT_ID.",
 });
 
 /** Parser for the `--team` option. */
@@ -27,7 +27,7 @@ const scopeParser = cmd.option({
   long: "scope",
   type: { ...cmd.optional(cmd.string), displayName: "my-team" },
   description:
-    "The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team]",
+    "The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN, or read from VERCEL_TEAM_ID. [alias: --team]",
 });
 
 /** Parser for the `--scope` option that falls back to `--team` if not provided. */
@@ -118,6 +118,11 @@ export const scope: ArgParser<{
         teamSlug = scope.ownerSlug;
       } catch (err) {
         debug("scope inference failed: %O", err);
+        const team = teamId.value ?? process.env.VERCEL_TEAM_ID;
+        const project = projectId.value ?? process.env.VERCEL_PROJECT_ID;
+        if (team && project) {
+          return { _tag: "ok", value: { token: t.value, project, team } };
+        }
         const detail =
           err instanceof NotOk ? ` ${err.response.responseText}` : "";
         return {
@@ -128,7 +133,7 @@ export const scope: ArgParser<{
                 nodes,
                 message: [
                   `Could not determine team/project scope.${detail}`,
-                  `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, or set VERCEL_OIDC_TOKEN.`,
+                  `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, set VERCEL_TEAM_ID and VERCEL_PROJECT_ID, or set VERCEL_OIDC_TOKEN.`,
                   "╰▶ Docs: https://vercel.com/docs/sandbox",
                 ].join("\n"),
               },

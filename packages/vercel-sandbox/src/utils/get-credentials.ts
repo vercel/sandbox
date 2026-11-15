@@ -67,6 +67,10 @@ async function getVercelToken(opts: {
     });
     return getCredentialsFromOIDCToken(token);
   } catch (error) {
+    const fromEnvironment = getCredentialsFromEnvironment();
+    if (fromEnvironment) {
+      return fromEnvironment;
+    }
     if (!shouldPromptForCredentials()) {
       if (process.env.VERCEL_URL) {
         throw new VercelOidcContextError(error);
@@ -80,13 +84,15 @@ async function getVercelToken(opts: {
 
 /**
  * Allow to get credentials to access the Vercel API. Credentials can be
- * provided in two different ways:
+ * provided in three different ways:
  *
  * 1. By passing an object with the `teamId`, `token`, and `projectId` properties.
  * 2. By using an environment variable VERCEL_OIDC_TOKEN.
+ * 3. By using the environment variables VERCEL_TOKEN, VERCEL_TEAM_ID, and
+ *    VERCEL_PROJECT_ID.
  *
- * If both methods are used, the object properties take precedence over the
- * environment variable. If neither method is used, an error is thrown.
+ * Earlier methods take precedence over later ones. If none of them provides
+ * credentials, an error is thrown.
  */
 export async function getCredentials(params?: unknown): Promise<Credentials> {
   const credentials = getCredentialsFromParams(params ?? {});
@@ -112,6 +118,16 @@ export async function getCredentials(params?: unknown): Promise<Credentials> {
   });
 
   return oidcToken;
+}
+
+function getCredentialsFromEnvironment(): Credentials | null {
+  const token = process.env.VERCEL_TOKEN;
+  const teamId = process.env.VERCEL_TEAM_ID;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !teamId || !projectId) {
+    return null;
+  }
+  return { token, teamId, projectId };
 }
 
 /**
