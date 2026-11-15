@@ -3,7 +3,8 @@ import { APIError } from "./api-error.js";
 import { z, ZodType } from "zod";
 import { array } from "../utils/array.js";
 import { withRetry, type RequestOptions } from "./with-retry.js";
-import { Agent, Dispatcher1Wrapper, fetch as undiciFetch } from "undici";
+import { Agent, type Dispatcher1Wrapper, fetch as undiciFetch } from "undici";
+import * as undici from "undici";
 
 export interface RequestParams extends RequestInit {
   headers?: Record<string, string>;
@@ -16,7 +17,11 @@ export interface RequestParams extends RequestInit {
 const DEFAULT_AGENT = new Agent({
   bodyTimeout: 0, // disable body timeout to allow long logs streaming
 });
-const LEGACY_COMPATIBLE_AGENT = new Dispatcher1Wrapper(DEFAULT_AGENT);
+// Bun resolves "undici" to its built-in module, which has no Dispatcher1Wrapper.
+const LEGACY_COMPATIBLE_AGENT =
+  "Dispatcher1Wrapper" in undici
+    ? new undici.Dispatcher1Wrapper(DEFAULT_AGENT)
+    : DEFAULT_AGENT;
 
 /**
  * A base API client that provides a convenience wrapper for fetching where
