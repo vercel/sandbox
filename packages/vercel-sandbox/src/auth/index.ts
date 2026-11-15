@@ -8,4 +8,4 @@ export type * from "./oauth.js";
 export { pollForToken } from "./poll-for-token.js";
 export { inferScope } from "./project.js";
 export { NotOk } from "./error.js";
-export { getTeamIdFromEnvironment } from "./environment.js";
+export { getTeamIdFromEnvironment } from "../utils/get-credentials.js";

@@ -108,11 +108,24 @@ export const scope: ArgParser<{
       typeof projectId.value === "undefined" ||
       typeof teamId.value === "undefined"
     ) {
+      let environmentTeam: string | undefined;
+      try {
+        environmentTeam = getTeamIdFromEnvironment();
+      } catch (error) {
+        return {
+          _tag: "error",
+          error: { errors: [{ nodes, message: (error as Error).message }] },
+        };
+      }
       try {
         const scope = await withFreshAuthRetry(() =>
           inferScope({
             token: t.value,
             team: teamId.value,
+            environment: {
+              team: environmentTeam,
+              project: process.env.VERCEL_PROJECT_ID,
+            },
           }),
         );
         projectId.value ??= scope.project;
@@ -121,21 +134,6 @@ export const scope: ArgParser<{
         teamSlug = scope.ownerSlug;
       } catch (err) {
         debug("scope inference failed: %O", err);
-        let team = teamId.value;
-        try {
-          team ??= getTeamIdFromEnvironment();
-        } catch (envError) {
-          return {
-            _tag: "error",
-            error: {
-              errors: [{ nodes, message: (envError as Error).message }],
-            },
-          };
-        }
-        const project = projectId.value ?? process.env.VERCEL_PROJECT_ID;
-        if (team && project) {
-          return { _tag: "ok", value: { token: t.value, project, team } };
-        }
         const detail =
           err instanceof NotOk ? ` ${err.response.responseText}` : "";
         return {

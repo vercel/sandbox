@@ -22,9 +22,11 @@ export type InferredScope = {
 export async function inferScope({
   token,
   team,
+  environment,
 }: {
   token: string;
   team?: string;
+  environment?: { team?: string; project?: string };
 }): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
   const jwt = z.jwt().safeParse(token);
@@ -33,6 +35,15 @@ export async function inferScope({
     const data = await inferFromJwt(jwt.data);
     debug("Using scope from OIDC JWT", data);
     return data;
+  }
+
+  const requestedTeam = team ?? environment?.team;
+  if (requestedTeam && environment?.project) {
+    debug("Using scope from environment variables", {
+      owner: requestedTeam,
+      project: environment.project,
+    });
+    return { owner: requestedTeam, project: environment.project };
   }
 
   const projectJson = readProjectConfiguration(process.cwd());
@@ -44,8 +55,8 @@ export async function inferScope({
     return { owner: projectJson.orgId, project: projectJson.projectId };
   }
 
-  debug("trying to infer scope from API token", { team });
-  const fromToken = await inferFromToken(token, team);
+  debug("trying to infer scope from API token", { team: requestedTeam });
+  const fromToken = await inferFromToken(token, requestedTeam);
   debug("Using scope from API token", fromToken);
   return fromToken;
 }
