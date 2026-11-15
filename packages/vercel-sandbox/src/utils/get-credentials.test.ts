@@ -20,6 +20,7 @@ beforeEach(() => {
   delete process.env.VERCEL_OIDC_TOKEN;
   delete process.env.VERCEL_TOKEN;
   delete process.env.VERCEL_TEAM_ID;
+  delete process.env.VERCEL_ORG_ID;
   delete process.env.VERCEL_PROJECT_ID;
 });
 
@@ -51,6 +52,21 @@ test("prefers an OIDC token over the access token environment variables", async 
     teamId: "team_oidc",
     projectId: "prj_oidc",
   });
+});
+
+test("accepts VERCEL_ORG_ID in place of VERCEL_TEAM_ID", async () => {
+  setAccessTokenEnvironment();
+  delete process.env.VERCEL_TEAM_ID;
+  process.env.VERCEL_ORG_ID = "team_org";
+  await expect(getCredentials()).resolves.toMatchObject({ teamId: "team_org" });
+});
+
+test("fails when VERCEL_TEAM_ID and VERCEL_ORG_ID name different teams", async () => {
+  setAccessTokenEnvironment();
+  process.env.VERCEL_ORG_ID = "team_other";
+  await expect(getCredentials()).rejects.toThrowError(
+    /VERCEL_TEAM_ID \(team_env\) and VERCEL_ORG_ID \(team_other\)/,
+  );
 });
 
 test("ignores VERCEL_TOKEN without a team and project", async () => {

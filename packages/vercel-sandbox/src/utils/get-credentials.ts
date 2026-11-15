@@ -1,5 +1,6 @@
 import { getVercelOidcToken } from "@vercel/oidc";
 import { decodeBase64Url } from "./decode-base64-url.js";
+import { getTeamIdFromEnvironment } from "../auth/environment.js";
 import { z } from "zod";
 import {
   cachedGenerateCredentials,
@@ -88,8 +89,8 @@ async function getVercelToken(opts: {
  *
  * 1. By passing an object with the `teamId`, `token`, and `projectId` properties.
  * 2. By using an environment variable VERCEL_OIDC_TOKEN.
- * 3. By using the environment variables VERCEL_TOKEN, VERCEL_TEAM_ID, and
- *    VERCEL_PROJECT_ID.
+ * 3. By using the environment variables VERCEL_TOKEN, VERCEL_TEAM_ID (or
+ *    VERCEL_ORG_ID), and VERCEL_PROJECT_ID.
  *
  * Earlier methods take precedence over later ones. If none of them provides
  * credentials, an error is thrown.
@@ -122,7 +123,7 @@ export async function getCredentials(params?: unknown): Promise<Credentials> {
 
 function getCredentialsFromEnvironment(): Credentials | null {
   const token = process.env.VERCEL_TOKEN;
-  const teamId = process.env.VERCEL_TEAM_ID;
+  const teamId = getTeamIdFromEnvironment();
   const projectId = process.env.VERCEL_PROJECT_ID;
   if (!token || !teamId || !projectId) {
     return null;

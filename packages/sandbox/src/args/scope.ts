@@ -4,7 +4,10 @@ import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import { inferScope } from "../util/infer-scope";
 import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
-import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
+import {
+  getTeamIdFromEnvironment,
+  NotOk,
+} from "@vercel/sandbox/dist/auth/index.js";
 import chalk from "chalk";
 import createDebugger from "debug";
 
@@ -118,7 +121,17 @@ export const scope: ArgParser<{
         teamSlug = scope.ownerSlug;
       } catch (err) {
         debug("scope inference failed: %O", err);
-        const team = teamId.value ?? process.env.VERCEL_TEAM_ID;
+        let team = teamId.value;
+        try {
+          team ??= getTeamIdFromEnvironment();
+        } catch (envError) {
+          return {
+            _tag: "error",
+            error: {
+              errors: [{ nodes, message: (envError as Error).message }],
+            },
+          };
+        }
         const project = projectId.value ?? process.env.VERCEL_PROJECT_ID;
         if (team && project) {
           return { _tag: "ok", value: { token: t.value, project, team } };

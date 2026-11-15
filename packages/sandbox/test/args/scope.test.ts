@@ -74,6 +74,16 @@ describe("scope", () => {
     });
   });
 
+  test("reads VERCEL_ORG_ID when VERCEL_TEAM_ID is unset", async () => {
+    mockInferScope.mockRejectedValueOnce(new Error("FORBIDDEN"));
+    delete process.env.VERCEL_TEAM_ID;
+    process.env.VERCEL_ORG_ID = "team_from_org";
+    process.env.VERCEL_PROJECT_ID = "prj_from_env";
+
+    const result = await cmd.run(command, ["--token=policy-token"]);
+    expect(result.scope).toMatchObject({ team: "team_from_org" });
+  });
+
   test("keeps --project over VERCEL_PROJECT_ID", async () => {
     mockInferScope.mockRejectedValueOnce(new Error("FORBIDDEN"));
     process.env.VERCEL_TEAM_ID = "team_from_env";
