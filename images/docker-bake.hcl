@@ -11,11 +11,11 @@ variable "PUSH" {
 }
 
 variable "UBUNTU_IMAGE" {
-  default = "ubuntu:resolute-20261105.1@sha256:66b8084a0d45bd4877992bd38e04b51bfa99bd57293364cb6391fb674771846e"
+  default = "ubuntu:resolute-20261105.1@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db"
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261113T060000Z"
+  default = "20261116T060000Z"
 }
 
 variable "ARCH_IMAGE" {
@@ -40,7 +40,7 @@ variable "NODE_VERSIONS" {
 }
 
 variable "PNPM_VERSION" {
-  default = "11.28.11"
+  default = "11.28.12"
 }
 
 variable "AL_PNPM_VERSION" {
@@ -64,11 +64,11 @@ variable "GH_VERSION" {
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.323"
+  default = "2.1.325"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.168.0"
+  default = "0.169.0"
 }
 
 variable "OPENCODE_VERSION" {
@@ -80,7 +80,7 @@ variable "PI_VERSION" {
 }
 
 variable "FX_VERSION" {
-  default = "0.0.16"
+  default = "0.0.17"
 }
 
 variable "YAY_BIN_COMMIT" {
