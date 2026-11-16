@@ -19,7 +19,7 @@
     "ai": "7.0.164",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.511.0",
+    "lucide-react": "^1.70.0",
     "next": "15.3.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
