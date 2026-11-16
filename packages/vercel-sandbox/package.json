@@ -56,7 +56,7 @@
     "node": ">=22.19.0"
   },
   "dependencies": {
-    "@vercel/detect-agent": "1.2.5",
+    "@vercel/detect-agent": "1.2.7",
     "@vercel/oidc": "4.0.0",
     "@workflow/serde": "4.1.0-beta.2",
     "async-retry": "1.3.3",
