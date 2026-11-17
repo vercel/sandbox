@@ -70,7 +70,8 @@ export async function tryFsCommand(
   }
 
   if (command === "find" && args.includes("-printf")) {
-    const path = args[0];
+    const path = args[0] === "-H" ? args[1] : args[0];
+    const format = args[args.indexOf("-printf") + 1];
     try {
       const entries = fs.readdirWithFileTypes
         ? await fs.readdirWithFileTypes(abs(path))
@@ -79,10 +80,19 @@ export async function tryFsCommand(
             isDirectory: false,
             isSymbolicLink: false,
           }));
-      const lines = entries.map(
-        (e) => `${e.name}|${e.isDirectory ? "d" : e.isSymbolicLink ? "l" : "f"}`,
-      );
-      return { stdout: lines.length ? `${lines.join("\n")}\n` : "", stderr: "", exitCode: 0 };
+      const stdout = entries
+        .map((e) => {
+          const tokens: Record<string, string> = {
+            "%f": e.name,
+            "%y": e.isDirectory ? "d" : e.isSymbolicLink ? "l" : "f",
+            "\\0": "\0",
+            "\\n": "\n",
+          };
+          // Expand only format tokens, never characters inserted from a filename.
+          return format.replace(/%[fy]|\\[0n]/g, (token) => tokens[token] ?? token);
+        })
+        .join("");
+      return { stdout, stderr: "", exitCode: 0 };
     } catch {
       return enoent("find", path);
     }
