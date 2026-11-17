@@ -110,6 +110,10 @@ variable "FX_VERSION" {
   default = "0.0.17"
 }
 
+variable "SCREEN_RELAY_VERSION" {
+  default = "0.1.0"
+}
+
 variable "YAY_BIN_COMMIT" {
   default = "a2812a593d4017a657bbedf98761db78072b5e4c"
 }
@@ -229,11 +233,12 @@ target "desktop" {
   tags     = ["${REGISTRY}/desktop:latest${TAG_SUFFIX}"]
 
   contexts = {
-    base = "target:ubuntu"
+    base = "target:node-24"
   }
 
   args = {
-    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
+    SCREEN_RELAY_VERSION = SCREEN_RELAY_VERSION
+    UBUNTU_SNAPSHOT      = UBUNTU_SNAPSHOT
   }
 }
 
