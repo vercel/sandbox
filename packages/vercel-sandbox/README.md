@@ -223,6 +223,7 @@ directory:
 - [`vercel/sandbox/node:22|24|26`](https://github.com/vercel/sandbox/tree/main/images/node): Node.js with pnpm.
 - [`vercel/sandbox/python:3.14`](https://github.com/vercel/sandbox/tree/main/images/python): Python with pip, venv, and uv.
 - [`vercel/sandbox/ubuntu:latest`](https://github.com/vercel/sandbox/tree/main/images/ubuntu): Minimal Ubuntu base.
+- [`vercel/sandbox/desktop:latest`](https://github.com/vercel/sandbox/tree/main/images/desktop): Linux desktop with TigerVNC, fluxbox, and noVNC.
 - [`vercel/sandbox/arch:latest`](https://github.com/vercel/sandbox/tree/main/images/arch): Arch Linux with yay/AUR support.
 
 See the [images README](https://github.com/vercel/sandbox/tree/main/images#readme)

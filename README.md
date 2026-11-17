@@ -216,6 +216,7 @@ The Dockerfiles for Vercel Managed Images published under `vercel/sandbox/*` liv
 - [`vercel/sandbox/node:22|24|26`](./images/node): Node.js with pnpm.
 - [`vercel/sandbox/python:3.14`](./images/python): Python with pip, venv, and uv.
 - [`vercel/sandbox/ubuntu:latest`](./images/ubuntu): Minimal Ubuntu base.
+- [`vercel/sandbox/desktop:latest`](./images/desktop): Linux desktop with TigerVNC, fluxbox, and noVNC.
 - [`vercel/sandbox/arch:latest`](./images/arch): Arch Linux with yay/AUR support.
 
 See the [images README](https://github.com/vercel/sandbox/tree/main/images#readme)

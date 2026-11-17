@@ -9,7 +9,7 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
 ## Packages
 
-- `tigervnc-standalone-server` (`Xvnc`)
+- `tigervnc-standalone-server` and `tigervnc-tools` (`Xvnc`, `tigervncpasswd`)
 - `fluxbox`
 - `novnc` and `python3-websockify` (`websockify`)
 - `xterm`
