@@ -123,7 +123,7 @@ group "runtimes" {
 }
 
 group "vmi" {
-  targets = ["ubuntu", "node", "python", "universal", "arch"]
+  targets = ["ubuntu", "node", "python", "universal", "desktop", "arch"]
 }
 
 target "_common" {
@@ -220,6 +220,20 @@ target "universal" {
     PYTHON_VERSION      = "3.14"
     UBUNTU_SNAPSHOT     = UBUNTU_SNAPSHOT
     UV_VERSION          = UV_VERSION
+  }
+}
+
+target "desktop" {
+  inherits = ["_common"]
+  context  = "desktop"
+  tags     = ["${REGISTRY}/desktop:latest${TAG_SUFFIX}"]
+
+  contexts = {
+    base = "target:ubuntu"
+  }
+
+  args = {
+    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
   }
 }
 

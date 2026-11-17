@@ -8,6 +8,7 @@ Dockerfiles for Vercel Managed Images published to Vercel Container Registry (VC
 | [`vercel/sandbox/universal:latest`](./universal) | `vercel/sandbox/ubuntu` | Node.js LTS (24), Python (3.14), coding agents, utilities |
 | [`vercel/sandbox/node:22\|24\|26`](./node)       | `vercel/sandbox/ubuntu` | Node.js (major pinned), pnpm, curl                        |
 | [`vercel/sandbox/python:3.14\|3.15`](./python)   | `vercel/sandbox/ubuntu` | Python (source build), pip, venv, uv, curl                |
+| [`vercel/sandbox/desktop:latest`](./desktop)     | `vercel/sandbox/ubuntu` | TigerVNC, fluxbox, noVNC, websockify, xterm, xdotool      |
 | [`vercel/sandbox/arch:latest`](./arch)           | `archlinux:latest`      | Arch Linux, yay (AUR), base-devel, git                    |
 | [`vercel/sandbox/ubuntu:latest`](./ubuntu)       | `ubuntu:26.04`          | Ubuntu + sudo                                             |
 | [`vercel/sandbox/node:al-22\|24\|26`](./al-node) | `al-base`               | Node.js (major pinned), pnpm                              |

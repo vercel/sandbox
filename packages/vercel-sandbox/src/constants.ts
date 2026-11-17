@@ -7,6 +7,7 @@ export type ManagedImage =
   | "node:26"
   | "python:3.14"
   | "ubuntu"
+  | "desktop"
   | "arch";
 
 /**
