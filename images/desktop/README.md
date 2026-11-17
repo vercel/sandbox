@@ -3,7 +3,7 @@
 `vercel/sandbox/desktop:latest`
 
 A Linux desktop that can be viewed in a browser, on top of the [ubuntu](../ubuntu) base image.
-Nothing starts automatically; start the VNC server, window manager, and websockify yourself.
+Nothing starts automatically; start and secure the VNC server, window manager, and websockify yourself.
 
 Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 
@@ -18,13 +18,8 @@ Runs as the default `ubuntu` user (uid 1000) with passwordless sudo.
 - `python3`
 - `iproute2` (`ss`) and `procps` (`pgrep`, `pkill`)
 
-## Example
+## Security
 
-```sh
-Xvnc :1 -geometry 1280x800 -SecurityTypes None -localhost yes &
-DISPLAY=:1 fluxbox &
-DISPLAY=:1 xterm &
-websockify --web /usr/share/novnc 6080 localhost:5901
-```
-
-Then open `/vnc.html` on the sandbox's port 6080.
+Anyone who can reach an exposed VNC or websockify port controls the desktop, including its
+terminal. Sandbox ports are public, so always require a VNC password or other authentication
+before exposing one.
