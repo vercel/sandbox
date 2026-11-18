@@ -14,7 +14,12 @@ import type {
   WithFetchOptions,
 } from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
-import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
+import type {
+  ManagedImage,
+  RUNTIMES,
+  SandboxGitHubCredentialAction,
+  SandboxRegion,
+} from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Drive } from "./drive.js";
@@ -199,6 +204,46 @@ export interface SandboxCredentials {
    * Let the sandbox install your team's private npm packages.
    */
   npm?: true;
+  /**
+   * Let the sandbox use Git and the GitHub API on your repositories, with no
+   * GitHub token inside the sandbox.
+   *
+   * @experimental
+   * @example
+   * await Sandbox.create({
+   *   credentials: {
+   *     github: [
+   *       {
+   *         repositories: ["acme/web"],
+   *         actions: ["git:write", "github:pull-request:create"],
+   *       },
+   *     ],
+   *   },
+   * });
+   */
+  github?: SandboxGitHubCredential[];
+}
+
+/**
+ * Git and GitHub API access to a set of repositories.
+ *
+ * @experimental
+ */
+export interface SandboxGitHubCredential {
+  /**
+   * Repositories the actions apply to, each as `owner/repository`.
+   */
+  repositories: string[];
+  /**
+   * Everything the sandbox may do on the repositories.
+   */
+  actions: SandboxGitHubCredentialAction[];
+  /**
+   * GitHub account the sandbox acts as, which also authors its commits: a
+   * numeric user ID, or a username prefixed with `@`. When omitted, the API
+   * uses the GitHub account connected to the user creating the sandbox.
+   */
+  actAs?: string;
 }
 
 export type SandboxMountMode = "read-write" | "snapshot";

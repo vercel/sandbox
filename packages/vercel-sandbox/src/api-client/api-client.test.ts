@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { APIClient } from "./api-client.js";
 import { APIError, StreamError } from "./api-error.js";
+import { SANDBOX_GITHUB_CREDENTIAL_ACTIONS } from "../index.js";
 import { createNdjsonStream } from "../../test-utils/mock-response.js";
 import { z } from "zod";
 
@@ -1984,6 +1985,56 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       expect(JSON.parse(opts.body).credentials).toEqual({ npm: true });
+    });
+
+    it("forwards GitHub credentials in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        credentials: {
+          npm: true,
+          github: [
+            {
+              repositories: ["acme/web", "acme/api"],
+              actions: [...SANDBOX_GITHUB_CREDENTIAL_ACTIONS],
+              actAs: "@octocat",
+            },
+            { repositories: ["acme/docs"], actions: ["github:issues:read"] },
+          ],
+        },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).credentials).toEqual({
+        npm: true,
+        github: [
+          {
+            repositories: ["acme/web", "acme/api"],
+            actions: [
+              "git:read",
+              "git:write",
+              "git:write-workflows",
+              "git:force-push",
+              "github:pull-request:create",
+              "github:pull-request:get",
+              "github:pull-request:update",
+              "github:pull-request:comment",
+              "github:issues:read",
+              "github:issues:create",
+              "github:issues:update",
+              "github:issues:comment",
+              "github:labels:read",
+              "github:labels:write",
+              "github:ci-status:read",
+              "github:repository:read",
+              "github:repository-permissions:read",
+            ],
+            actAs: "@octocat",
+          },
+          { repositories: ["acme/docs"], actions: ["github:issues:read"] },
+        ],
+      });
     });
 
     it("forwards region and failoverRegions in the request body", async () => {

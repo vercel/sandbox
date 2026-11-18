@@ -4,6 +4,7 @@ export {
   type NetworkPolicyMatch,
   type NetworkPolicyMatcher,
   type SandboxCredentials,
+  type SandboxGitHubCredential,
   type SandboxMountMode,
   type SandboxMounts,
   Sandbox,
@@ -16,8 +17,14 @@ export {
 export type { SerializedSandbox } from "./sandbox.js";
 export { SandboxUser, SandboxUserAlreadyExistsError } from "./sandbox-user.js";
 export type { ExecutionContext } from "./execution-context.js";
-export { DEFAULT_SANDBOX_REGION } from "./constants.js";
-export type { SandboxRegion } from "./constants.js";
+export {
+  DEFAULT_SANDBOX_REGION,
+  SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
+} from "./constants.js";
+export type {
+  SandboxGitHubCredentialAction,
+  SandboxRegion,
+} from "./constants.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
 export { Drive } from "./drive.js";
