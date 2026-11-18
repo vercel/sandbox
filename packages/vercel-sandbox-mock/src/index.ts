@@ -18,6 +18,7 @@ export type {
 // The rest of the SDK surface, re-exported verbatim from the real package.
 export {
   DEFAULT_SANDBOX_REGION,
+  SANDBOX_GITHUB_CREDENTIAL_ACTIONS,
   Session,
   SandboxUser,
   SandboxUserAlreadyExistsError,
