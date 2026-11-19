@@ -108,4 +108,21 @@ describe("built package", () => {
     expect(output).toContain("--request-header");
     expect(status).toBe(0);
   });
+
+  test("exits 2 when nobody can confirm a request for GitHub credentials", () => {
+    const { status, output } = run([
+      path.join(outRoot, "bin/sandbox.mjs"),
+      "create",
+      "--credentials-github-repository=acme/web",
+      "--scope=team",
+      "--project=proj",
+      "--token=tok",
+    ]);
+
+    expect(output).toContain("  Repository      acme/web\n");
+    expect(output).toContain(
+      "Can't create a sandbox with GitHub credentials without confirmation in non-interactive mode.",
+    );
+    expect(status).toBe(2);
+  });
 });

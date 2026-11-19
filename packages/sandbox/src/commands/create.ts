@@ -24,6 +24,9 @@ import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
 import { credentialsArgs } from "../args/credentials";
 import { buildCredentials } from "../util/credentials";
+import { confirmCredentials } from "../util/credentials-consent";
+import { isInteractive } from "../util/interaction";
+import { hasProjectBounds } from "../util/project-bounds";
 import { fail } from "../util/fail";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
@@ -83,6 +86,12 @@ export const args = {
   failoverRegions,
   networkId,
   ...credentialsArgs,
+  yes: cmd.flag({
+    long: "yes",
+    short: "y",
+    description:
+      "Create the sandbox without asking to confirm a request for GitHub credentials.",
+  }),
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -143,6 +152,7 @@ export const create = cmd.command({
       region,
       failoverRegions,
       networkId,
+      yes,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
@@ -180,6 +190,18 @@ export const create = cmd.command({
         "A sandbox starts from a snapshot or from a cloned repository, not both. Remove one of the two options.",
       );
     }
+    await confirmCredentials({
+      credentials,
+      scope,
+      yes,
+      interactive: await isInteractive(),
+      hasProjectBounds: () =>
+        hasProjectBounds({
+          token: scope.token,
+          team: scope.team,
+          project: scope.project,
+        }),
+    });
 
     // Look up the latest published CLI version while the creation request is
     // in flight, so stale installs learn they're behind at no latency cost.

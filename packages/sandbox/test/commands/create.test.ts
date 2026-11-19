@@ -4,7 +4,10 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const { mockCreate } = vi.hoisted(() => ({ mockCreate: vi.fn() }));
+const { mockCreate, mockHasProjectBounds } = vi.hoisted(() => ({
+  mockCreate: vi.fn(),
+  mockHasProjectBounds: vi.fn(),
+}));
 
 vi.mock("../../src/client", () => ({
   sandboxClient: {
@@ -14,6 +17,10 @@ vi.mock("../../src/client", () => ({
     list: vi.fn(),
   },
   snapshotClient: { get: vi.fn(), list: vi.fn(), tree: vi.fn() },
+}));
+
+vi.mock("../../src/util/project-bounds", () => ({
+  hasProjectBounds: mockHasProjectBounds,
 }));
 
 vi.mock("@vercel/oidc", () => ({
@@ -33,6 +40,7 @@ describe("create command", () => {
       interactivePort: 8443,
       routes: [],
     });
+    mockHasProjectBounds.mockResolvedValue(true);
     process.env.VERCEL_AUTH_TOKEN = "tok";
   });
 
@@ -81,6 +89,7 @@ describe("create command", () => {
       "--credentials-github-repository=acme/web",
       "--credentials-github-actions=git:write,pull-request:create",
       "--credentials-github-act-as=octocat",
+      "--yes",
       "--scope=team",
       "--project=proj",
       "--silent",
@@ -101,6 +110,38 @@ describe("create command", () => {
         source: { type: "git", url: "https://github.com/acme/web.git" },
       }),
     );
+    expect(mockHasProjectBounds).toHaveBeenCalledWith({
+      token: "tok",
+      team: "team",
+      project: "proj",
+    });
+  });
+
+  test("stops before creating when GitHub credentials are not confirmed", async () => {
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const { create } = await import("../../src/commands/create.ts");
+
+    try {
+      await expect(
+        cmd.run(create, [
+          "--credentials-github-repository=acme/web",
+          "--scope=team",
+          "--project=proj",
+          "--silent",
+        ]),
+      ).rejects.toThrow(
+        "Can't create a sandbox with GitHub credentials without confirmation in non-interactive mode.",
+      );
+      expect(stderr.mock.calls.join("")).toContain(
+        "  Repository      acme/web\n",
+      );
+    } finally {
+      stderr.mockRestore();
+    }
+    expect(mockHasProjectBounds).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   test("sends the credentials from --credentials-file", async () => {
@@ -118,6 +159,7 @@ describe("create command", () => {
     const { create } = await import("../../src/commands/create.ts");
     await cmd.run(create, [
       `--credentials-file=${path}`,
+      "-y",
       "--scope=team",
       "--project=proj",
       "--silent",
