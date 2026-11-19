@@ -13,7 +13,9 @@ Dockerfiles for Vercel Managed Images published to Vercel Container Registry (VC
 | [`vercel/sandbox/node:al-22\|24\|26`](./al-node) | `al-base`               | Node.js (major pinned), pnpm                              |
 | [`vercel/sandbox/python:al-3.13.1`](./al-python) | `al-base`               | Python 3.13.1, pip, venv, uv                              |
 
-All images are built for `linux/amd64`.
+The `universal`, `node`, `python`, and `ubuntu` images are built for `linux/amd64` and
+`linux/arm64`, and each tag holds both. The `arch`, `node:al-*`, and `python:al-*` images are
+built for `linux/amd64` only.
 
 ## Pinned versions
 
