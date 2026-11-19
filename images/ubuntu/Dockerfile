@@ -22,6 +22,13 @@ RUN printf '%s\n' \
     usermod --home /vercel ubuntu && \
     chown -R ubuntu:ubuntu /vercel
 
+RUN printf '%s\tpriority:%s\n' \
+      'http://us-east-1.ec2.archive.ubuntu.com/ubuntu/' 1 \
+      'http://archive.ubuntu.com/ubuntu/' 2 \
+      'http://security.ubuntu.com/ubuntu/' 3 \
+      > /etc/apt/apt-mirrors.txt && \
+    sed -i -E 's#http://(archive|security)\.ubuntu\.com/ubuntu/?#mirror+file:/etc/apt/apt-mirrors.txt#' /etc/apt/sources.list.d/ubuntu.sources
+
 ENV HOME=/vercel
 ENV SHELL=/bin/bash
 USER ubuntu

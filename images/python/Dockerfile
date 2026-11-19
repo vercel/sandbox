@@ -4,7 +4,9 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+# With a mirror list, apt finds the snapshot server from the release files a plain update downloads.
+RUN apt-get update -o Acquire::Retries=10 && \
+    apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
       build-essential curl libarchive-tools pkg-config \
       libbz2-dev libdb-dev libffi-dev liblzma-dev libmpdec-dev libncurses-dev libreadline-dev \
@@ -35,7 +37,8 @@ ENV HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
 ARG UV_VERSION
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+RUN apt-get update -o Acquire::Retries=10 && \
+    apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
       curl git libbz2-1.0 libdb5.3t64 libffi8 liblzma5 libmpdec4 libncursesw6 libreadline8t64 \
       libsqlite3-0 libssl3t64 libuuid1 libzstd1 media-types netbase tzdata zlib1g && \

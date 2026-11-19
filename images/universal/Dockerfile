@@ -4,7 +4,9 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+# With a mirror list, apt finds the snapshot server from the release files a plain update downloads.
+RUN apt-get update -o Acquire::Retries=10 && \
+    apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
@@ -24,7 +26,8 @@ ARG PYTHON_VERSION=3.14
 ARG GH_VERSION
 ARG UV_VERSION
 
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+RUN apt-get update -o Acquire::Retries=10 && \
+    apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl && \
     cd /tmp && \
     curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb" && \

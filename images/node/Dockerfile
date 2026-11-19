@@ -4,7 +4,9 @@ ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+# With a mirror list, apt finds the snapshot server from the release files a plain update downloads.
+RUN apt-get update -o Acquire::Retries=10 && \
+    apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
@@ -20,7 +22,8 @@ ENV HOME=/root
 
 ARG UBUNTU_SNAPSHOT
 # Node.js requires libatomic.
-RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+RUN apt-get update -o Acquire::Retries=10 && \
+    apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl git libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
