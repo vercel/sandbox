@@ -14,7 +14,12 @@ import type {
   WithFetchOptions,
 } from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
-import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
+import type {
+  ManagedImage,
+  RUNTIMES,
+  SandboxArchitecture,
+  SandboxRegion,
+} from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Drive } from "./drive.js";
@@ -238,6 +243,7 @@ export type RuntimeOrImage =
        */
       runtime?: RUNTIMES | (string & {});
       image?: never;
+      architecture?: never;
     }
   | {
       runtime?: never;
@@ -256,6 +262,14 @@ export type RuntimeOrImage =
        * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
        */
       image?: SandboxImage;
+      /**
+       * The CPU architecture of the sandbox. If omitted, the sandbox uses the
+       * architecture of its image, and `amd64` when the image is built for
+       * both. `arm64` is in beta and available only in `iad1`.
+       *
+       * @example "arm64"
+       */
+      architecture?: SandboxArchitecture;
     };
 
 export type CreateSandboxParams =
@@ -265,6 +279,7 @@ export type CreateSandboxParams =
       // A snapshot already defines its base environment.
       runtime?: never;
       image?: never;
+      architecture?: never;
     });
 
 /**
@@ -518,6 +533,13 @@ export class Sandbox implements ExecutionContext {
    */
   public get image(): string | undefined {
     return this.sandbox.image;
+  }
+
+  /**
+   * The CPU architecture the sandbox runs on, `amd64` or `arm64`.
+   */
+  public get architecture(): string | undefined {
+    return this.sandbox.architecture;
   }
 
   /**
@@ -820,6 +842,7 @@ export class Sandbox implements ExecutionContext {
       resources: params?.resources,
       runtime: params?.runtime,
       image: params?.image,
+      architecture: params?.architecture,
       networkPolicy: params?.networkPolicy,
       networkId: params?.networkId,
       env: params?.env,

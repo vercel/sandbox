@@ -42,7 +42,11 @@ import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
-import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type {
+  RUNTIMES,
+  SandboxArchitecture,
+  SandboxRegion,
+} from "../constants.js";
 import type { SandboxCredentials } from "../sandbox.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
@@ -294,6 +298,7 @@ export class APIClient extends BaseClient {
       persistent?: boolean;
       runtime?: RUNTIMES | (string & {});
       image?: string;
+      architecture?: SandboxArchitecture;
       networkPolicy?: NetworkPolicy;
       networkId?: string;
       env?: Record<string, string>;
@@ -326,6 +331,7 @@ export class APIClient extends BaseClient {
           resources: params.resources,
           runtime: params.runtime,
           image: params.image,
+          architecture: params.architecture,
           name: params.name,
           persistent: params.persistent,
           networkPolicy: params.networkPolicy

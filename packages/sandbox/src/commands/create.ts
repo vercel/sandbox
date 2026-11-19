@@ -3,6 +3,7 @@ import * as cmd from "cmd-ts";
 import { isatty } from "node:tty";
 import ms from "ms";
 import { runtime } from "../args/runtime";
+import { architecture } from "../args/architecture";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
@@ -45,6 +46,7 @@ export const args = {
       "A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1).",
     type: cmd.optional(cmd.string),
   }),
+  architecture,
   timeout,
   vcpus,
   ports: publishPorts,
@@ -125,6 +127,7 @@ export const create = cmd.command({
       scope,
       runtime,
       image,
+      architecture,
       timeout,
       vcpus,
       silent,
@@ -167,6 +170,14 @@ export const create = cmd.command({
     if (runtime !== undefined && image !== undefined) {
       throw new Error("--runtime and --image cannot be used together.");
     }
+    if (
+      architecture !== undefined &&
+      (runtime !== undefined || snapshot !== undefined)
+    ) {
+      throw new Error(
+        "--architecture cannot be used with --runtime or --snapshot.",
+      );
+    }
 
     // Look up the latest published CLI version while the creation request is
     // in flight, so stale installs learn they're behind at no latency cost.
@@ -183,10 +194,10 @@ export const create = cmd.command({
     const selectedImage = agent ? "vercel/sandbox/universal" : image;
     const runtimeOptions =
       selectedImage !== undefined
-        ? { image: selectedImage }
+        ? { image: selectedImage, architecture }
         : runtime !== undefined
           ? { runtime }
-          : {};
+          : { architecture };
 
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;

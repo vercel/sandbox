@@ -1081,6 +1081,52 @@ describe("Sandbox.create environment selection", () => {
     expect(body.image).toBe("my-repo:latest");
   });
 
+  it("sends architecture in the create request body", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
+    );
+
+    await expect(
+      Sandbox.create({
+        ...CREDENTIALS,
+        architecture: "arm64",
+        fetch: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain("/v3/sandboxes");
+    expect(JSON.parse(String(init?.body)).architecture).toBe("arm64");
+  });
+
+  it("exposes the architecture the API reports", async () => {
+    const mockFetch = vi.fn<typeof fetch>(async () =>
+      jsonResponse(200, {
+        sandbox: { ...makeSandboxMetadata(), architecture: "arm64" },
+        session: {
+          id: "sbx_123",
+          memory: 2048,
+          vcpus: 1,
+          region: "iad1",
+          timeout: 300_000,
+          status: "running",
+          requestedAt: 1,
+          createdAt: 1,
+          cwd: "/",
+          updatedAt: 1,
+        },
+        routes: [],
+      }),
+    );
+
+    const sandbox = await Sandbox.create({
+      ...CREDENTIALS,
+      fetch: mockFetch as unknown as typeof fetch,
+    });
+
+    expect(sandbox.architecture).toBe("arm64");
+  });
+
   it("uses the v2 endpoint when runtime is provided", async () => {
     const mockFetch = vi.fn<typeof fetch>(async () =>
       jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
