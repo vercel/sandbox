@@ -263,9 +263,7 @@ export type RuntimeOrImage =
        */
       image?: SandboxImage;
       /**
-       * The CPU architecture of the sandbox. If omitted, the sandbox uses the
-       * architecture of its image, and `amd64` when the image is built for
-       * both. `arm64` is in beta and available only in `iad1`.
+       * The CPU architecture of the sandbox.
        *
        * @example "arm64"
        */
