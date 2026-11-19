@@ -20,42 +20,33 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      builds: ${{ steps.images.outputs.builds }}
       images: ${{ steps.images.outputs.images }}
+      builds: ${{ steps.images.outputs.builds }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Find publishable Bake targets and their platforms
+      - name: Find publishable Bake targets
         id: images
         working-directory: images
         run: |
-          bake=$(docker buildx bake --print)
-          builds=$(jq -c '
-            [.target | to_entries[] | select(.value.tags | length > 0)
-              | .key as $target
-              | (.value.tags[0] | sub(":[^:]+$"; "")) as $repository
-              | .value.platforms[]
-              | {
-                  target: $target,
-                  repository: $repository,
-                  platform: .,
-                  arch: sub("linux/"; ""),
-                  runner: (if . == "linux/arm64" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
-                }]
-          ' <<< "$bake")
-          images=$(jq -c '
-            [.target | to_entries[] | select(.value.tags | length > 0)
-              | {target: .key, tags: (.value.tags | join(",")), platforms: (.value.platforms | length)}]
-          ' <<< "$bake")
-          echo "builds=$builds" >> "$GITHUB_OUTPUT"
+          images=$(docker buildx bake --print | jq -c '
+            [.target | to_entries[] | select(.value.tags | length > 0) | {
+              target: .key,
+              repository: (.value.tags[0] | sub(":[^:]+$"; "")),
+              tags: .value.tags,
+              platforms: .value.platforms
+            }]
+          ')
+          builds=$(jq -c '[.[] | {target, repository, platform: .platforms[]}]' <<< "$images")
           echo "images=$images" >> "$GITHUB_OUTPUT"
+          echo "builds=$builds" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.target }} (${{ matrix.platform }})
     if: github.ref == 'refs/heads/main'
     needs: prepare
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -76,7 +67,7 @@ jobs:
         with:
           team: ${{ vars.VERCEL_TEAM_ID }}
 
-      - name: Build and push the image by digest
+      - name: Build and push by digest
         id: bake
         uses: docker/bake-action@v7
         with:
@@ -107,17 +98,15 @@ jobs:
       - name: Upload the digest
         uses: actions/upload-artifact@v7
         with:
-          name: digest-${{ matrix.target }}-${{ matrix.arch }}
+          name: digest-${{ matrix.target }}-${{ strategy.job-index }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
-          retention-days: 1
 
   publish:
     name: Publish ${{ matrix.target }}
-    if: ${{ !cancelled() && needs.prepare.result == 'success' && github.ref == 'refs/heads/main' }}
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
     needs: [prepare, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
@@ -143,23 +132,19 @@ jobs:
 
       - name: Point the final tags at the optimized images
         env:
-          TARGET: ${{ matrix.target }}
-          TAGS: ${{ matrix.tags }}
-          PLATFORMS: ${{ matrix.platforms }}
+          REPOSITORY: ${{ matrix.repository }}
+          TAGS: ${{ join(matrix.tags, ' ') }}
+          PLATFORMS: ${{ join(matrix.platforms, ' ') }}
         run: |
-          IFS=, read -r -a tags <<< "$TAGS"
-          repository="${tags[0]%:*}"
-
-          sources=()
+          read -r -a tags <<< "$TAGS"
+          read -r -a platforms <<< "$PLATFORMS"
           shopt -s nullglob
-          for digest in "$RUNNER_TEMP"/digests/*; do
-            sources+=("$repository@sha256:$(basename "$digest")")
-          done
-          if [ "${#sources[@]}" -ne "$PLATFORMS" ]; then
-            echo "::error::Expected $PLATFORMS optimized images for $TARGET, found ${#sources[@]}. Its tags are unchanged."
+          files=("$RUNNER_TEMP"/digests/*)
+          digests=("${files[@]##*/}")
+          if [ "${#digests[@]}" -ne "${#platforms[@]}" ]; then
+            echo "::error::Expected an optimized image for each of ${platforms[*]}, found ${#digests[@]}."
             exit 1
           fi
-
           docker buildx imagetools create --prefer-index=false \
             "${tags[@]/#/--tag=}" \
-            "${sources[@]}"
+            "${digests[@]/#/$REPOSITORY@sha256:}"
