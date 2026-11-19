@@ -3,19 +3,15 @@
 Dockerfiles for Vercel Managed Images published to Vercel Container Registry (VCR) under
 `vercel/sandbox/*`.
 
-| Image                                            | Base                    | Contents                                                  |
-| ------------------------------------------------ | ----------------------- | --------------------------------------------------------- |
-| [`vercel/sandbox/universal:latest`](./universal) | `vercel/sandbox/ubuntu` | Node.js LTS (24), Python (3.14), coding agents, utilities |
-| [`vercel/sandbox/node:22\|24\|26`](./node)       | `vercel/sandbox/ubuntu` | Node.js (major pinned), pnpm, curl                        |
-| [`vercel/sandbox/python:3.14\|3.15`](./python)   | `vercel/sandbox/ubuntu` | Python (source build), pip, venv, uv, curl                |
-| [`vercel/sandbox/arch:latest`](./arch)           | `archlinux:latest`      | Arch Linux, yay (AUR), base-devel, git                    |
-| [`vercel/sandbox/ubuntu:latest`](./ubuntu)       | `ubuntu:26.04`          | Ubuntu + sudo                                             |
-| [`vercel/sandbox/node:al-22\|24\|26`](./al-node) | `al-base`               | Node.js (major pinned), pnpm                              |
-| [`vercel/sandbox/python:al-3.13.1`](./al-python) | `al-base`               | Python 3.13.1, pip, venv, uv                              |
-
-The `universal`, `node`, `python`, and `ubuntu` images are built for `linux/amd64` and
-`linux/arm64`, and each tag holds both. The `arch`, `node:al-*`, and `python:al-*` images are
-built for `linux/amd64` only.
+| Image                                            | Base                    | Contents                                                  | Platforms                    |
+| ------------------------------------------------ | ----------------------- | --------------------------------------------------------- | ---------------------------- |
+| [`vercel/sandbox/universal:latest`](./universal) | `vercel/sandbox/ubuntu` | Node.js LTS (24), Python (3.14), coding agents, utilities | `linux/amd64`, `linux/arm64` |
+| [`vercel/sandbox/node:22\|24\|26`](./node)       | `vercel/sandbox/ubuntu` | Node.js (major pinned), pnpm, curl                        | `linux/amd64`, `linux/arm64` |
+| [`vercel/sandbox/python:3.14\|3.15`](./python)   | `vercel/sandbox/ubuntu` | Python (source build), pip, venv, uv, curl                | `linux/amd64`, `linux/arm64` |
+| [`vercel/sandbox/arch:latest`](./arch)           | `archlinux:latest`      | Arch Linux, yay (AUR), base-devel, git                    | `linux/amd64`                |
+| [`vercel/sandbox/ubuntu:latest`](./ubuntu)       | `ubuntu:26.04`          | Ubuntu + sudo                                             | `linux/amd64`, `linux/arm64` |
+| [`vercel/sandbox/node:al-22\|24\|26`](./al-node) | `al-base`               | Node.js (major pinned), pnpm                              | `linux/amd64`                |
+| [`vercel/sandbox/python:al-3.13.1`](./al-python) | `al-base`               | Python 3.13.1, pip, venv, uv                              | `linux/amd64`                |
 
 ## Pinned versions
 
