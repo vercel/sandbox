@@ -74,6 +74,40 @@ describe("create command", () => {
     );
   });
 
+  test("forwards --architecture to Sandbox.create", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--architecture=arm64",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ architecture: "arm64" }),
+    );
+  });
+
+  test.each(["--runtime=node24", "--snapshot=snap_123"])(
+    "rejects --architecture with %s before creating a sandbox",
+    async (flag) => {
+      const { create } = await import("../../src/commands/create.ts");
+
+      await expect(
+        cmd.run(create, [
+          "--architecture=arm64",
+          flag,
+          "--scope=team",
+          "--project=proj",
+          "--silent",
+        ]),
+      ).rejects.toThrow(
+        "--architecture cannot be used with --runtime or --snapshot.",
+      );
+      expect(mockCreate).not.toHaveBeenCalled();
+    },
+  );
+
   test("defaults the network policy to allow-all", async () => {
     const { create } = await import("../../src/commands/create.ts");
     await cmd.run(create, ["--scope=team", "--project=proj", "--silent"]);

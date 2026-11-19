@@ -10,6 +10,11 @@ export type ManagedImage =
   | "arch";
 
 /**
+ * CPU architectures a sandbox can run on.
+ */
+export type SandboxArchitecture = "amd64" | "arm64";
+
+/**
  * Regions a sandbox, snapshot, or drive can live in. More regions may
  * become available, so any other region string is accepted too.
  */

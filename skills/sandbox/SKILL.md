@@ -91,6 +91,7 @@ const sandbox = await Sandbox.create({
   snapshotExpiration: ms("7d"), // Default TTL for snapshots. Use 0 for no expiration.
   region: "<region>", // Optional, defaults to iad1. Any Vercel region, e.g. sfo1, fra1, hnd1, syd1.
   failoverRegions: ["<region>"], // Optional, e.g. ["sfo1", "fra1"]. Must not include `region`.
+  architecture: "arm64", // Optional, "amd64" or "arm64".
 });
 
 console.log(sandbox.name);
@@ -1040,6 +1041,7 @@ sandbox create --snapshot-expiration 7d      # Default snapshot TTL
 sandbox create --keep-last-snapshots 1       # Retention policy
 sandbox create --tag env=staging             # Repeatable
 sandbox create --region <region>             # Defaults to iad1; any Vercel region, e.g. sfo1, fra1, hnd1, syd1
+sandbox create --architecture arm64          # amd64 or arm64
 sandbox create --failover-regions <region>,<region>  # Comma-separated
 sandbox create --failover-regions none               # No failover, overrides the project default
 
