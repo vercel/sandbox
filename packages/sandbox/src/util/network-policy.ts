@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import type { NetworkPolicy, NetworkPolicyRule } from "@vercel/sandbox";
 import type { NetworkPolicyArgs } from "../args/network-policy";
+import { fail } from "./fail";
 
 type NetworkPolicyMode = "allow-all" | "deny-all";
 
@@ -21,10 +22,6 @@ export function resolveMode(
     );
   }
   return networkPolicy ?? mode;
-}
-
-function fail(message: string, hint: string): never {
-  throw new Error([message, `${chalk.bold("hint:")} ${hint}`].join("\n"));
 }
 
 function subnetFields(

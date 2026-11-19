@@ -74,6 +74,76 @@ describe("create command", () => {
     );
   });
 
+  test("requests GitHub credentials and clones the repository", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--credentials=npm",
+      "--credentials-github-repository=acme/web",
+      "--credentials-github-actions=git:write,pull-request:create",
+      "--credentials-github-act-as=octocat",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credentials: {
+          npm: true,
+          github: [
+            {
+              repositories: ["acme/web"],
+              actions: ["git:write", "github:pull-request:create"],
+              actAs: "@octocat",
+            },
+          ],
+        },
+        source: { type: "git", url: "https://github.com/acme/web.git" },
+      }),
+    );
+  });
+
+  test("sends the credentials from --credentials-file", async () => {
+    const credentials = {
+      github: [
+        { repositories: ["acme/web", "acme/api"], actions: ["git:read"] },
+      ],
+    };
+    const path = join(
+      mkdtempSync(join(tmpdir(), "credentials-")),
+      "credentials.json",
+    );
+    writeFileSync(path, JSON.stringify(credentials));
+
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      `--credentials-file=${path}`,
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate.mock.calls[0][0].credentials).toEqual(credentials);
+    expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("source");
+  });
+
+  test("rejects a snapshot together with a repository to clone", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+
+    await expect(
+      cmd.run(create, [
+        "--snapshot=snap_123",
+        "--credentials-github-repository=acme/web",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ]),
+    ).rejects.toThrow(
+      "Cannot combine --snapshot with --credentials-github-repository.",
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   test("defaults the network policy to allow-all", async () => {
     const { create } = await import("../../src/commands/create.ts");
     await cmd.run(create, ["--scope=team", "--project=proj", "--silent"]);
