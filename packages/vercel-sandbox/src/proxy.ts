@@ -48,13 +48,48 @@ export type InvalidRequestProxyHandler = (
   error: Error,
 ) => Response | Promise<Response>;
 
+interface BaseSandboxProxyOptions {
+  /**
+   * Called when a request is rejected, including when the source sandbox is not allowed.
+   * By default, a 403 response is returned.
+   */
+  onInvalidRequest?: InvalidRequestProxyHandler;
+}
+
+interface AllowedSandboxProxyOptions extends BaseSandboxProxyOptions {
+  /**
+   * The team ID (or IDs) whose sandboxes may use this proxy.
+   */
+  teamId: string | string[];
+  /**
+   * The project ID (or IDs) whose sandboxes may use this proxy.
+   */
+  projectId: string | string[];
+  insecurelyAllowAll?: never;
+}
+
+interface InsecurelyAllowAllSandboxProxyOptions
+  extends BaseSandboxProxyOptions {
+  /**
+   * Accept proxied requests from sandboxes of any Vercel team or project. Not recommended.
+   */
+  insecurelyAllowAll: true;
+  teamId?: never;
+  projectId?: never;
+}
+
+export type SandboxProxyOptions =
+  | AllowedSandboxProxyOptions
+  | InsecurelyAllowAllSandboxProxyOptions;
+
 /**
  * Creates a Web Handler for proxied requests from Vercel Sandboxes using the network policy `forwardURL`
  * option. The provided `handler` is called for each valid proxied request, with the original request
  * alongside extracted metadata used to identify the source sandbox and request details.
  *
- * This function automatically verifies the OIDC token included in proxied requests to ensure the request
- * is legitimate: if invalid, the `invalidRequestHandler` is called (by default, a 403 response is returned).
+ * This function automatically verifies the OIDC token included in proxied requests, and only accepts
+ * requests from sandboxes owned by the allowed `teamId` and `projectId`. If a request is rejected,
+ * `onInvalidRequest` is called (by default, a 403 response is returned).
  *
  * @example
  * ```ts
@@ -65,9 +100,9 @@ export type InvalidRequestProxyHandler = (
  *
  *     // return a custom response, or proxy upstream:
  *     return await fetch(request)
- *   }, (request, error) => {
- *     // optional, handle any authorization error
- *     return new Response("Forbidden", { status: 403 })
+ *   }, {
+ *     teamId: "team_123",
+ *     projectId: "prj_123",
  *   })
  * }
  * ```
@@ -76,8 +111,12 @@ export type InvalidRequestProxyHandler = (
  */
 export function defineSandboxProxy(
   handler: ProxyHandler,
-  invalidRequestHandler: InvalidRequestProxyHandler = defaultInvalidRequestHandler,
+  options: SandboxProxyOptions,
 ) {
+  const isAllowed = getSourceAllowlist(options);
+  const invalidRequestHandler =
+    options.onInvalidRequest ?? defaultInvalidRequestHandler;
+
   return async function sandboxProxy(request: Request): Promise<Response> {
     const headers = new Headers(request.headers);
     const host = headers.get(FORWARDED_HOST_HEADER);
@@ -125,6 +164,10 @@ export function defineSandboxProxy(
       const claims = await verifyOidcToken(oidcToken, originalUrl);
       const meta = getProxyMeta(originalUrl.host, claims);
 
+      if (!isAllowed(meta)) {
+        throw new Error("Sandbox is not allowed to use this proxy");
+      }
+
       return handler(sanitizedRequest, meta);
     } catch (error) {
       return invalidRequestHandler(
@@ -133,6 +176,54 @@ export function defineSandboxProxy(
       );
     }
   };
+}
+
+function getSourceAllowlist(
+  options: SandboxProxyOptions | undefined,
+): (meta: ProxyMeta) => boolean {
+  if (typeof options === "function") {
+    throw new Error(
+      "defineSandboxProxy now takes an options object as its second argument: pass `teamId` and `projectId`, and move the invalid request handler to `onInvalidRequest`",
+    );
+  }
+
+  if (!options || typeof options !== "object") {
+    throw new Error(
+      "defineSandboxProxy requires `teamId` and `projectId` options, or `insecurelyAllowAll: true`",
+    );
+  }
+
+  const hasAllowlist =
+    options.teamId !== undefined || options.projectId !== undefined;
+
+  if (options.insecurelyAllowAll === true) {
+    if (hasAllowlist) {
+      throw new Error(
+        "defineSandboxProxy `insecurelyAllowAll` cannot be combined with `teamId` or `projectId`",
+      );
+    }
+    return () => true;
+  }
+
+  const teamIds = toIdSet(options.teamId, "teamId");
+  const projectIds = toIdSet(options.projectId, "projectId");
+
+  return (meta) => teamIds.has(meta.teamId) && projectIds.has(meta.projectId);
+}
+
+function toIdSet(value: unknown, name: string): Set<string> {
+  const ids: unknown[] = Array.isArray(value) ? Array.from(value) : [value];
+
+  if (
+    ids.length === 0 ||
+    !ids.every((id): id is string => typeof id === "string" && id !== "")
+  ) {
+    throw new Error(
+      `defineSandboxProxy \`${name}\` must be a non-empty string or array of non-empty strings`,
+    );
+  }
+
+  return new Set(ids);
 }
 
 function defaultInvalidRequestHandler(): Response {

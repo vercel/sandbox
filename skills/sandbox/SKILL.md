@@ -640,17 +640,26 @@ const sandbox = await Sandbox.create({
 ```
 
 Implement the proxy handler with `defineSandboxProxy`, using the Web `Request` & `Response` objects — it verifies the
-sandbox OIDC token and extracts metadata about the source sandbox:
+sandbox OIDC token, only accepts sandboxes from the `teamId` and `projectId` you pass (each can be a string or an
+array), and extracts metadata about the source sandbox. It throws when neither the allowlist nor
+`insecurelyAllowAll: true` is passed; avoid `insecurelyAllowAll` unless you mean to accept every sandbox:
 
 ```typescript
 // app/api/sandbox-proxy/route.ts
 import { defineSandboxProxy } from "@vercel/sandbox/proxy";
 
-const handler = defineSandboxProxy(async (request, meta) => {
-  // meta: { host, teamId, projectId, sandboxId, sandboxName }
-  console.log("Proxied from sandbox", meta.sandboxName);
-  return fetch(request);
-});
+const handler = defineSandboxProxy(
+  async (request, meta) => {
+    // meta: { host, teamId, projectId, sandboxId, sandboxName }
+    console.log("Proxied from sandbox", meta.sandboxName);
+    return fetch(request);
+  },
+  {
+    // The team and project that own the sandboxes allowed to use this proxy
+    teamId: "team_...",
+    projectId: "prj_...",
+  },
+);
 
 // Sandboxes forward requests using their original method, so the handler
 // must be exposed under every verb the network policy can route.

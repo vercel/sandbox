@@ -48,6 +48,7 @@ export type {
   InvalidRequestProxyHandler,
   ProxyMeta,
   ProxyHandler,
+  SandboxProxyOptions,
 } from "@vercel/sandbox";
 
 export type { IFileSystem } from "just-bash";
