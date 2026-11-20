@@ -163,6 +163,7 @@ Flags:
     --non-persistent     Disable automatic restore of the filesystem between sessions. [optional]
     --silent             Don't write sandbox name to stdout [optional]
     --connect            Start an interactive shell session after creating the sandbox [optional]
+    --yes, -y            Create the sandbox without asking to confirm a request for GitHub credentials. [optional]
     --sudo               Give extended privileges to the command. [optional]
     --interactive, -i    Run the command in a secure interactive shell [optional]
     --no-extend-timeout  Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions. [optional]
@@ -253,6 +254,7 @@ Flags:
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
     --connect         Start an interactive shell session after creating the sandbox [optional]
+    --yes, -y         Create the sandbox without asking to confirm a request for GitHub credentials. [optional]
     --help, -h        show help [optional]
 
 Auth & Scope:
@@ -357,6 +359,7 @@ Flags:
 
     --non-persistent  Disable automatic restore of the filesystem between sessions. [optional]
     --silent          Don't write sandbox name to stdout [optional]
+    --yes, -y         Create the sandbox without asking to confirm a request for GitHub credentials. [optional]
     --rm              Automatically remove the sandbox when the shell exits. [optional]
     --help, -h        show help [optional]
 
