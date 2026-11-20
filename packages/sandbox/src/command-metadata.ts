@@ -122,7 +122,7 @@ export const commandMetadata = {
   },
   drives: {
     name: "drives",
-    description: "Manage sandbox drives (deprecated; use vercel drives)",
+    description: "Manage sandbox drives (deprecated, use the `vercel drives` CLI)",
     positionals: [],
   },
   telemetry: {
