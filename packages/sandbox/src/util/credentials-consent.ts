@@ -5,21 +5,14 @@ import type {
 } from "@vercel/sandbox";
 import { ExitError } from "../error";
 import { fail } from "./fail";
+import { printable } from "./printable";
 
 interface Scope {
   team: string;
   project: string;
-  teamSlug?: string;
-  projectSlug?: string;
 }
 
 const LABEL_WIDTH = "GitHub account".length;
-
-// Team and project names come from the API, and a crafted name must not be
-// able to rewrite the terminal.
-function printable(value: string): string {
-  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, "");
-}
 
 function row(label: string, values: readonly string[]): string {
   return values
@@ -51,6 +44,10 @@ function grantRows(grant: SandboxGitHubCredential): string {
 /**
  * Renders what a credentials request acts on and what it grants, for a
  * person to check before the sandbox is created.
+ *
+ * The team and project are the exact values the request uses. A display name
+ * from scope inference can belong to a different team or project, and consent
+ * must name the one that receives the access.
  */
 export function renderCredentialsPreview(options: {
   credentials: SandboxCredentials;
@@ -58,8 +55,8 @@ export function renderCredentialsPreview(options: {
 }): string {
   const { credentials, scope } = options;
   return [
-    row("Team", [printable(scope.teamSlug ?? scope.team)]),
-    row("Project", [printable(scope.projectSlug ?? scope.project)]),
+    row("Team", [printable(scope.team)]),
+    row("Project", [printable(scope.project)]),
     credentials.npm ? row("npm", ["the team's private packages"]) : "",
     ...(credentials.github ?? []).map(grantRows),
   ].join("");
