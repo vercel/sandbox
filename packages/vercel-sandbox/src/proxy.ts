@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import { LRUCache } from "lru-cache";
+import { getVercelOidcToken } from "@vercel/oidc";
 
 const FORWARDED_HOST_HEADER = "vercel-forwarded-host";
 const FORWARDED_SCHEME_HEADER = "vercel-forwarded-scheme";
@@ -10,6 +11,7 @@ const SANDBOX_OIDC_TOKEN_HEADER = "vercel-sandbox-oidc-token";
 const VERCEL_OIDC_HOSTNAME = "oidc.vercel.com";
 const CLOCK_TOLERANCE_SECONDS = 60;
 const MAX_JWKS_CACHE_SIZE = 100;
+const OWN_SOURCE_RETRY_DELAY_MS = 60_000;
 
 const jwksCache = new LRUCache<string, ReturnType<typeof createRemoteJWKSet>>({
   max: MAX_JWKS_CACHE_SIZE,
@@ -58,31 +60,31 @@ interface BaseSandboxProxyOptions {
 
 interface AllowedSandboxProxyOptions extends BaseSandboxProxyOptions {
   /**
-   * The team ID (or IDs) whose sandboxes may use this proxy. A sandbox is allowed when its team is in
-   * `teamId` and its project is in `projectId`.
+   * Other team IDs whose sandboxes may use this proxy, on top of the proxy's own team.
+   * A sandbox is allowed when its team is in the allowed teams and its project is in the allowed projects.
    */
-  teamId: string | readonly string[];
+  teamId?: string | readonly string[];
   /**
-   * The project ID (or IDs) whose sandboxes may use this proxy. A sandbox is allowed when its team is in
-   * `teamId` and its project is in `projectId`.
+   * Other project IDs whose sandboxes may use this proxy, on top of the proxy's own project.
+   * A sandbox is allowed when its team is in the allowed teams and its project is in the allowed projects.
    */
-  projectId: string | readonly string[];
-  insecurelyAllowAll?: never;
+  projectId?: string | readonly string[];
+  dangerouslyAllowAll?: never;
 }
 
-interface InsecurelyAllowAllSandboxProxyOptions
+interface DangerouslyAllowAllSandboxProxyOptions
   extends BaseSandboxProxyOptions {
   /**
    * Accept proxied requests from sandboxes of any Vercel team or project. Not recommended.
    */
-  insecurelyAllowAll: true;
+  dangerouslyAllowAll: true;
   teamId?: never;
   projectId?: never;
 }
 
 export type SandboxProxyOptions =
   | AllowedSandboxProxyOptions
-  | InsecurelyAllowAllSandboxProxyOptions;
+  | DangerouslyAllowAllSandboxProxyOptions;
 
 /**
  * Creates a Web Handler for proxied requests from Vercel Sandboxes using the network policy `forwardURL`
@@ -90,8 +92,9 @@ export type SandboxProxyOptions =
  * alongside extracted metadata used to identify the source sandbox and request details.
  *
  * This function automatically verifies the OIDC token included in proxied requests, and only accepts
- * requests from sandboxes owned by the allowed `teamId` and `projectId`. If a request is rejected,
- * `onInvalidRequest` is called (by default, a 403 response is returned).
+ * requests from sandboxes owned by the proxy's own team and project (read from its Vercel OIDC token),
+ * plus any `teamId` and `projectId` you pass. If a request is rejected, `onInvalidRequest` is called
+ * (by default, a 403 response is returned).
  *
  * @example
  * ```ts
@@ -102,9 +105,6 @@ export type SandboxProxyOptions =
  *
  *     // return a custom response, or proxy upstream:
  *     return await fetch(request)
- *   }, {
- *     teamId: "team_123",
- *     projectId: "prj_123",
  *   })
  * }
  * ```
@@ -113,7 +113,7 @@ export type SandboxProxyOptions =
  */
 export function defineSandboxProxy(
   handler: ProxyHandler,
-  options: SandboxProxyOptions,
+  options: SandboxProxyOptions = {},
 ) {
   const isAllowed = getSourceAllowlist(options);
   const invalidRequestHandler =
@@ -166,7 +166,7 @@ export function defineSandboxProxy(
       const claims = await verifyOidcToken(oidcToken, originalUrl);
       const meta = getProxyMeta(originalUrl.host, claims);
 
-      if (!isAllowed(meta)) {
+      if (!(await isAllowed(meta))) {
         throw new Error("Sandbox is not allowed to use this proxy");
       }
 
@@ -181,36 +181,124 @@ export function defineSandboxProxy(
 }
 
 function getSourceAllowlist(
-  options: SandboxProxyOptions | undefined,
-): (meta: ProxyMeta) => boolean {
+  options: SandboxProxyOptions,
+): (meta: ProxyMeta) => Promise<boolean> {
   if (typeof options === "function") {
     throw new Error(
-      "defineSandboxProxy now takes an options object as its second argument: pass `teamId` and `projectId`, and move the invalid request handler to `onInvalidRequest`",
+      "defineSandboxProxy now takes an options object as its second argument: move the invalid request handler to `onInvalidRequest`",
     );
   }
 
   if (!options || typeof options !== "object") {
-    throw new Error(
-      "defineSandboxProxy requires `teamId` and `projectId` options, or `insecurelyAllowAll: true`",
-    );
+    throw new Error("defineSandboxProxy options must be an object");
   }
 
   const hasAllowlist =
     options.teamId !== undefined || options.projectId !== undefined;
 
-  if (options.insecurelyAllowAll === true) {
-    if (hasAllowlist) {
+  if (options.dangerouslyAllowAll !== undefined) {
+    if (options.dangerouslyAllowAll !== true || hasAllowlist) {
       throw new Error(
-        "defineSandboxProxy `insecurelyAllowAll` cannot be combined with `teamId` or `projectId`",
+        "defineSandboxProxy `dangerouslyAllowAll` must be `true` and cannot be combined with `teamId` or `projectId`",
       );
     }
-    return () => true;
+    return async () => true;
   }
 
-  const teamIds = toIdSet(options.teamId, "teamId");
-  const projectIds = toIdSet(options.projectId, "projectId");
+  if (
+    hasAllowlist &&
+    (options.teamId === undefined || options.projectId === undefined)
+  ) {
+    throw new Error(
+      "defineSandboxProxy `teamId` and `projectId` must be passed together",
+    );
+  }
 
-  return (meta) => teamIds.has(meta.teamId) && projectIds.has(meta.projectId);
+  const teamIds = hasAllowlist
+    ? toIdSet(options.teamId, "teamId")
+    : new Set<string>();
+  const projectIds = hasAllowlist
+    ? toIdSet(options.projectId, "projectId")
+    : new Set<string>();
+  const ownSource = createOwnSourceLookup();
+
+  return async (meta) => {
+    let own: SourceIds | undefined;
+
+    try {
+      own = await ownSource();
+    } catch (error) {
+      if (!hasAllowlist) {
+        throw new Error(
+          "Could not determine this proxy's team and project from its Vercel OIDC token. Make sure OIDC is enabled, or pass `teamId` and `projectId`",
+          { cause: error },
+        );
+      }
+    }
+
+    const teamAllowed = teamIds.has(meta.teamId) || own?.teamId === meta.teamId;
+    const projectAllowed =
+      projectIds.has(meta.projectId) || own?.projectId === meta.projectId;
+
+    return teamAllowed && projectAllowed;
+  };
+}
+
+interface SourceIds {
+  teamId: string;
+  projectId: string;
+}
+
+function createOwnSourceLookup(): () => Promise<SourceIds> {
+  let pending: Promise<SourceIds> | undefined;
+  let failedAt: number | undefined;
+  let lastError: unknown;
+
+  return () => {
+    if (
+      failedAt !== undefined &&
+      Date.now() - failedAt < OWN_SOURCE_RETRY_DELAY_MS
+    ) {
+      return Promise.reject(lastError);
+    }
+
+    if (!pending) {
+      pending = getOwnSource().then(
+        (source) => {
+          failedAt = undefined;
+          return source;
+        },
+        (error: unknown) => {
+          pending = undefined;
+          failedAt = Date.now();
+          lastError = error;
+          throw error;
+        },
+      );
+    }
+
+    return pending;
+  };
+}
+
+async function getOwnSource(): Promise<SourceIds> {
+  const expectedProjectId = process.env.VERCEL_PROJECT_ID;
+
+  if (!expectedProjectId) {
+    throw new Error("VERCEL_PROJECT_ID is not set");
+  }
+
+  const payload = await verifyVercelIssuedToken(await getVercelOidcToken());
+  const teamId = getClaim(payload, "owner_id");
+  const projectId = getClaim(payload, "project_id");
+
+  if (!teamId || projectId !== expectedProjectId) {
+    throw new Error(
+      "Vercel OIDC token does not belong to this deployment's team and project",
+    );
+  }
+
+  return { teamId, projectId };
 }
 
 function toIdSet(value: unknown, name: string): Set<string> {
@@ -291,6 +379,13 @@ async function verifyOidcToken(
   token: string,
   originalUrl: URL,
 ): Promise<Record<string, unknown>> {
+  return verifyVercelIssuedToken(token, getForwardUrlAudience(originalUrl));
+}
+
+async function verifyVercelIssuedToken(
+  token: string,
+  audience?: string,
+): Promise<Record<string, unknown>> {
   const claims = decodeJwt(token);
   const issuer = getClaim(claims, "iss");
 
@@ -308,13 +403,21 @@ async function verifyOidcToken(
 
   if (
     issuerUrl.protocol !== "https:" ||
-    issuerUrl.hostname !== VERCEL_OIDC_HOSTNAME
+    issuerUrl.hostname !== VERCEL_OIDC_HOSTNAME ||
+    issuerUrl.port !== "" ||
+    issuerUrl.username !== "" ||
+    issuerUrl.password !== "" ||
+    issuerUrl.search !== "" ||
+    issuerUrl.hash !== "" ||
+    issuer.includes("?") ||
+    issuer.includes("#") ||
+    !/^\/[^/]*$/.test(issuerUrl.pathname)
   ) {
     throw new Error("Invalid OIDC issuer");
   }
 
   const { payload } = await jwtVerify(token, getJwks(issuer), {
-    audience: getForwardUrlAudience(originalUrl),
+    audience,
     algorithms: ["RS256"],
     clockTolerance: CLOCK_TOLERANCE_SECONDS,
     issuer,
