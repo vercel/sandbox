@@ -167,6 +167,9 @@ export class MockServer {
       .replace(/^\/api/, "")
       .split("/")
       .filter(Boolean);
+    if (segments[0] === "v1" && segments[1] === "drives")
+      return this.#driveRoutes(method, segments.slice(2), url, init);
+
     // Expect ["v2", "sandboxes", ...rest]
     const rest = segments.slice(2);
 
@@ -174,8 +177,6 @@ export class MockServer {
       return this.#sessionRoutes(method, rest.slice(1), url, init);
     if (rest[0] === "snapshots")
       return this.#snapshotRoutes(method, rest.slice(1), url);
-    if (rest[0] === "drives")
-      return this.#driveRoutes(method, rest.slice(1), url, init);
     if (rest.length === 0) {
       if (method === "POST") return this.#createSandbox(init);
       if (method === "GET") return this.#listSandboxes(url);
@@ -210,8 +211,8 @@ export class MockServer {
       });
     }
 
-    const name = decodeURIComponent(parts[0] ?? "");
-    if (!name) {
+    const identifier = decodeURIComponent(parts[0] ?? "");
+    if (!identifier) {
       return apiError(
         404,
         "not_found",
@@ -219,9 +220,9 @@ export class MockServer {
       );
     }
 
+    const projectId = url.searchParams.get("projectId");
     if (method === "GET") {
-      const projectId = url.searchParams.get("projectId");
-      const drive = this.#drives.get(name);
+      const drive = this.#drives.get(identifier);
       if (!drive || drive.projectId !== projectId) {
         return apiError(404, "not_found", "Drive not found.");
       }
@@ -229,8 +230,7 @@ export class MockServer {
     }
 
     if (parts[1] === "fork" && method === "POST") {
-      const projectId = url.searchParams.get("projectId");
-      const parentDrive = this.#drives.get(name);
+      const parentDrive = this.#drives.get(identifier);
       if (!parentDrive || parentDrive.projectId !== projectId) {
         return apiError(404, "not_found", "Drive not found.");
       }
@@ -261,29 +261,31 @@ export class MockServer {
     }
 
     if (method === "POST") {
-      const existingDrive = this.#drives.get(name);
+      const existingDrive = this.#drives.get(identifier);
       if (existingDrive) return json({ drive: drivePayload(existingDrive) });
 
       const body = readJson<CreateDriveBody>(init);
       const now = Date.now();
       const drive: DriveRecord = {
         id: newId("drive"),
-        name,
+        name: identifier,
         projectId: body.projectId,
         region: body.region ?? REGION,
         maxSizeBytes: body.maxSizeBytes ?? 100 * 1024 ** 3,
         createdAt: now,
         updatedAt: now,
       };
-      this.#drives.set(name, drive);
+      this.#drives.set(drive.name, drive);
       return json({ drive: drivePayload(drive) });
     }
 
-    const drive = this.#drives.get(name);
-    if (!drive) return apiError(404, "not_found", `Drive not found: ${name}`);
-
     if (method === "DELETE") {
-      this.#drives.delete(name);
+      const drive = [...this.#drives.values()].find(
+        (drive) => drive.id === identifier && drive.projectId === projectId,
+      );
+      if (!drive) return apiError(404, "not_found", "Drive not found.");
+
+      this.#drives.delete(drive.name);
       return json({ drive: drivePayload(drive) });
     }
 

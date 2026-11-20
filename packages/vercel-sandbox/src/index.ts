@@ -20,8 +20,8 @@ export { DEFAULT_SANDBOX_REGION } from "./constants.js";
 export type { SandboxRegion } from "./constants.js";
 export { Snapshot } from "./snapshot.js";
 export type { SerializedSnapshot } from "./snapshot.js";
-export { Drive } from "./drive.js";
-export type { SerializedDrive } from "./drive.js";
+export * from "@vercel/drives";
+export { APIError as DriveAPIError } from "@vercel/drives";
 export type { SnapshotTreeNodeData } from "./api-client/validators.js";
 export { Command, CommandFinished } from "./command.js";
 export type {
