@@ -120,3 +120,17 @@ export function renderEditCommand(
     ? ["sandbox", "create", ...args].join(" ")
     : undefined;
 }
+
+/**
+ * Whether the credentials options ask for GitHub access. Such a request can
+ * only be honored by creating a sandbox.
+ */
+export function requestsGithubAccess(args: CredentialsArgs): boolean {
+  return (
+    (args.credentials?.includes("github") ?? false) ||
+    args.credentialsGithubRepository !== undefined ||
+    args.credentialsGithubActions !== undefined ||
+    args.credentialsGithubActAs !== undefined ||
+    args.credentialsFile?.github !== undefined
+  );
+}
