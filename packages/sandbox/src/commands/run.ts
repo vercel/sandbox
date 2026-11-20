@@ -6,6 +6,8 @@ import { exec, args as execArgs } from "./exec";
 import { sandboxClient } from "../client";
 import { StyledError } from "../error";
 import { omit } from "../util/omit";
+import { requestsGithubAccess } from "../util/credentials";
+import { fail } from "../util/fail";
 
 const args = {
   ...createArgs,
@@ -34,6 +36,11 @@ export const run = cmd.command({
     }
 
     let sandbox: Sandbox;
+    // A sandbox gets its GitHub access when it is created. Running in an
+    // existing one would ignore the request, and the command could then have
+    // more access than the caller asked for, so that case is refused before
+    // the sandbox is resumed.
+    const wantsGithubAccess = requestsGithubAccess(rest);
 
     // Resume an existing sandbox or otherwise create it.
     if (rest.name) {
@@ -43,9 +50,15 @@ export const run = cmd.command({
           projectId: rest.scope.project,
           teamId: rest.scope.team,
           token: rest.scope.token,
-          resume: true,
+          resume: !wantsGithubAccess,
           __includeSystemRoutes: true,
         });
+        if (wantsGithubAccess) {
+          fail(
+            `Sandbox ${rest.name} already exists, so the GitHub credentials options cannot be applied to it.`,
+            "A sandbox gets its GitHub access when it is created. Remove the GitHub credentials options to run in the existing sandbox as it is, or choose a new --name.",
+          );
+        }
       } catch (error) {
         if (
           error instanceof StyledError &&

@@ -73,3 +73,16 @@ export function buildCredentials(args: CredentialsArgs): CredentialsRequest {
     source: { type: "git", url: `https://github.com/${repository}.git` },
   };
 }
+
+/**
+ * Whether the credentials options ask for GitHub access. Such a request can
+ * only be honored by creating a sandbox.
+ */
+export function requestsGithubAccess(args: CredentialsArgs): boolean {
+  return (
+    args.credentialsGithubRepository !== undefined ||
+    args.credentialsGithubActions !== undefined ||
+    args.credentialsGithubActAs !== undefined ||
+    args.credentialsFile?.github !== undefined
+  );
+}
