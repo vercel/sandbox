@@ -1,6 +1,14 @@
-import { afterAll, describe, expect, test } from "vitest";
+import { afterAll, describe, expect, test, vi } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -85,6 +93,73 @@ describe("inferGithubRepository", () => {
       ["origin", "https://gitlab.com/acme/web.git"],
     ]);
     await expect(inferGithubRepository(directory)).resolves.toBeUndefined();
+  });
+
+  test("finds the repository from a subdirectory", async () => {
+    const directory = repository([["origin", "git@github.com:acme/web.git"]]);
+    const nested = join(directory, "packages", "app");
+    mkdirSync(nested, { recursive: true });
+    await expect(inferGithubRepository(nested)).resolves.toBe("acme/web");
+  });
+
+  test("finds the repository from a linked worktree", async () => {
+    const directory = repository([["origin", "git@github.com:acme/web.git"]]);
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: directory, stdio: "pipe" });
+    git(
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "--allow-empty",
+      "--quiet",
+      "-m",
+      "initial",
+    );
+    const worktree = join(
+      realpathSync(mkdtempSync(join(tmpdir(), "github-worktree-"))),
+      "linked",
+    );
+    directories.push(worktree);
+    git("worktree", "add", "--quiet", "--detach", worktree);
+
+    await expect(inferGithubRepository(worktree)).resolves.toBe("acme/web");
+  });
+
+  test("never runs a program from the checkout", async () => {
+    // A checkout can hold a file named git. With a relative entry on PATH, or
+    // on Windows always, running git by name from the checkout executes it.
+    const directory = repository([["origin", "git@github.com:acme/web.git"]]);
+    const planted = join(directory, "git");
+    writeFileSync(planted, '#!/bin/sh\ntouch "$(dirname "$0")/executed"\n');
+    chmodSync(planted, 0o755);
+    vi.stubEnv("PATH", `.:${process.env.PATH}`);
+
+    try {
+      await expect(inferGithubRepository(directory)).resolves.toBe("acme/web");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(existsSync(join(directory, "executed"))).toBe(false);
+  });
+
+  test("reads quoted URLs and ignores comments", async () => {
+    const directory = repository([]);
+    writeFileSync(
+      join(directory, ".git", "config"),
+      [
+        "[core]",
+        "\trepositoryformatversion = 0",
+        '[remote "upstream"] # the canonical repository',
+        '\turl = "https://github.com/vercel/web.git" ; canonical',
+        "\tfetch = +refs/heads/*:refs/remotes/upstream/*",
+        '[branch "main"]',
+        "\turl = https://github.com/other/ignored.git",
+        "",
+      ].join("\n"),
+    );
+    await expect(inferGithubRepository(directory)).resolves.toBe("vercel/web");
   });
 
   test("finds nothing outside a Git repository", async () => {

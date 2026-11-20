@@ -1,8 +1,6 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { isGithubRepository } from "../args/credentials";
-
-const GIT_TIMEOUT_MS = 5_000;
 
 /**
  * Reads OWNER/REPOSITORY from a Git remote URL. Only github.com HTTPS and SSH
@@ -23,33 +21,96 @@ export function repositoryFromRemote(remote: string): string | undefined {
   return isGithubRepository(repository) ? repository : undefined;
 }
 
+async function readText(path: string): Promise<string | undefined> {
+  try {
+    return await readFile(path, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Reads the Git config of the repository that contains the directory. In a
+ * linked worktree or a submodule, `.git` is a file that points at the real Git
+ * directory, and a worktree shares the config of its main repository.
+ */
+async function readGitConfig(directory: string): Promise<string | undefined> {
+  let current = resolve(directory);
+  for (;;) {
+    const dotGit = join(current, ".git");
+    const kind = await stat(dotGit).then(
+      (stats) => (stats.isDirectory() ? "directory" : "file"),
+      () => undefined,
+    );
+    if (kind === "directory") {
+      return readText(join(dotGit, "config"));
+    }
+    if (kind === "file") {
+      const pointer = /^gitdir: (.+)$/m.exec((await readText(dotGit)) ?? "");
+      if (!pointer) {
+        return undefined;
+      }
+      const gitDirectory = resolve(current, pointer[1].trim());
+      const common = (await readText(join(gitDirectory, "commondir")))?.trim();
+      return readText(
+        join(common ? resolve(gitDirectory, common) : gitDirectory, "config"),
+      );
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return undefined;
+    }
+    current = parent;
+  }
+}
+
+/**
+ * Lists the URL of each remote in a Git config, in file order.
+ */
+function remoteUrls(config: string): Map<string, string> {
+  const urls = new Map<string, string>();
+  let remote: string | undefined;
+  for (const line of config.split(/\r?\n/).map((raw) => raw.trim())) {
+    const section = /^\[\s*([A-Za-z0-9.-]+)(?:\s+"([^"]*)")?\s*\]/.exec(line);
+    if (section) {
+      remote = section[1].toLowerCase() === "remote" ? section[2] : undefined;
+      continue;
+    }
+    const url = /^url\s*=\s*(.*)$/i.exec(line);
+    if (url && remote !== undefined && !urls.has(remote)) {
+      urls.set(
+        remote,
+        url[1].replace(/\s+[#;].*$/, "").replace(/^"(.*)"$/, "$1"),
+      );
+    }
+  }
+  return urls;
+}
+
 /**
  * Finds the GitHub repository that the directory is a clone of: the origin
  * remote when it is on GitHub, otherwise the one repository that every other
  * GitHub remote names. Remotes that name different repositories are not a
  * basis for a choice, so they find nothing, as does a directory outside a Git
- * repository or a machine without Git.
+ * repository.
+ *
+ * This reads the Git config file and never runs Git. The directory can be a
+ * checkout that nobody has reviewed, and running a program by name there can
+ * execute a file that the checkout supplies.
  */
 export async function inferGithubRepository(
   cwd = process.cwd(),
 ): Promise<string | undefined> {
-  let remotes: string;
-  try {
-    ({ stdout: remotes } = await promisify(execFile)("git", ["remote", "-v"], {
-      cwd,
-      encoding: "utf8",
-      timeout: GIT_TIMEOUT_MS,
-    }));
-  } catch {
+  const config = await readGitConfig(cwd);
+  if (config === undefined) {
     return undefined;
   }
 
   const repositories = new Map<string, string>();
-  for (const line of remotes.split("\n")) {
-    const match = /^(\S+)\s+(\S+)\s+\(fetch\)/.exec(line.trim());
-    const repository = match && repositoryFromRemote(match[2]);
-    if (match && repository && !repositories.has(match[1])) {
-      repositories.set(match[1], repository);
+  for (const [remote, url] of remoteUrls(config)) {
+    const repository = repositoryFromRemote(url);
+    if (repository) {
+      repositories.set(remote, repository);
     }
   }
   const origin = repositories.get("origin");
