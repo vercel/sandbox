@@ -70,6 +70,10 @@ sandbox create \
 | `github:repository:read`             | Read repository metadata                           |
 | `github:repository-permissions:read` | Read a collaborator's permission on the repository |
 
+### Named sandboxes that already exist
+
+A sandbox gets its GitHub access when it is created. `sandbox run --name <NAME>` runs in the sandbox with that name when one exists, so it cannot apply a GitHub request to it. In that case the CLI stops before it resumes the sandbox or runs your command. Remove the GitHub credentials options to run in the existing sandbox as it is, or choose a new name. A request for `npm` alone does not stop the command.
+
 ### Which repository the CLI finds
 
 The CLI reads the Git remotes of the current directory from the repository's Git config file. It does not run Git, it does not apply `insteadOf` URL rewrites, and it finds no repository when that file includes another config file. It uses `origin` when that is a github.com HTTPS or SSH URL. Without such an `origin`, it uses the other GitHub remotes only when they all name the same repository. It never picks between different repositories. When it finds none, pass `--credentials-github-repository`.
