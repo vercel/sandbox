@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { stripVTControlCharacters } from "node:util";
 import type { CredentialsArgs } from "../../src/args/credentials.ts";
 import { buildCredentials } from "../../src/util/credentials.ts";
@@ -11,15 +11,29 @@ const empty: CredentialsArgs = {
   credentialsFile: undefined,
 };
 
+const DEFAULT_ACTIONS = [
+  "github:issues:read",
+  "github:issues:comment",
+  "github:pull-request:create",
+  "git:write",
+];
+
+/** A checkout of acme/local, standing in for the current directory. */
+const inLocalCheckout = async () => "acme/local";
+const outsideCheckout = async () => undefined;
+
 function text(error: unknown): string {
   return stripVTControlCharacters(
     error instanceof Error ? error.message : String(error),
   );
 }
 
-function failure(args: CredentialsArgs): string {
+async function failure(
+  args: CredentialsArgs,
+  inferRepository = inLocalCheckout,
+): Promise<string> {
   try {
-    buildCredentials(args);
+    await buildCredentials(args, inferRepository);
   } catch (error) {
     return text(error);
   }
@@ -27,46 +41,114 @@ function failure(args: CredentialsArgs): string {
 }
 
 describe("buildCredentials", () => {
-  test("requests nothing when no credentials option is given", () => {
-    expect(buildCredentials(empty)).toEqual({});
+  test("requests nothing when no credentials option is given", async () => {
+    const inferRepository = vi.fn(inLocalCheckout);
+    await expect(buildCredentials(empty, inferRepository)).resolves.toEqual({});
+    expect(inferRepository).not.toHaveBeenCalled();
   });
 
-  test("requests npm credentials for --credentials=npm", () => {
-    expect(buildCredentials({ ...empty, credentials: ["npm"] })).toEqual({
-      credentials: { npm: true },
+  test("requests npm credentials for --credentials=npm", async () => {
+    const inferRepository = vi.fn(inLocalCheckout);
+    await expect(
+      buildCredentials({ ...empty, credentials: ["npm"] }, inferRepository),
+    ).resolves.toEqual({ credentials: { npm: true } });
+    expect(inferRepository).not.toHaveBeenCalled();
+  });
+
+  test("--credentials=github requests the default actions on the local repository and clones it", async () => {
+    await expect(
+      buildCredentials({ ...empty, credentials: ["github"] }, inLocalCheckout),
+    ).resolves.toEqual({
+      credentials: {
+        github: [{ repositories: ["acme/local"], actions: DEFAULT_ACTIONS }],
+      },
+      source: { type: "git", url: "https://github.com/acme/local.git" },
+      explicitOptions: [
+        "--credentials-github-repository=acme/local",
+        `--credentials-github-actions=${DEFAULT_ACTIONS.join(",")}`,
+      ],
     });
   });
 
-  test("a repository alone gets the default actions and is cloned", () => {
-    expect(
-      buildCredentials({ ...empty, credentialsGithubRepository: "acme/web" }),
-    ).toEqual({
+  test("--credentials=npm,github requests both", async () => {
+    const request = await buildCredentials(
+      { ...empty, credentials: ["npm", "github"] },
+      inLocalCheckout,
+    );
+    expect(request.credentials).toEqual({
+      npm: true,
+      github: [{ repositories: ["acme/local"], actions: DEFAULT_ACTIONS }],
+    });
+    expect(request.explicitOptions).toEqual([
+      "--credentials=npm",
+      "--credentials-github-repository=acme/local",
+      `--credentials-github-actions=${DEFAULT_ACTIONS.join(",")}`,
+    ]);
+  });
+
+  test("a repository alone gets the default actions, without looking at the directory", async () => {
+    const inferRepository = vi.fn(inLocalCheckout);
+    await expect(
+      buildCredentials(
+        { ...empty, credentialsGithubRepository: "acme/web" },
+        inferRepository,
+      ),
+    ).resolves.toEqual({
       credentials: {
+        github: [{ repositories: ["acme/web"], actions: DEFAULT_ACTIONS }],
+      },
+      source: { type: "git", url: "https://github.com/acme/web.git" },
+      explicitOptions: [
+        "--credentials-github-repository=acme/web",
+        `--credentials-github-actions=${DEFAULT_ACTIONS.join(",")}`,
+      ],
+    });
+    expect(inferRepository).not.toHaveBeenCalled();
+  });
+
+  test("actions or an account alone apply to the local repository", async () => {
+    await expect(
+      buildCredentials(
+        {
+          ...empty,
+          credentials: ["npm"],
+          credentialsGithubActions: ["git:read"],
+          credentialsGithubActAs: "@octocat",
+        },
+        inLocalCheckout,
+      ),
+    ).resolves.toEqual({
+      credentials: {
+        npm: true,
         github: [
           {
-            repositories: ["acme/web"],
-            actions: [
-              "github:issues:read",
-              "github:issues:comment",
-              "github:pull-request:create",
-              "git:write",
-            ],
+            repositories: ["acme/local"],
+            actions: ["git:read"],
+            actAs: "@octocat",
           },
         ],
       },
-      source: { type: "git", url: "https://github.com/acme/web.git" },
+      source: { type: "git", url: "https://github.com/acme/local.git" },
+      explicitOptions: [
+        "--credentials=npm",
+        "--credentials-github-repository=acme/local",
+        "--credentials-github-actions=git:read",
+        "--credentials-github-act-as=@octocat",
+      ],
     });
   });
 
-  test("explicit actions replace the default actions, including Git access", () => {
-    expect(
-      buildCredentials({
+  test("a request that states the repository and the actions has nothing to make explicit", async () => {
+    const request = await buildCredentials(
+      {
         ...empty,
         credentialsGithubRepository: "acme/web",
         credentialsGithubActions: ["github:issues:read"],
         credentialsGithubActAs: "@octocat",
-      }).credentials,
-    ).toEqual({
+      },
+      inLocalCheckout,
+    );
+    expect(request.credentials).toEqual({
       github: [
         {
           repositories: ["acme/web"],
@@ -75,38 +157,56 @@ describe("buildCredentials", () => {
         },
       ],
     });
-  });
-
-  test("combines npm with explicit GitHub options", () => {
-    expect(
-      buildCredentials({
-        ...empty,
-        credentials: ["npm"],
-        credentialsGithubRepository: "acme/web",
-        credentialsGithubActions: ["git:read"],
-      }).credentials,
-    ).toEqual({
-      npm: true,
-      github: [{ repositories: ["acme/web"], actions: ["git:read"] }],
-    });
+    expect(request).not.toHaveProperty("explicitOptions");
   });
 
   test.each([
+    [
+      "--credentials-github-repository",
+      { credentialsGithubRepository: "acme/web" },
+    ],
     [
       "--credentials-github-actions",
       { credentialsGithubActions: ["git:write" as const] },
     ],
     ["--credentials-github-act-as", { credentialsGithubActAs: "@octocat" }],
-  ])("%s needs a repository", (option, args) => {
-    expect(failure({ ...empty, ...args })).toBe(
+  ])("rejects --credentials=github with %s", async (option, args) => {
+    expect(
+      await failure({ ...empty, ...args, credentials: ["npm", "github"] }),
+    ).toBe(
       [
-        `${option} needs a repository.`,
-        "hint: Add --credentials-github-repository OWNER/REPOSITORY.",
+        `Cannot combine --credentials=github with ${option}.`,
+        "hint: github in --credentials requests the default GitHub access. To choose the repository, actions, or account yourself, remove github from --credentials and keep the --credentials-github-* options.",
       ].join("\n"),
     );
   });
 
-  test("sends a credentials file unchanged, without a clone source", () => {
+  test("--credentials=github outside a GitHub checkout names the explicit option", async () => {
+    expect(
+      await failure({ ...empty, credentials: ["github"] }, outsideCheckout),
+    ).toBe(
+      [
+        "Cannot find a GitHub repository in the current directory.",
+        "hint: Run the command inside a clone of a github.com repository, or replace github in --credentials with --credentials-github-repository OWNER/REPOSITORY.",
+      ].join("\n"),
+    );
+  });
+
+  test("explicit options outside a GitHub checkout need a repository", async () => {
+    expect(
+      await failure(
+        { ...empty, credentialsGithubActions: ["git:write"] },
+        outsideCheckout,
+      ),
+    ).toBe(
+      [
+        "Cannot find a GitHub repository in the current directory.",
+        "hint: Run the command inside a clone of a github.com repository, or add --credentials-github-repository OWNER/REPOSITORY.",
+      ].join("\n"),
+    );
+  });
+
+  test("sends a credentials file unchanged, without a clone source", async () => {
     const file = {
       npm: true as const,
       github: [
@@ -116,9 +216,11 @@ describe("buildCredentials", () => {
         },
       ],
     };
-    expect(buildCredentials({ ...empty, credentialsFile: file })).toEqual({
-      credentials: file,
-    });
+    const inferRepository = vi.fn(inLocalCheckout);
+    await expect(
+      buildCredentials({ ...empty, credentialsFile: file }, inferRepository),
+    ).resolves.toEqual({ credentials: file });
+    expect(inferRepository).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -132,8 +234,10 @@ describe("buildCredentials", () => {
       { credentialsGithubActions: ["git:write" as const] },
     ],
     ["--credentials-github-act-as", { credentialsGithubActAs: "@octocat" }],
-  ])("rejects --credentials-file with %s", (_option, args) => {
-    expect(failure({ ...empty, ...args, credentialsFile: { npm: true } })).toBe(
+  ])("rejects --credentials-file with %s", async (_option, args) => {
+    expect(
+      await failure({ ...empty, ...args, credentialsFile: { npm: true } }),
+    ).toBe(
       [
         "Cannot combine --credentials-file with other credentials options.",
         "hint: Put the whole request in the file. It replaces --credentials, --credentials-github-repository, --credentials-github-actions, and --credentials-github-act-as.",
