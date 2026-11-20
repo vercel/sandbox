@@ -184,6 +184,30 @@ describe("create command", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  test("quotes the team and project in the command it suggests", async () => {
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const { create } = await import("../../src/commands/create.ts");
+
+    try {
+      await expect(
+        cmd.run(create, [
+          "--credentials=github",
+          "--scope=$(touch pwned)",
+          "--project=web; touch pwned",
+          "--silent",
+        ]),
+      ).rejects.toThrow("without confirmation in non-interactive mode");
+      expect(stderr.mock.calls.join("")).toContain(
+        "    sandbox create '--scope=$(touch pwned)' '--project=web; touch pwned' --credentials-github-repository=acme/local ",
+      );
+    } finally {
+      stderr.mockRestore();
+    }
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   test("sends the credentials from --credentials-file", async () => {
     const credentials = {
       github: [

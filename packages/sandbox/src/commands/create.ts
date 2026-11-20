@@ -27,6 +27,7 @@ import { buildCredentials } from "../util/credentials";
 import { confirmCredentials } from "../util/credentials-consent";
 import { isInteractive } from "../util/interaction";
 import { hasProjectBounds } from "../util/project-bounds";
+import { shellQuote } from "../util/shell-quote";
 import { fail } from "../util/fail";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
@@ -204,11 +205,14 @@ export const create = cmd.command({
       editCommand:
         explicitOptions &&
         [
-          "sandbox create",
+          "sandbox",
+          "create",
           `--scope=${scope.team}`,
           `--project=${scope.project}`,
           ...explicitOptions,
-        ].join(" "),
+        ]
+          .map(shellQuote)
+          .join(" "),
       hasProjectBounds: () =>
         hasProjectBounds({
           token: scope.token,
