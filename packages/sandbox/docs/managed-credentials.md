@@ -99,8 +99,9 @@ Before it creates a sandbox with GitHub access, the CLI shows the request and as
 Create this sandbox? (y/N)
 ```
 
+- The team and project appear exactly as the request uses them: as you passed them, or as IDs when the CLI worked them out.
 - Only `y` or `yes` approves. Any other answer cancels, and nothing is created.
-- When the CLI filled in the repository or the actions and you do not approve, it prints the command that states the request in full. Edit that command and run it.
+- When the CLI filled in the repository or the actions and you do not approve, it prints the command that states the request in full. Edit that command and run it. The CLI leaves the command out if the team or project contains characters that a shell could read as syntax.
 - `--yes` (`-y`) skips the request and the questions.
 - When nobody can answer, for example in CI, under an AI agent, or with input redirected, the CLI shows the request and stops unless you pass `--yes`.
 
