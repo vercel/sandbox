@@ -162,6 +162,26 @@ describe("inferGithubRepository", () => {
     await expect(inferGithubRepository(directory)).resolves.toBe("vercel/web");
   });
 
+  test.each(["[include]", '[includeIf "gitdir:~/work/"]'])(
+    "finds nothing when the config pulls in another file with %s",
+    async (section) => {
+      // The other file can define origin, so the remotes here are not the
+      // whole picture and one of them must not be taken for the repository.
+      const directory = repository([]);
+      writeFileSync(
+        join(directory, ".git", "config"),
+        [
+          section,
+          "\tpath = ../remotes.inc",
+          '[remote "upstream"]',
+          "\turl = https://github.com/vercel/web.git",
+          "",
+        ].join("\n"),
+      );
+      await expect(inferGithubRepository(directory)).resolves.toBeUndefined();
+    },
+  );
+
   test("finds nothing outside a Git repository", async () => {
     const directory = mkdtempSync(join(tmpdir(), "not-a-repository-"));
     directories.push(directory);

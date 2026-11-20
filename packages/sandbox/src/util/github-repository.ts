@@ -65,7 +65,9 @@ async function readGitConfig(directory: string): Promise<string | undefined> {
 }
 
 /**
- * Lists the URL of each remote in a Git config, in file order.
+ * Lists the URL of each remote in a Git config, in file order. A config that
+ * pulls in another file can define remotes there, so its own remotes are not
+ * the whole picture and it lists nothing.
  */
 function remoteUrls(config: string): Map<string, string> {
   const urls = new Map<string, string>();
@@ -73,7 +75,11 @@ function remoteUrls(config: string): Map<string, string> {
   for (const line of config.split(/\r?\n/).map((raw) => raw.trim())) {
     const section = /^\[\s*([A-Za-z0-9.-]+)(?:\s+"([^"]*)")?\s*\]/.exec(line);
     if (section) {
-      remote = section[1].toLowerCase() === "remote" ? section[2] : undefined;
+      const name = section[1].toLowerCase();
+      if (name === "include" || name === "includeif") {
+        return new Map();
+      }
+      remote = name === "remote" ? section[2] : undefined;
       continue;
     }
     const url = /^url\s*=\s*(.*)$/i.exec(line);
@@ -96,7 +102,9 @@ function remoteUrls(config: string): Map<string, string> {
  *
  * This reads the Git config file and never runs Git. The directory can be a
  * checkout that nobody has reviewed, and running a program by name there can
- * execute a file that the checkout supplies.
+ * execute a file that the checkout supplies. It does not follow includes or
+ * apply URL rewrites, and finds nothing rather than work from part of the
+ * remotes.
  */
 export async function inferGithubRepository(
   cwd = process.cwd(),
