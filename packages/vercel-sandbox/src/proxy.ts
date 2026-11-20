@@ -96,12 +96,20 @@ export type SandboxProxyOptions =
  * plus any `teamId` and `projectId` you pass. If a request is rejected, `onInvalidRequest` is called
  * (by default, a 403 response is returned).
  *
+ * Any sandbox in an allowed team and project can use the proxy. If only some of them should, check
+ * `meta.sandboxId` or `meta.sandboxName` in the handler. Sandbox names are only unique within a project,
+ * so also check `meta.projectId` when more than one project is allowed.
+ *
  * @example
  * ```ts
+ * const allowedSandboxes = new Set(["my-sandbox"])
+ *
  * export default {
  *   fetch: defineSandboxProxy(async (request, meta) => {
  *     // meta contains the original host & source team/project/sandbox ids
- *     console.log(meta)
+ *     if (!allowedSandboxes.has(meta.sandboxName)) {
+ *       return new Response("Forbidden", { status: 403 })
+ *     }
  *
  *     // return a custom response, or proxy upstream:
  *     return await fetch(request)
