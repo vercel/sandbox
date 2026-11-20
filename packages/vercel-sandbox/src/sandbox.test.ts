@@ -3,7 +3,7 @@ import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable.js";
 import { Sandbox, type SandboxMounts } from "./sandbox.js";
 import { Sandbox as SandboxSchema } from "./api-client/validators.js";
-import { Drive } from "./drive.js";
+import { Drive } from "@vercel/drives";
 import { Snapshot } from "./snapshot.js";
 import { APIError } from "./api-client/api-error.js";
 import type {
