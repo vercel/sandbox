@@ -4,7 +4,10 @@ import type { ArgParser } from "cmd-ts/dist/esm/argparser";
 import { inferScope } from "../util/infer-scope";
 import { withFreshAuthRetry } from "../util/fresh-auth-retry";
 import type { ProvidesHelp } from "cmd-ts/dist/esm/helpdoc";
-import { NotOk } from "@vercel/sandbox/dist/auth/index.js";
+import {
+  getTeamIdFromEnvironment,
+  NotOk,
+} from "@vercel/sandbox/dist/auth/index.js";
 import chalk from "chalk";
 import createDebugger from "debug";
 
@@ -105,11 +108,24 @@ export const scope: ArgParser<{
       typeof projectId.value === "undefined" ||
       typeof teamId.value === "undefined"
     ) {
+      let environmentTeam: string | undefined;
+      try {
+        environmentTeam = getTeamIdFromEnvironment();
+      } catch (error) {
+        return {
+          _tag: "error",
+          error: { errors: [{ nodes, message: (error as Error).message }] },
+        };
+      }
       try {
         const scope = await withFreshAuthRetry(() =>
           inferScope({
             token: t.value,
             team: teamId.value,
+            environment: {
+              team: environmentTeam,
+              project: process.env.VERCEL_PROJECT_ID,
+            },
           }),
         );
         projectId.value ??= scope.project;
@@ -128,7 +144,7 @@ export const scope: ArgParser<{
                 nodes,
                 message: [
                   `Could not determine team/project scope.${detail}`,
-                  `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, or set VERCEL_OIDC_TOKEN.`,
+                  `${chalk.bold("hint:")} Specify explicitly with --scope TEAM_SLUG --project PROJECT_NAME, set VERCEL_TEAM_ID and VERCEL_PROJECT_ID, or set VERCEL_OIDC_TOKEN.`,
                   "╰▶ Docs: https://vercel.com/docs/sandbox",
                 ].join("\n"),
               },

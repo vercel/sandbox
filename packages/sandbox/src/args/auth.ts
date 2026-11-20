@@ -52,6 +52,10 @@ export const token = cmd.option({
         }
       }
 
+      if (process.env.VERCEL_TOKEN) {
+        return process.env.VERCEL_TOKEN;
+      }
+
       // Try to get CLI token, which handles auth.json reading and refresh
       try {
         const previousToken = getAuth()?.token;
@@ -66,6 +70,16 @@ export const token = cmd.option({
           error instanceof AccessTokenMissingError ||
           error instanceof RefreshAccessTokenFailedError
         ) {
+          if (process.env.CI) {
+            throw new Error(
+              [
+                `No Vercel authentication token found.`,
+                `${chalk.bold("hint:")} Set VERCEL_TOKEN or VERCEL_AUTH_TOKEN, or pass --token.`,
+                "╰▶ Docs: https://vercel.com/docs/vercel-sandbox/cli-reference#authentication",
+              ].join("\n"),
+              { cause: error },
+            );
+          }
           debug(
             `CLI token unavailable (${error.name}), prompting for login...`,
           );
