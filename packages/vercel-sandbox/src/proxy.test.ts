@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
-import { getVercelOidcToken } from "@vercel/oidc";
 import { defineSandboxProxy } from "./proxy.js";
 
 vi.mock("jose", () => ({
@@ -9,14 +8,9 @@ vi.mock("jose", () => ({
   jwtVerify: vi.fn(),
 }));
 
-vi.mock("@vercel/oidc", () => ({
-  getVercelOidcToken: vi.fn(),
-}));
-
 const createRemoteJWKSetMock = vi.mocked(createRemoteJWKSet);
 const decodeJwtMock = vi.mocked(decodeJwt);
 const jwtVerifyMock = vi.mocked(jwtVerify);
-const getVercelOidcTokenMock = vi.mocked(getVercelOidcToken);
 const OWN_TOKEN = "own_token";
 
 let ownTokenResult: () => Promise<Awaited<ReturnType<typeof jwtVerify>>>;
@@ -45,6 +39,11 @@ function mockSandboxTokenError(error: Error) {
   };
 }
 
+function ownTokenVerifications(): number {
+  return jwtVerifyMock.mock.calls.filter(([token]) => token === OWN_TOKEN)
+    .length;
+}
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -56,7 +55,7 @@ beforeEach(() => {
     vi.fn() as unknown as ReturnType<typeof createRemoteJWKSet>,
   );
   decodeJwtMock.mockReturnValue({ iss: "https://oidc.vercel.com/team_123" });
-  getVercelOidcTokenMock.mockResolvedValue(OWN_TOKEN);
+  vi.stubEnv("VERCEL_OIDC_TOKEN", OWN_TOKEN);
   mockOwnSource({ owner_id: "team_123", project_id: "prj_123" });
   jwtVerifyMock.mockImplementation((token) =>
     token === OWN_TOKEN ? ownTokenResult() : sandboxTokenResult(),
@@ -505,7 +504,7 @@ describe("defineSandboxProxy", () => {
     await proxy(makeProxyRequest());
     await proxy(makeProxyRequest());
 
-    expect(getVercelOidcTokenMock).toHaveBeenCalledTimes(1);
+    expect(ownTokenVerifications()).toBe(1);
   });
 
   it("accepts sandboxes from other allowed teams and projects", async () => {
@@ -536,7 +535,7 @@ describe("defineSandboxProxy", () => {
   });
 
   it("accepts readonly ID lists", async () => {
-    getVercelOidcTokenMock.mockRejectedValue(new Error("no oidc"));
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const teamIds = ["team_123"] as const;
     const projectIds: readonly string[] = ["prj_123"];
     const handler = vi.fn(() => new Response("ok"));
@@ -551,7 +550,7 @@ describe("defineSandboxProxy", () => {
   });
 
   it("uses only the allowed teams and projects when its own cannot be determined", async () => {
-    getVercelOidcTokenMock.mockRejectedValue(new Error("no oidc"));
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const handler = vi.fn(() => new Response("ok"));
     const proxy = defineSandboxProxy(handler, {
       teamId: "team_other",
@@ -567,7 +566,7 @@ describe("defineSandboxProxy", () => {
   it.each([
     [
       "the OIDC token is unavailable",
-      () => getVercelOidcTokenMock.mockRejectedValue(new Error("no oidc")),
+      () => vi.stubEnv("VERCEL_OIDC_TOKEN", ""),
     ],
     [
       "the OIDC token does not verify",
@@ -623,6 +622,23 @@ describe("defineSandboxProxy", () => {
     );
   });
 
+  it("reads the proxy's own OIDC token from the Vercel request context first", async () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "env_token");
+    const symbol = Symbol.for("@vercel/request-context");
+    const global = globalThis as Record<symbol, unknown>;
+    global[symbol] = {
+      get: () => ({ headers: { "x-vercel-oidc-token": OWN_TOKEN } }),
+    };
+    try {
+      const proxy = defineSandboxProxy(() => new Response("ok"));
+
+      expect((await proxy(makeProxyRequest())).status).toBe(200);
+      expect(ownTokenVerifications()).toBe(1);
+    } finally {
+      delete global[symbol];
+    }
+  });
+
   it("shares one lookup of its own team and project between concurrent requests", async () => {
     const proxy = defineSandboxProxy(() => new Response("ok"));
 
@@ -632,30 +648,31 @@ describe("defineSandboxProxy", () => {
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([200, 200]);
-    expect(getVercelOidcTokenMock).toHaveBeenCalledTimes(1);
+    expect(ownTokenVerifications()).toBe(1);
   });
 
   it("retries a failed lookup of its own team and project after a delay", async () => {
     vi.useFakeTimers();
     try {
-      getVercelOidcTokenMock.mockRejectedValueOnce(new Error("no oidc"));
+      mockOwnSourceError(new Error("jwks unavailable"));
       const proxy = defineSandboxProxy(() => new Response("ok"));
 
       expect((await proxy(makeProxyRequest())).status).toBe(403);
       expect((await proxy(makeProxyRequest())).status).toBe(403);
-      expect(getVercelOidcTokenMock).toHaveBeenCalledTimes(1);
+      expect(ownTokenVerifications()).toBe(1);
 
+      mockOwnSource({ owner_id: "team_123", project_id: "prj_123" });
       vi.advanceTimersByTime(60_000);
 
       expect((await proxy(makeProxyRequest())).status).toBe(200);
-      expect(getVercelOidcTokenMock).toHaveBeenCalledTimes(2);
+      expect(ownTokenVerifications()).toBe(2);
     } finally {
       vi.useRealTimers();
     }
   });
 
   it("accepts sandboxes from any team when dangerouslyAllowAll is set", async () => {
-    getVercelOidcTokenMock.mockRejectedValue(new Error("no oidc"));
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     mockSandboxToken(
       makeJwtVerifyResult({
         team_id: "team_other",
@@ -670,7 +687,7 @@ describe("defineSandboxProxy", () => {
 
     expect(response.status).toBe(200);
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(getVercelOidcTokenMock).not.toHaveBeenCalled();
+    expect(ownTokenVerifications()).toBe(0);
   });
 
   it("still rejects invalid tokens when dangerouslyAllowAll is set", async () => {

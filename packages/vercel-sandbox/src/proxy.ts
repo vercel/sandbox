@@ -1,6 +1,5 @@
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import { LRUCache } from "lru-cache";
-import { getVercelOidcToken } from "@vercel/oidc";
 
 const FORWARDED_HOST_HEADER = "vercel-forwarded-host";
 const FORWARDED_SCHEME_HEADER = "vercel-forwarded-scheme";
@@ -12,6 +11,7 @@ const VERCEL_OIDC_HOSTNAME = "oidc.vercel.com";
 const CLOCK_TOLERANCE_SECONDS = 60;
 const MAX_JWKS_CACHE_SIZE = 100;
 const OWN_SOURCE_RETRY_DELAY_MS = 60_000;
+const REQUEST_CONTEXT_SYMBOL = Symbol.for("@vercel/request-context");
 
 const jwksCache = new LRUCache<string, ReturnType<typeof createRemoteJWKSet>>({
   max: MAX_JWKS_CACHE_SIZE,
@@ -238,7 +238,7 @@ function getSourceAllowlist(
     } catch (error) {
       if (!hasAllowlist) {
         throw new Error(
-          "Could not determine this proxy's team and project from its Vercel OIDC token. Make sure OIDC is enabled, or pass `teamId` and `projectId`",
+          "Could not determine this proxy's team and project from its Vercel OIDC token. Make sure OIDC is enabled (locally, re-run `vercel env pull`), or pass `teamId` and `projectId`",
           { cause: error },
         );
       }
@@ -296,7 +296,13 @@ async function getOwnSource(): Promise<SourceIds> {
     throw new Error("VERCEL_PROJECT_ID is not set");
   }
 
-  const payload = await verifyVercelIssuedToken(await getVercelOidcToken());
+  const token = getOwnOidcToken();
+
+  if (!token) {
+    throw new Error("No Vercel OIDC token is available");
+  }
+
+  const payload = await verifyVercelIssuedToken(token);
   const teamId = getClaim(payload, "owner_id");
   const projectId = getClaim(payload, "project_id");
 
@@ -307,6 +313,22 @@ async function getOwnSource(): Promise<SourceIds> {
   }
 
   return { teamId, projectId };
+}
+
+// Mirrors `getVercelOidcTokenSync` from `@vercel/oidc`, whose CommonJS build breaks `require`-less bundles like Workflow functions.
+function getOwnOidcToken(): string | undefined {
+  const requestContext = (
+    globalThis as {
+      [REQUEST_CONTEXT_SYMBOL]?: {
+        get?: () => { headers?: Record<string, string | undefined> };
+      };
+    }
+  )[REQUEST_CONTEXT_SYMBOL]?.get?.();
+
+  return (
+    requestContext?.headers?.["x-vercel-oidc-token"] ??
+    process.env.VERCEL_OIDC_TOKEN
+  );
 }
 
 function toIdSet(value: unknown, name: string): Set<string> {
