@@ -117,6 +117,16 @@ Options:
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
+    --credentials-github-repository <REPOSITORY>       GitHub repository, as OWNER/REPOSITORY, to clone into the sandbox and give it Git and GitHub API access to, with Vercel managed credentials and no GitHub token inside the sandbox. Without --credentials-github-actions, the sandbox may: github:issues:read, github:issues:comment, github:pull-request:create, git:write. (experimental) [optional]
+    --credentials-github-actions <ACTION,...>          Comma-separated actions the sandbox may perform on the repository. They replace the default actions, including Git access. GitHub API actions may drop the github: prefix, for example issues:read. Supported: git:read, git:write, git:write-workflows, git:force-push, github:pull-request:create, github:pull-request:get, github:pull-request:update, github:pull-request:comment, github:issues:read, github:issues:create, github:issues:update, github:issues:comment, github:labels:read, github:labels:write, github:ci-status:read, github:repository:read, github:repository-permissions:read. (experimental) [optional]
+    --credentials-github-act-as <USER>                 GitHub username or numeric user ID the sandbox acts as, which also authors its commits. Defaults to the GitHub account connected to your Vercel account. (experimental) [optional]
+    --credentials-file <FILE>                          Read the whole credentials request from a JSON file (use - for stdin). Use it for requests the other options cannot express, such as several repositories. Nothing is cloned into the sandbox. Cannot be combined with the other credentials options. (experimental)
+    The file holds the SDK's credentials option as JSON. Keys marked ? are optional; unknown keys are rejected.
+      credentials = { "npm"?: true, "github"?: [grant, ...] }
+      grant       = { "repositories": ["<OWNER/REPOSITORY>", ...], "actions": ["<action>", ...],
+                      "actAs"?: "<numeric GitHub user ID>" | "@<username>" }
+    Each grant gives its actions on its repositories. Actions use their full names, as listed for --credentials-github-actions.
+    Example: {"github":[{"repositories":["acme/web"],"actions":["git:write","github:pull-request:create"],"actAs":"@octocat"}]} [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -198,6 +208,16 @@ Options:
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
+    --credentials-github-repository <REPOSITORY>       GitHub repository, as OWNER/REPOSITORY, to clone into the sandbox and give it Git and GitHub API access to, with Vercel managed credentials and no GitHub token inside the sandbox. Without --credentials-github-actions, the sandbox may: github:issues:read, github:issues:comment, github:pull-request:create, git:write. (experimental) [optional]
+    --credentials-github-actions <ACTION,...>          Comma-separated actions the sandbox may perform on the repository. They replace the default actions, including Git access. GitHub API actions may drop the github: prefix, for example issues:read. Supported: git:read, git:write, git:write-workflows, git:force-push, github:pull-request:create, github:pull-request:get, github:pull-request:update, github:pull-request:comment, github:issues:read, github:issues:create, github:issues:update, github:issues:comment, github:labels:read, github:labels:write, github:ci-status:read, github:repository:read, github:repository-permissions:read. (experimental) [optional]
+    --credentials-github-act-as <USER>                 GitHub username or numeric user ID the sandbox acts as, which also authors its commits. Defaults to the GitHub account connected to your Vercel account. (experimental) [optional]
+    --credentials-file <FILE>                          Read the whole credentials request from a JSON file (use - for stdin). Use it for requests the other options cannot express, such as several repositories. Nothing is cloned into the sandbox. Cannot be combined with the other credentials options. (experimental)
+    The file holds the SDK's credentials option as JSON. Keys marked ? are optional; unknown keys are rejected.
+      credentials = { "npm"?: true, "github"?: [grant, ...] }
+      grant       = { "repositories": ["<OWNER/REPOSITORY>", ...], "actions": ["<action>", ...],
+                      "actAs"?: "<numeric GitHub user ID>" | "@<username>" }
+    Each grant gives its actions on its repositories. Actions use their full names, as listed for --credentials-github-actions.
+    Example: {"github":[{"repositories":["acme/web"],"actions":["git:write","github:pull-request:create"],"actAs":"@octocat"}]} [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -262,6 +282,10 @@ Examples:
 – Create a sandbox that can install your team's private npm packages
 
   $ sandbox create --credentials=npm
+
+– Create a sandbox that clones a GitHub repository and can open pull requests on it
+
+  $ sandbox create --credentials-github-repository=acme/web
 ```
 
 ## `sandbox sh`
@@ -289,6 +313,16 @@ Options:
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
     --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
+    --credentials-github-repository <REPOSITORY>       GitHub repository, as OWNER/REPOSITORY, to clone into the sandbox and give it Git and GitHub API access to, with Vercel managed credentials and no GitHub token inside the sandbox. Without --credentials-github-actions, the sandbox may: github:issues:read, github:issues:comment, github:pull-request:create, git:write. (experimental) [optional]
+    --credentials-github-actions <ACTION,...>          Comma-separated actions the sandbox may perform on the repository. They replace the default actions, including Git access. GitHub API actions may drop the github: prefix, for example issues:read. Supported: git:read, git:write, git:write-workflows, git:force-push, github:pull-request:create, github:pull-request:get, github:pull-request:update, github:pull-request:comment, github:issues:read, github:issues:create, github:issues:update, github:issues:comment, github:labels:read, github:labels:write, github:ci-status:read, github:repository:read, github:repository-permissions:read. (experimental) [optional]
+    --credentials-github-act-as <USER>                 GitHub username or numeric user ID the sandbox acts as, which also authors its commits. Defaults to the GitHub account connected to your Vercel account. (experimental) [optional]
+    --credentials-file <FILE>                          Read the whole credentials request from a JSON file (use - for stdin). Use it for requests the other options cannot express, such as several repositories. Nothing is cloned into the sandbox. Cannot be combined with the other credentials options. (experimental)
+    The file holds the SDK's credentials option as JSON. Keys marked ? are optional; unknown keys are rejected.
+      credentials = { "npm"?: true, "github"?: [grant, ...] }
+      grant       = { "repositories": ["<OWNER/REPOSITORY>", ...], "actions": ["<action>", ...],
+                      "actAs"?: "<numeric GitHub user ID>" | "@<username>" }
+    Each grant gives its actions on its repositories. Actions use their full names, as listed for --credentials-github-actions.
+    Example: {"github":[{"repositories":["acme/web"],"actions":["git:write","github:pull-request:create"],"actAs":"@octocat"}]} [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]

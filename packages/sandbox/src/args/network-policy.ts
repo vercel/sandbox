@@ -1,12 +1,13 @@
 import * as cmd from "cmd-ts";
 import type { ParsingInto } from "cmd-ts/dist/esm/argparser";
 import chalk from "chalk";
-import { readFile } from "node:fs/promises";
 import {
   NetworkPolicyParseError,
   parseNetworkPolicy,
   type NetworkPolicy,
 } from "@vercel/sandbox";
+import { fail } from "../util/fail";
+import { readJsonInput } from "../util/read-json-input";
 
 const networkPolicyMode = cmd.extendType(cmd.string, {
   displayName: "MODE",
@@ -88,10 +89,6 @@ const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const MATCHER_HINT =
   "--request-header does not take path or method matchers. To use them, write the policy as JSON and pass it with --network-policy-file.";
 const SINGLE_LINE_HINT = "Header values must be a single line.";
-
-function fail(message: string, hint: string): never {
-  throw new Error([message, `${chalk.bold("hint:")} ${hint}`].join("\n"));
-}
 
 function splitRequestHeader(
   input: string,
@@ -247,20 +244,6 @@ export const NETWORK_POLICY_SCHEMA = `The file holds the SDK's NetworkPolicy as 
 
 const POLICY_SHAPE_HINT = NETWORK_POLICY_SCHEMA;
 
-async function readStdin(): Promise<string> {
-  if (process.stdin.isTTY) {
-    fail(
-      "--network-policy-file - reads stdin, but stdin is a terminal.",
-      "Pipe the policy in, for example with a heredoc: --network-policy-file - <<EOF.",
-    );
-  }
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) {
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
 /**
  * Reads a network policy from a JSON file, or from stdin when `path` is `-`.
  * Errors name the file and the JSON path of a problem, never the content,
@@ -268,38 +251,18 @@ async function readStdin(): Promise<string> {
  */
 export async function readNetworkPolicyFile(
   path: string,
-  read: (path: string) => Promise<string> = (p) =>
-    p === "-" ? readStdin() : readFile(p, "utf8"),
+  read?: (path: string) => Promise<string>,
 ): Promise<NetworkPolicy> {
-  const source = path === "-" ? "stdin" : path;
-
-  let text: string;
-  try {
-    text = await read(path);
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === undefined) {
-      throw error;
-    }
-    fail(
-      `Cannot read the network policy file ${source} (${code}).`,
-      "Pass a readable JSON file, or - to read stdin.",
-    );
-  }
-
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch (error) {
-    // Node's message quotes the input, so keep only the position.
-    const message = String(error);
-    const where = (/line \d+ column \d+/.exec(message) ??
-      /position \d+/.exec(message))?.[0];
-    fail(
-      `The network policy in ${source} is not valid JSON${where ? ` (${where})` : ""}.`,
-      POLICY_SHAPE_HINT,
-    );
-  }
+  const { json, source } = await readJsonInput(
+    path,
+    {
+      option: "--network-policy-file",
+      subject: "network policy",
+      verb: "is",
+      shapeHint: POLICY_SHAPE_HINT,
+    },
+    read,
+  );
 
   try {
     return parseNetworkPolicy(json);
