@@ -1,4 +1,5 @@
 import { fail } from "./fail";
+import { printable } from "./printable";
 
 const API_URL = "https://api.vercel.com";
 const LOOKUP_TIMEOUT_MS = 10_000;
@@ -36,7 +37,7 @@ export async function hasProjectBounds(options: {
 
   if (!Array.isArray(bounds)) {
     fail(
-      `Cannot read the Bounds of project ${project} in team ${team}.`,
+      `Cannot read the Bounds of project ${printable(project)} in team ${printable(team)}.`,
       "Check that your login or token can read that project. A project whose Bounds cannot be read is not treated as having none.",
     );
   }

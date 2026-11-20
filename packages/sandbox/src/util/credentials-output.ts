@@ -1,4 +1,4 @@
-import { stat, writeFile } from "node:fs/promises";
+import { access, constants, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { SandboxCredentials } from "@vercel/sandbox";
 import { fail } from "./fail";
@@ -44,6 +44,14 @@ export async function checkCredentialsOutput(
     fail(
       `Cannot write the credentials request to ${path}: its directory does not exist.`,
       "Create the directory first, or choose another path.",
+    );
+  }
+  try {
+    await access(dirname(path), constants.W_OK);
+  } catch {
+    fail(
+      `Cannot write the credentials request to ${path}: its directory is not writable.`,
+      "Choose a path in a directory that you can write to.",
     );
   }
 }
