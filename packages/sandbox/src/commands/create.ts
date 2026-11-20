@@ -23,7 +23,7 @@ import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
 import { credentialsArgs } from "../args/credentials";
-import { buildCredentials } from "../util/credentials";
+import { buildCredentials, renderEditCommand } from "../util/credentials";
 import { confirmCredentials } from "../util/credentials-consent";
 import { isInteractive } from "../util/interaction";
 import { hasProjectBounds } from "../util/project-bounds";
@@ -128,8 +128,13 @@ export const create = cmd.command({
     },
     {
       description:
-        "Create a sandbox that clones a GitHub repository and can open pull requests on it",
-      command: `sandbox create --credentials-github-repository=acme/web`,
+        "Create a sandbox that clones the GitHub repository of the current directory and can open pull requests on it",
+      command: `sandbox create --credentials=github`,
+    },
+    {
+      description:
+        "Create a sandbox with access to a GitHub repository and actions that you choose",
+      command: `sandbox create --credentials-github-repository=acme/web --credentials-github-actions=git:read,issues:read`,
     },
   ],
   async handler(input) {
@@ -183,7 +188,8 @@ export const create = cmd.command({
     if (runtime !== undefined && image !== undefined) {
       throw new Error("--runtime and --image cannot be used together.");
     }
-    const { credentials, source } = buildCredentials(input);
+    const { credentials, source, explicitOptions } =
+      await buildCredentials(input);
     if (snapshot !== undefined && source !== undefined) {
       fail(
         "Cannot combine --snapshot with --credentials-github-repository.",
@@ -195,6 +201,7 @@ export const create = cmd.command({
       scope,
       yes,
       interactive: await isInteractive(),
+      editCommand: explicitOptions && renderEditCommand(scope, explicitOptions),
       hasProjectBounds: () =>
         hasProjectBounds({
           token: scope.token,

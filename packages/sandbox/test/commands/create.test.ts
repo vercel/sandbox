@@ -4,10 +4,12 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const { mockCreate, mockHasProjectBounds } = vi.hoisted(() => ({
-  mockCreate: vi.fn(),
-  mockHasProjectBounds: vi.fn(),
-}));
+const { mockCreate, mockHasProjectBounds, mockInferGithubRepository } =
+  vi.hoisted(() => ({
+    mockCreate: vi.fn(),
+    mockHasProjectBounds: vi.fn(),
+    mockInferGithubRepository: vi.fn(),
+  }));
 
 vi.mock("../../src/client", () => ({
   sandboxClient: {
@@ -17,6 +19,10 @@ vi.mock("../../src/client", () => ({
     list: vi.fn(),
   },
   snapshotClient: { get: vi.fn(), list: vi.fn(), tree: vi.fn() },
+}));
+
+vi.mock("../../src/util/github-repository", () => ({
+  inferGithubRepository: mockInferGithubRepository,
 }));
 
 vi.mock("../../src/util/project-bounds", () => ({
@@ -41,6 +47,7 @@ describe("create command", () => {
       routes: [],
     });
     mockHasProjectBounds.mockResolvedValue(true);
+    mockInferGithubRepository.mockResolvedValue("acme/local");
     process.env.VERCEL_AUTH_TOKEN = "tok";
   });
 
@@ -77,8 +84,38 @@ describe("create command", () => {
       "../../src/args/credentials.ts"
     );
 
-    await expect(credentialProviderListType.from("npm,github")).rejects.toThrow(
-      "Unsupported credentials: github. Supported: npm.",
+    await expect(credentialProviderListType.from("npm,gitlab")).rejects.toThrow(
+      "Unsupported credentials: gitlab. Supported: npm, github.",
+    );
+  });
+
+  test("--credentials=github requests the default access to the local repository", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--credentials=github",
+      "--yes",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credentials: {
+          github: [
+            {
+              repositories: ["acme/local"],
+              actions: [
+                "github:issues:read",
+                "github:issues:comment",
+                "github:pull-request:create",
+                "git:write",
+              ],
+            },
+          ],
+        },
+        source: { type: "git", url: "https://github.com/acme/local.git" },
+      }),
     );
   });
 
@@ -137,10 +174,38 @@ describe("create command", () => {
       expect(stderr.mock.calls.join("")).toContain(
         "  Repository      acme/web\n",
       );
+      expect(stderr.mock.calls.join("")).toContain(
+        "    sandbox create --scope=team --project=proj --credentials-github-repository=acme/web --credentials-github-actions=github:issues:read,github:issues:comment,github:pull-request:create,git:write\n",
+      );
     } finally {
       stderr.mockRestore();
     }
     expect(mockHasProjectBounds).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  test("suggests no command when the team or project would need quoting", async () => {
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const { create } = await import("../../src/commands/create.ts");
+
+    try {
+      await expect(
+        cmd.run(create, [
+          "--credentials=github",
+          "--scope=$(touch pwned)",
+          "--project=web; touch pwned",
+          "--silent",
+        ]),
+      ).rejects.toThrow("without confirmation in non-interactive mode");
+      const output = stderr.mock.calls.join("");
+      expect(output).toContain("  Repository      acme/local\n");
+      expect(output).not.toContain("To change this request");
+      expect(output).not.toContain("sandbox create");
+    } finally {
+      stderr.mockRestore();
+    }
     expect(mockCreate).not.toHaveBeenCalled();
   });
 

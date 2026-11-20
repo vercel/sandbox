@@ -29,6 +29,7 @@ async function run(options: {
   answers?: string[];
   yes?: boolean;
   interactive?: boolean;
+  editCommand?: string;
   hasProjectBounds?: () => Promise<boolean>;
 }) {
   const input = new PassThrough();
@@ -45,6 +46,7 @@ async function run(options: {
     scope: namedScope,
     yes: options.yes ?? false,
     interactive: options.interactive ?? true,
+    editCommand: options.editCommand,
     hasProjectBounds,
     input,
     output,
@@ -79,7 +81,9 @@ describe("renderCredentialsPreview", () => {
     expect(
       renderCredentialsPreview({
         credentials: {
-          github: [{ repositories: ["acme/web"], actions: ["git:read"] }],
+          github: [
+            { repositories: ["acme/web"], actions: ["git:read", "git:write"] },
+          ],
         },
         scope,
       }),
@@ -87,8 +91,20 @@ describe("renderCredentialsPreview", () => {
   Project         prj_123
   Repository      acme/web
   Actions         git:read
+                  git:write
   GitHub account  your connected GitHub account
 `);
+  });
+
+  test("names no account for a grant that only reads with Git", () => {
+    expect(
+      renderCredentialsPreview({
+        credentials: {
+          github: [{ repositories: ["acme/web"], actions: ["git:read"] }],
+        },
+        scope: namedScope,
+      }),
+    ).toContain("  GitHub account  none, reading with Git needs no account\n");
   });
 
   test("lists every grant, and npm when it is requested", () => {
@@ -166,6 +182,58 @@ describe("confirmCredentials", () => {
       expect(message(result.error)).toBe("Sandbox creation canceled.");
       expect((result.error as ExitError).exitCode).toBe(130);
       expect(result.hasProjectBounds).not.toHaveBeenCalled();
+    },
+  );
+
+  const EDIT_COMMAND =
+    "sandbox create --scope=team_123 --project=prj_123 --credentials-github-repository=acme/web";
+  const EDIT_HINT = `\nTo change this request, edit and run:\n\n    ${EDIT_COMMAND}\n`;
+
+  test("a declined request ends with the command to edit", async () => {
+    const result = await run({ answers: ["n"], editCommand: EDIT_COMMAND });
+    expect(result.output).toBe(
+      [
+        "",
+        renderCredentialsPreview({ credentials: github, scope: namedScope }),
+        `Create this sandbox? (y/N) ${EDIT_HINT}`,
+      ].join("\n"),
+    );
+    expect((result.error as ExitError).exitCode).toBe(130);
+  });
+
+  test("a request that nobody can confirm ends with the command to edit", async () => {
+    const result = await run({
+      interactive: false,
+      editCommand: EDIT_COMMAND,
+    });
+    expect(result.output).toBe(
+      [
+        "",
+        renderCredentialsPreview({ credentials: github, scope: namedScope }),
+      ].join("\n") + EDIT_HINT,
+    );
+    expect((result.error as ExitError).exitCode).toBe(2);
+  });
+
+  test("declining to continue without Bounds ends with the command to edit", async () => {
+    const result = await run({
+      answers: ["y", "n"],
+      editCommand: EDIT_COMMAND,
+      hasProjectBounds: async () => false,
+    });
+    expect(result.output.endsWith(EDIT_HINT)).toBe(true);
+  });
+
+  test.each([[["y"]], [[]]])(
+    "an approved request does not print the command to edit: answers %j with --yes %#",
+    async (answers) => {
+      const result = await run({
+        answers,
+        yes: answers.length === 0,
+        editCommand: EDIT_COMMAND,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.output).not.toContain("To change this request");
     },
   );
 

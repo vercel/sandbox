@@ -23,11 +23,15 @@ function row(label: string, values: readonly string[]): string {
     .join("");
 }
 
-function githubAccount(actAs: string | undefined): string {
-  if (actAs === undefined) {
-    return "your connected GitHub account";
+// Without actAs, the API acts as the GitHub account connected to the caller's
+// Vercel account, and uses no account for a grant that only reads with Git.
+function githubAccount({ actAs, actions }: SandboxGitHubCredential): string {
+  if (actAs !== undefined) {
+    return actAs.startsWith("@") ? actAs : `user ID ${actAs}`;
   }
-  return actAs.startsWith("@") ? actAs : `user ID ${actAs}`;
+  return actions.every((action) => action === "git:read")
+    ? "none, reading with Git needs no account"
+    : "your connected GitHub account";
 }
 
 function grantRows(grant: SandboxGitHubCredential): string {
@@ -37,7 +41,7 @@ function grantRows(grant: SandboxGitHubCredential): string {
       grant.repositories,
     ),
     row("Actions", grant.actions),
-    row("GitHub account", [githubAccount(grant.actAs)]),
+    row("GitHub account", [githubAccount(grant)]),
   ].join("");
 }
 
@@ -70,21 +74,32 @@ export function renderCredentialsPreview(options: {
  * --yes answers both questions but never hides the missing-Bounds warning.
  * Nothing reads the terminal unless a question is asked, so stdin stays
  * available to the command that runs next.
+ *
+ * A request that is not approved ends with `editCommand`, the command that
+ * states the request in full, so a wrong guess can be corrected and rerun.
  */
 export async function confirmCredentials(options: {
   credentials: SandboxCredentials | undefined;
   scope: Scope;
   yes: boolean;
   interactive: boolean;
+  editCommand?: string;
   hasProjectBounds: () => Promise<boolean>;
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
 }): Promise<void> {
-  const { credentials, scope, yes, interactive } = options;
+  const { credentials, scope, yes, interactive, editCommand } = options;
   if (!credentials?.github?.length) {
     return;
   }
   const output = options.output ?? process.stderr;
+  const offerEditCommand = () => {
+    if (editCommand !== undefined) {
+      output.write(
+        `\nTo change this request, edit and run:\n\n    ${editCommand}\n`,
+      );
+    }
+  };
 
   let lines: Interface | undefined;
   let answers: AsyncIterator<string> | undefined;
@@ -94,6 +109,7 @@ export async function confirmCredentials(options: {
     answers ??= lines[Symbol.asyncIterator]();
     const answer = await answers.next();
     if (answer.done || !/^(y|yes)$/i.test(answer.value.trim())) {
+      offerEditCommand();
       throw new ExitError("Sandbox creation canceled.", 130);
     }
   };
@@ -102,6 +118,7 @@ export async function confirmCredentials(options: {
     if (!yes) {
       output.write(`\n${renderCredentialsPreview({ credentials, scope })}`);
       if (!interactive) {
+        offerEditCommand();
         fail(
           "Can't create a sandbox with GitHub credentials without confirmation in non-interactive mode.",
           "Add --yes only after a person approves the request above.",

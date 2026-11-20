@@ -8,7 +8,7 @@ import {
 import { fail } from "../util/fail";
 import { readJsonInput } from "../util/read-json-input";
 
-export const CREDENTIAL_PROVIDERS = ["npm"] as const;
+export const CREDENTIAL_PROVIDERS = ["npm", "github"] as const;
 export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
 
 function isCredentialProvider(value: string): value is CredentialProvider {
@@ -49,13 +49,12 @@ export const credentials = cmd.option({
   long: "credentials",
   type: cmd.optional(credentialProviderListType),
   description:
-    "Comma-separated Vercel managed credentials to inject into the sandbox network policy.",
+    "Comma-separated Vercel managed credentials to inject into the sandbox network policy. npm installs your team's private packages. github (experimental) clones the GitHub repository of the current directory and requests the default access to it; to choose the repository, actions, or account, use the --credentials-github-* options instead.",
 });
 
 /**
- * The actions --credentials-github-repository requests when
- * --credentials-github-actions is absent: enough to read an issue and open a
- * pull request for it.
+ * The actions a GitHub request gets when --credentials-github-actions is
+ * absent: enough to read an issue and open a pull request for it.
  */
 export const DEFAULT_GITHUB_ACTIONS: readonly SandboxGitHubCredentialAction[] =
   [
@@ -70,7 +69,7 @@ const GITHUB_REPOSITORY = new RegExp(`^${GITHUB_OWNER}/[A-Za-z0-9._-]{1,100}$`);
 const GITHUB_USER_ID = /^[1-9][0-9]{0,15}$/;
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?$/;
 
-function isGithubRepository(value: string): boolean {
+export function isGithubRepository(value: string): boolean {
   return (
     GITHUB_REPOSITORY.test(value) && ![".", ".."].includes(value.split("/")[1])
   );
@@ -149,7 +148,7 @@ export const githubActorType = cmd.extendType(cmd.string, {
 export const credentialsGithubRepository = cmd.option({
   long: "credentials-github-repository",
   type: cmd.optional({ ...cmd.string, displayName: "REPOSITORY" }),
-  description: `GitHub repository, as OWNER/REPOSITORY, to clone into the sandbox and give it Git and GitHub API access to, with Vercel managed credentials and no GitHub token inside the sandbox. Without --credentials-github-actions, the sandbox may: ${DEFAULT_GITHUB_ACTIONS.join(", ")}. (experimental)`,
+  description: `GitHub repository, as OWNER/REPOSITORY, to clone into the sandbox and give it Git and GitHub API access to, with Vercel managed credentials and no GitHub token inside the sandbox. Defaults to the repository of the current directory when another --credentials-github-* option is given. Without --credentials-github-actions, the sandbox may: ${DEFAULT_GITHUB_ACTIONS.join(", ")}. (experimental)`,
 });
 
 export const credentialsGithubActions = cmd.option({
