@@ -72,7 +72,7 @@ sandbox create \
 
 ### Which repository the CLI finds
 
-The CLI reads the Git remotes of the current directory from the repository's Git config file. It does not run Git, and it does not apply `insteadOf` URL rewrites. It uses `origin` when that is a github.com HTTPS or SSH URL. Without such an `origin`, it uses the other GitHub remotes only when they all name the same repository. It never picks between different repositories. When it finds none, pass `--credentials-github-repository`.
+The CLI reads the Git remotes of the current directory from the repository's Git config file. It does not run Git, it does not apply `insteadOf` URL rewrites, and it finds no repository when that file includes another config file. It uses `origin` when that is a github.com HTTPS or SSH URL. Without such an `origin`, it uses the other GitHub remotes only when they all name the same repository. It never picks between different repositories. When it finds none, pass `--credentials-github-repository`.
 
 ### Which GitHub account is used
 
