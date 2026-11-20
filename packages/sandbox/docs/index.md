@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.12.0
+sandbox 4.13.0
 
 ▲ sandbox [options] <command>
 
@@ -30,7 +30,7 @@ Commands:
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
     snapshots                                  Manage sandbox snapshots
     sessions                                   Manage sandbox sessions
-    drives                                     Manage sandbox drives
+    drives                                     Manage sandbox drives (deprecated, use the `vercel drives` CLI)
     telemetry                                  Manage telemetry collection status
     login                                      Log in to the Sandbox CLI
     logout                                     Log out of the Sandbox CLI

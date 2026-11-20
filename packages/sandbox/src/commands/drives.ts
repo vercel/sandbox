@@ -205,7 +205,7 @@ const remove = cmd.command({
   },
 });
 
-export const drives = subcommands({
+const driveCommands = subcommands({
   ...commandMetadata.drives,
   cmds: {
     list,
@@ -214,6 +214,16 @@ export const drives = subcommands({
     delete: remove,
   },
 });
+
+export const drives = {
+  ...driveCommands,
+  run(context: Parameters<typeof driveCommands.run>[0]) {
+    process.stderr.write(
+      "Warning: `sandbox drives` is deprecated. Use `vercel drives` instead.\n",
+    );
+    return driveCommands.run(context);
+  },
+};
 
 function printDriveSummary(
   drive: Drive,
@@ -293,7 +303,7 @@ async function getDriveByName({
     throw new Error(
       [
         `Drive ${name} was not found.`,
-        `${chalk.bold("hint:")} Create it with: sandbox drives get-or-create ${name}`,
+        `${chalk.bold("hint:")} Run \`vercel drives --help\` for drive commands.`,
       ].join("\n"),
     );
   }

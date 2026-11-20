@@ -1,3 +1,5 @@
+import { APIError as DriveAPIError } from "@vercel/drives";
+
 interface Options<ErrorData> {
   message?: string;
   json?: ErrorData;
@@ -12,7 +14,15 @@ export class APIError<ErrorData> extends Error {
   public json?: ErrorData;
   public text?: string;
   public sandboxName?: string;
-  public sessionId?: string
+  public sessionId?: string;
+
+  // Keep existing Sandbox error checks working for drive requests.
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return (
+      super[Symbol.hasInstance](value) ||
+      (this === APIError && value instanceof DriveAPIError)
+    );
+  }
 
   constructor(response: Response, options?: Options<ErrorData>) {
     super(response.statusText);
