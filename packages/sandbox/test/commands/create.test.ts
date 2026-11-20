@@ -184,7 +184,7 @@ describe("create command", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  test("quotes the team and project in the command it suggests", async () => {
+  test("suggests no command when the team or project would need quoting", async () => {
     const stderr = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
@@ -199,9 +199,10 @@ describe("create command", () => {
           "--silent",
         ]),
       ).rejects.toThrow("without confirmation in non-interactive mode");
-      expect(stderr.mock.calls.join("")).toContain(
-        "    sandbox create '--scope=$(touch pwned)' '--project=web; touch pwned' --credentials-github-repository=acme/local ",
-      );
+      const output = stderr.mock.calls.join("");
+      expect(output).toContain("  Repository      acme/local\n");
+      expect(output).not.toContain("To change this request");
+      expect(output).not.toContain("sandbox create");
     } finally {
       stderr.mockRestore();
     }
