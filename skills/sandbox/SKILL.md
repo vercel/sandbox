@@ -192,6 +192,36 @@ await sandbox.runCommand("npm", ["install"]);
 - When the team has no npm credentials, creation fails with a 400 error.
 - CLI: `sandbox create --credentials=npm`.
 
+### With GitHub Access (experimental)
+
+Pass `credentials: { github: [...] }` when the sandbox must use Git or the GitHub API on your repositories, for example a coding agent that reads an issue and opens a pull request. Vercel provides the access, so no GitHub token is placed inside the sandbox. Each entry grants its `actions` on its `repositories`.
+
+```typescript
+import { Sandbox } from "@vercel/sandbox";
+
+const sandbox = await Sandbox.create({
+  source: { type: "git", url: "https://github.com/acme/web.git" },
+  credentials: {
+    github: [
+      {
+        repositories: ["acme/web"],
+        actions: [
+          "git:write",
+          "github:issues:read",
+          "github:pull-request:create",
+        ],
+      },
+    ],
+  },
+});
+```
+
+- A `source` that is an HTTPS URL of a listed repository is cloned with these credentials.
+- `SANDBOX_GITHUB_CREDENTIAL_ACTIONS` lists every supported action. Request only what the task needs: `git:write` does not include `git:write-workflows` or `git:force-push`.
+- `actAs` chooses the GitHub account, as a numeric user ID or `"@username"`. When omitted, the API uses the GitHub account connected to the Vercel user who creates the sandbox, and creation fails if there is none. A caller that is not a user, such as a project OIDC token, must pass `actAs`.
+- Combine with npm: `credentials: { npm: true, github: [...] }`.
+- CLI: `sandbox create --credentials=github` inside a clone of the repository, or `--credentials-github-repository OWNER/REPOSITORY` with `--credentials-github-actions`. The CLI shows the request and asks before it creates the sandbox; `--yes` skips the question.
+
 ### From Tarball
 
 ```typescript
