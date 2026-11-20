@@ -169,6 +169,28 @@ describe("create command", () => {
     expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("source");
   });
 
+  test("rejects an invalid repository without repeating it", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+
+    const error = await cmd
+      .run(create, [
+        "--credentials-github-repository=https://ghp_secret@github.com/acme/web",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ])
+      .then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+
+    expect(String((error as Error).message)).toContain(
+      "Invalid --credentials-github-repository value.",
+    );
+    expect(String((error as Error).message)).not.toContain("ghp_secret");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   test("rejects a snapshot together with a repository to clone", async () => {
     const { create } = await import("../../src/commands/create.ts");
 
