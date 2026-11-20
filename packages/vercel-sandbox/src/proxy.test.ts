@@ -392,6 +392,69 @@ describe("defineSandboxProxy", () => {
     },
   );
 
+  it("calls the invalid request handler with the sanitized request when the sandbox is not allowed", async () => {
+    const handler = vi.fn(() => new Response("ok"));
+    const invalidRequestHandler = vi.fn(
+      (request: Request) =>
+        new Response(
+          JSON.stringify({
+            url: request.url,
+            host: request.headers.get("host"),
+            oidcToken: request.headers.get("vercel-sandbox-oidc-token"),
+          }),
+          { status: 401 },
+        ),
+    );
+    const proxy = defineSandboxProxy(handler, {
+      teamId: "team_other",
+      projectId: "prj_123",
+      onInvalidRequest: invalidRequestHandler,
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    await expect(response.json()).resolves.toEqual({
+      url: "https://example.com/some/path?foo=bar",
+      host: "example.com",
+      oidcToken: null,
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("accepts readonly ID lists", async () => {
+    const teamIds = ["team_123"] as const;
+    const projectIds: readonly string[] = ["prj_123"];
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      teamId: teamIds,
+      projectId: projectIds,
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects invalid options at the type level", () => {
+    const handler = () => new Response("ok");
+
+    // @ts-expect-error — options are required
+    expect(() => defineSandboxProxy(handler)).toThrow();
+    expect(() =>
+      // @ts-expect-error — the invalid request handler moved to `onInvalidRequest`
+      defineSandboxProxy(handler, () => new Response("no")),
+    ).toThrow();
+    expect(() =>
+      // @ts-expect-error — `insecurelyAllowAll` cannot be combined with an allowlist
+      defineSandboxProxy(handler, {
+        insecurelyAllowAll: true,
+        teamId: "team_123",
+      }),
+    ).toThrow();
+    // @ts-expect-error — `projectId` is required alongside `teamId`
+    expect(() => defineSandboxProxy(handler, { teamId: "team_123" })).toThrow();
+  });
+
   it("returns 403 by default for sandboxes that are not allowed", async () => {
     const handler = vi.fn(() => new Response("ok"));
     const proxy = defineSandboxProxy(handler, {

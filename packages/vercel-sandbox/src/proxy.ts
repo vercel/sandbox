@@ -58,13 +58,15 @@ interface BaseSandboxProxyOptions {
 
 interface AllowedSandboxProxyOptions extends BaseSandboxProxyOptions {
   /**
-   * The team ID (or IDs) whose sandboxes may use this proxy.
+   * The team ID (or IDs) whose sandboxes may use this proxy. A sandbox is allowed when its team is in
+   * `teamId` and its project is in `projectId`.
    */
-  teamId: string | string[];
+  teamId: string | readonly string[];
   /**
-   * The project ID (or IDs) whose sandboxes may use this proxy.
+   * The project ID (or IDs) whose sandboxes may use this proxy. A sandbox is allowed when its team is in
+   * `teamId` and its project is in `projectId`.
    */
-  projectId: string | string[];
+  projectId: string | readonly string[];
   insecurelyAllowAll?: never;
 }
 
