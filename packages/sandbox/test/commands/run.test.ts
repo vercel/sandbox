@@ -82,6 +82,8 @@ describe("run command with a named sandbox that already exists", () => {
         "--credentials-github-act-as=octocat",
       ],
     ],
+    ["--credentials=github", ["--credentials=github"]],
+    ["--credentials=npm,github", ["--credentials=npm,github"]],
   ])("refuses %s without running anything", async (_option, options) => {
     expect(await refusal(options)).toBe(REFUSAL);
     // The lookup must not resume the sandbox either.

@@ -127,6 +127,7 @@ export function renderEditCommand(
  */
 export function requestsGithubAccess(args: CredentialsArgs): boolean {
   return (
+    (args.credentials?.includes("github") ?? false) ||
     args.credentialsGithubRepository !== undefined ||
     args.credentialsGithubActions !== undefined ||
     args.credentialsGithubActAs !== undefined ||
