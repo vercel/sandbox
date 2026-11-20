@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import { defineSandboxProxy } from "./proxy.js";
 
@@ -11,6 +11,42 @@ vi.mock("jose", () => ({
 const createRemoteJWKSetMock = vi.mocked(createRemoteJWKSet);
 const decodeJwtMock = vi.mocked(decodeJwt);
 const jwtVerifyMock = vi.mocked(jwtVerify);
+const OWN_TOKEN = "own_token";
+
+let ownTokenResult: () => Promise<Awaited<ReturnType<typeof jwtVerify>>>;
+let sandboxTokenResult: () => Promise<Awaited<ReturnType<typeof jwtVerify>>>;
+
+function mockOwnSource(payload: Record<string, unknown>) {
+  ownTokenResult = async () => makeJwtVerifyResult(payload);
+  if (typeof payload.project_id === "string") {
+    vi.stubEnv("VERCEL_PROJECT_ID", payload.project_id);
+  }
+}
+
+function mockOwnSourceError(error: Error) {
+  ownTokenResult = async () => {
+    throw error;
+  };
+}
+
+function mockSandboxToken(result: Awaited<ReturnType<typeof jwtVerify>>) {
+  sandboxTokenResult = async () => result;
+}
+
+function mockSandboxTokenError(error: Error) {
+  sandboxTokenResult = async () => {
+    throw error;
+  };
+}
+
+function ownTokenVerifications(): number {
+  return jwtVerifyMock.mock.calls.filter(([token]) => token === OWN_TOKEN)
+    .length;
+}
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -19,7 +55,12 @@ beforeEach(() => {
     vi.fn() as unknown as ReturnType<typeof createRemoteJWKSet>,
   );
   decodeJwtMock.mockReturnValue({ iss: "https://oidc.vercel.com/team_123" });
-  jwtVerifyMock.mockResolvedValue(
+  vi.stubEnv("VERCEL_OIDC_TOKEN", OWN_TOKEN);
+  mockOwnSource({ owner_id: "team_123", project_id: "prj_123" });
+  jwtVerifyMock.mockImplementation((token) =>
+    token === OWN_TOKEN ? ownTokenResult() : sandboxTokenResult(),
+  );
+  mockSandboxToken(
     makeJwtVerifyResult({
       team_id: "team_123",
       project_id: "prj_123",
@@ -112,7 +153,9 @@ describe("defineSandboxProxy", () => {
     const handler = vi.fn(() => new Response("ok"));
     const proxy = defineSandboxProxy(handler);
 
-    await proxy(makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }));
+    await proxy(
+      makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }),
+    );
 
     expect(jwtVerifyMock).toHaveBeenCalledWith(
       "token_123",
@@ -164,7 +207,7 @@ describe("defineSandboxProxy", () => {
   });
 
   it("defaults sandboxName to sandboxId when the token has no sandbox_name claim", async () => {
-    jwtVerifyMock.mockResolvedValue(
+    mockSandboxToken(
       makeJwtVerifyResult({
         team_id: "team_123",
         project_id: "prj_123",
@@ -207,7 +250,9 @@ describe("defineSandboxProxy", () => {
           { status: 401 },
         ),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(
       makeProxyRequest({
@@ -237,7 +282,9 @@ describe("defineSandboxProxy", () => {
           { status: 400 },
         ),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(
       makeProxyRequest({
@@ -256,7 +303,7 @@ describe("defineSandboxProxy", () => {
   });
 
   it("calls the invalid request handler with the sanitized request when OIDC verification fails", async () => {
-    jwtVerifyMock.mockRejectedValue(new Error("bad token"));
+    mockSandboxTokenError(new Error("bad token"));
     const handler = vi.fn(() => new Response("ok"));
     const invalidRequestHandler = vi.fn(
       (request: Request, error: Error) =>
@@ -270,7 +317,9 @@ describe("defineSandboxProxy", () => {
           { status: 401 },
         ),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(makeProxyRequest());
 
@@ -285,7 +334,7 @@ describe("defineSandboxProxy", () => {
   });
 
   it("limits the number of cached JWKS issuers", async () => {
-    jwtVerifyMock.mockRejectedValue(new Error("bad token"));
+    mockSandboxTokenError(new Error("bad token"));
     const proxy = defineSandboxProxy(() => new Response("ok"));
     const sendRequestWithIssuer = async (issuerIndex: number) => {
       decodeJwtMock.mockReturnValue({
@@ -316,7 +365,9 @@ describe("defineSandboxProxy", () => {
       (_request: Request, error: Error) =>
         new Response(error.message, { status: 401 }),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(makeProxyRequest());
 
@@ -326,8 +377,41 @@ describe("defineSandboxProxy", () => {
     expect(jwtVerifyMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    "https://oidc.vercel.com/team_123#",
+    "https://oidc.vercel.com/team_123?x=1",
+    "https://oidc.vercel.com/team_123/extra",
+    "https://oidc.vercel.com:8443/team_123",
+    "https://user@oidc.vercel.com/team_123",
+  ])("rejects tokens with a non-canonical issuer %s", async (issuer) => {
+    decodeJwtMock.mockReturnValue({ iss: issuer });
+    const handler = vi.fn(() => new Response("ok"));
+    const invalidRequestHandler = vi.fn(
+      (_request: Request, error: Error) =>
+        new Response(error.message, { status: 401 }),
+    );
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(await response.text()).toBe("Invalid OIDC issuer");
+    expect(handler).not.toHaveBeenCalled();
+    expect(jwtVerifyMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts the root Vercel OIDC issuer", async () => {
+    decodeJwtMock.mockReturnValue({ iss: "https://oidc.vercel.com" });
+    const proxy = defineSandboxProxy(() => new Response("ok"));
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+  });
+
   it("rejects tokens missing required sandbox claims", async () => {
-    jwtVerifyMock.mockResolvedValue(
+    mockSandboxToken(
       makeJwtVerifyResult({
         team_id: "team_123",
         project_id: "prj_123",
@@ -338,13 +422,340 @@ describe("defineSandboxProxy", () => {
       (_request: Request, error: Error) =>
         new Response(error.message, { status: 401 }),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(makeProxyRequest());
 
     expect(response.status).toBe(401);
     expect(await response.text()).toBe("Missing required claims in OIDC token");
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["team", { owner_id: "team_other", project_id: "prj_123" }],
+    ["project", { owner_id: "team_123", project_id: "prj_other" }],
+  ])(
+    "rejects sandboxes from a different %s than the proxy's own",
+    async (_kind, ownClaims) => {
+      mockOwnSource(ownClaims);
+      const handler = vi.fn(() => new Response("ok"));
+      const invalidRequestHandler = vi.fn(
+        (_request: Request, error: Error) =>
+          new Response(error.message, { status: 401 }),
+      );
+      const proxy = defineSandboxProxy(handler, {
+        onInvalidRequest: invalidRequestHandler,
+      });
+
+      const response = await proxy(makeProxyRequest());
+
+      expect(response.status).toBe(401);
+      expect(await response.text()).toBe(
+        "Sandbox is not allowed to use this proxy",
+      );
+      expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it("returns 403 by default for sandboxes that are not allowed", async () => {
+    mockOwnSource({ owner_id: "team_other", project_id: "prj_other" });
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler);
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("calls the invalid request handler with the sanitized request when the sandbox is not allowed", async () => {
+    mockOwnSource({ owner_id: "team_other", project_id: "prj_123" });
+    const handler = vi.fn(() => new Response("ok"));
+    const invalidRequestHandler = vi.fn(
+      (request: Request) =>
+        new Response(
+          JSON.stringify({
+            url: request.url,
+            host: request.headers.get("host"),
+            oidcToken: request.headers.get("vercel-sandbox-oidc-token"),
+          }),
+          { status: 401 },
+        ),
+    );
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    await expect(response.json()).resolves.toEqual({
+      url: "https://example.com/some/path?foo=bar",
+      host: "example.com",
+      oidcToken: null,
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("looks up the proxy's own team and project once", async () => {
+    const proxy = defineSandboxProxy(() => new Response("ok"));
+
+    await proxy(makeProxyRequest());
+    await proxy(makeProxyRequest());
+
+    expect(ownTokenVerifications()).toBe(1);
+  });
+
+  it("accepts sandboxes from other allowed teams and projects", async () => {
+    mockOwnSource({ owner_id: "team_own", project_id: "prj_own" });
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      teamId: ["team_other", "team_123"],
+      projectId: ["prj_123", "prj_other"],
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("still accepts the proxy's own team and project when others are allowed", async () => {
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      teamId: "team_other",
+      projectId: "prj_other",
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts readonly ID lists", async () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    const teamIds = ["team_123"] as const;
+    const projectIds: readonly string[] = ["prj_123"];
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      teamId: teamIds,
+      projectId: projectIds,
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+  });
+
+  it("uses only the allowed teams and projects when its own cannot be determined", async () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      teamId: "team_other",
+      projectId: "prj_other",
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "the OIDC token is unavailable",
+      () => vi.stubEnv("VERCEL_OIDC_TOKEN", ""),
+    ],
+    [
+      "the OIDC token does not verify",
+      () => mockOwnSourceError(new Error("bad signature")),
+    ],
+    [
+      "the OIDC token has no project",
+      () => mockOwnSource({ owner_id: "team_123" }),
+    ],
+    [
+      "the OIDC token is for another project",
+      () => {
+        ownTokenResult = async () =>
+          makeJwtVerifyResult({
+            owner_id: "team_123",
+            project_id: "prj_other",
+          });
+      },
+    ],
+    ["VERCEL_PROJECT_ID is not set", () => vi.stubEnv("VERCEL_PROJECT_ID", "")],
+  ])(
+    "rejects requests when %s and no teams or projects are allowed",
+    async (_case, arrange) => {
+      arrange();
+      const handler = vi.fn(() => new Response("ok"));
+      const invalidRequestHandler = vi.fn(
+        (_request: Request, error: Error) =>
+          new Response(error.message, { status: 500 }),
+      );
+      const proxy = defineSandboxProxy(handler, {
+        onInvalidRequest: invalidRequestHandler,
+      });
+
+      const response = await proxy(makeProxyRequest());
+
+      expect(response.status).toBe(500);
+      expect(await response.text()).toMatch(
+        /Could not determine this proxy's team and project/,
+      );
+      expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it("verifies the proxy's own OIDC token before trusting its team and project", async () => {
+    const proxy = defineSandboxProxy(() => new Response("ok"));
+
+    await proxy(makeProxyRequest());
+
+    expect(jwtVerifyMock).toHaveBeenCalledWith(
+      OWN_TOKEN,
+      expect.any(Function),
+      expect.objectContaining({ algorithms: ["RS256"] }),
+    );
+  });
+
+  it("reads the proxy's own OIDC token from the Vercel request context first", async () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "env_token");
+    const symbol = Symbol.for("@vercel/request-context");
+    const global = globalThis as Record<symbol, unknown>;
+    global[symbol] = {
+      get: () => ({ headers: { "x-vercel-oidc-token": OWN_TOKEN } }),
+    };
+    try {
+      const proxy = defineSandboxProxy(() => new Response("ok"));
+
+      expect((await proxy(makeProxyRequest())).status).toBe(200);
+      expect(ownTokenVerifications()).toBe(1);
+    } finally {
+      delete global[symbol];
+    }
+  });
+
+  it("shares one lookup of its own team and project between concurrent requests", async () => {
+    const proxy = defineSandboxProxy(() => new Response("ok"));
+
+    const responses = await Promise.all([
+      proxy(makeProxyRequest()),
+      proxy(makeProxyRequest()),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(ownTokenVerifications()).toBe(1);
+  });
+
+  it("retries a failed lookup of its own team and project after a delay", async () => {
+    vi.useFakeTimers();
+    try {
+      mockOwnSourceError(new Error("jwks unavailable"));
+      const proxy = defineSandboxProxy(() => new Response("ok"));
+
+      expect((await proxy(makeProxyRequest())).status).toBe(403);
+      expect((await proxy(makeProxyRequest())).status).toBe(403);
+      expect(ownTokenVerifications()).toBe(1);
+
+      mockOwnSource({ owner_id: "team_123", project_id: "prj_123" });
+      vi.advanceTimersByTime(60_000);
+
+      expect((await proxy(makeProxyRequest())).status).toBe(200);
+      expect(ownTokenVerifications()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("accepts sandboxes from any team when dangerouslyAllowAll is set", async () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    mockSandboxToken(
+      makeJwtVerifyResult({
+        team_id: "team_other",
+        project_id: "prj_other",
+        sandbox_id: "sbx_123",
+      }),
+    );
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, { dangerouslyAllowAll: true });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(ownTokenVerifications()).toBe(0);
+  });
+
+  it("still rejects invalid tokens when dangerouslyAllowAll is set", async () => {
+    mockSandboxTokenError(new Error("bad token"));
+    const handler = vi.fn(() => new Response("ok"));
+    const invalidRequestHandler = vi.fn(
+      (_request: Request, error: Error) =>
+        new Response(error.message, { status: 401 }),
+    );
+    const proxy = defineSandboxProxy(handler, {
+      dangerouslyAllowAll: true,
+      onInvalidRequest: invalidRequestHandler,
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe("bad token");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid options at the type level", () => {
+    const handler = () => new Response("ok");
+
+    expect(() =>
+      // @ts-expect-error — the invalid request handler moved to `onInvalidRequest`
+      defineSandboxProxy(handler, () => new Response("no")),
+    ).toThrow();
+    expect(() =>
+      defineSandboxProxy(handler, {
+        dangerouslyAllowAll: true,
+        // @ts-expect-error — `dangerouslyAllowAll` cannot be combined with an allowlist
+        teamId: "team_123",
+      }),
+    ).toThrow();
+  });
+
+  it.each([
+    ["null options", null],
+    ["only a team", { teamId: "team_123" }],
+    ["only a project", { projectId: "prj_123" }],
+    ["an empty team", { teamId: "", projectId: "prj_123" }],
+    ["an empty team list", { teamId: [], projectId: "prj_123" }],
+    [
+      "an empty entry in a team list",
+      { teamId: ["team_123", ""], projectId: "prj_123" },
+    ],
+    [
+      "a non-string entry in a project list",
+      { teamId: "team_123", projectId: ["prj_123", 42] },
+    ],
+    ["a sparse project list", { teamId: "team_123", projectId: [, "prj_123"] }],
+    ["dangerouslyAllowAll set to false", { dangerouslyAllowAll: false }],
+    [
+      "dangerouslyAllowAll with an allowlist",
+      { dangerouslyAllowAll: true, teamId: "team_123", projectId: "prj_123" },
+    ],
+    [
+      "an invalid request handler as the second argument",
+      () => new Response("no"),
+    ],
+  ])("throws at definition time with %s", (_case, options) => {
+    expect(() =>
+      defineSandboxProxy(
+        () => new Response("ok"),
+        options as unknown as Parameters<typeof defineSandboxProxy>[1],
+      ),
+    ).toThrow(/defineSandboxProxy/);
   });
 });
 
