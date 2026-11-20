@@ -1,7 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 import { stripVTControlCharacters } from "node:util";
 import type { CredentialsArgs } from "../../src/args/credentials.ts";
-import { buildCredentials } from "../../src/util/credentials.ts";
+import {
+  buildCredentials,
+  renderEditCommand,
+} from "../../src/util/credentials.ts";
 
 const empty: CredentialsArgs = {
   credentials: undefined,
@@ -244,5 +247,46 @@ describe("buildCredentials", () => {
         "hint: Put the whole request in the file. It replaces --credentials, --credentials-github-repository, --credentials-github-actions, and --credentials-github-act-as.",
       ].join("\n"),
     );
+  });
+});
+
+describe("renderEditCommand", () => {
+  const options = [
+    "--credentials-github-repository=acme/web.app",
+    "--credentials-github-actions=git:write,github:issues:read",
+    "--credentials-github-act-as=@octocat",
+  ];
+
+  test("joins the scope and the options into one command", () => {
+    expect(
+      renderEditCommand({ team: "team_123", project: "my-web" }, options),
+    ).toBe(
+      "sandbox create --scope=team_123 --project=my-web --credentials-github-repository=acme/web.app --credentials-github-actions=git:write,github:issues:read --credentials-github-act-as=@octocat",
+    );
+  });
+
+  // No quoting is right for every shell: POSIX quotes do nothing in cmd.exe.
+  // A value that would need quoting therefore means no command at all.
+  test.each([
+    "$(touch pwned)",
+    "team; touch pwned",
+    "team & calc",
+    "team | calc",
+    "`touch pwned`",
+    "%COMSPEC%",
+    "team^",
+    "a b",
+    "it's",
+    'say "hi"',
+    "a\nb",
+    "a\u001b[2Jb",
+    "",
+  ])("suggests no command when the team is %j", (team) => {
+    expect(
+      renderEditCommand({ team, project: "my-web" }, options),
+    ).toBeUndefined();
+    expect(
+      renderEditCommand({ team: "team_123", project: team }, options),
+    ).toBeUndefined();
   });
 });

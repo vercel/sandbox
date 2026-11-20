@@ -75,6 +75,24 @@ describe("hasProjectBounds", () => {
     },
   );
 
+  test("strips control characters from the team and project it names", async () => {
+    let message = "";
+    try {
+      await hasProjectBounds({
+        token: "tok",
+        team: "ac\u001b[2Jme",
+        project: "we\nb",
+        fetch: respond(500, {}),
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain(
+      "Cannot read the Bounds of project web in team ac[2Jme.",
+    );
+    expect(message).not.toMatch(/[\u0000-\u0009\u000b-\u001a\u001c-\u001f]/);
+  });
+
   test("does not treat a network failure as having no Bounds", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async () => {
       throw new TypeError("fetch failed: tok_secret");

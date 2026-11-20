@@ -221,7 +221,7 @@ describe("create command", () => {
     expect(readFileSync(path, "utf8")).toBe("{}");
   });
 
-  test("quotes the team and project in the command it suggests", async () => {
+  test("suggests no command when the team or project would need quoting", async () => {
     const stderr = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
@@ -236,9 +236,10 @@ describe("create command", () => {
           "--silent",
         ]),
       ).rejects.toThrow("without confirmation in non-interactive mode");
-      expect(stderr.mock.calls.join("")).toContain(
-        "    sandbox create '--scope=$(touch pwned)' '--project=web; touch pwned' --credentials-github-repository=acme/local ",
-      );
+      const output = stderr.mock.calls.join("");
+      expect(output).toContain("  Repository      acme/local\n");
+      expect(output).not.toContain("To change this request");
+      expect(output).not.toContain("sandbox create");
     } finally {
       stderr.mockRestore();
     }
@@ -268,6 +269,28 @@ describe("create command", () => {
 
     expect(mockCreate.mock.calls[0][0].credentials).toEqual(credentials);
     expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("source");
+  });
+
+  test("rejects an invalid repository without repeating it", async () => {
+    const { create } = await import("../../src/commands/create.ts");
+
+    const error = await cmd
+      .run(create, [
+        "--credentials-github-repository=https://ghp_secret@github.com/acme/web",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ])
+      .then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+
+    expect(String((error as Error).message)).toContain(
+      "Invalid --credentials-github-repository value.",
+    );
+    expect(String((error as Error).message)).not.toContain("ghp_secret");
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   test("rejects a snapshot together with a repository to clone", async () => {

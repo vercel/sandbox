@@ -1,6 +1,7 @@
 import type { SandboxCredentials } from "@vercel/sandbox";
 import {
   DEFAULT_GITHUB_ACTIONS,
+  checkGithubRepository,
   type CredentialsArgs,
 } from "../args/credentials";
 import { fail } from "./fail";
@@ -66,6 +67,9 @@ export async function buildCredentials(
     return npm ? { credentials: npm } : {};
   }
 
+  if (credentialsGithubRepository !== undefined) {
+    checkGithubRepository(credentialsGithubRepository);
+  }
   const repository = credentialsGithubRepository ?? (await inferRepository());
   if (repository === undefined) {
     fail(
@@ -94,4 +98,25 @@ export async function buildCredentials(
       ],
     }),
   };
+}
+
+/**
+ * Renders the command that states a credentials request in full, for a person
+ * to edit and run. The team and project can come from a checkout's
+ * `.vercel/project.json`, and no quoting is safe in every shell, so the
+ * command exists only when every argument is plain text that no shell reads
+ * as syntax.
+ */
+export function renderEditCommand(
+  scope: { team: string; project: string },
+  explicitOptions: readonly string[],
+): string | undefined {
+  const args = [
+    `--scope=${scope.team}`,
+    `--project=${scope.project}`,
+    ...explicitOptions,
+  ];
+  return args.every((arg) => /^--[a-z-]+=[A-Za-z0-9_@+:,./-]+$/.test(arg))
+    ? ["sandbox", "create", ...args].join(" ")
+    : undefined;
 }

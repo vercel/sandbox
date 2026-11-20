@@ -23,7 +23,7 @@ import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
 import { credentialsArgs } from "../args/credentials";
-import { buildCredentials } from "../util/credentials";
+import { buildCredentials, renderEditCommand } from "../util/credentials";
 import { confirmCredentials } from "../util/credentials-consent";
 import {
   checkCredentialsOutput,
@@ -31,7 +31,6 @@ import {
 } from "../util/credentials-output";
 import { isInteractive } from "../util/interaction";
 import { hasProjectBounds } from "../util/project-bounds";
-import { shellQuote } from "../util/shell-quote";
 import { fail } from "../util/fail";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
@@ -207,17 +206,7 @@ export const create = cmd.command({
       scope,
       yes,
       interactive: await isInteractive(),
-      editCommand:
-        explicitOptions &&
-        [
-          "sandbox",
-          "create",
-          `--scope=${scope.team}`,
-          `--project=${scope.project}`,
-          ...explicitOptions,
-        ]
-          .map(shellQuote)
-          .join(" "),
+      editCommand: explicitOptions && renderEditCommand(scope, explicitOptions),
       hasProjectBounds: () =>
         hasProjectBounds({
           token: scope.token,

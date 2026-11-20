@@ -4,7 +4,7 @@ import {
   CREDENTIALS_FILE_SCHEMA,
   githubActionListType,
   githubActorType,
-  githubRepositoryType,
+  checkGithubRepository,
   readCredentialsFile,
 } from "../../src/args/credentials.ts";
 
@@ -24,23 +24,29 @@ async function failure(promise: Promise<unknown>): Promise<string> {
 }
 
 describe("--credentials-github-repository", () => {
-  test("accepts OWNER/REPOSITORY", async () => {
-    await expect(githubRepositoryType.from("acme/web.app")).resolves.toBe(
-      "acme/web.app",
-    );
+  test("accepts OWNER/REPOSITORY", () => {
+    expect(() => checkGithubRepository("acme/web.app")).not.toThrow();
   });
 
-  test.each(["acme", "acme/web/app", "acme/..", "https://github.com/acme/web"])(
-    "rejects %s",
-    async (value) => {
-      expect(await failure(githubRepositoryType.from(value))).toBe(
-        [
-          `Invalid GitHub repository: ${value}.`,
-          "hint: Use OWNER/REPOSITORY, for example acme/web.",
-        ].join("\n"),
-      );
-    },
-  );
+  test.each([
+    "acme",
+    "acme/web/app",
+    "acme/..",
+    "https://ghp_secret@github.com/acme/web",
+  ])("rejects %s without repeating it", (value) => {
+    let message = "";
+    try {
+      checkGithubRepository(value);
+    } catch (error) {
+      message = text(error);
+    }
+    expect(message).toBe(
+      [
+        "Invalid --credentials-github-repository value.",
+        "hint: Use OWNER/REPOSITORY, for example acme/web.",
+      ].join("\n"),
+    );
+  });
 });
 
 describe("--credentials-github-actions", () => {
@@ -93,7 +99,7 @@ describe("--credentials-github-act-as", () => {
   test.each(["-octocat", "octo cat", "0", "@"])("rejects %s", async (value) => {
     expect(await failure(githubActorType.from(value))).toBe(
       [
-        `Invalid GitHub user: ${value}.`,
+        "Invalid --credentials-github-act-as value.",
         "hint: Use a GitHub username, for example octocat, or a numeric GitHub user ID.",
       ].join("\n"),
     );
@@ -148,12 +154,14 @@ describe("readCredentialsFile", () => {
     const bad = {
       npm: false,
       gitlab: [],
+      "forged\nhint: run this": 1,
       github: [
         {
           repositories: ["not-a-repository"],
           actions: ["issues:read"],
           actAs: "octocat",
           token: "ghp_secret",
+          "two words": true,
         },
         { repositories: [], actions: [] },
       ],
@@ -163,12 +171,16 @@ describe("readCredentialsFile", () => {
     );
     expect(message).not.toContain("ghp_secret");
     expect(message).not.toContain("not-a-repository");
+    expect(message).not.toContain("forged");
+    expect(message).not.toContain("two words");
     expect(message).toBe(
       [
         "The credentials in credentials.json are invalid:",
         "  gitlab: unknown key",
+        "  an unknown key whose name is not shown",
         "  npm: must be true",
         "  github[0].token: unknown key",
+        "  github[0]: an unknown key whose name is not shown",
         "  github[0].repositories[0]: must be OWNER/REPOSITORY",
         "  github[0].actions[0]: unsupported action",
         "  github[0].actAs: must be a numeric GitHub user ID or an @-prefixed username",

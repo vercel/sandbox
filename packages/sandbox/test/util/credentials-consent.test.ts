@@ -9,6 +9,8 @@ import {
 } from "../../src/util/credentials-consent.ts";
 
 const scope = { team: "team_123", project: "prj_123" };
+// Names that scope inference attached. They can belong to another team or
+// project than the one the request uses, so the preview must not show them.
 const namedScope = { ...scope, teamSlug: "acme", projectSlug: "web" };
 
 const github: SandboxCredentials = {
@@ -66,8 +68,8 @@ function message(error: unknown): string {
 describe("renderCredentialsPreview", () => {
   test("lists the team, project, repository, actions, and GitHub account", () => {
     expect(renderCredentialsPreview({ credentials: github, scope: namedScope }))
-      .toBe(`  Team            acme
-  Project         web
+      .toBe(`  Team            team_123
+  Project         prj_123
   Repository      acme/web
   Actions         github:issues:read
                   git:write
@@ -121,8 +123,8 @@ describe("renderCredentialsPreview", () => {
         },
         scope: namedScope,
       }),
-    ).toBe(`  Team            acme
-  Project         web
+    ).toBe(`  Team            team_123
+  Project         prj_123
   npm             the team's private packages
   Repositories    acme/web
                   acme/api
@@ -138,7 +140,7 @@ describe("renderCredentialsPreview", () => {
     expect(
       renderCredentialsPreview({
         credentials: github,
-        scope: { ...scope, teamSlug: "ac\u001b[2Jme", projectSlug: "we\rb" },
+        scope: { team: "ac\u001b[2Jme", project: "we\rb" },
       }),
     ).toContain("  Team            ac[2Jme\n  Project         web\n");
   });
