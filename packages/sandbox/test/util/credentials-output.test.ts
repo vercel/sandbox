@@ -1,5 +1,11 @@
 import { afterAll, describe, expect, test } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
@@ -89,6 +95,25 @@ describe("checkCredentialsOutput", () => {
       ].join("\n"),
     );
   });
+});
+
+describe("checkCredentialsOutput in a directory without write permission", () => {
+  // Permission bits do not stop the root user.
+  test.skipIf(process.getuid?.() === 0)(
+    "refuses the path before a sandbox is created",
+    async () => {
+      const readOnly = join(directory, "read-only");
+      mkdirSync(readOnly, { mode: 0o555 });
+      const path = join(readOnly, "new.json");
+
+      expect(await failure(checkCredentialsOutput(path, credentials))).toBe(
+        [
+          `Cannot write the credentials request to ${path}: its directory is not writable.`,
+          "hint: Choose a path in a directory that you can write to.",
+        ].join("\n"),
+      );
+    },
+  );
 });
 
 describe("writeCredentialsOutput", () => {
