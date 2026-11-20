@@ -108,4 +108,19 @@ describe("built package", () => {
     expect(output).toContain("--request-header");
     expect(status).toBe(0);
   });
+
+  test("an invalid repository option never appears in the output", () => {
+    const { status, output } = run([
+      path.join(outRoot, "bin/sandbox.mjs"),
+      "create",
+      "--credentials-github-repository=https://ghp_secret@github.com/acme/web",
+      "--scope=team",
+      "--project=proj",
+      "--token=tok",
+    ]);
+
+    expect(output).toContain("Invalid --credentials-github-repository value.");
+    expect(output).not.toContain("ghp_secret");
+    expect(status).toBe(1);
+  });
 });

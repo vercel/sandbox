@@ -88,18 +88,20 @@ function isGithubActor(value: string): boolean {
     : GITHUB_USER_ID.test(value);
 }
 
-export const githubRepositoryType = cmd.extendType(cmd.string, {
-  displayName: "REPOSITORY",
-  async from(value) {
-    if (!isGithubRepository(value)) {
-      fail(
-        `Invalid GitHub repository: ${value}.`,
-        "Use OWNER/REPOSITORY, for example acme/web.",
-      );
-    }
-    return value;
-  },
-});
+/**
+ * Rejects a --credentials-github-repository value that is not
+ * OWNER/REPOSITORY. This runs after parsing and the message leaves the value
+ * out, because a clone URL passed by mistake can hold a token, and an error
+ * raised during parsing would print the whole command line.
+ */
+export function checkGithubRepository(value: string): void {
+  if (!isGithubRepository(value)) {
+    fail(
+      "Invalid --credentials-github-repository value.",
+      "Use OWNER/REPOSITORY, for example acme/web.",
+    );
+  }
+}
 
 export const githubActionListType = cmd.extendType(cmd.string, {
   displayName: "ACTION,...",
@@ -136,7 +138,7 @@ export const githubActorType = cmd.extendType(cmd.string, {
       /^[0-9]+$/.test(value) || value.startsWith("@") ? value : `@${value}`;
     if (!isGithubActor(actor)) {
       fail(
-        `Invalid GitHub user: ${value}.`,
+        "Invalid --credentials-github-act-as value.",
         "Use a GitHub username, for example octocat, or a numeric GitHub user ID.",
       );
     }
@@ -146,7 +148,7 @@ export const githubActorType = cmd.extendType(cmd.string, {
 
 export const credentialsGithubRepository = cmd.option({
   long: "credentials-github-repository",
-  type: cmd.optional(githubRepositoryType),
+  type: cmd.optional({ ...cmd.string, displayName: "REPOSITORY" }),
   description: `GitHub repository, as OWNER/REPOSITORY, to clone into the sandbox and give it Git and GitHub API access to, with Vercel managed credentials and no GitHub token inside the sandbox. Without --credentials-github-actions, the sandbox may: ${DEFAULT_GITHUB_ACTIONS.join(", ")}. (experimental)`,
 });
 
@@ -178,14 +180,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// A key name is text from the file. Only a plain word is repeated, so that a
+// crafted name cannot add lines to the output.
 function unknownKeyIssues(
   value: Record<string, unknown>,
   known: readonly string[],
-  prefix: string,
+  path: string,
 ): string[] {
   return Object.keys(value)
     .filter((key) => !known.includes(key))
-    .map((key) => `${prefix}${key}: unknown key`);
+    .map((key) =>
+      /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key)
+        ? `${path === "" ? "" : `${path}.`}${key}: unknown key`
+        : `${path === "" ? "" : `${path}: `}an unknown key whose name is not shown`,
+    );
 }
 
 function listIssues(
@@ -212,11 +220,7 @@ function githubGrantIssues(grant: unknown, path: string): string[] {
     return [`${path}: must be an object`];
   }
   return [
-    ...unknownKeyIssues(
-      grant,
-      ["repositories", "actions", "actAs"],
-      `${path}.`,
-    ),
+    ...unknownKeyIssues(grant, ["repositories", "actions", "actAs"], path),
     ...listIssues(
       grant.repositories,
       `${path}.repositories`,

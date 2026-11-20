@@ -1,6 +1,7 @@
 import type { SandboxCredentials } from "@vercel/sandbox";
 import {
   DEFAULT_GITHUB_ACTIONS,
+  checkGithubRepository,
   type CredentialsArgs,
 } from "../args/credentials";
 import { fail } from "./fail";
@@ -56,6 +57,7 @@ export function buildCredentials(args: CredentialsArgs): CredentialsRequest {
     }
     return npm ? { credentials: npm } : {};
   }
+  checkGithubRepository(repository);
 
   return {
     credentials: {
