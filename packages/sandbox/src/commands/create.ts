@@ -25,6 +25,10 @@ import { networkId } from "../args/network-id";
 import { credentialsArgs } from "../args/credentials";
 import { buildCredentials, renderEditCommand } from "../util/credentials";
 import { confirmCredentials } from "../util/credentials-consent";
+import {
+  checkCredentialsOutput,
+  writeCredentialsOutput,
+} from "../util/credentials-output";
 import { isInteractive } from "../util/interaction";
 import { hasProjectBounds } from "../util/project-bounds";
 import { fail } from "../util/fail";
@@ -196,6 +200,7 @@ export const create = cmd.command({
         "A sandbox starts from a snapshot or from a cloned repository, not both. Remove one of the two options.",
       );
     }
+    await checkCredentialsOutput(input.credentialsOutput, credentials);
     await confirmCredentials({
       credentials,
       scope,
@@ -305,6 +310,14 @@ export const create = cmd.command({
         connectHint: !agent && !connect && __printConnectHint,
       });
       versionCheck?.report();
+    }
+
+    if (input.credentialsOutput !== undefined && credentials !== undefined) {
+      await writeCredentialsOutput(
+        input.credentialsOutput,
+        credentials,
+        sandbox.name,
+      );
     }
 
     if (agent || connect) {
