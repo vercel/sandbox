@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import * as cmd from "cmd-ts";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -182,6 +182,43 @@ describe("create command", () => {
     }
     expect(mockHasProjectBounds).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  test("writes the credentials request to --credentials-output after creating", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "output-")), "request.json");
+    const { create } = await import("../../src/commands/create.ts");
+    await cmd.run(create, [
+      "--credentials=npm,github",
+      `--credentials-output=${path}`,
+      "--yes",
+      "--scope=team",
+      "--project=proj",
+      "--silent",
+    ]);
+
+    expect(mockCreate).toHaveBeenCalledOnce();
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(
+      mockCreate.mock.calls[0][0].credentials,
+    );
+  });
+
+  test("does not create a sandbox when --credentials-output cannot be written", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "output-")), "request.json");
+    writeFileSync(path, "{}");
+    const { create } = await import("../../src/commands/create.ts");
+
+    await expect(
+      cmd.run(create, [
+        "--credentials=github",
+        `--credentials-output=${path}`,
+        "--yes",
+        "--scope=team",
+        "--project=proj",
+        "--silent",
+      ]),
+    ).rejects.toThrow("the file already exists");
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(readFileSync(path, "utf8")).toBe("{}");
   });
 
   test("quotes the team and project in the command it suggests", async () => {

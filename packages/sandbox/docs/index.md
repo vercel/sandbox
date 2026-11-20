@@ -127,6 +127,7 @@ Options:
                       "actAs"?: "<numeric GitHub user ID>" | "@<username>" }
     Each grant gives its actions on its repositories. Actions use their full names, as listed for --credentials-github-actions.
     Example: {"github":[{"repositories":["acme/web"],"actions":["git:write","github:pull-request:create"],"actAs":"@octocat"}]} [optional]
+    --credentials-output <FILE>                        After the sandbox is created, write its credentials request to this JSON file, which --credentials-file reads back to create another sandbox with the same request. Never overwrites a file. (experimental) [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -219,6 +220,7 @@ Options:
                       "actAs"?: "<numeric GitHub user ID>" | "@<username>" }
     Each grant gives its actions on its repositories. Actions use their full names, as listed for --credentials-github-actions.
     Example: {"github":[{"repositories":["acme/web"],"actions":["git:write","github:pull-request:create"],"actAs":"@octocat"}]} [optional]
+    --credentials-output <FILE>                        After the sandbox is created, write its credentials request to this JSON file, which --credentials-file reads back to create another sandbox with the same request. Never overwrites a file. (experimental) [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -329,6 +331,7 @@ Options:
                       "actAs"?: "<numeric GitHub user ID>" | "@<username>" }
     Each grant gives its actions on its repositories. Actions use their full names, as listed for --credentials-github-actions.
     Example: {"github":[{"repositories":["acme/web"],"actions":["git:write","github:pull-request:create"],"actAs":"@octocat"}]} [optional]
+    --credentials-output <FILE>                        After the sandbox is created, write its credentials request to this JSON file, which --credentials-file reads back to create another sandbox with the same request. Never overwrites a file. (experimental) [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]

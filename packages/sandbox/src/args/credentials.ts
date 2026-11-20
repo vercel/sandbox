@@ -307,12 +307,20 @@ export const credentialsFile = cmd.option({
     ${CREDENTIALS_FILE_SCHEMA}`,
 });
 
+export const credentialsOutput = cmd.option({
+  long: "credentials-output",
+  type: cmd.optional({ ...cmd.string, displayName: "FILE" }),
+  description:
+    "After the sandbox is created, write its credentials request to this JSON file, which --credentials-file reads back to create another sandbox with the same request. Never overwrites a file. (experimental)",
+});
+
 export const credentialsArgs = {
   credentials,
   credentialsGithubRepository,
   credentialsGithubActions,
   credentialsGithubActAs,
   credentialsFile,
+  credentialsOutput,
 } as const;
 
 export type CredentialsArgs = {

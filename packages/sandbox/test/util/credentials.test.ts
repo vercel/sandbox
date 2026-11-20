@@ -9,6 +9,7 @@ const empty: CredentialsArgs = {
   credentialsGithubActions: undefined,
   credentialsGithubActAs: undefined,
   credentialsFile: undefined,
+  credentialsOutput: undefined,
 };
 
 const DEFAULT_ACTIONS = [
