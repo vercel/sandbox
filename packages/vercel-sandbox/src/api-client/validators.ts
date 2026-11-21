@@ -154,6 +154,7 @@ export const Session = z.object({
   startedAt: z.number().optional(),
   requestedStopAt: z.number().optional(),
   stoppedAt: z.number().optional(),
+  stopReason: z.string().optional(),
   abortedAt: z.number().optional(),
   duration: z.number().optional(),
   sourceSnapshotId: z.string().optional(),
@@ -354,6 +355,7 @@ export const Sandbox = z.object({
     )
     .optional(),
   snapshotExpiration: z.number().optional(),
+  expiryNotificationLeadTime: z.number().optional(),
   keepLastSnapshots: z
     .object({
       count: z.number(),
