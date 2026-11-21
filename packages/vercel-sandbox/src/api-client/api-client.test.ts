@@ -1054,6 +1054,60 @@ describe("APIClient", () => {
     });
   });
 
+  describe("createSandbox", () => {
+    it("sends the expiry notification lead time", async () => {
+      const now = Date.now();
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            sandbox: {
+              name: "my-sandbox",
+              persistent: true,
+              region: "iad1",
+              vcpus: 1,
+              memory: 2048,
+              timeout: 300000,
+              createdAt: now,
+              updatedAt: now,
+              status: "running",
+              currentSessionId: "sbx_123",
+              expiryNotificationLeadTime: 300000,
+            },
+            session: {
+              id: "sbx_123",
+              memory: 2048,
+              vcpus: 1,
+              region: "iad1",
+              timeout: 300000,
+              status: "running",
+              requestedAt: now,
+              createdAt: now,
+              cwd: "/",
+              updatedAt: now,
+            },
+            routes: [],
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      );
+      const client = new APIClient({
+        teamId: "team_123",
+        token: "1234",
+        fetch: mockFetch,
+      });
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        ports: [],
+        expiryNotificationLeadTime: 300000,
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+        expiryNotificationLeadTime: 300000,
+      });
+    });
+  });
+
   describe("getSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
@@ -1117,6 +1171,34 @@ describe("APIClient", () => {
       expect(url).toContain("/v2/sandboxes/my-sandbox");
       expect(url).toContain("projectId=proj_123");
     });
+
+    it.each(["timeout", "a-reason-added-later"])(
+      "parses the expiry notification lead time and a %s stop reason",
+      async (stopReason) => {
+        const body = {
+          sandbox: {
+            ...makeSandboxMetadata(),
+            status: "stopped" as const,
+            expiryNotificationLeadTime: 300000,
+          },
+          session: { ...makeSession(), status: "stopped", stopReason },
+          routes: [],
+        };
+        mockFetch.mockResolvedValue(
+          new Response(JSON.stringify(body), {
+            headers: { "content-type": "application/json" },
+          }),
+        );
+
+        const result = await client.getSandbox({
+          name: "my-sandbox",
+          projectId: "proj_123",
+        });
+
+        expect(result.json.sandbox.expiryNotificationLeadTime).toBe(300000);
+        expect(result.json.session.stopReason).toBe(stopReason);
+      },
+    );
 
     it("passes resume query param when provided", async () => {
       const body = {

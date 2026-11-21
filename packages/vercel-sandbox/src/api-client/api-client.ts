@@ -297,6 +297,7 @@ export class APIClient extends BaseClient {
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -333,6 +334,7 @@ export class APIClient extends BaseClient {
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
+          expiryNotificationLeadTime: params.expiryNotificationLeadTime,
           keepLastSnapshots: params.keepLastSnapshots,
           mounts: params.mounts,
           region: params.region,
@@ -361,6 +363,7 @@ export class APIClient extends BaseClient {
       mounts?: SandboxMetaData["mounts"];
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -394,6 +397,7 @@ export class APIClient extends BaseClient {
             mounts: params.mounts,
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
+            expiryNotificationLeadTime: params.expiryNotificationLeadTime,
             keepLastSnapshots: params.keepLastSnapshots,
             region: params.region,
             failoverRegions: params.failoverRegions,
@@ -1224,6 +1228,7 @@ export class APIClient extends BaseClient {
     tags?: Record<string, string>;
     ports?: number[];
     snapshotExpiration?: number;
+    expiryNotificationLeadTime?: number;
     keepLastSnapshots?: {
       count: number;
       expiration?: number;
@@ -1253,6 +1258,7 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           ports: params.ports,
           snapshotExpiration: params.snapshotExpiration,
+          expiryNotificationLeadTime: params.expiryNotificationLeadTime,
           keepLastSnapshots: params.keepLastSnapshots,
           currentSnapshotId: params.currentSnapshotId,
           region: params.region,
