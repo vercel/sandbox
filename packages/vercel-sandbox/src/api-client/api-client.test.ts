@@ -1054,60 +1054,6 @@ describe("APIClient", () => {
     });
   });
 
-  describe("createSandbox", () => {
-    it("sends the expiry notification lead time", async () => {
-      const now = Date.now();
-      const mockFetch = vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            sandbox: {
-              name: "my-sandbox",
-              persistent: true,
-              region: "iad1",
-              vcpus: 1,
-              memory: 2048,
-              timeout: 300000,
-              createdAt: now,
-              updatedAt: now,
-              status: "running",
-              currentSessionId: "sbx_123",
-              expiryNotificationLeadTime: 300000,
-            },
-            session: {
-              id: "sbx_123",
-              memory: 2048,
-              vcpus: 1,
-              region: "iad1",
-              timeout: 300000,
-              status: "running",
-              requestedAt: now,
-              createdAt: now,
-              cwd: "/",
-              updatedAt: now,
-            },
-            routes: [],
-          }),
-          { headers: { "content-type": "application/json" } },
-        ),
-      );
-      const client = new APIClient({
-        teamId: "team_123",
-        token: "1234",
-        fetch: mockFetch,
-      });
-
-      await client.createSandbox({
-        projectId: "proj_123",
-        ports: [],
-        expiryNotificationLeadTime: 300000,
-      });
-
-      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
-        expiryNotificationLeadTime: 300000,
-      });
-    });
-  });
-
   describe("getSandbox", () => {
     let client: APIClient;
     let mockFetch: ReturnType<typeof vi.fn>;
@@ -1968,6 +1914,18 @@ describe("APIClient", () => {
       });
     });
 
+    it("forwards expiryNotificationLeadTime in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        expiryNotificationLeadTime: 300000,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).expiryNotificationLeadTime).toBe(300000);
+    });
+
     it("forwards keepLastSnapshots in the request body", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
@@ -2153,6 +2111,19 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       expect(JSON.parse(opts.body).networkId).toBe("network_123");
+    });
+
+    it("forwards expiryNotificationLeadTime in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.forkSandbox({
+        projectId: "proj_123",
+        sourceSandbox: "my-sandbox",
+        expiryNotificationLeadTime: 300000,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).expiryNotificationLeadTime).toBe(300000);
     });
   });
 
