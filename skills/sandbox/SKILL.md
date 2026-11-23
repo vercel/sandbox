@@ -640,7 +640,8 @@ const sandbox = await Sandbox.create({
 ```
 
 Implement the proxy handler with `defineSandboxProxy`, using the Web `Request` & `Response` objects — it verifies the
-sandbox OIDC token and extracts metadata about the source sandbox:
+sandbox OIDC token and extracts metadata about the source sandbox. Without `allow`, it accepts only sandboxes of the
+proxy's own project (`VERCEL_PROJECT_ID`):
 
 ```typescript
 // app/api/sandbox-proxy/route.ts
@@ -662,6 +663,19 @@ export {
   handler as DELETE,
 };
 ```
+
+Pass `allow` to decide which sandboxes may use the proxy. It replaces the own-project rule, so include every check you
+need:
+
+```typescript
+defineSandboxProxy(handler, {
+  allow: (sandbox) =>
+    sandbox.projectId === "prj_123" || sandbox.teamId === "team_123",
+});
+```
+
+A proxy outside Vercel has no `VERCEL_PROJECT_ID` and rejects every sandbox until it has an `allow`. Sandbox names are
+unique within a project, not across projects, so a rule on `sandboxName` should also check `projectId`.
 
 ### Updating Network Policy at Runtime
 
