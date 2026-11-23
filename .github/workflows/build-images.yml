@@ -28,10 +28,11 @@ jobs:
         with:
           workdir: images
           target: default
+          fields: platforms
 
   images:
-    name: Build ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }} (${{ matrix.platforms }})
+    runs-on: ${{ matrix.platforms == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: prepare
     strategy:
       fail-fast: false
@@ -48,3 +49,5 @@ jobs:
           targets: ${{ matrix.target }}
           push: false
           vars: PUSH=false
+          set: |
+            *.platform=${{ matrix.platforms }}

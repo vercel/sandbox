@@ -10,6 +10,10 @@ variable "PUSH" {
   default = false
 }
 
+variable "PUSH_BY_DIGEST" {
+  default = false
+}
+
 variable "UBUNTU_IMAGE" {
   default = "ubuntu:resolute-20261105.1@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db"
 }
@@ -127,13 +131,13 @@ group "vmi" {
 }
 
 target "_common" {
-  platforms = ["linux/amd64"]
+  platforms = ["linux/amd64", "linux/arm64"]
   attest = [
     "type=provenance,disabled=true",
     "type=sbom,disabled=true"
   ]
   output = [
-    "type=image,push=${PUSH},oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
+    "type=image,push=${PUSH},push-by-digest=${PUSH_BY_DIGEST},name-canonical=${PUSH_BY_DIGEST},oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
   ]
 }
 
@@ -224,9 +228,10 @@ target "universal" {
 }
 
 target "arch" {
-  inherits = ["_common"]
-  context  = "arch"
-  tags     = ["${REGISTRY}/arch:latest${TAG_SUFFIX}"]
+  inherits  = ["_common"]
+  context   = "arch"
+  platforms = ["linux/amd64"]
+  tags      = ["${REGISTRY}/arch:latest${TAG_SUFFIX}"]
 
   args = {
     ARCH_IMAGE     = ARCH_IMAGE
@@ -238,6 +243,7 @@ target "al-builder-base" {
   inherits   = ["_common"]
   context    = "al-base"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   target     = "builder-base"
 
   args = {
@@ -249,6 +255,7 @@ target "al-base" {
   inherits   = ["_common"]
   context    = "al-base"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   target     = "sandbox-base"
 
   contexts = {
@@ -270,6 +277,7 @@ target "al-node" {
   inherits   = ["_common"]
   context    = "al-node"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   tags = [
     "${REGISTRY}/node:al-${node.major}${TAG_SUFFIX}",
     "${REGISTRY}/node:al-${node.version}${TAG_SUFFIX}",
@@ -291,6 +299,7 @@ target "al-python" {
   inherits   = ["_common"]
   context    = "al-python"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   tags       = ["${REGISTRY}/python:al-3.13.1${TAG_SUFFIX}"]
 
   contexts = {
