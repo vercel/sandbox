@@ -166,8 +166,9 @@ export interface BaseCreateSandboxParams {
   snapshotExpiration?: number;
   /**
    * How long before a session times out, in milliseconds, the
-   * `sandbox.session.expiring` webhook is sent. Between 2 minutes and 1 hour;
-   * the API defaults to 2 minutes. Takes effect from the next session.
+   * `sandbox.session.expiring` webhook is sent, starting with the session
+   * this call starts. Between 2 minutes and 1 hour; the API defaults to
+   * 2 minutes.
    */
   expiryNotificationLeadTime?: number;
   /**
@@ -295,6 +296,13 @@ export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
    * the image copied from the source.
    */
   image?: SandboxImage;
+  /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent, starting with the fork's first
+   * session. Between 2 minutes and 1 hour. When omitted, the fork keeps the
+   * source sandbox's lead time.
+   */
+  expiryNotificationLeadTime?: number;
 };
 
 /** @inline */
