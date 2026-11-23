@@ -1118,6 +1118,34 @@ describe("APIClient", () => {
       expect(url).toContain("projectId=proj_123");
     });
 
+    it.each(["timeout", "a-reason-added-later"])(
+      "parses the expiry notification lead time and a %s stop reason",
+      async (stopReason) => {
+        const body = {
+          sandbox: {
+            ...makeSandboxMetadata(),
+            status: "stopped" as const,
+            expiryNotificationLeadTime: 300000,
+          },
+          session: { ...makeSession(), status: "stopped", stopReason },
+          routes: [],
+        };
+        mockFetch.mockResolvedValue(
+          new Response(JSON.stringify(body), {
+            headers: { "content-type": "application/json" },
+          }),
+        );
+
+        const result = await client.getSandbox({
+          name: "my-sandbox",
+          projectId: "proj_123",
+        });
+
+        expect(result.json.sandbox.expiryNotificationLeadTime).toBe(300000);
+        expect(result.json.session.stopReason).toBe(stopReason);
+      },
+    );
+
     it("passes resume query param when provided", async () => {
       const body = {
         sandbox: makeSandboxMetadata(),
@@ -1886,6 +1914,18 @@ describe("APIClient", () => {
       });
     });
 
+    it("forwards expiryNotificationLeadTime in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        expiryNotificationLeadTime: 300000,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).expiryNotificationLeadTime).toBe(300000);
+    });
+
     it("forwards keepLastSnapshots in the request body", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
@@ -2071,6 +2111,19 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       expect(JSON.parse(opts.body).networkId).toBe("network_123");
+    });
+
+    it("forwards expiryNotificationLeadTime in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.forkSandbox({
+        projectId: "proj_123",
+        sourceSandbox: "my-sandbox",
+        expiryNotificationLeadTime: 300000,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).expiryNotificationLeadTime).toBe(300000);
     });
   });
 

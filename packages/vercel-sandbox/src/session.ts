@@ -30,6 +30,7 @@ import {
 } from "./utils/sandbox-snapshot.js";
 import { getCredentials } from "./utils/get-credentials.js";
 import type { ExecutionContext } from "./execution-context.js";
+import type { SessionStopReason } from "./constants.js";
 
 export type { NetworkPolicy, NetworkPolicyRule, NetworkTransformer };
 
@@ -296,6 +297,13 @@ export class Session implements ExecutionContext {
     return this.session.stoppedAt != null
       ? new Date(this.session.stoppedAt)
       : undefined;
+  }
+
+  /**
+   * Why this session stopped, once it has.
+   */
+  public get stopReason(): SessionStopReason | undefined {
+    return this.session.stopReason;
   }
 
   /**
