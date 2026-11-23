@@ -9,8 +9,10 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     rm -rf /var/lib/apt/lists/*
 
 ARG NODE_VERSION
-RUN mkdir -p /opt/node && \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in amd64) node_arch=x64 ;; *) node_arch="${TARGETARCH}" ;; esac && \
+    mkdir -p /opt/node && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
       | bsdtar -xJ --strip-components=1 -C /opt/node && \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md
 
