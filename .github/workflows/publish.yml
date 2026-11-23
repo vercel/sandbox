@@ -55,7 +55,16 @@ jobs:
         if: github.event_name == 'push' && github.ref != 'refs/heads/main'
         run: |
           branch_major="${GITHUB_REF_NAME%.x}"
-          latest_major="$(npm view @vercel/sandbox dist-tags.latest | cut -d. -f1)"
+          latest="$(npm view @vercel/sandbox dist-tags.latest)"
+          latest_major="${latest%%.*}"
+          for major in "$branch_major" "$latest_major"; do
+            case "$major" in
+              "" | *[!0-9]*)
+                echo "::error::Cannot compare majors: branch ${GITHUB_REF_NAME}, npm latest '${latest}'"
+                exit 1
+                ;;
+            esac
+          done
           if [ "$branch_major" -lt "$latest_major" ]; then
             echo "args=--tag release-${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
