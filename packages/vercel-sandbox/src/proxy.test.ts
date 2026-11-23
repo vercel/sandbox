@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import { defineSandboxProxy } from "./proxy.js";
 
@@ -27,6 +27,11 @@ beforeEach(() => {
       sandbox_name: "sandbox-name",
     }),
   );
+  vi.stubEnv("VERCEL_PROJECT_ID", "prj_123");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("defineSandboxProxy", () => {
@@ -112,7 +117,9 @@ describe("defineSandboxProxy", () => {
     const handler = vi.fn(() => new Response("ok"));
     const proxy = defineSandboxProxy(handler);
 
-    await proxy(makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }));
+    await proxy(
+      makeProxyRequest({ url: "https://proxy.vercel.app/some/path" }),
+    );
 
     expect(jwtVerifyMock).toHaveBeenCalledWith(
       "token_123",
@@ -207,7 +214,9 @@ describe("defineSandboxProxy", () => {
           { status: 401 },
         ),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(
       makeProxyRequest({
@@ -237,7 +246,9 @@ describe("defineSandboxProxy", () => {
           { status: 400 },
         ),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(
       makeProxyRequest({
@@ -270,7 +281,9 @@ describe("defineSandboxProxy", () => {
           { status: 401 },
         ),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(makeProxyRequest());
 
@@ -316,7 +329,9 @@ describe("defineSandboxProxy", () => {
       (_request: Request, error: Error) =>
         new Response(error.message, { status: 401 }),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(makeProxyRequest());
 
@@ -338,13 +353,79 @@ describe("defineSandboxProxy", () => {
       (_request: Request, error: Error) =>
         new Response(error.message, { status: 401 }),
     );
-    const proxy = defineSandboxProxy(handler, invalidRequestHandler);
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: invalidRequestHandler,
+    });
 
     const response = await proxy(makeProxyRequest());
 
     expect(response.status).toBe(401);
     expect(await response.text()).toBe("Missing required claims in OIDC token");
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("rejects a sandbox of another project by default", async () => {
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_own");
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler);
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("rejects every sandbox by default when VERCEL_PROJECT_ID is not set", async () => {
+    vi.stubEnv("VERCEL_PROJECT_ID", "");
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      onInvalidRequest: (_request, error) =>
+        new Response(error.message, { status: 403 }),
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(await response.text()).toMatch(/VERCEL_PROJECT_ID is not set/);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("accepts a sandbox of another project that `allow` approves", async () => {
+    vi.stubEnv("VERCEL_PROJECT_ID", "");
+    jwtVerifyMock.mockResolvedValue(
+      makeJwtVerifyResult({
+        team_id: "team_other",
+        project_id: "prj_other",
+        sandbox_id: "sbx_123",
+      }),
+    );
+    const proxy = defineSandboxProxy(() => new Response("ok"), {
+      allow: (sandbox) => sandbox.teamId === "team_other",
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects a sandbox of its own project that `allow` turns down", async () => {
+    const handler = vi.fn(() => new Response("ok"));
+    const proxy = defineSandboxProxy(handler, {
+      allow: async (sandbox) => sandbox.sandboxName === "other-name",
+    });
+
+    const response = await proxy(makeProxyRequest());
+
+    expect(response.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("throws when the invalid request handler is passed as the second argument", () => {
+    expect(() =>
+      defineSandboxProxy(
+        () => new Response("ok"),
+        (() => new Response("no")) as never,
+      ),
+    ).toThrow(/onInvalidRequest/);
   });
 });
 
