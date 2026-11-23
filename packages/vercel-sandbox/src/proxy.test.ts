@@ -28,6 +28,7 @@ beforeEach(() => {
     }),
   );
   vi.stubEnv("VERCEL_PROJECT_ID", "prj_123");
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -46,6 +47,7 @@ describe("defineSandboxProxy", () => {
       expect(request.headers.get("vercel-forwarded-port")).toBeNull();
       expect(request.headers.get("vercel-forwarded-path")).toBeNull();
       expect(request.headers.get("vercel-sandbox-oidc-token")).toBeNull();
+      expect(request.headers.get("x-vercel-oidc-token")).toBeNull();
       expect(await request.text()).toBe("request body");
       expect(meta).toEqual({
         host: "proxy.vercel.app",
@@ -70,6 +72,7 @@ describe("defineSandboxProxy", () => {
           "vercel-forwarded-port": "443",
           "vercel-forwarded-path": "/some/path?foo=bar",
           "vercel-sandbox-oidc-token": "token_123",
+          "x-vercel-oidc-token": "function_token",
         },
       }),
     );
@@ -375,17 +378,17 @@ describe("defineSandboxProxy", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it("rejects every sandbox by default when VERCEL_PROJECT_ID is not set", async () => {
+  it("rejects every sandbox by default and logs why when VERCEL_PROJECT_ID is not set", async () => {
     vi.stubEnv("VERCEL_PROJECT_ID", "");
     const handler = vi.fn(() => new Response("ok"));
-    const proxy = defineSandboxProxy(handler, {
-      onInvalidRequest: (_request, error) =>
-        new Response(error.message, { status: 403 }),
-    });
+    const proxy = defineSandboxProxy(handler);
 
     const response = await proxy(makeProxyRequest());
 
-    expect(await response.text()).toMatch(/VERCEL_PROJECT_ID is not set/);
+    expect(response.status).toBe(403);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("VERCEL_PROJECT_ID is not set"),
+    );
     expect(handler).not.toHaveBeenCalled();
   });
 

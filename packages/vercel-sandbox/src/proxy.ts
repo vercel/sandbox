@@ -6,6 +6,7 @@ const FORWARDED_SCHEME_HEADER = "vercel-forwarded-scheme";
 const FORWARDED_PORT_HEADER = "vercel-forwarded-port";
 const FORWARDED_PATH_HEADER = "vercel-forwarded-path";
 const SANDBOX_OIDC_TOKEN_HEADER = "vercel-sandbox-oidc-token";
+const VERCEL_OIDC_TOKEN_HEADER = "x-vercel-oidc-token";
 
 const VERCEL_OIDC_HOSTNAME = "oidc.vercel.com";
 const CLOCK_TOLERANCE_SECONDS = 60;
@@ -55,7 +56,7 @@ export interface SandboxProxyOptions {
    */
   allow?: (sandbox: ProxyMeta) => boolean | Promise<boolean>;
   /**
-   * Called when a request is rejected. By default, a 403 response is returned.
+   * Called when a request is rejected. By default, the reason is logged and a 403 response is returned.
    */
   onInvalidRequest?: InvalidRequestProxyHandler;
 }
@@ -117,6 +118,7 @@ export function defineSandboxProxy(
     headers.delete(FORWARDED_PORT_HEADER);
     headers.delete(FORWARDED_PATH_HEADER);
     headers.delete(SANDBOX_OIDC_TOKEN_HEADER);
+    headers.delete(VERCEL_OIDC_TOKEN_HEADER);
 
     if (!host || !scheme || !port || !path || !oidcToken) {
       return invalidRequestHandler(
@@ -167,7 +169,12 @@ export function defineSandboxProxy(
   };
 }
 
-function defaultInvalidRequestHandler(): Response {
+function defaultInvalidRequestHandler(
+  _request: Request,
+  error: Error,
+): Response {
+  console.error(`[vercel/sandbox] Rejected proxied request: ${error.message}`);
+
   return new Response("Forbidden", { status: 403 });
 }
 
