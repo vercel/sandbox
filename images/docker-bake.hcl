@@ -83,7 +83,7 @@ variable "PACKAGING_VERSION" {
 }
 
 variable "AL_GIT_VERSION" {
-  default = "2.49.0"
+  default = "2.56.1"
 }
 
 variable "GH_VERSION" {
