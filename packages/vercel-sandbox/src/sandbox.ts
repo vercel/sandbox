@@ -167,8 +167,8 @@ export interface BaseCreateSandboxParams {
   /**
    * How long before a session times out, in milliseconds, the
    * `sandbox.session.expiring` webhook is sent, starting with the session
-   * this call starts. Between 2 minutes and 1 hour; the API defaults to
-   * 2 minutes.
+   * this call starts. Between 1 minute and 1 hour; the API defaults to
+   * 1 minute.
    */
   expiryNotificationLeadTime?: number;
   /**
@@ -299,7 +299,7 @@ export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
   /**
    * How long before a session times out, in milliseconds, the
    * `sandbox.session.expiring` webhook is sent, starting with the fork's first
-   * session. Between 2 minutes and 1 hour. When omitted, the fork keeps the
+   * session. Between 1 minute and 1 hour. When omitted, the fork keeps the
    * source sandbox's lead time.
    */
   expiryNotificationLeadTime?: number;
