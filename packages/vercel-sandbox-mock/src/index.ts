@@ -1,6 +1,4 @@
-// Drop-in mock for `@vercel/sandbox`. `Sandbox` and `Snapshot` are thin
-// subclasses whose statics inject the mocked `fetch`; everything else is the
-// real SDK, re-exported so the public surface matches exactly.
+export * from "@vercel/sandbox";
 export { Sandbox } from "./sandbox.js";
 export { Snapshot } from "./snapshot.js";
 export { Drive } from "./drive.js";
@@ -14,40 +12,5 @@ export type {
   CommandHandlerContext,
   CommandMatcher,
 } from "./handlers.js";
-
-// The rest of the SDK surface, re-exported verbatim from the real package.
-export {
-  DEFAULT_SANDBOX_REGION,
-  Session,
-  SandboxUser,
-  SandboxUserAlreadyExistsError,
-  Command,
-  CommandFinished,
-  FileSystem,
-  StreamError,
-  APIError,
-  defineSandboxProxy,
-  parseNetworkPolicy,
-  NetworkPolicyParseError,
-} from "@vercel/sandbox";
-export type {
-  NetworkPolicy,
-  NetworkPolicyKeyValueMatcher,
-  NetworkPolicyMatch,
-  NetworkPolicyMatcher,
-  NetworkPolicyRule,
-  NetworkTransformer,
-  SerializedSandbox,
-  SerializedDrive,
-  ExecutionContext,
-  SerializedSnapshot,
-  SnapshotTreeNodeData,
-  SerializedCommand,
-  SerializedCommandFinished,
-  CommandOutput,
-  InvalidRequestProxyHandler,
-  ProxyMeta,
-  ProxyHandler,
-} from "@vercel/sandbox";
 
 export type { IFileSystem } from "just-bash";

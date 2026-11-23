@@ -15,7 +15,7 @@ variable "UBUNTU_IMAGE" {
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261116T060000Z"
+  default = "20261123T060000Z"
 }
 
 variable "ARCH_IMAGE" {
@@ -23,11 +23,11 @@ variable "ARCH_IMAGE" {
 }
 
 variable "AMAZONLINUX_IMAGE" {
-  default = "amazonlinux:2023.12.20261102.0@sha256:3ccfbe800f864982b0a4e124a614b2382518cbd04b3c1cd35202bd46f392675b"
+  default = "amazonlinux:2023.12.20261117.0@sha256:9cf762f5099b606bcd851391317af7cd75b11363c4816ebcb5e91292dd5736a7"
 }
 
 variable "BUN_IMAGE" {
-  default = "oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d"
+  default = "oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18"
 }
 
 variable "NODE_VERSIONS" {
@@ -44,18 +44,18 @@ variable "PYTHON_VERSIONS" {
   type = map(object({ version = string, sha256 = string }))
   default = {
     "3.14" = {
-      version = "3.14.8"
-      sha256  = "c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73"
+      version = "3.14.10"
+      sha256  = "de414a57119abef52784d8993e341d53aed635fc2b05c2607d9f98a2c5b72032"
     }
     "3.15" = {
-      version = "3.15.0"
-      sha256  = "ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
+      version = "3.15.2"
+      sha256  = "8b5536d280142ecf6cdfe15d12a21ba1c65e300bbf7b28a8d0cdb849575797de"
     }
   }
 }
 
 variable "PNPM_VERSION" {
-  default = "11.28.12"
+  default = "11.29.0"
 }
 
 variable "AL_PNPM_VERSION" {
@@ -63,7 +63,7 @@ variable "AL_PNPM_VERSION" {
 }
 
 variable "UV_VERSION" {
-  default = "0.13.8"
+  default = "0.13.9"
 }
 
 variable "PIP_VERSION" {
@@ -83,27 +83,27 @@ variable "PACKAGING_VERSION" {
 }
 
 variable "AL_GIT_VERSION" {
-  default = "2.49.0"
+  default = "2.56.1"
 }
 
 variable "GH_VERSION" {
-  default = "2.104.0"
+  default = "2.105.0"
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.325"
+  default = "2.1.330"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.169.0"
+  default = "0.171.0"
 }
 
 variable "OPENCODE_VERSION" {
-  default = "1.19.5"
+  default = "1.19.6"
 }
 
 variable "PI_VERSION" {
-  default = "1.5.2"
+  default = "1.6.0"
 }
 
 variable "FX_VERSION" {

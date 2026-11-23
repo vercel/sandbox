@@ -1,5 +1,16 @@
 # @vercel/sandbox-mock
 
+## 4.1.0
+
+### Minor Changes
+
+- Re-export the `Drive` class from the new standalone `@vercel/drives` package ([#497](https://github.com/vercel/sandbox/pull/497))
+
+### Patch Changes
+
+- Updated dependencies [[`52fcb6b3436ca3adf932eb1c515d62913c112978`](https://github.com/vercel/sandbox/commit/52fcb6b3436ca3adf932eb1c515d62913c112978)]:
+  - @vercel/sandbox@4.1.0
+
 ## 4.0.0
 
 ### Minor Changes

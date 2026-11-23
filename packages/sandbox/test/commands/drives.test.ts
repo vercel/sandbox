@@ -73,7 +73,9 @@ describe("drives command", () => {
   });
 
   test("shows the region in the drive list", async () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const { drives } = await import("../../src/commands/drives.ts");
 
@@ -82,6 +84,10 @@ describe("drives command", () => {
     const output = log.mock.calls.map(([line]) => String(line)).join("\n");
     expect(output).toContain("REGION");
     expect(output).toContain("sfo1");
+    expect(output).not.toContain("vercel drives");
+    expect(stderr).toHaveBeenCalledWith(
+      expect.stringContaining("Use `vercel drives` instead."),
+    );
   });
 
   test("forks an existing drive with trimmed names and the selected scope", async () => {

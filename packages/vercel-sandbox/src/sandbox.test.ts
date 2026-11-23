@@ -3,7 +3,7 @@ import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable.js";
 import { Sandbox, type SandboxMounts } from "./sandbox.js";
 import { Sandbox as SandboxSchema } from "./api-client/validators.js";
-import { Drive } from "./drive.js";
+import { Drive } from "@vercel/drives";
 import { Snapshot } from "./snapshot.js";
 import { APIError } from "./api-client/api-error.js";
 import type {
@@ -140,6 +140,32 @@ describe("source getters", () => {
   it("exposes the Secure Compute network ID", () => {
     const sandbox = makeSandbox({ networkId: "network_123" });
     expect(sandbox.networkId).toBe("network_123");
+  });
+
+  it("exposes the expiry notification lead time", () => {
+    const sandbox = makeSandbox({ expiryNotificationLeadTime: 300_000 });
+    expect(sandbox.expiryNotificationLeadTime).toBe(300_000);
+  });
+});
+
+describe("update expiryNotificationLeadTime", () => {
+  it("forwards the lead time to the API", async () => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ expiryNotificationLeadTime: 300_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ expiryNotificationLeadTime: 300_000 }),
+    );
   });
 });
 
