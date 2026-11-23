@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      # Release branches for earlier majors, such as 4.x.
+      - "[0-9]+.x"
   pull_request:
 
 env:
@@ -45,14 +47,30 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      # A release branch publishes under the `latest` dist-tag only while its
+      # major is the newest one on npm, so a backport never replaces a newer
+      # major as `latest`.
+      - name: Choose npm dist-tag
+        id: dist-tag
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        run: |
+          branch_major="${GITHUB_REF_NAME%.x}"
+          latest_major="$(npm view @vercel/sandbox dist-tags.latest | cut -d. -f1)"
+          if [ "$branch_major" -lt "$latest_major" ]; then
+            echo "args=--tag release-${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
       - name: Create Release Pull Request
         uses: changesets/action@v1
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           version: pnpm version:prepare
-          publish: pnpm release
+          publish: pnpm release ${{ steps.dist-tag.outputs.args }}
+          title: ${{ github.ref == 'refs/heads/main' && 'Version Packages' || format('Version Packages ({0})', github.ref_name) }}
+          commit: ${{ github.ref == 'refs/heads/main' && 'Version Packages' || format('Version Packages ({0})', github.ref_name) }}
           commitMode: github-api
 
   release:
