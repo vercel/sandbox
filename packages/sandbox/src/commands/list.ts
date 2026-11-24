@@ -138,8 +138,8 @@ export const list = cmd.command({
           s.memory != null ? memoryFormatter.format(s.memory) : "-",
       },
       VCPUS: { value: (s) => s.vcpus ?? "-" },
-      "IMAGE/RUNTIME": {
-        value: (s) => (s.image ? formatImage(s.image) : (s.runtime ?? "-")),
+      IMAGE: {
+        value: (s) => (s.image ? formatImage(s.image) : "-"),
       },
       TIMEOUT: {
         // Prefer the live deadline (`expiresAt`) of the running session. Fall

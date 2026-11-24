@@ -14,7 +14,7 @@ import type {
   WithFetchOptions,
 } from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
-import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
+import type { ManagedImage, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Drive } from "@vercel/drives";
@@ -233,44 +233,32 @@ function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
 export type SandboxImage = `vercel/sandbox/${ManagedImage}` | (string & {});
 
 /**
- * Sandbox environment selection options.
+ * Sandbox image selection options.
  * @inline
  */
-export type RuntimeOrImage =
-  | {
-      /**
-       * A legacy Vercel-managed runtime.
-       *
-       * @deprecated Use `image` instead.
-       */
-      runtime?: RUNTIMES | (string & {});
-      image?: never;
-    }
-  | {
-      runtime?: never;
-      /**
-       * A Vercel Container Registry (VCR) image to start the sandbox from,
-       * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
-       * optional tag or digest, or a fully-qualified VCR URL. A bare
-       * repository name resolves to the `latest` tag. If omitted, the sandbox
-       * uses `vercel/sandbox/universal:latest`.
-       *
-       * @example "vercel/sandbox/universal" // Vercel managed image, latest tag
-       * @example "my-repo" // latest tag
-       * @example "my-repo:v1" // specific tag
-       * @example "my-repo@sha256:..." // specific digest
-       * @example "other-team/other-project/repo:v1" // Shared image from another team
-       * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
-       */
-      image?: SandboxImage;
-    };
+export type SandboxImageParams = {
+  /**
+   * A Vercel Container Registry (VCR) image to start the sandbox from,
+   * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
+   * optional tag or digest, or a fully-qualified VCR URL. A bare
+   * repository name resolves to the `latest` tag. If omitted, the sandbox
+   * uses `vercel/sandbox/universal:latest`.
+   *
+   * @example "vercel/sandbox/universal" // Vercel managed image, latest tag
+   * @example "my-repo" // latest tag
+   * @example "my-repo:v1" // specific tag
+   * @example "my-repo@sha256:..." // specific digest
+   * @example "other-team/other-project/repo:v1" // Shared image from another team
+   * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
+   */
+  image?: SandboxImage;
+};
 
 export type CreateSandboxParams =
-  | (BaseCreateSandboxParams & RuntimeOrImage)
+  | (BaseCreateSandboxParams & SandboxImageParams)
   | (Omit<BaseCreateSandboxParams, "source"> & {
       source: { type: "snapshot"; snapshotId: string };
       // A snapshot already defines its base environment.
-      runtime?: never;
       image?: never;
     });
 
@@ -515,15 +503,6 @@ export class Sandbox implements ExecutionContext {
    */
   public get memory(): number | undefined {
     return this.sandbox.memory;
-  }
-
-  /**
-   * Legacy runtime identifier, when the sandbox was created with `runtime`.
-   *
-   * @deprecated Use {@link Sandbox.image} for image-backed sandboxes.
-   */
-  public get runtime(): string | undefined {
-    return this.sandbox.runtime;
   }
 
   /**
@@ -822,10 +801,6 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-    if (params?.runtime !== undefined && params.image !== undefined) {
-      throw new TypeError("`runtime` and `image` cannot be used together.");
-    }
-
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
@@ -840,7 +815,6 @@ export class Sandbox implements ExecutionContext {
       ports: params?.ports ?? [],
       timeout: params?.timeout,
       resources: params?.resources,
-      runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
       networkId: params?.networkId,
@@ -1022,10 +996,6 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox> {
     "use step";
-    if (params?.runtime !== undefined && params.image !== undefined) {
-      throw new TypeError("`runtime` and `image` cannot be used together.");
-    }
-
     // No name → always create, fire onCreate.
     if (!params?.name) {
       const sandbox = await Sandbox.create(params);

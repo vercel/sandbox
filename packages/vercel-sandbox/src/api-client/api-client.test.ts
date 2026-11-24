@@ -2016,20 +2016,7 @@ describe("APIClient", () => {
       expect(body).not.toHaveProperty("failoverRegions");
     });
 
-    it("uses v2 when runtime is provided", async () => {
-      mockFetch.mockResolvedValue(sandboxResponse());
-
-      await client.createSandbox({
-        projectId: "proj_123",
-        runtime: "node24",
-      });
-
-      const [url, opts] = mockFetch.mock.calls[0];
-      expect(url).toContain("/v2/sandboxes");
-      expect(JSON.parse(opts.body).runtime).toBe("node24");
-    });
-
-    it("uses v3 when runtime is omitted", async () => {
+    it("creates sandboxes through the v3 endpoint", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
       await client.createSandbox({ projectId: "proj_123" });
@@ -2417,17 +2404,20 @@ describe("APIClient", () => {
         ]);
       });
 
-      it.each([502, 503])("resends the same request after a %i", async (status) => {
-        mockFetch
-          .mockResolvedValueOnce(failure(status))
-          .mockResolvedValueOnce(written(6));
+      it.each([502, 503])(
+        "resends the same request after a %i",
+        async (status) => {
+          mockFetch
+            .mockResolvedValueOnce(failure(status))
+            .mockResolvedValueOnce(written(6));
 
-        const result = await settle(write());
+          const result = await settle(write());
 
-        expect(result).toEqual({ value: { bytesWritten: 6 } });
-        expect(mockFetch).toHaveBeenCalledTimes(2);
-        expect(bodies()[1]).toEqual(bodies()[0]);
-      });
+          expect(result).toEqual({ value: { bytesWritten: 6 } });
+          expect(mockFetch).toHaveBeenCalledTimes(2);
+          expect(bodies()[1]).toEqual(bodies()[0]);
+        },
+      );
 
       it("resends the same request after a network error", async () => {
         mockFetch
