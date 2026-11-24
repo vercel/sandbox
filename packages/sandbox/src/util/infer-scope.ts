@@ -22,9 +22,11 @@ export type InferredScope = {
 export async function inferScope({
   token,
   team,
+  project,
 }: {
   token: string;
   team?: string;
+  project?: string;
 }): Promise<InferredScope> {
   // If the token is a JWT (OIDC token), extract scope from its claims
   const jwt = z.jwt().safeParse(token);
@@ -33,6 +35,11 @@ export async function inferScope({
     const data = await inferFromJwt(jwt.data);
     debug("Using scope from OIDC JWT", data);
     return data;
+  }
+
+  if (team && project) {
+    debug("Using the given team and project", { owner: team, project });
+    return { owner: team, project };
   }
 
   const projectJson = readProjectConfiguration(process.cwd());
