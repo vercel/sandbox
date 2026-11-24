@@ -111,6 +111,17 @@ describe("getAuthHeaders from createApp", () => {
     expect(headers.get("user-agent")).toMatch(/^vercel\/sandbox-cli\//);
   });
 
+  it("authenticates drive requests with it too", async () => {
+    await driveClient
+      .list({ token: "", teamId: "team_fake", projectId: "prj_fake" })
+      .catch(() => undefined);
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("DPoP vca_token");
+    expect(headers.get("dpop")).toMatch(/^proof GET \//);
+    expect(headers.get("user-agent")).toMatch(/^vercel\/sandbox-cli\//);
+  });
+
   it("sends a given token as Bearer instead", async () => {
     await sandboxClient
       .list({ token: "fake", teamId: "team_fake", projectId: "prj_fake" })

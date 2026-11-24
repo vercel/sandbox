@@ -1,4 +1,10 @@
-import { Sandbox, APIError, Snapshot, Drive } from "@vercel/sandbox";
+import {
+  Sandbox,
+  APIError,
+  Snapshot,
+  Drive,
+  withAuthHeaders,
+} from "@vercel/sandbox";
 import { version } from "./pkg";
 import { authHeadersFor } from "./auth-headers";
 import { withFreshAuthRetry } from "./util/fresh-auth-retry";
@@ -69,17 +75,20 @@ export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
   get: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Drive.get({ fetch: fetchWithUserAgent, ...params });
+      return Drive.get({ ...driveRequestOptions(params), ...params });
     }),
   getOrCreate: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params });
+      return Drive.getOrCreate({ ...driveRequestOptions(params), ...params });
     }),
   list: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+      return Drive.list({
+        ...driveRequestOptions(params),
+        ...params,
+      } as typeof params);
     }),
   delete: (drive) => withErrorHandling(() => drive.delete()),
   fork: (drive, params) => withErrorHandling(() => drive.fork(params)),
@@ -109,6 +118,16 @@ function authOptions(params: unknown) {
 
 function requestOptions(params: unknown) {
   return { fetch: fetchWithUserAgent, ...authOptions(params) };
+}
+
+/** `Drive` has no `getAuthHeaders` option, so the provider wraps its `fetch`. */
+function driveRequestOptions(params: unknown) {
+  const getAuthHeaders = authHeadersFor(scopeField(params, "token"));
+  return {
+    fetch: getAuthHeaders
+      ? withAuthHeaders(fetchWithUserAgent, getAuthHeaders)
+      : fetchWithUserAgent,
+  };
 }
 
 function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {
