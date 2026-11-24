@@ -118,6 +118,9 @@ export async function getCredentials(params?: unknown): Promise<Credentials> {
  * Attempt to extract credentials from the provided parameters. Either all
  * required fields (`token`, `teamId`, and `projectId`) must be present
  * or none of them, otherwise an error is thrown.
+ *
+ * With `getAuthHeaders`, the provider authenticates each request, so `token`
+ * is not required.
  */
 function getCredentialsFromParams(params: unknown): Credentials | null {
   // Type guard: params must be an object
@@ -125,31 +128,37 @@ function getCredentialsFromParams(params: unknown): Credentials | null {
     return null;
   }
 
+  const hasToken = "token" in params && typeof params.token === "string";
+  const hasAuthHeaders =
+    "getAuthHeaders" in params && typeof params.getAuthHeaders === "function";
+
   const missing = [
-    "token" in params && typeof params.token === "string" ? null : "token",
+    hasToken ? null : "token",
     "teamId" in params && typeof params.teamId === "string" ? null : "teamId",
     "projectId" in params && typeof params.projectId === "string"
       ? null
       : "projectId",
   ].filter((value) => value !== null);
 
-  if (missing.length === 0) {
+  if (missing.length === 3) {
+    return null;
+  }
+
+  const required = hasAuthHeaders
+    ? missing.filter((value) => value !== "token")
+    : missing;
+
+  if (required.length === 0) {
     return {
-      token: (params as any).token,
+      token: hasToken ? (params as any).token : "",
       projectId: (params as any).projectId,
       teamId: (params as any).teamId,
     };
   }
 
-  if (missing.length < 3) {
-    throw new Error(
-      `Missing credentials parameters to access the Vercel API: ${missing
-        .filter((value) => value !== null)
-        .join(", ")}`,
-    );
-  }
-
-  return null;
+  throw new Error(
+    `Missing credentials parameters to access the Vercel API: ${required.join(", ")}`,
+  );
 }
 
 /**

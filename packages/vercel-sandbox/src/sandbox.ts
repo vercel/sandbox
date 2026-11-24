@@ -718,6 +718,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params?.fetch,
+      getAuthHeaders: params?.getAuthHeaders,
     });
     const fetchPage = async (cursor?: string) => {
       const response = await client.listSandboxes<Tags>({
@@ -806,6 +807,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params?.fetch,
+      getAuthHeaders: params?.getAuthHeaders,
     });
 
     const privateParams = getPrivateParams(params);
@@ -879,6 +881,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const privateParams = getPrivateParams(params);
@@ -931,6 +934,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const privateParams = getPrivateParams(params);
@@ -1027,6 +1031,7 @@ export class Sandbox implements ExecutionContext {
           teamId: credentials.teamId,
           token: credentials.token,
           fetch: params.fetch,
+          getAuthHeaders: params.getAuthHeaders,
         });
         const privateParams = getPrivateParams(params);
         try {

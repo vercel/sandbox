@@ -27,6 +27,7 @@ import {
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
+import type { AuthHeadersProvider } from "./auth-headers.js";
 import { FileWriter } from "./file-writer.js";
 import { VERSION } from "../version.js";
 import { consumeReadable } from "../utils/consume-readable.js";
@@ -152,6 +153,11 @@ function decodeUnverifiedToken(token: string): Claims | null {
 
 export interface WithFetchOptions {
   fetch?: typeof globalThis.fetch;
+  /**
+   * Builds the headers that authenticate each API request, retries included,
+   * such as a DPoP proof. When set, `token` isn't sent.
+   */
+  getAuthHeaders?: AuthHeadersProvider;
 }
 
 export class APIClient extends BaseClient {
@@ -168,6 +174,7 @@ export class APIClient extends BaseClient {
     teamId: string;
     token: string;
     fetch?: typeof globalThis.fetch;
+    getAuthHeaders?: AuthHeadersProvider;
   }) {
     super({
       // Call the API host directly: `vercel.com/api` adds an extra edge hop.
@@ -175,12 +182,17 @@ export class APIClient extends BaseClient {
       token: params.token,
       debug: false,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     this.teamId = params.teamId;
     this.isJwtToken = false;
 
-    const claims = decodeUnverifiedToken(params.token);
+    // An OIDC token is refreshed before each request, which doesn't apply
+    // when `getAuthHeaders` authenticates instead.
+    const claims = params.getAuthHeaders
+      ? null
+      : decodeUnverifiedToken(params.token);
     if (claims) {
       this.isJwtToken = true;
       this.projectId = claims.project_id;

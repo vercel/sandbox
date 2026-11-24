@@ -28,3 +28,44 @@ test("explains how to set up oidc in vercel", async () => {
   process.env.VERCEL_URL = "example.vercel.sh";
   await expect(getCredentials()).rejects.toThrowError(VercelOidcContextError);
 });
+
+test("accepts a header provider in place of a token", async () => {
+  await expect(
+    getCredentials({
+      getAuthHeaders: () => ({}),
+      teamId: "team_1",
+      projectId: "prj_1",
+    }),
+  ).resolves.toEqual({ token: "", teamId: "team_1", projectId: "prj_1" });
+});
+
+test("keeps a given token when there is a header provider", async () => {
+  await expect(
+    getCredentials({
+      getAuthHeaders: () => ({}),
+      token: "token_1",
+      teamId: "team_1",
+      projectId: "prj_1",
+    }),
+  ).resolves.toEqual({
+    token: "token_1",
+    teamId: "team_1",
+    projectId: "prj_1",
+  });
+});
+
+test("still requires the team and the project with a header provider", async () => {
+  await expect(
+    getCredentials({ getAuthHeaders: () => ({}), teamId: "team_1" }),
+  ).rejects.toThrowError(
+    "Missing credentials parameters to access the Vercel API: projectId",
+  );
+});
+
+test("still requires a token without a header provider", async () => {
+  await expect(
+    getCredentials({ teamId: "team_1", projectId: "prj_1" }),
+  ).rejects.toThrowError(
+    "Missing credentials parameters to access the Vercel API: token",
+  );
+});
