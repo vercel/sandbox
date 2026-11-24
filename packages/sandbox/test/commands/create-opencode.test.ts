@@ -108,11 +108,11 @@ describe("create opencode", () => {
     },
   );
 
-  test.each(["--runtime=node24", "--image=custom", "--snapshot=snap_123"])(
+  test.each(["--image=custom", "--snapshot=snap_123"])(
     "rejects conflicting %s before allocating a sandbox",
     async (flag) => {
       await expect(createWith(["opencode", flag])).rejects.toThrow(
-        "cannot be combined with --runtime, --image, or --snapshot",
+        "cannot be combined with --image or --snapshot",
       );
       expect(mockCreate).not.toHaveBeenCalled();
     },
@@ -221,11 +221,9 @@ describe("create opencode", () => {
     );
   });
 
-  test("plain create still accepts custom images, runtimes and snapshots", async () => {
+  test("plain create still accepts custom images and snapshots", async () => {
     await createWith(["--image=custom"]);
     expect(mockCreate.mock.lastCall?.[0]).toHaveProperty("image", "custom");
-    await createWith(["--runtime=node24"]);
-    expect(mockCreate.mock.lastCall?.[0]).toHaveProperty("runtime", "node24");
     await createWith(["--snapshot=snap_123"]);
     expect(mockCreate.mock.lastCall?.[0]).toHaveProperty("source", {
       type: "snapshot",

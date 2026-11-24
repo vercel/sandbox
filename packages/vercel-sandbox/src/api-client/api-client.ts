@@ -24,8 +24,6 @@ import {
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
-  DrivesResponse,
-  DriveResponse,
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
@@ -42,7 +40,7 @@ import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
-import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type { SandboxRegion } from "../constants.js";
 import type { SandboxCredentials } from "../sandbox.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
@@ -78,7 +76,11 @@ const stdinMaybeWrittenErrors = new WeakSet<object>();
  * earlier attempt of the same request may have been applied before it failed.
  */
 export function stdinMayHaveBeenWritten(error: unknown) {
-  return typeof error === "object" && error !== null && stdinMaybeWrittenErrors.has(error);
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    stdinMaybeWrittenErrors.has(error)
+  );
 }
 
 async function parseStdinResponse(response: Response, maybeApplied = false) {
@@ -292,13 +294,13 @@ export class APIClient extends BaseClient {
       timeout?: number;
       resources?: { vcpus: number };
       persistent?: boolean;
-      runtime?: RUNTIMES | (string & {});
       image?: string;
       networkPolicy?: NetworkPolicy;
       networkId?: string;
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -312,11 +314,9 @@ export class APIClient extends BaseClient {
     }>,
   ) {
     const privateParams = getPrivateParams(params);
-    const endpoint =
-      params.runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes";
     return parseOrThrow(
       SandboxAndSessionResponse,
-      await this.request(endpoint, {
+      await this.request("/v3/sandboxes", {
         method: "POST",
         body: JSON.stringify({
           projectId: params.projectId,
@@ -324,7 +324,6 @@ export class APIClient extends BaseClient {
           source: params.source,
           timeout: params.timeout,
           resources: params.resources,
-          runtime: params.runtime,
           image: params.image,
           name: params.name,
           persistent: params.persistent,
@@ -335,6 +334,7 @@ export class APIClient extends BaseClient {
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
+          expiryNotificationLeadTime: params.expiryNotificationLeadTime,
           keepLastSnapshots: params.keepLastSnapshots,
           mounts: params.mounts,
           region: params.region,
@@ -363,6 +363,7 @@ export class APIClient extends BaseClient {
       mounts?: SandboxMetaData["mounts"];
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -396,6 +397,7 @@ export class APIClient extends BaseClient {
             mounts: params.mounts,
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
+            expiryNotificationLeadTime: params.expiryNotificationLeadTime,
             keepLastSnapshots: params.keepLastSnapshots,
             region: params.region,
             failoverRegions: params.failoverRegions,
@@ -793,94 +795,6 @@ export class APIClient extends BaseClient {
         method: "GET",
         signal: params.signal,
       }),
-    );
-  }
-
-  async listDrives(params: {
-    projectId: string;
-    limit?: number;
-    cursor?: string;
-    sortBy?: "createdAt" | "updatedAt" | "name";
-    sortOrder?: "asc" | "desc";
-    namePrefix?: string;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DrivesResponse,
-      await this.request(`/v2/sandboxes/drives`, {
-        query: {
-          projectId: params.projectId,
-          limit: params.limit,
-          cursor: params.cursor,
-          sortBy: params.sortBy,
-          sortOrder: params.sortOrder,
-          namePrefix: params.namePrefix,
-        },
-        method: "GET",
-        signal: params.signal,
-      }),
-    );
-  }
-
-  async getDrive(params: {
-    projectId: string;
-    name: string;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(
-        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
-        {
-          method: "GET",
-          query: { projectId: params.projectId },
-          signal: params.signal,
-        },
-      ),
-    );
-  }
-
-  async getOrCreateDrive(params: {
-    projectId: string;
-    name: string;
-    region?: string;
-    maxSizeBytes?: number;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(
-        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            projectId: params.projectId,
-            region: params.region,
-            maxSizeBytes: params.maxSizeBytes,
-          }),
-          signal: params.signal,
-        },
-      ),
-    );
-  }
-
-  async forkDrive(params: {
-    projectId: string;
-    name: string;
-    forkName: string;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(
-        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}/fork`,
-        {
-          method: "POST",
-          query: { projectId: params.projectId },
-          body: JSON.stringify({ name: params.forkName }),
-          signal: params.signal,
-        },
-      ),
     );
   }
 
@@ -1303,24 +1217,6 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async deleteDrive(params: {
-    projectId: string;
-    name: string;
-    signal?: AbortSignal;
-  }) {
-    const url = `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`;
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(url, {
-        method: "DELETE",
-        query: {
-          projectId: params.projectId,
-        },
-        signal: params.signal,
-      }),
-    );
-  }
-
   async updateSandbox(params: {
     name: string;
     projectId: string;
@@ -1332,6 +1228,7 @@ export class APIClient extends BaseClient {
     tags?: Record<string, string>;
     ports?: number[];
     snapshotExpiration?: number;
+    expiryNotificationLeadTime?: number;
     keepLastSnapshots?: {
       count: number;
       expiration?: number;
@@ -1361,6 +1258,7 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           ports: params.ports,
           snapshotExpiration: params.snapshotExpiration,
+          expiryNotificationLeadTime: params.expiryNotificationLeadTime,
           keepLastSnapshots: params.keepLastSnapshots,
           currentSnapshotId: params.currentSnapshotId,
           region: params.region,

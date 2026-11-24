@@ -43,6 +43,10 @@ FROM builder-base AS builder-git
 
 ARG GIT_VERSION
 
+RUN dnf install -y cargo rust && \
+    dnf clean all && \
+    rm -rf /var/cache/yum /var/lib/rpm/__db.*
+
 # Compile git from source to /opt/git
 RUN cd /tmp && \
     curl -L "https://github.com/git/git/archive/v${GIT_VERSION}.tar.gz" | tar -zx && \

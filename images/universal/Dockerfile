@@ -9,8 +9,10 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     rm -rf /var/lib/apt/lists/*
 
 ARG NODE_VERSION
-RUN mkdir -p /opt/node && \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in amd64) node_arch=x64 ;; *) node_arch="${TARGETARCH}" ;; esac && \
+    mkdir -p /opt/node && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
       | bsdtar -xJ --strip-components=1 -C /opt/node && \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md
 
@@ -23,15 +25,16 @@ ARG UBUNTU_SNAPSHOT
 ARG PYTHON_VERSION=3.14
 ARG GH_VERSION
 ARG UV_VERSION
+ARG TARGETARCH
 
 RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl && \
     cd /tmp && \
-    curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb" && \
+    curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.deb" && \
     curl -fsSLO "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_checksums.txt" && \
-    awk -v f="gh_${GH_VERSION}_linux_amd64.deb" '$2 == f' "gh_${GH_VERSION}_checksums.txt" | sha256sum -c && \
+    awk -v f="gh_${GH_VERSION}_linux_${TARGETARCH}.deb" '$2 == f' "gh_${GH_VERSION}_checksums.txt" | sha256sum -c && \
     apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 \
-      "/tmp/gh_${GH_VERSION}_linux_amd64.deb" \
+      "/tmp/gh_${GH_VERSION}_linux_${TARGETARCH}.deb" \
       bzip2 \
       dnsutils \
       file \
@@ -64,7 +67,7 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
       wget \
       xz-utils \
       zip && \
-    rm -f "/tmp/gh_${GH_VERSION}_linux_amd64.deb" "/tmp/gh_${GH_VERSION}_checksums.txt" && \
+    rm -f "/tmp/gh_${GH_VERSION}_linux_${TARGETARCH}.deb" "/tmp/gh_${GH_VERSION}_checksums.txt" && \
     rm -f /usr/lib/python3*/EXTERNALLY-MANAGED && \
     rm -rf /var/lib/apt/lists/* && \
     pip install "uv==${UV_VERSION}" && \
@@ -110,11 +113,12 @@ ENV PATH="/vercel/.local/bin:/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${
 ARG FX_VERSION
 RUN mkdir -p ~/.local/bin && \
     cd /tmp && \
-    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz" && \
-    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/fx-linux-x86_64.tar.gz.sha256" && \
-    sha256sum -c fx-linux-x86_64.tar.gz.sha256 && \
-    tar -xzf fx-linux-x86_64.tar.gz -C ~/.local/bin fx && \
-    rm fx-linux-x86_64.tar.gz fx-linux-x86_64.tar.gz.sha256
+    fx_archive="fx-linux-$(uname -m).tar.gz" && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/${fx_archive}" && \
+    curl -fsSLO "https://github.com/vercel-labs/fx/releases/download/v${FX_VERSION}/${fx_archive}.sha256" && \
+    sha256sum -c "${fx_archive}.sha256" && \
+    tar -xzf "${fx_archive}" -C ~/.local/bin fx && \
+    rm "${fx_archive}" "${fx_archive}.sha256"
 
 RUN node --version && \
     bun --version && \

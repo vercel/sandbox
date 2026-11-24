@@ -10,12 +10,16 @@ variable "PUSH" {
   default = false
 }
 
+variable "PUSH_BY_DIGEST" {
+  default = false
+}
+
 variable "UBUNTU_IMAGE" {
-  default = "ubuntu:resolute-20261105.1@sha256:66b8084a0d45bd4877992bd38e04b51bfa99bd57293364cb6391fb674771846e"
+  default = "ubuntu:resolute-20261105.1@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db"
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261113T060000Z"
+  default = "20261123T060000Z"
 }
 
 variable "ARCH_IMAGE" {
@@ -23,11 +27,11 @@ variable "ARCH_IMAGE" {
 }
 
 variable "AMAZONLINUX_IMAGE" {
-  default = "amazonlinux:2023.12.20261102.0@sha256:3ccfbe800f864982b0a4e124a614b2382518cbd04b3c1cd35202bd46f392675b"
+  default = "amazonlinux:2023.12.20261117.0@sha256:9cf762f5099b606bcd851391317af7cd75b11363c4816ebcb5e91292dd5736a7"
 }
 
 variable "BUN_IMAGE" {
-  default = "oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d"
+  default = "oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18"
 }
 
 variable "NODE_VERSIONS" {
@@ -39,8 +43,23 @@ variable "NODE_VERSIONS" {
   }
 }
 
+# Each sha256 is the XZ source checksum from the release's page on python.org.
+variable "PYTHON_VERSIONS" {
+  type = map(object({ version = string, sha256 = string }))
+  default = {
+    "3.14" = {
+      version = "3.14.10"
+      sha256  = "de414a57119abef52784d8993e341d53aed635fc2b05c2607d9f98a2c5b72032"
+    }
+    "3.15" = {
+      version = "3.15.2"
+      sha256  = "8b5536d280142ecf6cdfe15d12a21ba1c65e300bbf7b28a8d0cdb849575797de"
+    }
+  }
+}
+
 variable "PNPM_VERSION" {
-  default = "11.28.11"
+  default = "11.29.0"
 }
 
 variable "AL_PNPM_VERSION" {
@@ -48,39 +67,51 @@ variable "AL_PNPM_VERSION" {
 }
 
 variable "UV_VERSION" {
-  default = "0.13.8"
+  default = "0.13.9"
 }
 
-variable "AL_PIP_VERSION" {
+variable "PIP_VERSION" {
+  default = "26.3"
+}
+
+variable "SETUPTOOLS_VERSION" {
+  default = "84.2.1"
+}
+
+variable "WHEEL_VERSION" {
+  default = "0.48.0"
+}
+
+variable "PACKAGING_VERSION" {
   default = "26.3"
 }
 
 variable "AL_GIT_VERSION" {
-  default = "2.49.0"
+  default = "2.56.1"
 }
 
 variable "GH_VERSION" {
-  default = "2.104.0"
+  default = "2.105.0"
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.323"
+  default = "2.1.330"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.168.0"
+  default = "0.171.0"
 }
 
 variable "OPENCODE_VERSION" {
-  default = "1.19.5"
+  default = "1.19.6"
 }
 
 variable "PI_VERSION" {
-  default = "1.5.2"
+  default = "1.6.0"
 }
 
 variable "FX_VERSION" {
-  default = "0.0.16"
+  default = "0.0.17"
 }
 
 variable "YAY_BIN_COMMIT" {
@@ -96,17 +127,17 @@ group "runtimes" {
 }
 
 group "vmi" {
-  targets = ["ubuntu", "node", "python", "python-315", "universal", "arch"]
+  targets = ["ubuntu", "node", "python", "universal", "arch"]
 }
 
 target "_common" {
-  platforms = ["linux/amd64"]
+  platforms = ["linux/amd64", "linux/arm64"]
   attest = [
     "type=provenance,disabled=true",
     "type=sbom,disabled=true"
   ]
   output = [
-    "type=image,push=${PUSH},oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
+    "type=image,push=${PUSH},push-by-digest=${PUSH_BY_DIGEST},name-canonical=${PUSH_BY_DIGEST},oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true"
   ]
 }
 
@@ -146,38 +177,28 @@ target "node" {
 }
 
 target "python" {
+  matrix = {
+    python = [for minor, release in PYTHON_VERSIONS : merge(release, { minor = minor })]
+  }
+
+  name     = "python-${replace(python.minor, ".", "")}"
   inherits = ["_common"]
   context  = "python"
-  tags     = ["${REGISTRY}/python:3.14${TAG_SUFFIX}"]
+  tags     = ["${REGISTRY}/python:${python.minor}${TAG_SUFFIX}"]
 
   contexts = {
     base = "target:ubuntu"
   }
 
   args = {
-    # XZ source checksum: https://www.python.org/downloads/release/python-3148/
-    PYTHON_VERSION = "3.14.8"
-    PYTHON_SHA256  = "c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73"
-    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
-    UV_VERSION      = UV_VERSION
-  }
-}
-
-target "python-315" {
-  inherits = ["_common"]
-  context  = "python"
-  tags = ["${REGISTRY}/python:3.15${TAG_SUFFIX}"]
-
-  contexts = {
-    base = "target:ubuntu"
-  }
-
-  args = {
-    # XZ source checksum: https://www.python.org/downloads/release/python-3150/
-    PYTHON_VERSION = "3.15.0"
-    PYTHON_SHA256  = "ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
-    UBUNTU_SNAPSHOT = UBUNTU_SNAPSHOT
-    UV_VERSION      = UV_VERSION
+    PACKAGING_VERSION  = PACKAGING_VERSION
+    PIP_VERSION        = PIP_VERSION
+    PYTHON_SHA256      = python.sha256
+    PYTHON_VERSION     = python.version
+    SETUPTOOLS_VERSION = SETUPTOOLS_VERSION
+    UBUNTU_SNAPSHOT    = UBUNTU_SNAPSHOT
+    UV_VERSION         = UV_VERSION
+    WHEEL_VERSION      = WHEEL_VERSION
   }
 }
 
@@ -207,9 +228,10 @@ target "universal" {
 }
 
 target "arch" {
-  inherits = ["_common"]
-  context  = "arch"
-  tags     = ["${REGISTRY}/arch:latest${TAG_SUFFIX}"]
+  inherits  = ["_common"]
+  context   = "arch"
+  platforms = ["linux/amd64"]
+  tags      = ["${REGISTRY}/arch:latest${TAG_SUFFIX}"]
 
   args = {
     ARCH_IMAGE     = ARCH_IMAGE
@@ -221,6 +243,7 @@ target "al-builder-base" {
   inherits   = ["_common"]
   context    = "al-base"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   target     = "builder-base"
 
   args = {
@@ -232,6 +255,7 @@ target "al-base" {
   inherits   = ["_common"]
   context    = "al-base"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   target     = "sandbox-base"
 
   contexts = {
@@ -253,6 +277,7 @@ target "al-node" {
   inherits   = ["_common"]
   context    = "al-node"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   tags = [
     "${REGISTRY}/node:al-${node.major}${TAG_SUFFIX}",
     "${REGISTRY}/node:al-${node.version}${TAG_SUFFIX}",
@@ -274,6 +299,7 @@ target "al-python" {
   inherits   = ["_common"]
   context    = "al-python"
   dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   tags       = ["${REGISTRY}/python:al-3.13.1${TAG_SUFFIX}"]
 
   contexts = {
@@ -282,7 +308,7 @@ target "al-python" {
   }
 
   args = {
-    PIP_VERSION    = AL_PIP_VERSION
+    PIP_VERSION    = PIP_VERSION
     PYTHON_VERSION = "3.13.1"
     UV_VERSION     = UV_VERSION
   }

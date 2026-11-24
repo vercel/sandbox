@@ -1,6 +1,6 @@
 ---
 name: sandbox
-description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
+description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, streaming a sandbox desktop for graphical applications or computer-use agents, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
 metadata:
   author: Vercel Inc.
   version: "2.0"
@@ -297,9 +297,7 @@ const seed = await Sandbox.create({
   region: baseDrive.region,
   mounts: { "/workspace": baseDrive },
 });
-await seed.writeFiles([
-  { path: "/workspace/README.md", content: "starter" },
-]);
+await seed.writeFiles([{ path: "/workspace/README.md", content: "starter" }]);
 await seed.stop();
 
 // The source drive has now been written to and can be forked.
@@ -308,9 +306,7 @@ const worker = await Sandbox.create({
   region: workerDrive.region,
   mounts: { "/workspace": workerDrive },
 });
-await worker.writeFiles([
-  { path: "/workspace/result.txt", content: "worker" },
-]);
+await worker.writeFiles([{ path: "/workspace/result.txt", content: "worker" }]);
 await worker.stop();
 ```
 
@@ -640,7 +636,8 @@ const sandbox = await Sandbox.create({
 ```
 
 Implement the proxy handler with `defineSandboxProxy`, using the Web `Request` & `Response` objects — it verifies the
-sandbox OIDC token and extracts metadata about the source sandbox:
+sandbox OIDC token and extracts metadata about the source sandbox. Without `allow`, it accepts only sandboxes of the
+proxy's own project (`VERCEL_PROJECT_ID`):
 
 ```typescript
 // app/api/sandbox-proxy/route.ts
@@ -662,6 +659,19 @@ export {
   handler as DELETE,
 };
 ```
+
+Pass `allow` to decide which sandboxes may use the proxy. It replaces the own-project rule, so include every check you
+need:
+
+```typescript
+defineSandboxProxy(handler, {
+  allow: (sandbox) =>
+    sandbox.projectId === "prj_123" || sandbox.teamId === "team_123",
+});
+```
+
+A proxy outside Vercel has no `VERCEL_PROJECT_ID` and rejects every sandbox until it has an `allow`. Sandbox names are
+unique within a project, not across projects, so a rule on `sandboxName` should also check `projectId`.
 
 ### Updating Network Policy at Runtime
 
@@ -986,16 +996,16 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation      | Details                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
-| Max ports       | 15 exposed ports                                                                |
-| Max tags        | 5 key-value tags per sandbox                                                    |
-| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                   |
-| Default timeout | 5 minutes                                                                       |
-| Base system     | Ubuntu 26.04                                                                    |
-| User context    | `ubuntu` user                                                                   |
-| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                              |
+| Limitation      | Details                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU)                                                                                                                                                                                                                                                   |
+| Max ports       | 15 exposed ports                                                                                                                                                                                                                                                                                                                  |
+| Max tags        | 5 key-value tags per sandbox                                                                                                                                                                                                                                                                                                      |
+| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                                                                                                                                                                                                                                                                     |
+| Default timeout | 5 minutes                                                                                                                                                                                                                                                                                                                         |
+| Base system     | Ubuntu 26.04                                                                                                                                                                                                                                                                                                                      |
+| User context    | `ubuntu` user                                                                                                                                                                                                                                                                                                                     |
+| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                                                                                                                                                                                                                                                                                |
 | Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
@@ -1020,6 +1030,104 @@ await sandbox.runCommand({
 
 This is fine for one-offs. For reproducible dependencies or a different base
 environment, use a [custom image](#from-a-custom-image-vcr) instead.
+
+## Desktop Streaming (screen-relay)
+
+A sandbox has no screen. [screen-relay](https://github.com/vercel-labs/screen-relay),
+an open-source tool from Vercel Labs, starts a Linux desktop (X11 with XFCE) in
+the sandbox, streams it to a browser viewer, and takes mouse and keyboard input
+from the viewer or from its CLI. Use it to run graphical applications, or to let
+an agent work on a desktop while a person watches. Guide:
+https://vercel.com/docs/sandbox/examples/desktop-streaming
+
+### Start a Desktop
+
+Create the sandbox from screen-relay's public image with port 8080 published,
+then start the desktop:
+
+```bash
+sandbox create --name desktop --timeout 30m -p 8080 \
+  --image vercel-labs/screen-relay/sandbox-desktop:0.1.3
+sandbox exec desktop -- screen-relay up -d --public $(sandbox domain desktop 8080)
+```
+
+```typescript
+const sandbox = await Sandbox.getOrCreate({
+  name: "desktop",
+  image: "vercel-labs/screen-relay/sandbox-desktop:0.1.3",
+  ports: [8080],
+  timeout: 30 * 60 * 1000,
+});
+
+const result = await sandbox.runCommand({
+  cmd: "screen-relay",
+  args: ["up", "-d", "--public", sandbox.domain(8080)],
+});
+if (result.exitCode !== 0) {
+  throw new Error("screen-relay did not start");
+}
+const viewerLink = (await result.stdout()).trim();
+```
+
+- Any team can create sandboxes from this public image. It has screen-relay and
+  the desktop installed, so the desktop starts in a few seconds.
+- The image tag is the screen-relay version it contains. Pin a version, because
+  `latest` is rebuilt from screen-relay's main branch.
+- Publish port 8080 when you create the sandbox. `--public` must be the
+  sandbox's URL for that port.
+- `up -d` prints the viewer link, which ends in a `#token=` fragment. Anyone with
+  the link can view and control the desktop. Give it to the user, and keep it
+  out of logs, repositories, and messages a model can read.
+
+### Control the Desktop
+
+Run screen-relay's commands in the sandbox. Take a screenshot, act, then take
+another screenshot to check the result:
+
+```bash
+sandbox exec desktop -- screen-relay run -- xfce4-terminal
+sandbox exec desktop -- screen-relay screenshot /tmp/screen.png
+sandbox exec desktop -- screen-relay click 0.5 0.5
+sandbox exec desktop -- screen-relay type "echo hello"
+sandbox exec desktop -- screen-relay key Enter
+sandbox copy desktop:/tmp/screen.png ./screen.png
+```
+
+- `sandbox exec desktop -- screen-relay skills get core` prints screen-relay's
+  full control workflow: coordinates, keys, JSON output, and error recovery.
+  Read it before a longer task.
+- Coordinates are fractions from `0` to `1`, measured from the top-left.
+- Start a program with `screen-relay run -- <program>` so it opens on the
+  desktop's display.
+- One controller sends input at a time. The viewer takes control when it opens,
+  so input commands fail with `busy` until the user chooses **Release control**
+  in the viewer. Screenshots keep working. Ask the user to release control
+  instead of retrying in a loop.
+- The image has no package lists. Run
+  `sandbox exec --sudo desktop -- apt-get update` once before `apt-get install`.
+
+### Stop and Start Again
+
+```bash
+sandbox exec desktop -- screen-relay down
+sandbox stop desktop
+```
+
+The sandbox is persistent, so installed applications stay in place. To start
+again, resume it with `sandbox exec desktop -- true`, then run the
+`screen-relay up` command again. It prints a new viewer link.
+
+### Other Images and Limits
+
+- On the default image or your own, install screen-relay first:
+  `npm install -g screen-relay`, then
+  `screen-relay up -d --yes --public <sandbox URL>`. The first start takes a
+  minute or more, because it installs the desktop and builds the streaming
+  engine.
+- screen-relay streams video only, with no audio. The clipboard carries text
+  only.
+- If the desktop does not start, run `screen-relay status` and
+  `screen-relay logs` in the sandbox.
 
 ## CLI Quick Reference
 
@@ -1174,7 +1282,7 @@ case-insensitive; `GB` and `TB` are aliases for the binary units. Omitting
 drive. The output includes a reminder that size is fixed at creation.
 
 Agent shortcuts use the universal image and require an interactive terminal.
-Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
+Do not combine them with `--image` or `--snapshot`. Configure
 authentication for the agent separately from `sandbox login`.
 
 For fx, choose a sign-in option on first launch or pass an exported AI Gateway

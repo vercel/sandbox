@@ -1,4 +1,14 @@
-export type RUNTIMES = "node26" | "node24" | "node22" | "python3.13";
+/**
+ * Why a sandbox session stopped. The API may add reasons, so other strings
+ * can appear.
+ */
+export type SessionStopReason =
+  | "requested"
+  | "snapshot"
+  | "timeout"
+  | "exited"
+  | "error"
+  | (string & {});
 
 export type ManagedImage =
   | "universal"

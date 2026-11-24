@@ -6,6 +6,7 @@ const FORWARDED_SCHEME_HEADER = "vercel-forwarded-scheme";
 const FORWARDED_PORT_HEADER = "vercel-forwarded-port";
 const FORWARDED_PATH_HEADER = "vercel-forwarded-path";
 const SANDBOX_OIDC_TOKEN_HEADER = "vercel-sandbox-oidc-token";
+const VERCEL_OIDC_TOKEN_HEADER = "x-vercel-oidc-token";
 
 const VERCEL_OIDC_HOSTNAME = "oidc.vercel.com";
 const CLOCK_TOLERANCE_SECONDS = 60;
@@ -48,13 +49,26 @@ export type InvalidRequestProxyHandler = (
   error: Error,
 ) => Response | Promise<Response>;
 
+export interface SandboxProxyOptions {
+  /**
+   * Decides whether a sandbox may use the proxy. It replaces the default rule, which accepts only
+   * sandboxes of the proxy's own project (`VERCEL_PROJECT_ID`).
+   */
+  allow?: (sandbox: ProxyMeta) => boolean | Promise<boolean>;
+  /**
+   * Called when a request is rejected. By default, the reason is logged and a 403 response is returned.
+   */
+  onInvalidRequest?: InvalidRequestProxyHandler;
+}
+
 /**
  * Creates a Web Handler for proxied requests from Vercel Sandboxes using the network policy `forwardURL`
  * option. The provided `handler` is called for each valid proxied request, with the original request
  * alongside extracted metadata used to identify the source sandbox and request details.
  *
- * This function automatically verifies the OIDC token included in proxied requests to ensure the request
- * is legitimate: if invalid, the `invalidRequestHandler` is called (by default, a 403 response is returned).
+ * This function verifies the OIDC token included in proxied requests, then asks `allow` whether the
+ * sandbox may use the proxy. Without `allow`, only sandboxes of the proxy's own project may. A rejected
+ * request goes to `onInvalidRequest` (by default, a 403 response is returned).
  *
  * @example
  * ```ts
@@ -65,9 +79,11 @@ export type InvalidRequestProxyHandler = (
  *
  *     // return a custom response, or proxy upstream:
  *     return await fetch(request)
- *   }, (request, error) => {
- *     // optional, handle any authorization error
- *     return new Response("Forbidden", { status: 403 })
+ *   }, {
+ *     // optional, replaces the rule that accepts only sandboxes of the proxy's own project
+ *     allow: (sandbox) => sandbox.projectId === "prj_123" || sandbox.teamId === "team_123",
+ *     // optional, handle any rejected request
+ *     onInvalidRequest: (request, error) => new Response("Forbidden", { status: 403 }),
  *   })
  * }
  * ```
@@ -76,8 +92,19 @@ export type InvalidRequestProxyHandler = (
  */
 export function defineSandboxProxy(
   handler: ProxyHandler,
-  invalidRequestHandler: InvalidRequestProxyHandler = defaultInvalidRequestHandler,
+  options: SandboxProxyOptions = {},
 ) {
+  if (typeof options === "function") {
+    throw new Error(
+      "defineSandboxProxy takes an options object as its second argument: pass the invalid request handler as `onInvalidRequest`",
+    );
+  }
+
+  const {
+    allow = isOwnProjectSandbox,
+    onInvalidRequest: invalidRequestHandler = defaultInvalidRequestHandler,
+  } = options;
+
   return async function sandboxProxy(request: Request): Promise<Response> {
     const headers = new Headers(request.headers);
     const host = headers.get(FORWARDED_HOST_HEADER);
@@ -91,6 +118,7 @@ export function defineSandboxProxy(
     headers.delete(FORWARDED_PORT_HEADER);
     headers.delete(FORWARDED_PATH_HEADER);
     headers.delete(SANDBOX_OIDC_TOKEN_HEADER);
+    headers.delete(VERCEL_OIDC_TOKEN_HEADER);
 
     if (!host || !scheme || !port || !path || !oidcToken) {
       return invalidRequestHandler(
@@ -125,6 +153,12 @@ export function defineSandboxProxy(
       const claims = await verifyOidcToken(oidcToken, originalUrl);
       const meta = getProxyMeta(originalUrl.host, claims);
 
+      if (!(await allow(meta))) {
+        throw new Error(
+          `Sandbox ${meta.sandboxId} of project ${meta.projectId} is not allowed to use this proxy`,
+        );
+      }
+
       return handler(sanitizedRequest, meta);
     } catch (error) {
       return invalidRequestHandler(
@@ -135,8 +169,25 @@ export function defineSandboxProxy(
   };
 }
 
-function defaultInvalidRequestHandler(): Response {
+function defaultInvalidRequestHandler(
+  _request: Request,
+  error: Error,
+): Response {
+  console.error(`[vercel/sandbox] Rejected proxied request: ${error.message}`);
+
   return new Response("Forbidden", { status: 403 });
+}
+
+function isOwnProjectSandbox(sandbox: ProxyMeta): boolean {
+  const ownProjectId = process.env.VERCEL_PROJECT_ID;
+
+  if (!ownProjectId) {
+    throw new Error(
+      "defineSandboxProxy cannot tell which project it runs in: VERCEL_PROJECT_ID is not set. Expose system environment variables to the project, or pass `allow`",
+    );
+  }
+
+  return sandbox.projectId === ownProjectId;
 }
 
 function getProxiedRequestUrl(
