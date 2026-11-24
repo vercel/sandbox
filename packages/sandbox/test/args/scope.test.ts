@@ -10,14 +10,6 @@ vi.mock("../../src/commands/login", () => ({
   login: { handler: vi.fn() },
 }));
 
-const { mockInferScope } = vi.hoisted(() => ({ mockInferScope: vi.fn() }));
-vi.mock("../../src/util/infer-scope", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../../src/util/infer-scope")>();
-  mockInferScope.mockImplementation(actual.inferScope);
-  return { ...actual, inferScope: mockInferScope };
-});
-
 const { mockAuthInferScope } = vi.hoisted(() => ({
   mockAuthInferScope: vi.fn(),
 }));

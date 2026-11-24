@@ -17,7 +17,7 @@ const project = cmd.option({
   long: "project",
   type: { ...cmd.optional(cmd.string), displayName: "my-project" },
   description:
-    "The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN.",
+    "The project name or ID to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN, or read from VERCEL_PROJECT_ID when a team is also given.",
 });
 
 /** Parser for the `--team` option. */
@@ -30,7 +30,7 @@ const scopeParser = cmd.option({
   long: "scope",
   type: { ...cmd.optional(cmd.string), displayName: "my-team" },
   description:
-    "The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN. [alias: --team]",
+    "The scope/team to associate with the command. Can be inferred from VERCEL_OIDC_TOKEN, or read from VERCEL_TEAM_ID or VERCEL_ORG_ID. [alias: --team]",
 });
 
 /** Parser for the `--scope` option that falls back to `--team` if not provided. */
@@ -121,11 +121,8 @@ export const scope: ArgParser<{
         const scope = await withFreshAuthRetry(() =>
           inferScope({
             token: t.value,
-            team: teamId.value,
-            environment: {
-              team: environmentTeam,
-              project: process.env.VERCEL_PROJECT_ID,
-            },
+            team: teamId.value ?? environmentTeam,
+            project: process.env.VERCEL_PROJECT_ID,
           }),
         );
         projectId.value ??= scope.project;
