@@ -12,9 +12,9 @@ vi.mock("xdg-app-paths", () => ({
   }),
 }));
 
-import { sandboxClient } from "./client";
+import { driveClient, sandboxClient, snapshotClient } from "./client";
 import { setAuthHeadersProvider } from "./auth-headers";
-import { writeTelemetryConfig } from "./telemetry";
+import { telemetry, writeTelemetryConfig } from "./telemetry";
 
 describe("fetchWithUserAgent", () => {
   const fetchMock = vi.fn(
@@ -24,6 +24,13 @@ describe("fetchWithUserAgent", () => {
         headers: { "content-type": "application/json" },
       }),
   );
+
+  // Telemetry also looks up the caller's user id; pick the SDK's own request.
+  function sdkRequestInit() {
+    return fetchMock.mock.calls.find(
+      ([url]) => !String(url).endsWith("/v2/user"),
+    )?.[1];
+  }
 
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
@@ -43,7 +50,7 @@ describe("fetchWithUserAgent", () => {
       .catch(() => undefined);
 
     expect(fetchMock).toHaveBeenCalled();
-    const init = fetchMock.mock.calls[0]?.[1];
+    const init = sdkRequestInit();
     const userAgent = new Headers(init?.headers).get("user-agent") ?? "";
 
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
@@ -61,7 +68,7 @@ describe("fetchWithUserAgent", () => {
       .list({ token: "fake", teamId: "team_fake", projectId: "prj_fake" })
       .catch(() => undefined);
 
-    const init = fetchMock.mock.calls[0]?.[1];
+    const init = sdkRequestInit();
     const userAgent = new Headers(init?.headers).get("user-agent") ?? "";
 
     expect(userAgent).toMatch(/^vercel\/sandbox-cli\//);
@@ -100,7 +107,7 @@ describe("getAuthHeaders from createApp", () => {
 
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
     expect(headers.get("authorization")).toBe("DPoP vca_token");
-    expect(headers.get("dpop")).toMatch(/^proof GET \/api\//);
+    expect(headers.get("dpop")).toMatch(/^proof GET \/v2\/sandboxes/);
     expect(headers.get("user-agent")).toMatch(/^vercel\/sandbox-cli\//);
   });
 
@@ -114,3 +121,32 @@ describe("getAuthHeaders from createApp", () => {
     expect(headers.get("dpop")).toBeNull();
   });
 });
+
+describe("scope attribution", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["snapshots list", () => snapshotClient.list(scope)],
+    ["drives list", () => driveClient.list(scope)],
+  ])("records team and project ids for %s", async (_name, run) => {
+    const teamId = vi.spyOn(telemetry, "updateTeamId");
+    const projectId = vi.spyOn(telemetry, "updateProjectId");
+
+    await run().catch(() => undefined);
+
+    expect(teamId).toHaveBeenCalledWith("team_fake");
+    expect(projectId).toHaveBeenCalledWith("prj_fake");
+  });
+});
+
+const scope = { token: "fake", teamId: "team_fake", projectId: "prj_fake" };

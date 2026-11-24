@@ -1,3 +1,5 @@
 #!/usr/bin/env node
 
-import "../dist/sandbox.mjs";
+import { main } from "../dist/sandbox.mjs";
+
+main();

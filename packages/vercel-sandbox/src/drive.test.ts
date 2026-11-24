@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Drive } from "./drive.js";
-import { APIError } from "./api-client/api-error.js";
+import { APIError, Drive, DriveAPIError } from "./index.js";
 
 const CREDENTIALS = {
   token: "test-token",
@@ -76,7 +75,7 @@ describe("Drive", () => {
 
     const [url, init] = mockFetch.mock.calls[1];
     const requestUrl = new URL(String(url));
-    expect(requestUrl.pathname).toBe("/api/v2/sandboxes/drives/workspace/fork");
+    expect(requestUrl.pathname).toBe("/v1/drives/workspace/fork");
     expect(requestUrl.searchParams.get("teamId")).toBe("team_123");
     expect(requestUrl.searchParams.get("projectId")).toBe("proj_123");
     expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -89,9 +88,7 @@ describe("Drive", () => {
     await forkedDrive.delete();
 
     const [deleteUrl, deleteInit] = mockFetch.mock.calls[2];
-    expect(new URL(String(deleteUrl)).pathname).toBe(
-      "/api/v2/sandboxes/drives/workspace-fork",
-    );
+    expect(new URL(String(deleteUrl)).pathname).toBe("/v1/drives/drive_fork");
     expect(deleteInit?.method).toBe("DELETE");
   });
 
@@ -163,7 +160,7 @@ describe("Drive", () => {
 
     const [url, init] = mockFetch.mock.calls[0];
     const requestUrl = new URL(String(url));
-    expect(requestUrl.pathname).toBe("/api/v2/sandboxes/drives/workspace");
+    expect(requestUrl.pathname).toBe("/v1/drives/workspace");
     expect(requestUrl.searchParams.get("teamId")).toBe("team_123");
     expect(requestUrl.searchParams.get("projectId")).toBe("proj_123");
     expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -192,6 +189,7 @@ describe("Drive", () => {
     });
 
     await expect(result).rejects.toBeInstanceOf(APIError);
+    await expect(result).rejects.toBeInstanceOf(DriveAPIError);
     await expect(result).rejects.toMatchObject({
       response: { status: 404 },
       json: { error: { code: "not_found" } },
@@ -213,9 +211,7 @@ describe("Drive", () => {
     await drive.delete();
 
     const [url, init] = mockFetch.mock.calls[1];
-    expect(new URL(String(url)).pathname).toBe(
-      "/api/v2/sandboxes/drives/workspace",
-    );
+    expect(new URL(String(url)).pathname).toBe("/v1/drives/drive_123");
     expect(init?.method).toBe("DELETE");
   });
 
@@ -242,7 +238,7 @@ describe("Drive", () => {
     expect(drive.createdAt).toEqual(new Date(1));
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toContain("/v2/sandboxes/drives/workspace");
+    expect(String(url)).toContain("/v1/drives/workspace");
     expect(String(url)).toContain("teamId=team_123");
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toEqual({
@@ -270,9 +266,22 @@ describe("Drive", () => {
     const result = await Drive.list({
       ...CREDENTIALS,
       limit: 1,
+      namePrefix: "work",
+      sortBy: "name",
+      sortOrder: "asc",
       fetch: mockFetch,
     });
 
+    const [url] = mockFetch.mock.calls[0];
+    const requestUrl = new URL(String(url));
+    expect(requestUrl.pathname).toBe("/v1/drives");
+    expect(Object.fromEntries(requestUrl.searchParams)).toMatchObject({
+      projectId: CREDENTIALS.projectId,
+      limit: "1",
+      namePrefix: "work",
+      sortBy: "name",
+      sortOrder: "asc",
+    });
     expect(result.drives[0]).toBeInstanceOf(Drive);
     expect(result.drives[0].driveId).toBe("drive_123");
     expect(result.drives[0].name).toBe("workspace");
@@ -298,7 +307,7 @@ describe("Drive", () => {
     await drive.delete();
 
     const [url, init] = mockFetch.mock.calls[1];
-    expect(String(url)).toContain("/v2/sandboxes/drives/workspace");
+    expect(String(url)).toContain("/v1/drives/drive_123");
     expect(String(url)).toContain("projectId=proj_123");
     expect(init?.method).toBe("DELETE");
   });

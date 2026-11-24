@@ -42,6 +42,8 @@ export const sh = cmd.command({
         skipExtendingTimeout: false,
         envVars: {},
         interactive: true,
+        detached: false,
+        stdin: false,
         tty: true,
         sandbox,
         timeout: undefined,

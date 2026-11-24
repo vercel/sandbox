@@ -22,6 +22,7 @@ import { mounts } from "../args/drive";
 import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
+import { credentials } from "../args/credentials";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
 
@@ -79,6 +80,7 @@ export const args = {
   region,
   failoverRegions,
   networkId,
+  credentials,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -108,6 +110,11 @@ export const create = cmd.command({
       description: "Create and connect to a sandbox without a network access",
       command: `sandbox run --network-policy=none --connect`,
     },
+    {
+      description:
+        "Create a sandbox that can install your team's private npm packages",
+      command: `sandbox create --credentials=npm`,
+    },
   ],
   async handler(input) {
     const {
@@ -129,14 +136,11 @@ export const create = cmd.command({
       region,
       failoverRegions,
       networkId,
+      credentials,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
       deleteEvictedSnapshots,
-      networkPolicy: networkPolicyMode,
-      allowedDomains,
-      allowedCIDRs,
-      deniedCIDRs,
     } = input;
     // Internal flag for composing commands (e.g. `run`) that create a sandbox
     // as a step rather than as the outcome, where a connect hint would mislead.
@@ -168,12 +172,7 @@ export const create = cmd.command({
     // in flight, so stale installs learn they're behind at no latency cost.
     const versionCheck = silent ? undefined : startLatestVersionCheck();
 
-    const networkPolicy = buildNetworkPolicy({
-      networkPolicy: networkPolicyMode,
-      allowedDomains,
-      allowedCIDRs,
-      deniedCIDRs,
-    });
+    const networkPolicy = buildNetworkPolicy(input) ?? "allow-all";
 
     const keepLastSnapshotsPayload = buildKeepLastSnapshotsPayload({
       keepLastSnapshots,
@@ -193,6 +192,9 @@ export const create = cmd.command({
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
     const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
+    const credentialsObj = credentials?.includes("npm")
+      ? { npm: true as const }
+      : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -216,6 +218,7 @@ export const create = cmd.command({
             ? ms(snapshotExpiration)
             : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
+          credentials: credentialsObj,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -239,6 +242,7 @@ export const create = cmd.command({
             ? ms(snapshotExpiration)
             : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
+          credentials: credentialsObj,
           __interactive: true,
         });
     spinner?.stop();
@@ -294,6 +298,8 @@ export const create = cmd.command({
           skipExtendingTimeout: false,
           envVars: launcher ? { ...launcher.env, ...envVars } : {},
           interactive: true,
+          detached: false,
+          stdin: false,
           tty: true,
           sandbox,
           timeout: undefined,

@@ -40,6 +40,18 @@ export const commandMetadata = {
     aliases: ["cp"],
     positionals: ["<src>", "<dst>"],
   },
+  read: {
+    name: "read",
+    description: "Print a file from a sandbox to stdout.",
+    aliases: ["cat"],
+    positionals: ["<name>", "<path>"],
+  },
+  write: {
+    name: "write",
+    description:
+      "Write stdin to a file in a sandbox, replacing it if it exists.",
+    positionals: ["<name>", "<path>"],
+  },
   exec: {
     name: "exec",
     description: "Execute a command in an existing sandbox",
@@ -61,6 +73,26 @@ export const commandMetadata = {
     description:
       "Add time to a running session without changing its default timeout",
     positionals: ["<name>", "<num UNIT>"],
+  },
+  commands: {
+    name: "commands",
+    description: "Inspect and control commands in a running sandbox session",
+    positionals: [],
+  },
+  domain: {
+    name: "domain",
+    description: "Print the public domain for a port in a running sandbox",
+    positionals: ["<name>", "<port>"],
+  },
+  users: {
+    name: "users",
+    description: "Create users and run commands as a user",
+    positionals: [],
+  },
+  groups: {
+    name: "groups",
+    description: "Create shared groups and manage membership",
+    positionals: [],
   },
   remove: {
     name: "remove",
@@ -90,7 +122,7 @@ export const commandMetadata = {
   },
   drives: {
     name: "drives",
-    description: "Manage sandbox drives",
+    description: "Manage sandbox drives (deprecated, use the `vercel drives` CLI)",
     positionals: [],
   },
   telemetry: {

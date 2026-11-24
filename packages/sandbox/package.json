@@ -1,10 +1,10 @@
 {
   "name": "sandbox",
   "description": "Command line interface for Vercel Sandbox",
-  "version": "4.10.0",
+  "version": "4.13.0",
   "scripts": {
     "clean": "rm -rf node_modules dist",
-    "sandbox": "tsx ./src/sandbox.ts",
+    "sandbox": "tsx ./src/dev-cli.ts",
     "build": "tsdown",
     "vercel-build": "tsx ./scripts/create-preview-deployment-tgz.ts",
     "test": "vitest",
@@ -42,7 +42,7 @@
     "async-retry": "1.3.3",
     "debug": "^4.4.1",
     "ws": "^8.21.0",
-    "zod": "^4.1.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/async-retry": "1.4.9",

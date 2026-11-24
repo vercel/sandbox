@@ -54,6 +54,16 @@ export const args = {
     description:
       "Do not extend the sandbox timeout while running an interactive command. Only affects interactive executions.",
   }),
+  detached: cmd.flag({
+    long: "detach",
+    description:
+      "Start the command and print its ID without waiting for it to finish.",
+  }),
+  stdin: cmd.flag({
+    long: "stdin",
+    description:
+      "Forward local stdin, or keep detached stdin open for later writes.",
+  }),
   tty: cmd.flag({
     long: "tty",
     short: "t",
@@ -93,10 +103,18 @@ export const exec = cmd.command({
     sandbox: sandboxName,
     scope: { token, team, project },
     interactive,
+    detached,
+    stdin,
     envVars,
     skipExtendingTimeout,
     timeout,
   }) {
+    if (interactive && stdin) {
+      throw new Error("--stdin cannot be combined with --interactive.");
+    }
+    if (interactive && detached) {
+      throw new Error("--detach cannot be combined with --interactive.");
+    }
     if (interactive && timeout) {
       throw new Error(
         [
@@ -121,12 +139,27 @@ export const exec = cmd.command({
           });
 
     if (!interactive) {
+      if (detached) {
+        const started = await sandbox.runCommand({
+          cmd: command,
+          args,
+          sudo: asSudo,
+          cwd,
+          env: envVars,
+          timeoutMs: timeout ? ms(timeout) : undefined,
+          detached: true,
+          stdin: stdin ? true : undefined,
+        });
+        process.stdout.write(`${started.cmdId}\n`);
+        return;
+      }
       console.error(printCommand(command, args));
       const result = await sandbox.runCommand({
         cmd: command,
         args,
         stderr: process.stderr,
         stdout: process.stdout,
+        stdin: stdin ? process.stdin : undefined,
         sudo: asSudo,
         cwd,
         env: envVars,

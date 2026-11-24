@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { NetworkPolicy } from "../network-policy.js";
-import { fromAPINetworkPolicy, toAPINetworkPolicy } from "./network-policy.js";
+import {
+  fromAPINetworkPolicy,
+  NetworkPolicyParseError,
+  parseNetworkPolicy,
+  toAPINetworkPolicy,
+} from "./network-policy.js";
 
 describe("toAPINetworkPolicy", () => {
   it("converts allow-all", () => {
@@ -295,7 +300,9 @@ describe("toAPINetworkPolicy", () => {
 
   it("rejects a response body without a contentType", () => {
     const networkPolicy = {
-      allow: { "api.example.com": [{ response: { statusCode: 403, body: "nope" } }] },
+      allow: {
+        "api.example.com": [{ response: { statusCode: 403, body: "nope" } }],
+      },
     } as unknown as NetworkPolicy;
 
     expect(() => toAPINetworkPolicy(networkPolicy)).toThrow(
@@ -307,7 +314,13 @@ describe("toAPINetworkPolicy", () => {
     const networkPolicy = {
       allow: {
         "api.example.com": [
-          { response: { statusCode: 204, body: "nope", contentType: "text/plain" } },
+          {
+            response: {
+              statusCode: 204,
+              body: "nope",
+              contentType: "text/plain",
+            },
+          },
         ],
       },
     } as unknown as NetworkPolicy;
@@ -511,7 +524,9 @@ describe("fromAPINetworkPolicy", () => {
             match: {
               method: ["POST"],
               path: { startsWith: "/v1/" },
-              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+              headers: [
+                { key: { exact: "x-route" }, value: { exact: "proxy" } },
+              ],
             },
             forwardURL: "https://proxy.example.com",
           },
@@ -528,7 +543,9 @@ describe("fromAPINetworkPolicy", () => {
             match: {
               method: ["POST"],
               path: { startsWith: "/v1/" },
-              headers: [{ key: { exact: "x-route" }, value: { exact: "proxy" } }],
+              headers: [
+                { key: { exact: "x-route" }, value: { exact: "proxy" } },
+              ],
             },
             forwardURL: "https://proxy.example.com",
           },
@@ -580,5 +597,90 @@ describe("fromAPINetworkPolicy", () => {
         ],
       },
     });
+  });
+});
+
+describe("parseNetworkPolicy", () => {
+  const SECRET = "Bearer ZZSECRETZZ";
+
+  function issues(input: unknown): readonly string[] {
+    try {
+      parseNetworkPolicy(input);
+    } catch (error) {
+      expect(error).toBeInstanceOf(NetworkPolicyParseError);
+      expect((error as Error).message).not.toContain("ZZSECRETZZ");
+      return (error as NetworkPolicyParseError).issues;
+    }
+    throw new Error("expected parseNetworkPolicy to throw");
+  }
+
+  it("returns modes and policies unchanged", () => {
+    const policy: NetworkPolicy = {
+      allow: {
+        "registry.npmjs.org": [
+          {
+            match: { method: ["GET", "HEAD"] },
+            transform: [{ headers: { authorization: SECRET } }],
+          },
+        ],
+        "*": [],
+      },
+      subnets: { deny: ["10.0.0.0/8"] },
+    };
+
+    expect(parseNetworkPolicy("allow-all")).toBe("allow-all");
+    expect(parseNetworkPolicy("deny-all")).toBe("deny-all");
+    expect(parseNetworkPolicy({ allow: ["a.com"] })).toEqual({
+      allow: ["a.com"],
+    });
+    expect(parseNetworkPolicy(structuredClone(policy))).toEqual(policy);
+  });
+
+  it("reports a bad rule at its path instead of at the allow union", () => {
+    expect(
+      issues({
+        allow: {
+          "registry.npmjs.org": [
+            {
+              match: { method: "GET" },
+              transform: [{ headers: { a: SECRET } }],
+            },
+          ],
+        },
+      }),
+    ).toEqual([
+      'allow["registry.npmjs.org"][0].match.method: Invalid input: expected array, received string',
+    ]);
+  });
+
+  it("rejects unknown keys, which would otherwise widen a rule", () => {
+    expect(
+      issues({
+        allow: {
+          "a.com": [
+            {
+              match: { methods: ["GET"] },
+              transform: [{ headers: { a: SECRET } }],
+            },
+          ],
+        },
+        subnet: { deny: [] },
+      }),
+    ).toEqual([
+      'allow["a.com"][0].match.methods: unknown key',
+      "subnet: unknown key",
+    ]);
+  });
+
+  it("reports refinements and wrong top-level types without values", () => {
+    expect(issues({ allow: { "a.com": [{}] } })).toEqual([
+      'allow["a.com"][0]: transform, forwardURL, or response must be provided',
+    ]);
+    expect(issues(SECRET)).toEqual([
+      "policy: Invalid input: expected object, received string",
+    ]);
+    expect(issues({ allow: 5 })).toEqual([
+      "allow: Invalid input: expected array or record",
+    ]);
   });
 });

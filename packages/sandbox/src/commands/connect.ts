@@ -6,12 +6,24 @@ import { defaultShell } from "../interactive-shell/default-shell";
 
 export const connect = cmd.command({
   ...commandMetadata.connect,
-  args: omit(execArgs, "command", "args", "interactive", "tty"),
+  args: omit(
+    execArgs,
+    "command",
+    "args",
+    "interactive",
+    "tty",
+    "detached",
+    "stdin",
+    "timeout",
+  ),
   async handler(args) {
     return exec.handler({
       ...defaultShell,
       interactive: true,
+      detached: false,
+      stdin: false,
       tty: true,
+      timeout: undefined,
       ...args,
     });
   },

@@ -1,11 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { defaultShell } from "./default-shell";
 
 const prompt = "__SANDBOX_PROMPT__ ";
+
+// Prints the shell name, the prompt, and "interactive" for an interactive shell.
+const describeShell =
+  'printf "%s\\n" "${0##*/}" "$PS1"\ncase $- in *i*) printf "interactive\\n";; esac\nexit\n';
 
 describe.skipIf(process.platform === "win32")(
   "default interactive shell",
@@ -48,10 +52,47 @@ describe.skipIf(process.platform === "win32")(
       "starts interactive $expectedShell with SHELL=$shell and preserves the prompt",
       async ({ hasBash, shell, expectedShell }) => {
         if (hasBash) await symlink("/bin/bash", join(directory, "bash"));
-        const result = runShell(
-          'printf "%s\\n" "${0##*/}" "$PS1"\ncase $- in *i*) printf "interactive\\n";; esac\nexit\n',
-          shell,
+        const result = runShell(describeShell, shell);
+        expect(result.status, result.stderr).toBe(0);
+        expect(result.stdout).toBe(
+          `${expectedShell}\n${prompt}\ninteractive\n`,
         );
+      },
+    );
+
+    // Stub `id` and `getent` on PATH so that the passwd database gives
+    // `loginShell` for the current user.
+    async function setLoginShell(loginShell: string) {
+      await writeFile(
+        join(directory, "id"),
+        '#!/bin/sh\n[ "$1" = -u ] && echo 1000\n',
+        { mode: 0o755 },
+      );
+      await writeFile(
+        join(directory, "getent"),
+        `#!/bin/sh\n[ "$1 $2" = "passwd 1000" ] && echo "user:x:1000:1000::/home/user:${loginShell}"\n`,
+        { mode: 0o755 },
+      );
+    }
+
+    test.each([
+      { login: "bin/bash", shell: "", expectedShell: "bash" },
+      { login: "bin/bash", shell: "sh", expectedShell: "sh" },
+      { login: "bin/nologin", shell: "", expectedShell: "sh" },
+      { login: "bin/zsh", shell: "", expectedShell: "sh" },
+    ])(
+      "starts interactive $expectedShell with login shell $login and SHELL=$shell",
+      async ({ login, shell, expectedShell }) => {
+        // The login shells are not on PATH, so only passwd can select them.
+        await mkdir(join(directory, "bin"));
+        await symlink("/bin/bash", join(directory, "bin", "bash"));
+        await writeFile(
+          join(directory, "bin", "nologin"),
+          "#!/bin/sh\nexit 1\n",
+          { mode: 0o755 },
+        );
+        await setLoginShell(join(directory, login));
+        const result = runShell(describeShell, shell);
         expect(result.status, result.stderr).toBe(0);
         expect(result.stdout).toBe(
           `${expectedShell}\n${prompt}\ninteractive\n`,

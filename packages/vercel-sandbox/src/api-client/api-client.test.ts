@@ -1118,6 +1118,34 @@ describe("APIClient", () => {
       expect(url).toContain("projectId=proj_123");
     });
 
+    it.each(["timeout", "a-reason-added-later"])(
+      "parses the expiry notification lead time and a %s stop reason",
+      async (stopReason) => {
+        const body = {
+          sandbox: {
+            ...makeSandboxMetadata(),
+            status: "stopped" as const,
+            expiryNotificationLeadTime: 300000,
+          },
+          session: { ...makeSession(), status: "stopped", stopReason },
+          routes: [],
+        };
+        mockFetch.mockResolvedValue(
+          new Response(JSON.stringify(body), {
+            headers: { "content-type": "application/json" },
+          }),
+        );
+
+        const result = await client.getSandbox({
+          name: "my-sandbox",
+          projectId: "proj_123",
+        });
+
+        expect(result.json.sandbox.expiryNotificationLeadTime).toBe(300000);
+        expect(result.json.session.stopReason).toBe(stopReason);
+      },
+    );
+
     it("passes resume query param when provided", async () => {
       const body = {
         sandbox: makeSandboxMetadata(),
@@ -1161,42 +1189,6 @@ describe("APIClient", () => {
       });
 
       expect(result.json.sandbox.image).toBe("my-repo@sha256:2c4e8f9a1b3d5e7f");
-    });
-  });
-
-  describe("listDrives", () => {
-    it("passes the supported query parameters", async () => {
-      const mockFetch = vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            drives: [],
-            pagination: { count: 0, next: null },
-          }),
-          { headers: { "content-type": "application/json" } },
-        ),
-      );
-      const client = new APIClient({
-        teamId: "team_123",
-        token: "1234",
-        fetch: mockFetch,
-      });
-
-      await client.listDrives({
-        projectId: "proj_123",
-        limit: 5,
-        cursor: "opaque-cursor",
-        sortBy: "name",
-        sortOrder: "asc",
-        namePrefix: "test-",
-      });
-
-      const [url] = mockFetch.mock.calls[0];
-      expect(url).toContain("projectId=proj_123");
-      expect(url).toContain("limit=5");
-      expect(url).toContain("cursor=opaque-cursor");
-      expect(url).toContain("sortBy=name");
-      expect(url).toContain("sortOrder=asc");
-      expect(url).toContain("namePrefix=test-");
     });
   });
 
@@ -1922,6 +1914,18 @@ describe("APIClient", () => {
       });
     });
 
+    it("forwards expiryNotificationLeadTime in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        expiryNotificationLeadTime: 300000,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).expiryNotificationLeadTime).toBe(300000);
+    });
+
     it("forwards keepLastSnapshots in the request body", async () => {
       mockFetch.mockResolvedValue(sandboxResponse());
 
@@ -1972,6 +1976,18 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       expect(JSON.parse(opts.body)).not.toHaveProperty("networkId");
+    });
+
+    it("forwards credentials in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.createSandbox({
+        projectId: "proj_123",
+        credentials: { npm: true },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).credentials).toEqual({ npm: true });
     });
 
     it("forwards region and failoverRegions in the request body", async () => {
@@ -2095,6 +2111,19 @@ describe("APIClient", () => {
 
       const [, opts] = mockFetch.mock.calls[0];
       expect(JSON.parse(opts.body).networkId).toBe("network_123");
+    });
+
+    it("forwards expiryNotificationLeadTime in the request body", async () => {
+      mockFetch.mockResolvedValue(sandboxResponse());
+
+      await client.forkSandbox({
+        projectId: "proj_123",
+        sourceSandbox: "my-sandbox",
+        expiryNotificationLeadTime: 300000,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body).expiryNotificationLeadTime).toBe(300000);
     });
   });
 

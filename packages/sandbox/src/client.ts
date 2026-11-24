@@ -46,15 +46,20 @@ export const snapshotClient: Pick<
   "get" | "list" | "tree"
 > = {
   list: (params) =>
-    withErrorHandling(() =>
-      Snapshot.list({ ...requestOptions(params), ...params }),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Snapshot.list({ ...requestOptions(params), ...params });
+    }),
   get: (params) =>
-    withErrorHandling(() =>
-      Snapshot.get({ ...authOptions(params), ...params }),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Snapshot.get({ ...authOptions(params), ...params });
+    }),
   tree: (params) =>
-    withErrorHandling(() => Snapshot.tree({ ...requestOptions(params), ...params })),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Snapshot.tree({ ...requestOptions(params), ...params });
+    }),
 };
 
 export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
@@ -62,15 +67,20 @@ export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
   delete(drive: Drive): Promise<void>;
 } = {
   get: (params) =>
-    withErrorHandling(() => Drive.get({ ...requestOptions(params), ...params })),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Drive.get({ fetch: fetchWithUserAgent, ...params });
+    }),
   getOrCreate: (params) =>
-    withErrorHandling(() =>
-      Drive.getOrCreate({ ...requestOptions(params), ...params }),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params });
+    }),
   list: (params) =>
-    withErrorHandling(() =>
-      Drive.list({ ...requestOptions(params), ...params } as typeof params),
-    ),
+    withErrorHandling(() => {
+      updateScope(params);
+      return Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+    }),
   delete: (drive) => withErrorHandling(() => drive.delete()),
   fork: (drive, params) => withErrorHandling(() => drive.fork(params)),
 };
@@ -86,6 +96,9 @@ function scopeField(params: unknown, field: string): string | undefined {
 function updateScope(params: unknown): void {
   telemetry.updateTeamId(scopeField(params, "teamId"));
   telemetry.updateProjectId(scopeField(params, "projectId"));
+  const token = scopeField(params, "token");
+  telemetry.resolveScopeIds(token);
+  telemetry.resolveUserId(token);
 }
 
 /** Authenticate with `createApp`'s `getAuthHeaders` when there's no token. */

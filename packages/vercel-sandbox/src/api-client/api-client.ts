@@ -24,8 +24,6 @@ import {
   SandboxAndSessionResponse,
   SandboxesPaginationResponse,
   UpdateSandboxResponse,
-  DrivesResponse,
-  DriveResponse,
   type CommandData,
 } from "./validators.js";
 import { APIError, StreamError } from "./api-error.js";
@@ -44,6 +42,7 @@ import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
 import type { RUNTIMES, SandboxRegion } from "../constants.js";
+import type { SandboxCredentials } from "../sandbox.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
 import { setTimeout as delay } from "node:timers/promises";
@@ -113,6 +112,18 @@ async function readStdinTimeout(response: Response) {
 interface Claims {
   owner_id: string;
   project_id?: string;
+  /** Expiry as a Unix timestamp in seconds, when present. */
+  exp?: number;
+}
+
+/**
+ * Refresh an OIDC token once it is within this window of expiring. Until then
+ * the token we hold is reused without consulting `@vercel/oidc` again.
+ */
+const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
+function expiresAtMs(claims: Claims): number | undefined {
+  return claims.exp !== undefined ? claims.exp * 1000 : undefined;
 }
 
 function decodeUnverifiedToken(token: string): Claims | null {
@@ -124,7 +135,11 @@ function decodeUnverifiedToken(token: string): Claims | null {
       Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
     );
     if (payload.owner_id) {
-      return { owner_id: payload.owner_id, project_id: payload.project_id };
+      return {
+        owner_id: payload.owner_id,
+        project_id: payload.project_id,
+        exp: typeof payload.exp === "number" ? payload.exp : undefined,
+      };
     }
     return null;
   } catch {
@@ -145,6 +160,10 @@ export class APIClient extends BaseClient {
   private teamId: string;
   private projectId: string | undefined;
   private isJwtToken: boolean;
+  /** When the current JWT expires, in epoch ms; unknown if undefined. */
+  private tokenExpiresAt: number | undefined;
+  /** In-flight refresh, shared by concurrent requests. */
+  private tokenRefresh: Promise<void> | undefined;
 
   constructor(params: {
     baseUrl?: string;
@@ -154,7 +173,8 @@ export class APIClient extends BaseClient {
     getAuthHeaders?: AuthHeadersProvider;
   }) {
     super({
-      baseUrl: params.baseUrl ?? "https://vercel.com/api",
+      // Call the API host directly: `vercel.com/api` adds an extra edge hop.
+      baseUrl: params.baseUrl ?? "https://api.vercel.com",
       token: params.token,
       debug: false,
       fetch: params.fetch,
@@ -173,18 +193,41 @@ export class APIClient extends BaseClient {
       this.isJwtToken = true;
       this.projectId = claims.project_id;
       this.teamId = claims.owner_id;
+      this.tokenExpiresAt = expiresAtMs(claims);
     }
   }
 
+  /**
+   * Make sure the OIDC token is not about to expire before a request.
+   *
+   * This runs before every request, so it only consults `@vercel/oidc` (which
+   * may read a token file and decode the JWT) once the token we hold is within
+   * {@link TOKEN_REFRESH_BUFFER_MS} of expiring, or when its expiry is unknown.
+   * Concurrent requests share a single refresh.
+   */
   private async ensureValidToken(): Promise<void> {
     if (!this.isJwtToken) {
       return;
     }
 
+    if (
+      this.tokenExpiresAt !== undefined &&
+      this.tokenExpiresAt - Date.now() > TOKEN_REFRESH_BUFFER_MS
+    ) {
+      return;
+    }
+
+    this.tokenRefresh ??= this.refreshToken().finally(() => {
+      this.tokenRefresh = undefined;
+    });
+    return this.tokenRefresh;
+  }
+
+  private async refreshToken(): Promise<void> {
     try {
       // Use getVercelOidcToken to refresh the token with team/project scope
       const freshToken = await getVercelOidcToken({
-        expirationBufferMs: 5 * 60 * 1000, // 5 minutes
+        expirationBufferMs: TOKEN_REFRESH_BUFFER_MS,
         team: this.teamId,
         project: this.projectId,
       });
@@ -196,6 +239,7 @@ export class APIClient extends BaseClient {
         const claims = decodeUnverifiedToken(freshToken);
         if (claims) {
           this.teamId = claims.owner_id;
+          this.tokenExpiresAt = expiresAtMs(claims);
         }
       }
     } catch {
@@ -265,6 +309,7 @@ export class APIClient extends BaseClient {
       env?: Record<string, string>;
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -273,6 +318,7 @@ export class APIClient extends BaseClient {
       mounts?: SandboxMetaData["mounts"];
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
+      credentials?: SandboxCredentials;
       signal?: AbortSignal;
     }>,
   ) {
@@ -300,10 +346,12 @@ export class APIClient extends BaseClient {
           env: params.env,
           tags: params.tags,
           snapshotExpiration: params.snapshotExpiration,
+          expiryNotificationLeadTime: params.expiryNotificationLeadTime,
           keepLastSnapshots: params.keepLastSnapshots,
           mounts: params.mounts,
           region: params.region,
           failoverRegions: params.failoverRegions,
+          credentials: params.credentials,
           ...privateParams,
         }),
         signal: params.signal,
@@ -327,6 +375,7 @@ export class APIClient extends BaseClient {
       mounts?: SandboxMetaData["mounts"];
       tags?: Record<string, string>;
       snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -360,6 +409,7 @@ export class APIClient extends BaseClient {
             mounts: params.mounts,
             tags: params.tags,
             snapshotExpiration: params.snapshotExpiration,
+            expiryNotificationLeadTime: params.expiryNotificationLeadTime,
             keepLastSnapshots: params.keepLastSnapshots,
             region: params.region,
             failoverRegions: params.failoverRegions,
@@ -757,94 +807,6 @@ export class APIClient extends BaseClient {
         method: "GET",
         signal: params.signal,
       }),
-    );
-  }
-
-  async listDrives(params: {
-    projectId: string;
-    limit?: number;
-    cursor?: string;
-    sortBy?: "createdAt" | "updatedAt" | "name";
-    sortOrder?: "asc" | "desc";
-    namePrefix?: string;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DrivesResponse,
-      await this.request(`/v2/sandboxes/drives`, {
-        query: {
-          projectId: params.projectId,
-          limit: params.limit,
-          cursor: params.cursor,
-          sortBy: params.sortBy,
-          sortOrder: params.sortOrder,
-          namePrefix: params.namePrefix,
-        },
-        method: "GET",
-        signal: params.signal,
-      }),
-    );
-  }
-
-  async getDrive(params: {
-    projectId: string;
-    name: string;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(
-        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
-        {
-          method: "GET",
-          query: { projectId: params.projectId },
-          signal: params.signal,
-        },
-      ),
-    );
-  }
-
-  async getOrCreateDrive(params: {
-    projectId: string;
-    name: string;
-    region?: string;
-    maxSizeBytes?: number;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(
-        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            projectId: params.projectId,
-            region: params.region,
-            maxSizeBytes: params.maxSizeBytes,
-          }),
-          signal: params.signal,
-        },
-      ),
-    );
-  }
-
-  async forkDrive(params: {
-    projectId: string;
-    name: string;
-    forkName: string;
-    signal?: AbortSignal;
-  }) {
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(
-        `/v2/sandboxes/drives/${encodeURIComponent(params.name)}/fork`,
-        {
-          method: "POST",
-          query: { projectId: params.projectId },
-          body: JSON.stringify({ name: params.forkName }),
-          signal: params.signal,
-        },
-      ),
     );
   }
 
@@ -1267,24 +1229,6 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async deleteDrive(params: {
-    projectId: string;
-    name: string;
-    signal?: AbortSignal;
-  }) {
-    const url = `/v2/sandboxes/drives/${encodeURIComponent(params.name)}`;
-    return parseOrThrow(
-      DriveResponse,
-      await this.request(url, {
-        method: "DELETE",
-        query: {
-          projectId: params.projectId,
-        },
-        signal: params.signal,
-      }),
-    );
-  }
-
   async updateSandbox(params: {
     name: string;
     projectId: string;
@@ -1296,6 +1240,7 @@ export class APIClient extends BaseClient {
     tags?: Record<string, string>;
     ports?: number[];
     snapshotExpiration?: number;
+    expiryNotificationLeadTime?: number;
     keepLastSnapshots?: {
       count: number;
       expiration?: number;
@@ -1325,6 +1270,7 @@ export class APIClient extends BaseClient {
           tags: params.tags,
           ports: params.ports,
           snapshotExpiration: params.snapshotExpiration,
+          expiryNotificationLeadTime: params.expiryNotificationLeadTime,
           keepLastSnapshots: params.keepLastSnapshots,
           currentSnapshotId: params.currentSnapshotId,
           region: params.region,

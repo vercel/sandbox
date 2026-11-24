@@ -1,6 +1,6 @@
 {
   "name": "@vercel/sandbox",
-  "version": "3.9.0",
+  "version": "4.1.0",
   "description": "Software Development Kit for Vercel Sandbox",
   "type": "module",
   "main": "dist/index.cjs",
@@ -52,8 +52,12 @@
     "directory": "packages/vercel-sandbox"
   },
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "dependencies": {
     "@vercel/detect-agent": "1.2.5",
+    "@vercel/drives": "1.0.0",
     "@vercel/oidc": "4.0.0",
     "@workflow/serde": "4.1.0-beta.2",
     "async-retry": "1.3.3",
@@ -63,9 +67,9 @@
     "ms": "2.1.3",
     "picocolors": "^1.1.1",
     "tar-stream": "3.1.7",
-    "undici": "^7.27.1",
+    "undici": "^8.12.4",
     "xdg-app-paths": "5.1.0",
-    "zod": "^4.1.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/async-retry": "1.4.9",

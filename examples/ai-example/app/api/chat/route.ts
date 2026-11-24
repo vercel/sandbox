@@ -21,9 +21,9 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: gateway("anthropic/claude-4-sonnet-20250514"),
+    model: gateway("anthropic/claude-sonnet-5.5"),
     system: SYSTEM_PROMPT,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     onError: (error) => {
       console.error("Error communicating with AI", error);
     },

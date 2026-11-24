@@ -17,7 +17,7 @@ import { DEFAULT_SANDBOX_REGION } from "./constants.js";
 import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
-import type { Drive } from "./drive.js";
+import type { Drive } from "@vercel/drives";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import type {
@@ -152,11 +152,25 @@ export interface BaseCreateSandboxParams {
    */
   persistent?: boolean;
   /**
+   * Vercel managed credentials injected into the sandbox network policy.
+   *
+   * @example
+   * await Sandbox.create({ credentials: { npm: true } });
+   */
+  credentials?: SandboxCredentials;
+  /**
    * Default snapshot expiration in milliseconds.
    * When set, snapshots created for this sandbox will expire after this duration.
    * Use `0` for no expiration.
    */
   snapshotExpiration?: number;
+  /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent, starting with the session
+   * this call starts. Between 1 minute and 1 hour; the API defaults to
+   * 1 minute.
+   */
+  expiryNotificationLeadTime?: number;
   /**
    * Retention policy that keeps only the N most recent snapshots of this
    * sandbox. Older snapshots are evicted when a new one is created.
@@ -182,6 +196,16 @@ export interface BaseCreateSandboxParams {
    * Use this to re-warm caches, restore transient state, or run other setup logic.
    */
   onResume?: (sandbox: Sandbox) => Promise<void>;
+}
+
+/**
+ * Vercel managed credentials injected into the sandbox network policy.
+ */
+export interface SandboxCredentials {
+  /**
+   * Let the sandbox install your team's private npm packages.
+   */
+  npm?: true;
 }
 
 export type SandboxMountMode = "read-write" | "snapshot";
@@ -272,6 +296,13 @@ export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
    * the image copied from the source.
    */
   image?: SandboxImage;
+  /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent, starting with the fork's first
+   * session. Between 1 minute and 1 hour. When omitted, the fork keeps the
+   * source sandbox's lead time.
+   */
+  expiryNotificationLeadTime?: number;
 };
 
 /** @inline */
@@ -642,6 +673,14 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent.
+   */
+  public get expiryNotificationLeadTime(): number | undefined {
+    return this.sandbox.expiryNotificationLeadTime;
+  }
+
+  /**
    * The snapshot retention policy (`keep-last-snapshots`) currently configured
    * on this sandbox, if any.
    */
@@ -811,12 +850,14 @@ export class Sandbox implements ExecutionContext {
       tags: params?.tags,
       mounts: toAPIMounts(params?.mounts),
       snapshotExpiration: params?.snapshotExpiration,
+      expiryNotificationLeadTime: params?.expiryNotificationLeadTime,
       keepLastSnapshots: params?.keepLastSnapshots,
       region: params?.region,
       failoverRegions: params?.failoverRegions,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
+      credentials: params?.credentials,
       ...privateParams,
     });
 
@@ -884,6 +925,7 @@ export class Sandbox implements ExecutionContext {
       mounts: toAPIMounts(params.mounts),
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
+      expiryNotificationLeadTime: params.expiryNotificationLeadTime,
       keepLastSnapshots: params.keepLastSnapshots,
       region: params.region,
       failoverRegions: params.failoverRegions,
@@ -1783,6 +1825,12 @@ export class Sandbox implements ExecutionContext {
       tags?: Record<string, string>;
       ports?: number[];
       snapshotExpiration?: number;
+      /**
+       * How long before a session times out, in milliseconds, the
+       * `sandbox.session.expiring` webhook is sent. Takes effect from the next
+       * session.
+       */
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -1843,6 +1891,7 @@ export class Sandbox implements ExecutionContext {
       tags: params.tags,
       ports: params.ports,
       snapshotExpiration: params.snapshotExpiration,
+      expiryNotificationLeadTime: params.expiryNotificationLeadTime,
       keepLastSnapshots: params.keepLastSnapshots,
       currentSnapshotId: params.currentSnapshotId,
       region: params.region,

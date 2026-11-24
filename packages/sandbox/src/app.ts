@@ -12,10 +12,17 @@ export const commandLoaders: Record<CommandName, () => Promise<CliCommand>> = {
   fork: () => import("./commands/fork").then(({ fork }) => fork),
   config: () => import("./commands/config").then(({ config }) => config),
   copy: () => import("./commands/cp").then(({ cp }) => cp),
+  read: () => import("./commands/read").then(({ read }) => read),
+  write: () => import("./commands/write").then(({ write }) => write),
   exec: () => import("./commands/exec").then(({ exec }) => exec),
   connect: () => import("./commands/connect").then(({ connect }) => connect),
   stop: () => import("./commands/stop").then(({ stop }) => stop),
   extend: () => import("./commands/extend").then(({ extend }) => extend),
+  commands: () =>
+    import("./commands/commands").then(({ commands }) => commands),
+  domain: () => import("./commands/domain").then(({ domain }) => domain),
+  users: () => import("./commands/users").then(({ users }) => users),
+  groups: () => import("./commands/groups").then(({ groups }) => groups),
   remove: () => import("./commands/remove").then(({ remove }) => remove),
   run: () => import("./commands/run").then(({ run }) => run),
   snapshot: () =>
@@ -88,6 +95,10 @@ export const app = async (
       {
         description: "Execute command in an existing sandbox",
         command: `${appName} exec <name> -- npm test`,
+      },
+      {
+        description: "Read and write files in an existing sandbox",
+        command: `${appName} read <name> /vercel/sandbox/package.json`,
       },
     ],
   });

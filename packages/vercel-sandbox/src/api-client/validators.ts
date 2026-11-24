@@ -154,6 +154,7 @@ export const Session = z.object({
   startedAt: z.number().optional(),
   requestedStopAt: z.number().optional(),
   stoppedAt: z.number().optional(),
+  stopReason: z.string().optional(),
   abortedAt: z.number().optional(),
   duration: z.number().optional(),
   sourceSnapshotId: z.string().optional(),
@@ -310,31 +311,6 @@ export const SnapshotResponse = z.object({
   snapshot: Snapshot,
 });
 
-export const Drive = z.object({
-  id: z.string(),
-  parentDriveId: z.string().optional(),
-  rootDriveId: z.string().optional(),
-  name: z.string(),
-  projectId: z.string(),
-  region: z.string(),
-  maxSizeBytes: z.number(),
-  currentSessionId: z.string().optional(),
-  currentSandboxName: z.string().optional(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
-});
-
-export type DriveMetadata = z.infer<typeof Drive>;
-
-export const DrivesResponse = z.object({
-  drives: z.array(Drive),
-  pagination: CursorPagination,
-});
-
-export const DriveResponse = z.object({
-  drive: Drive,
-});
-
 export const Sandbox = z.object({
   name: z.string(),
   persistent: z.boolean(),
@@ -379,6 +355,7 @@ export const Sandbox = z.object({
     )
     .optional(),
   snapshotExpiration: z.number().optional(),
+  expiryNotificationLeadTime: z.number().optional(),
   keepLastSnapshots: z
     .object({
       count: z.number(),

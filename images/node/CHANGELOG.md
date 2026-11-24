@@ -1,5 +1,30 @@
 # sandbox-image-node
 
+## 0.1.4
+
+### Patch Changes
+
+- Pin image inputs in `docker-bake.hcl`: base images by digest, tools by exact version, and Ubuntu packages by an Ubuntu archive snapshot. ([#454](https://github.com/vercel/sandbox/pull/454))
+
+- Refresh the Ubuntu base image digest and snapshot to 20261116T060000Z. Update ([#477](https://github.com/vercel/sandbox/pull/477))
+  pnpm to 11.28.12, Claude Code to 2.1.325, Codex to 0.169.0, and fx to 0.0.17.
+  Include pnpm registry hardening and bundled dependency cleanup (attributed to
+  CVE-2026-84947 by pnpm's release notes), Claude Code response-decoding and
+  permission hardening, Codex project-trust protections, and fx terminal and
+  credential hardening. Keep Python versions unchanged.
+
+- Refresh the Ubuntu snapshot for GNU C Library security fixes. Update uv, GitHub ([#471](https://github.com/vercel/sandbox/pull/471))
+  CLI, Claude Code, Codex, and fx to their latest stable releases in the pinned
+  major lines. Python versions remain unchanged.
+
+## 0.1.3
+
+### Patch Changes
+
+- Add `curl` to the `node` and `python` images so common install scripts and HTTP calls work without installing it first. ([#463](https://github.com/vercel/sandbox/pull/463))
+
+- Update Node.js images to the November 2026 security releases. ([#468](https://github.com/vercel/sandbox/pull/468))
+
 ## 0.1.2
 
 ### Patch Changes

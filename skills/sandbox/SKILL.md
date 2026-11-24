@@ -1,6 +1,6 @@
 ---
 name: sandbox
-description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
+description: Creates isolated Linux MicroVMs using Vercel Sandbox SDK. Use when building code execution environments, running untrusted code, spinning up dev servers, testing in isolation, streaming a sandbox desktop for graphical applications or computer-use agents, or when the user mentions "sandbox", "microvm", "isolated execution", or "@vercel/sandbox".
 metadata:
   author: Vercel Inc.
   version: "2.0"
@@ -178,6 +178,19 @@ const sandbox = await Sandbox.create({
   },
 });
 ```
+
+### With Private npm Packages
+
+Pass `credentials: { npm: true }` when the sandbox runs a coding agent or installs your team's private npm packages. Vercel injects the team's npm credentials into the sandbox network policy, so installs authenticate with no token inside the sandbox.
+
+```typescript
+const sandbox = await Sandbox.create({ credentials: { npm: true } });
+await sandbox.runCommand("npm", ["install"]);
+```
+
+- Covers installs with npm, pnpm, and Bun. Publishing from the sandbox stays unauthenticated.
+- When the team has no npm credentials, creation fails with a 400 error.
+- CLI: `sandbox create --credentials=npm`.
 
 ### From Tarball
 
@@ -627,7 +640,8 @@ const sandbox = await Sandbox.create({
 ```
 
 Implement the proxy handler with `defineSandboxProxy`, using the Web `Request` & `Response` objects — it verifies the
-sandbox OIDC token and extracts metadata about the source sandbox:
+sandbox OIDC token and extracts metadata about the source sandbox. Without `allow`, it accepts only sandboxes of the
+proxy's own project (`VERCEL_PROJECT_ID`):
 
 ```typescript
 // app/api/sandbox-proxy/route.ts
@@ -649,6 +663,19 @@ export {
   handler as DELETE,
 };
 ```
+
+Pass `allow` to decide which sandboxes may use the proxy. It replaces the own-project rule, so include every check you
+need:
+
+```typescript
+defineSandboxProxy(handler, {
+  allow: (sandbox) =>
+    sandbox.projectId === "prj_123" || sandbox.teamId === "team_123",
+});
+```
+
+A proxy outside Vercel has no `VERCEL_PROJECT_ID` and rejects every sandbox until it has an `allow`. Sandbox names are
+unique within a project, not across projects, so a rule on `sandboxName` should also check `projectId`.
 
 ### Updating Network Policy at Runtime
 
@@ -1008,6 +1035,104 @@ await sandbox.runCommand({
 This is fine for one-offs. For reproducible dependencies or a different base
 environment, use a [custom image](#from-a-custom-image-vcr) instead.
 
+## Desktop Streaming (screen-relay)
+
+A sandbox has no screen. [screen-relay](https://github.com/vercel-labs/screen-relay),
+an open-source tool from Vercel Labs, starts a Linux desktop (X11 with XFCE) in
+the sandbox, streams it to a browser viewer, and takes mouse and keyboard input
+from the viewer or from its CLI. Use it to run graphical applications, or to let
+an agent work on a desktop while a person watches. Guide:
+https://vercel.com/docs/sandbox/examples/desktop-streaming
+
+### Start a Desktop
+
+Create the sandbox from screen-relay's public image with port 8080 published,
+then start the desktop:
+
+```bash
+sandbox create --name desktop --timeout 30m -p 8080 \
+  --image vercel-labs/screen-relay/sandbox-desktop:0.1.3
+sandbox exec desktop -- screen-relay up -d --public $(sandbox domain desktop 8080)
+```
+
+```typescript
+const sandbox = await Sandbox.getOrCreate({
+  name: "desktop",
+  image: "vercel-labs/screen-relay/sandbox-desktop:0.1.3",
+  ports: [8080],
+  timeout: 30 * 60 * 1000,
+});
+
+const result = await sandbox.runCommand({
+  cmd: "screen-relay",
+  args: ["up", "-d", "--public", sandbox.domain(8080)],
+});
+if (result.exitCode !== 0) {
+  throw new Error("screen-relay did not start");
+}
+const viewerLink = (await result.stdout()).trim();
+```
+
+- Any team can create sandboxes from this public image. It has screen-relay and
+  the desktop installed, so the desktop starts in a few seconds.
+- The image tag is the screen-relay version it contains. Pin a version, because
+  `latest` is rebuilt from screen-relay's main branch.
+- Publish port 8080 when you create the sandbox. `--public` must be the
+  sandbox's URL for that port.
+- `up -d` prints the viewer link, which ends in a `#token=` fragment. Anyone with
+  the link can view and control the desktop. Give it to the user, and keep it
+  out of logs, repositories, and messages a model can read.
+
+### Control the Desktop
+
+Run screen-relay's commands in the sandbox. Take a screenshot, act, then take
+another screenshot to check the result:
+
+```bash
+sandbox exec desktop -- screen-relay run -- xfce4-terminal
+sandbox exec desktop -- screen-relay screenshot /tmp/screen.png
+sandbox exec desktop -- screen-relay click 0.5 0.5
+sandbox exec desktop -- screen-relay type "echo hello"
+sandbox exec desktop -- screen-relay key Enter
+sandbox copy desktop:/tmp/screen.png ./screen.png
+```
+
+- `sandbox exec desktop -- screen-relay skills get core` prints screen-relay's
+  full control workflow: coordinates, keys, JSON output, and error recovery.
+  Read it before a longer task.
+- Coordinates are fractions from `0` to `1`, measured from the top-left.
+- Start a program with `screen-relay run -- <program>` so it opens on the
+  desktop's display.
+- One controller sends input at a time. The viewer takes control when it opens,
+  so input commands fail with `busy` until the user chooses **Release control**
+  in the viewer. Screenshots keep working. Ask the user to release control
+  instead of retrying in a loop.
+- The image has no package lists. Run
+  `sandbox exec --sudo desktop -- apt-get update` once before `apt-get install`.
+
+### Stop and Start Again
+
+```bash
+sandbox exec desktop -- screen-relay down
+sandbox stop desktop
+```
+
+The sandbox is persistent, so installed applications stay in place. To start
+again, resume it with `sandbox exec desktop -- true`, then run the
+`screen-relay up` command again. It prints a new viewer link.
+
+### Other Images and Limits
+
+- On the default image or your own, install screen-relay first:
+  `npm install -g screen-relay`, then
+  `screen-relay up -d --yes --public <sandbox URL>`. The first start takes a
+  minute or more, because it installs the desktop and builds the streaming
+  engine.
+- screen-relay streams video only, with no audio. The clipboard carries text
+  only.
+- If the desktop does not start, run `screen-relay status` and
+  `screen-relay logs` in the sandbox.
+
 ## CLI Quick Reference
 
 ```bash
@@ -1035,6 +1160,7 @@ sandbox create opencode
 sandbox create pi
 sandbox create claude
 sandbox create codex
+sandbox create fx
 
 # Fork an existing sandbox (inherits config, incl. env; --env replaces it)
 sandbox fork <source>
@@ -1054,13 +1180,57 @@ sandbox run --rm -- npm build                # DELETES the sandbox after running
 
 # Execute command in an existing sandbox
 sandbox exec <name> -- npm install
-sandbox exec <name> --stop -- npm build
+sandbox exec <name> -- npm build
+sandbox stop <name>
 
 # Start an interactive shell
 sandbox connect <name>
 
 # Copy files
-sandbox cp local-file.txt <name>:/vercel/sandbox/
+sandbox cp local-file.txt <name>:/vercel/sandbox/local-file.txt
+sandbox cp -r ./my-app <name>:/vercel/sandbox/app    # Directory: contents of ./my-app land in /app
+sandbox cp -r <name>:/vercel/sandbox/dist ./dist     # And back
+# Recursive copies preserve empty directories, symlinks, and permissions.
+# Windows downloads reject filenames containing backslashes or colons.
+
+# Read and write single files (handy for coding agents)
+sandbox read <name> /vercel/sandbox/package.json     # Raw bytes to stdout
+sandbox write <name> /vercel/sandbox/index.js < ./index.js
+sandbox write --mode 755 <name> /vercel/sandbox/run.sh <<'EOF'
+#!/bin/sh
+npm test
+EOF
+
+# Start a command and retrieve its ID for later inspection
+sandbox exec --detach <name> -- npm run dev
+sandbox commands get <name> <command-id>
+sandbox commands logs <name> <command-id>
+sandbox commands wait <name> <command-id>
+sandbox commands kill <name> <command-id> --signal SIGTERM  # Also SIGKILL, SIGINT, SIGHUP, SIGQUIT
+
+# Pipe local input into a command and stream its output in one invocation
+printf 'hello\n' | sandbox exec --stdin <name> -- cat
+
+# --stdin cannot be combined with --interactive
+
+# Keep stdin open when later processes need to write to a detached command
+# Wait for each write to finish before another process writes to the same command
+command_id=$(sandbox exec --detach --stdin <name> -- cat)
+printf 'hello\n' | sandbox commands write <name> "$command_id"
+sandbox commands close-stdin <name> "$command_id"
+# output waits for exit; use commands logs to stream while running
+# CLI output is text and does not preserve arbitrary binary bytes
+sandbox commands output <name> "$command_id" --stream stdout  # Also accepts stderr or both
+
+# Get the public URL for a published port in the running session
+sandbox domain <name> 3000
+
+# Create a Linux user and shared group, then run a command as that user
+sandbox users create <name> alice
+sandbox groups create <name> devs
+sandbox groups add-user <name> devs alice
+sandbox users exec <name> alice -- id
+sandbox groups remove-user <name> devs alice
 
 # Add time to the current running session without changing future defaults
 sandbox extend <name> <duration>
@@ -1101,6 +1271,12 @@ sandbox config keep-last-snapshots-for <name> <duration|none>
 sandbox config delete-evicted-snapshots <name> <true|false>
 sandbox config current-snapshot <name> <snapshot-id>
 sandbox config network-policy <name> --network-policy deny-all
+sandbox config network-policy <name> --allowed-domain '*' --request-header api.example.com:x-source=ci  # domain:header=value
+API_AUTH="Bearer $API_TOKEN" sandbox config network-policy <name> --allowed-domain '*' --request-header-from-env api.example.com:authorization=API_AUTH  # Secret value read from $API_AUTH
+sandbox config network-policy <name> --network-policy-file policy.json  # Whole policy as SDK NetworkPolicy JSON; use - for stdin
+sandbox config network-policy <name> --network-policy-file - <<EOF  # A heredoc keeps $NPM_TOKEN out of the command line
+{"allow": {"*": [], "registry.npmjs.org": [{"match": {"method": ["GET", "HEAD"]}, "transform": [{"headers": {"authorization": "Bearer $NPM_TOKEN"}}]}]}}
+EOF
 sandbox config tags <name> --tag env=prod
 ```
 
@@ -1112,6 +1288,13 @@ drive. The output includes a reminder that size is fixed at creation.
 Agent shortcuts use the universal image and require an interactive terminal.
 Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
 authentication for the agent separately from `sandbox login`.
+
+For fx, choose a sign-in option on first launch or pass an exported AI Gateway
+API key with `sandbox create fx --env AI_GATEWAY_API_KEY`. The shortcut preserves
+fx's default permissions. fx can update itself inside the sandbox, so its version
+may change between sessions. Its reconnect command uses `fx -c` to continue the
+conversation. If you supplied `--env`, export the same values locally before
+reconnecting; the hint includes names only.
 
 Exiting the agent leaves the sandbox running. Unless you pass `--silent`, the CLI
 prints reconnect and stop commands. Follow any environment-variable reminder

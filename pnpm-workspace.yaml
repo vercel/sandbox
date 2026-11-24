@@ -9,4 +9,5 @@ catalog:
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
+  - "@vercel/drives"
   - undici

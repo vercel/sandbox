@@ -120,7 +120,7 @@ describe("APIClient with getAuthHeaders", () => {
 
     expect(fetch).toHaveBeenCalledTimes(2);
     const proofs = fetch.mock.calls.map((call) => headersOf(call).get("dpop"));
-    expect(proofs[0]).toMatch(/^proof-1 GET https:\/\/vercel\.com\/api\//);
+    expect(proofs[0]).toMatch(/^proof-1 GET https:\/\/api\.vercel\.com\//);
     expect(proofs[1]).toMatch(/^proof-2 GET /);
     for (const call of fetch.mock.calls) {
       expect(headersOf(call).get("authorization")).toBe("DPoP vca_token");

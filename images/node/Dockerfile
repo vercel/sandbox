@@ -3,13 +3,16 @@ USER root
 ENV HOME=/root
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl libarchive-tools && \
+ARG UBUNTU_SNAPSHOT
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl libarchive-tools && \
     rm -rf /var/lib/apt/lists/*
 
 ARG NODE_VERSION
-RUN mkdir -p /opt/node && \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in amd64) node_arch=x64 ;; *) node_arch="${TARGETARCH}" ;; esac && \
+    mkdir -p /opt/node && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
       | bsdtar -xJ --strip-components=1 -C /opt/node && \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md
 
@@ -17,14 +20,16 @@ FROM base
 USER root
 ENV HOME=/root
 
+ARG UBUNTU_SNAPSHOT
 # Node.js requires libatomic.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git libatomic1 && \
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 curl git libatomic1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=fetch /opt/node /usr/local
 
-RUN npm install -g pnpm@11 && \
+ARG PNPM_VERSION
+RUN npm install -g "pnpm@${PNPM_VERSION}" && \
     npm cache clean --force
 
 RUN chown -R ubuntu:ubuntu /vercel
@@ -40,7 +45,8 @@ RUN mkdir -p ~/.global/npm ~/.global/pnpm && \
 
 ENV PATH="/vercel/.global/pnpm/bin:/vercel/.global/npm/bin:${PATH}"
 
-RUN git --version && \
+RUN curl --version && \
+    git --version && \
     node --version && \
     npm --version && \
     pnpm --version

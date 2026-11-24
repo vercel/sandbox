@@ -1,4 +1,5 @@
-FROM archlinux:latest
+ARG ARCH_IMAGE
+FROM ${ARCH_IMAGE}
 
 # pacman's download sandbox does not work in containerized environments
 RUN sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
@@ -23,8 +24,10 @@ USER arch
 WORKDIR /vercel
 
 # yay (AUR helper)
+ARG YAY_BIN_COMMIT
 RUN git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && \
   cd /tmp/yay-bin && \
+  git checkout "${YAY_BIN_COMMIT}" && \
   makepkg -si --noconfirm && \
   rm -rf /tmp/yay-bin && \
   sudo rm -rf /var/cache/pacman/pkg/* && \

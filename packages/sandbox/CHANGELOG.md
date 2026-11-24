@@ -1,5 +1,62 @@
 # sandbox
 
+## 4.13.0
+
+### Minor Changes
+
+- Deprecate `sandbox drives` in favor of `vercel drives` ([#497](https://github.com/vercel/sandbox/pull/497))
+
+### Patch Changes
+
+- Updated dependencies [[`52fcb6b3436ca3adf932eb1c515d62913c112978`](https://github.com/vercel/sandbox/commit/52fcb6b3436ca3adf932eb1c515d62913c112978)]:
+  - @vercel/sandbox@4.1.0
+
+## 4.12.0
+
+### Minor Changes
+
+- Add detached command execution and CLI commands to inspect logs, wait for completion, and stop a running command. ([#391](https://github.com/vercel/sandbox/pull/391))
+
+- Add `sandbox read <name> <path>` (alias `cat`) and `sandbox write <name> <path>` to read a sandbox file to stdout and write stdin to a sandbox file, and `sandbox copy --recursive` to copy whole directories in either direction. Failed copies now exit with a non-zero code. ([#380](https://github.com/vercel/sandbox/pull/380))
+
+- Add `sandbox exec --stdin` to pipe local input into a foreground command. Also add detached stdin writes, selected command output, domain lookup, and Linux users and groups. ([#392](https://github.com/vercel/sandbox/pull/392))
+
+- Add `sandbox create fx` to open fx in the universal image with its default permissions. Print commands to continue the conversation with `fx -c` or stop the sandbox after exiting. ([#413](https://github.com/vercel/sandbox/pull/413))
+
+- Add `credentials: { npm: true }` to `Sandbox.create` and `--credentials=npm` to `create`, `run`, and `sh`, so a sandbox can install your team's private npm packages with Vercel managed credentials injected into the sandbox network policy. `--credentials` takes a comma-separated list, so later credential types share the same flag. ([#453](https://github.com/vercel/sandbox/pull/453))
+
+- Add `--network-policy-file <FILE>` (use `-` for stdin) to `create`, `run`, `sh`, `fork`, and `config network-policy`. It takes the whole network policy as JSON in the SDK's `NetworkPolicy` shape, so the CLI can express any rule the SDK can, such as a request header limited to `GET` and `HEAD`. The SDK exports `parseNetworkPolicy`, which validates untrusted input with the same rules as `Sandbox.create`, rejects unknown keys, and never includes values in its errors. `@vercel/sandbox-mock` re-exports both. ([#417](https://github.com/vercel/sandbox/pull/417))
+
+### Patch Changes
+
+- Use the login shell of the user for interactive sessions when `SHELL` is not set. Before, images without `SHELL` started `sh`, and on Debian-based images `sh` has no line editing. ([#438](https://github.com/vercel/sandbox/pull/438))
+
+- Telemetry now records real team and project ids when `--scope` or `--project` is given as a slug, keeps the slugs out of the id fields, and records the caller's user id. ([#441](https://github.com/vercel/sandbox/pull/441))
+
+- Update `zod` to v4.6.7. ([#450](https://github.com/vercel/sandbox/pull/450))
+
+- Updated dependencies [[`32c74ee8f049ded8e3260d9c3015a500a2fb0f95`](https://github.com/vercel/sandbox/commit/32c74ee8f049ded8e3260d9c3015a500a2fb0f95), [`0ab5f9d177f5e5ec107e0373f9ae234bb8ecb23b`](https://github.com/vercel/sandbox/commit/0ab5f9d177f5e5ec107e0373f9ae234bb8ecb23b), [`201070d07f19faa89acb9a82015331a3b38db57a`](https://github.com/vercel/sandbox/commit/201070d07f19faa89acb9a82015331a3b38db57a), [`5ebd5ed396f6f61f1e99cc560db2751d174672f4`](https://github.com/vercel/sandbox/commit/5ebd5ed396f6f61f1e99cc560db2751d174672f4), [`3b6e77aba56553da9677cbefcaaf340f3bb6ebe9`](https://github.com/vercel/sandbox/commit/3b6e77aba56553da9677cbefcaaf340f3bb6ebe9), [`584633045bdeda5ea013e8af8e0be3bb935e1d20`](https://github.com/vercel/sandbox/commit/584633045bdeda5ea013e8af8e0be3bb935e1d20)]:
+  - @vercel/sandbox@4.0.0
+
+## 4.11.1
+
+### Patch Changes
+
+- Fix `createApp()` for CLIs that embed the Sandbox CLI, such as `vercel sandbox`. Since 4.10.0, loading a command also started the standalone CLI, which parsed the host's `process.argv`, failed with `Not a valid subcommand name`, and exited the host process with code 1. ([#411](https://github.com/vercel/sandbox/pull/411))
+
+## 4.11.0
+
+### Minor Changes
+
+- Add `--request-header domain:header=value` and `--request-header-from-env domain:header=ENV_VAR` so the CLI can set an outbound request header in a network policy. Use `--request-header-from-env` to keep a secret out of the command line. ([#410](https://github.com/vercel/sandbox/pull/410))
+
+### Patch Changes
+
+- Update README intro to reflect persistent-by-default sandboxes. ([#408](https://github.com/vercel/sandbox/pull/408))
+
+- Updated dependencies [[`0fd6b326b429167f662b91fd423cdb76a1c0ca76`](https://github.com/vercel/sandbox/commit/0fd6b326b429167f662b91fd423cdb76a1c0ca76)]:
+  - @vercel/sandbox@3.9.1
+
 ## 4.10.0
 
 ### Minor Changes
