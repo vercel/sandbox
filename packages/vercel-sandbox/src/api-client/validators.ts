@@ -57,12 +57,19 @@ export const NetworkPolicyDirectResponseValidator = z
     body: z.string().optional(),
     contentType: z.string().optional(),
   })
-  .refine(({ body, contentType }) => body === undefined || contentType !== undefined, {
-    message: "contentType must be provided when body is set",
-  })
-  .refine(({ statusCode, body }) => body === undefined || !BODYLESS_STATUS_CODES.has(statusCode), {
-    message: "body is not allowed on status codes 204, 205, and 304",
-  })
+  .refine(
+    ({ body, contentType }) => body === undefined || contentType !== undefined,
+    {
+      message: "contentType must be provided when body is set",
+    },
+  )
+  .refine(
+    ({ statusCode, body }) =>
+      body === undefined || !BODYLESS_STATUS_CODES.has(statusCode),
+    {
+      message: "body is not allowed on status codes 204, 205, and 304",
+    },
+  )
   .refine(
     ({ headers }) =>
       Object.keys(headers ?? {}).every(
@@ -70,10 +77,15 @@ export const NetworkPolicyDirectResponseValidator = z
       ),
     { message: "headers cannot set proxy-managed headers" },
   )
-  .refine(({ headers }) => {
-    const names = Object.keys(headers ?? {}).map((name) => name.toLowerCase());
-    return new Set(names).size === names.length;
-  }, { message: "headers cannot contain duplicate names" });
+  .refine(
+    ({ headers }) => {
+      const names = Object.keys(headers ?? {}).map((name) =>
+        name.toLowerCase(),
+      );
+      return new Set(names).size === names.length;
+    },
+    { message: "headers cannot contain duplicate names" },
+  );
 
 export const NetworkPolicyRuleValidator = z
   .object({
@@ -84,12 +96,18 @@ export const NetworkPolicyRuleValidator = z
   })
   .refine(
     ({ transform, forwardURL, response }) =>
-      [transform, forwardURL, response].filter((v) => v !== undefined).length <= 1,
-    { message: "only one of transform, forwardURL, or response can be used per rule" },
+      [transform, forwardURL, response].filter((v) => v !== undefined).length <=
+      1,
+    {
+      message:
+        "only one of transform, forwardURL, or response can be used per rule",
+    },
   )
   .refine(
     ({ transform, forwardURL, response }) =>
-      transform !== undefined || forwardURL !== undefined || response !== undefined,
+      transform !== undefined ||
+      forwardURL !== undefined ||
+      response !== undefined,
     { message: "transform, forwardURL, or response must be provided" },
   );
 
@@ -139,7 +157,6 @@ export const Session = z.object({
   memory: z.number(),
   vcpus: z.number(),
   region: z.string(),
-  runtime: z.string().optional(),
   timeout: z.number(),
   status: z.enum([
     "pending",
@@ -319,7 +336,6 @@ export const Sandbox = z.object({
   networkId: z.string().optional(),
   vcpus: z.number().optional(),
   memory: z.number().optional(),
-  runtime: z.string().optional(),
   image: z.string().optional(),
   timeout: z.number().optional(),
   networkPolicy: NetworkPolicyResponseValidator.optional(),

@@ -297,9 +297,7 @@ const seed = await Sandbox.create({
   region: baseDrive.region,
   mounts: { "/workspace": baseDrive },
 });
-await seed.writeFiles([
-  { path: "/workspace/README.md", content: "starter" },
-]);
+await seed.writeFiles([{ path: "/workspace/README.md", content: "starter" }]);
 await seed.stop();
 
 // The source drive has now been written to and can be forked.
@@ -308,9 +306,7 @@ const worker = await Sandbox.create({
   region: workerDrive.region,
   mounts: { "/workspace": workerDrive },
 });
-await worker.writeFiles([
-  { path: "/workspace/result.txt", content: "worker" },
-]);
+await worker.writeFiles([{ path: "/workspace/result.txt", content: "worker" }]);
 await worker.stop();
 ```
 
@@ -1000,16 +996,16 @@ const result = await sandbox.runCommand({
 
 ## Limitations
 
-| Limitation      | Details                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU) |
-| Max ports       | 15 exposed ports                                                                |
-| Max tags        | 5 key-value tags per sandbox                                                    |
-| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                   |
-| Default timeout | 5 minutes                                                                       |
-| Base system     | Ubuntu 26.04                                                                    |
-| User context    | `ubuntu` user                                                                   |
-| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                              |
+| Limitation      | Details                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Max vCPUs       | 4 vCPUs on Hobby, 8 vCPUs on Pro, 32 vCPUs on Enterprise (2048 MB RAM per vCPU)                                                                                                                                                                                                                                                   |
+| Max ports       | 15 exposed ports                                                                                                                                                                                                                                                                                                                  |
+| Max tags        | 5 key-value tags per sandbox                                                                                                                                                                                                                                                                                                      |
+| Max timeout     | 24 hours (Pro/Enterprise), 45 minutes (Hobby)                                                                                                                                                                                                                                                                                     |
+| Default timeout | 5 minutes                                                                                                                                                                                                                                                                                                                         |
+| Base system     | Ubuntu 26.04                                                                                                                                                                                                                                                                                                                      |
+| User context    | `ubuntu` user                                                                                                                                                                                                                                                                                                                     |
+| Writable paths  | `/vercel/sandbox` and read-write drive mount paths                                                                                                                                                                                                                                                                                |
 | Regions         | One primary region per sandbox, plus optional failover regions. All 19 Vercel regions are supported (`iad1` default, `sfo1`, `cle1`, `cdg1`, `fra1`, `arn1`, `sin1`, `pdx1`, `lhr1`, `icn1`, `bom1`, `cpt1`, `dub1`, `gru1`, `hkg1`, `syd1`, `yul1`, `hnd1`, `kix1`). Snapshots restore only in regions where they are available. |
 
 ## System Packages
@@ -1286,7 +1282,7 @@ case-insensitive; `GB` and `TB` are aliases for the binary units. Omitting
 drive. The output includes a reminder that size is fixed at creation.
 
 Agent shortcuts use the universal image and require an interactive terminal.
-Do not combine them with `--image`, `--runtime`, or `--snapshot`. Configure
+Do not combine them with `--image` or `--snapshot`. Configure
 authentication for the agent separately from `sandbox login`.
 
 For fx, choose a sign-in option on first launch or pass an exported AI Gateway
