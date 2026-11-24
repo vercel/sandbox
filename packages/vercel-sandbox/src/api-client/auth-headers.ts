@@ -39,14 +39,51 @@ export function withAuthHeaders(
   };
 
   return async (input, init) => {
-    const url = input instanceof Request ? input.url : String(input);
-    const response = await send(url, init);
-    if (!isDpopNonceChallenge(response) || isStream(init?.body)) {
+    const request = splitRequest(input, init);
+    const response = await send(request.url, request.init);
+    if (!isDpopNonceChallenge(response) || isStream(request.init?.body)) {
       return response;
     }
     await response.body?.cancel();
-    return send(url, init);
+    return send(request.url, request.init);
   };
+}
+
+/**
+ * `fetch` takes a URL or a `Request`. A `Request` has its own method,
+ * headers, body and signal, and `init` overrides them, as in `fetch`. The
+ * body of a `Request` is a stream, so such a request isn't sent again.
+ */
+function splitRequest(
+  input: Parameters<typeof globalThis.fetch>[0],
+  init?: RequestInit,
+): { url: string; init?: RequestInit } {
+  if (!isRequest(input)) {
+    return { url: String(input), init };
+  }
+  return {
+    url: input.url,
+    init: {
+      method: input.method,
+      headers: input.headers,
+      body: input.body,
+      signal: input.signal,
+      redirect: input.redirect,
+      // Node.js needs this to send a stream body.
+      ...(input.body ? { duplex: "half" } : {}),
+      ...init,
+    } as RequestInit,
+  };
+}
+
+function isRequest(input: unknown): input is Request {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    "url" in input &&
+    "method" in input &&
+    "headers" in input
+  );
 }
 
 function isDpopNonceChallenge(response: Response): boolean {

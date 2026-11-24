@@ -53,6 +53,55 @@ describe("withAuthHeaders", () => {
     );
   });
 
+  it("keeps the method, headers, body and signal of a Request", async () => {
+    const fetch = vi.fn(
+      async (..._args: Parameters<typeof globalThis.fetch>) =>
+        new Response("{}"),
+    );
+    const getAuthHeaders = dpopProvider();
+    const controller = new AbortController();
+
+    await withAuthHeaders(fetch, getAuthHeaders)(
+      new Request("https://api.vercel.com/v2/sandboxes?teamId=team_1", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: '{"name":"one"}',
+        signal: controller.signal,
+      }),
+    );
+
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("https://api.vercel.com/v2/sandboxes?teamId=team_1");
+    expect(init?.method).toBe("POST");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("authorization")).toBe("DPoP vca_token");
+    expect(headers.get("dpop")).toBe(
+      "proof-1 POST https://api.vercel.com/v2/sandboxes?teamId=team_1",
+    );
+    expect(await new Response(init?.body).text()).toBe('{"name":"one"}');
+    controller.abort();
+    expect(init?.signal?.aborted).toBe(true);
+  });
+
+  it("lets init override a Request, as fetch does", async () => {
+    const fetch = vi.fn(
+      async (..._args: Parameters<typeof globalThis.fetch>) =>
+        new Response("{}"),
+    );
+    const getAuthHeaders = dpopProvider();
+
+    await withAuthHeaders(fetch, getAuthHeaders)(
+      new Request("https://api.vercel.com/v2/sandboxes", { method: "POST" }),
+      { method: "DELETE" },
+    );
+
+    expect(fetch.mock.calls[0][1]?.method).toBe("DELETE");
+    expect(headersOf(fetch.mock.calls[0]).get("dpop")).toBe(
+      "proof-1 DELETE https://api.vercel.com/v2/sandboxes",
+    );
+  });
+
   it("sends a request once more when the server asks for a DPoP nonce", async () => {
     const fetch = vi
       .fn()
