@@ -114,11 +114,6 @@ describe("source getters", () => {
     );
   });
 
-  it("exposes a legacy runtime when present", () => {
-    const sandbox = makeSandbox({ image: undefined, runtime: "node24" });
-    expect(sandbox.runtime).toBe("node24");
-  });
-
   it("reports the regions the API omits as the defaults", () => {
     const sandbox = makeSandbox({
       region: undefined,
@@ -791,22 +786,6 @@ describe("Sandbox.getOrCreate", () => {
       headers: { "content-type": "application/json" },
     });
 
-  it("rejects runtime and image before looking up a named sandbox", async () => {
-    const mockFetch = vi.fn<typeof fetch>();
-
-    await expect(
-      Sandbox.getOrCreate({
-        ...CREDENTIALS,
-        name: "my-sandbox",
-        runtime: "node24",
-        image: "vercel/sandbox/node:24",
-        fetch: mockFetch as unknown as typeof fetch,
-      } as any),
-    ).rejects.toThrow("`runtime` and `image` cannot be used together.");
-
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
   it("propagates non-404 errors from Sandbox.get without attempting create", async () => {
     // 403 is non-retryable (<500 and !=429), so it surfaces immediately.
     const mockFetch = vi.fn<typeof fetch>(async () =>
@@ -1151,41 +1130,6 @@ describe("Sandbox.create environment selection", () => {
     });
 
     expect(sandbox.architecture).toBe("arm64");
-  });
-
-  it("uses the v2 endpoint when runtime is provided", async () => {
-    const mockFetch = vi.fn<typeof fetch>(async () =>
-      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
-    );
-
-    await expect(
-      Sandbox.create({
-        ...CREDENTIALS,
-        runtime: "node24",
-        fetch: mockFetch as unknown as typeof fetch,
-      }),
-    ).rejects.toBeInstanceOf(APIError);
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toContain("/v2/sandboxes");
-    const body = JSON.parse(String(init?.body));
-    expect(body.runtime).toBe("node24");
-  });
-
-  it("rejects runtime and image together before making a request", async () => {
-    const mockFetch = vi.fn<typeof fetch>();
-
-    await expect(
-      Sandbox.create({
-        ...CREDENTIALS,
-        runtime: "node24",
-        image: "vercel/sandbox/node:24",
-        fetch: mockFetch as unknown as typeof fetch,
-      } as any),
-    ).rejects.toThrow("`runtime` and `image` cannot be used together.");
-
-    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 

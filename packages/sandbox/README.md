@@ -38,7 +38,7 @@ sandbox create fx # Create a new sandbox and open fx
 ```
 
 Agent shortcuts require an interactive terminal and use the universal image.
-Omit `--image`, `--runtime`, and `--snapshot`. Authenticate with the agent inside
+Omit `--image` and `--snapshot`. Authenticate with the agent inside
 the sandbox, or pass credentials explicitly with `--env`.
 
 For fx, choose a sign-in option on first launch, or pass an exported AI Gateway

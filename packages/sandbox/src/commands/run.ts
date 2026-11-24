@@ -29,9 +29,6 @@ export const run = cmd.command({
     if (removeAfterUse && stopAfterUse) {
       throw new Error("--rm and --stop are mutually exclusive.");
     }
-    if (rest.runtime !== undefined && rest.image !== undefined) {
-      throw new Error("--runtime and --image cannot be used together.");
-    }
 
     let sandbox: Sandbox;
 

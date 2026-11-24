@@ -139,8 +139,8 @@ export const list = cmd.command({
       },
       VCPUS: { value: (s) => s.vcpus ?? "-" },
       ARCH: { value: (s) => s.architecture ?? "-" },
-      "IMAGE/RUNTIME": {
-        value: (s) => (s.image ? formatImage(s.image) : (s.runtime ?? "-")),
+      IMAGE: {
+        value: (s) => (s.image ? formatImage(s.image) : "-"),
       },
       TIMEOUT: {
         // Prefer the live deadline (`expiresAt`) of the running session. Fall

@@ -2,7 +2,6 @@ import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { isatty } from "node:tty";
 import ms from "ms";
-import { runtime } from "../args/runtime";
 import { architecture } from "../args/architecture";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
@@ -39,7 +38,6 @@ export const args = {
     description:
       "Disable automatic restore of the filesystem between sessions.",
   }),
-  runtime,
   image: cmd.option({
     long: "image",
     description:
@@ -125,7 +123,6 @@ export const create = cmd.command({
       nonPersistent,
       ports,
       scope,
-      runtime,
       image,
       architecture,
       timeout,
@@ -152,13 +149,9 @@ export const create = cmd.command({
     };
     const launcher = agent ? agents[agent] : undefined;
     if (agent) {
-      if (
-        runtime !== undefined ||
-        image !== undefined ||
-        snapshot !== undefined
-      ) {
+      if (image !== undefined || snapshot !== undefined) {
         throw new Error(
-          `sandbox create ${agent} cannot be combined with --runtime, --image, or --snapshot.`,
+          `sandbox create ${agent} cannot be combined with --image or --snapshot.`,
         );
       }
       if (!isatty(0) || !isatty(1)) {
@@ -167,16 +160,8 @@ export const create = cmd.command({
         );
       }
     }
-    if (runtime !== undefined && image !== undefined) {
-      throw new Error("--runtime and --image cannot be used together.");
-    }
-    if (
-      architecture !== undefined &&
-      (runtime !== undefined || snapshot !== undefined)
-    ) {
-      throw new Error(
-        "--architecture cannot be used with --runtime or --snapshot.",
-      );
+    if (architecture !== undefined && snapshot !== undefined) {
+      throw new Error("--architecture cannot be used with --snapshot.");
     }
 
     // Look up the latest published CLI version while the creation request is
@@ -192,12 +177,10 @@ export const create = cmd.command({
     });
 
     const selectedImage = agent ? "vercel/sandbox/universal" : image;
-    const runtimeOptions =
+    const imageOptions =
       selectedImage !== undefined
         ? { image: selectedImage, architecture }
-        : runtime !== undefined
-          ? { runtime }
-          : { architecture };
+        : { architecture };
 
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
@@ -238,7 +221,7 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          ...runtimeOptions,
+          ...imageOptions,
           timeout: ms(timeout),
           resources,
           networkPolicy,

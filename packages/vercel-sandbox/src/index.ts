@@ -45,4 +45,5 @@ export type {
   InvalidRequestProxyHandler,
   ProxyMeta,
   ProxyHandler,
+  SandboxProxyOptions,
 } from "./proxy.js";

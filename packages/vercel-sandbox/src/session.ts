@@ -250,15 +250,6 @@ export class Session implements ExecutionContext {
   }
 
   /**
-   * Legacy runtime identifier, when available.
-   *
-   * @deprecated Use the parent sandbox's image metadata instead.
-   */
-  public get runtime(): string | undefined {
-    return this.session.runtime;
-  }
-
-  /**
    * The working directory of this session.
    */
   public get cwd(): string {

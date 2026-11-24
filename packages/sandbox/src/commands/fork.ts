@@ -132,7 +132,7 @@ export const fork = cmd.command({
     if (sourceSandbox.status === "running") {
       const from = sourceSandbox.currentSnapshotId
         ? "last snapshot"
-        : "runtime image (it has no snapshot yet)";
+        : "base image (it has no snapshot yet)";
       console.error(
         chalk.yellow(
           [

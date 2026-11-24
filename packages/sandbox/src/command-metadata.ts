@@ -25,7 +25,7 @@ export const commandMetadata = {
   fork: {
     name: "fork",
     description:
-      "Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.",
+      "Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its image when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.",
     positionals: ["<source>"],
   },
   config: {
@@ -122,7 +122,8 @@ export const commandMetadata = {
   },
   drives: {
     name: "drives",
-    description: "Manage sandbox drives (deprecated, use the `vercel drives` CLI)",
+    description:
+      "Manage sandbox drives (deprecated, use the `vercel drives` CLI)",
     positionals: [],
   },
   telemetry: {

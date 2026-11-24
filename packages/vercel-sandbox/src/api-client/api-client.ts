@@ -40,11 +40,7 @@ import { NetworkPolicy } from "../network-policy.js";
 import { toAPINetworkPolicy } from "../utils/network-policy.js";
 import { getPrivateParams, WithPrivate } from "../utils/types.js";
 import { detectAgentName } from "../utils/detect-agent.js";
-import type {
-  RUNTIMES,
-  SandboxArchitecture,
-  SandboxRegion,
-} from "../constants.js";
+import type { SandboxArchitecture, SandboxRegion } from "../constants.js";
 import type { SandboxCredentials } from "../sandbox.js";
 import type { SandboxMetaData } from "./validators.js";
 import { withRetry } from "./with-retry.js";
@@ -80,7 +76,11 @@ const stdinMaybeWrittenErrors = new WeakSet<object>();
  * earlier attempt of the same request may have been applied before it failed.
  */
 export function stdinMayHaveBeenWritten(error: unknown) {
-  return typeof error === "object" && error !== null && stdinMaybeWrittenErrors.has(error);
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    stdinMaybeWrittenErrors.has(error)
+  );
 }
 
 async function parseStdinResponse(response: Response, maybeApplied = false) {
@@ -294,7 +294,6 @@ export class APIClient extends BaseClient {
       timeout?: number;
       resources?: { vcpus: number };
       persistent?: boolean;
-      runtime?: RUNTIMES | (string & {});
       image?: string;
       architecture?: SandboxArchitecture;
       networkPolicy?: NetworkPolicy;
@@ -316,11 +315,9 @@ export class APIClient extends BaseClient {
     }>,
   ) {
     const privateParams = getPrivateParams(params);
-    const endpoint =
-      params.runtime === undefined ? "/v3/sandboxes" : "/v2/sandboxes";
     return parseOrThrow(
       SandboxAndSessionResponse,
-      await this.request(endpoint, {
+      await this.request("/v3/sandboxes", {
         method: "POST",
         body: JSON.stringify({
           projectId: params.projectId,
@@ -328,7 +325,6 @@ export class APIClient extends BaseClient {
           source: params.source,
           timeout: params.timeout,
           resources: params.resources,
-          runtime: params.runtime,
           image: params.image,
           architecture: params.architecture,
           name: params.name,
