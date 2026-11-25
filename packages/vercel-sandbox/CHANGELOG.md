@@ -1,5 +1,52 @@
 # @vercel/sandbox
 
+## 5.0.0
+
+### Major Changes
+
+- `defineSandboxProxy` now accepts only sandboxes of the proxy's own project, read from `VERCEL_PROJECT_ID`. Requests from other sandboxes go to the invalid request handler (403 by default). ([#501](https://github.com/vercel/sandbox/pull/501))
+
+  Pass `allow` to decide which sandboxes may use the proxy. It replaces the own-project rule, so include every check you need:
+
+  ```ts
+  defineSandboxProxy(handler, {
+    allow: (sandbox) =>
+      sandbox.projectId === "prj_123" || sandbox.teamId === "team_123",
+  });
+  ```
+
+  A proxy with no `VERCEL_PROJECT_ID`, such as one outside Vercel or in a project with system environment variables disabled, rejects every sandbox until it has an `allow`.
+
+  The second argument is now an options object, so move a custom invalid request handler to `onInvalidRequest`:
+
+  ```ts
+  defineSandboxProxy(handler, {
+    onInvalidRequest: (request, error) =>
+      new Response("Forbidden", { status: 403 }),
+  });
+  ```
+
+  The default invalid request handler now logs why a request was rejected, and the request passed to the handler no longer includes the `x-vercel-oidc-token` header.
+
+- Remove the deprecated `runtime` option from the SDK and the `--runtime` flag from the CLI. Sandboxes are now always created from an image. Sandboxes that set neither `image` nor `source` keep using `vercel/sandbox/universal`. ([#508](https://github.com/vercel/sandbox/pull/508))
+
+  Replace `runtime` with `image`. Choose an `al-` tag to keep Amazon Linux 2023, or choose the Ubuntu image:
+
+  - `node22`: `vercel/sandbox/node:al-22` (Amazon Linux) or `vercel/sandbox/node:22` (Ubuntu).
+  - `node24`: `vercel/sandbox/node:al-24` (Amazon Linux) or `vercel/sandbox/node:24` (Ubuntu).
+  - `node26`: `vercel/sandbox/node:al-26` (Amazon Linux) or `vercel/sandbox/node:26` (Ubuntu).
+  - `python3.13`: `vercel/sandbox/python:al-3.13.1` (Amazon Linux) or `vercel/sandbox/python:3.14` (Ubuntu, upgrades Python to 3.14).
+
+  On the CLI, replace `--runtime <runtime>` with `--image <image>` using the same mapping. `sandbox ls` now shows an `IMAGE` column instead of `IMAGE/RUNTIME`, and `sandbox sessions list` no longer shows a `RUNTIME` column.
+
+  The `al-` tags support `linux/amd64` only. They run as `vercel-sandbox` and use `dnf` for system packages. Ubuntu images run as `ubuntu` and use `apt-get`. See the [images documentation](https://vercel.com/docs/sandbox/concepts/images) for the full catalog and custom images.
+
+### Minor Changes
+
+- Add an optional `getAuthHeaders` option to authenticate API requests with custom headers instead of `Authorization: Bearer <token>`, such as a DPoP proof (RFC 9449). It's called for every request, retries included, with the request's method and URL, and an optional `onResponse` receives each response's headers. A request rejected with `use_dpop_nonce` is sent once more with new headers. `createApp` in `sandbox` accepts it too and uses it when no `--token` or `VERCEL_AUTH_TOKEN` is given. `withAuthHeaders` is exported to apply a provider to a `fetch` function. ([#405](https://github.com/vercel/sandbox/pull/405))
+
+- Add `expiryNotificationLeadTime` to `Sandbox.create`, `Sandbox.fork` and `sandbox.update`, and expose it on `Sandbox`. It sets how long before a session times out, in milliseconds, the `sandbox.session.expiring` webhook is sent. Expose why a session stopped as `Session.stopReason`. ([#499](https://github.com/vercel/sandbox/pull/499))
+
 ## 4.1.0
 
 ### Minor Changes

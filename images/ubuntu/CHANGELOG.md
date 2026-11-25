@@ -1,5 +1,16 @@
 # sandbox-image-ubuntu
 
+## 0.2.0
+
+### Minor Changes
+
+- Publish each image for `linux/arm64` as well as `linux/amd64`, under the same tags. ([#491](https://github.com/vercel/sandbox/pull/491))
+
+### Patch Changes
+
+- Refresh managed image snapshots, base images, Python runtimes, package managers, ([#481](https://github.com/vercel/sandbox/pull/481))
+  and coding agents within their existing release lines, including security fixes.
+
 ## 0.1.1
 
 ### Patch Changes

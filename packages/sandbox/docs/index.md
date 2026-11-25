@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.13.0
+sandbox 5.0.0
 
 ▲ sandbox [options] <command>
 
@@ -12,7 +12,7 @@ Commands:
     ls | list                                  List all sandboxes for the specified account and project.
     create         [agent]                     Create a sandbox in the specified account and project.
     sh                                         Create a sandbox and start an interactive shell
-    fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
+    fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its image when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     cat | read     <name> <path>               Print a file from a sandbox to stdout.
@@ -104,7 +104,6 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
     --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -185,7 +184,6 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
     --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -276,7 +274,6 @@ Create a sandbox and start an interactive shell
 Options:
 
     --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
     --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -340,7 +337,7 @@ fork
 
 ▲ sandbox fork [options]
 
-Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
+Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its image when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
 
 Arguments:
 

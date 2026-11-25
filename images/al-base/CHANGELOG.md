@@ -1,5 +1,14 @@
 # sandbox-image-al-base
 
+## 1.0.2
+
+### Patch Changes
+
+- Update Git to 2.56.1 in the Amazon Linux images and add the Rust toolchain to the Git build stage. ([#503](https://github.com/vercel/sandbox/pull/503))
+
+- Refresh managed image snapshots, base images, Python runtimes, package managers, ([#481](https://github.com/vercel/sandbox/pull/481))
+  and coding agents within their existing release lines, including security fixes.
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,5 +1,31 @@
 # sandbox
 
+## 5.0.0
+
+### Major Changes
+
+- Remove the deprecated `runtime` option from the SDK and the `--runtime` flag from the CLI. Sandboxes are now always created from an image. Sandboxes that set neither `image` nor `source` keep using `vercel/sandbox/universal`. ([#508](https://github.com/vercel/sandbox/pull/508))
+
+  Replace `runtime` with `image`. Choose an `al-` tag to keep Amazon Linux 2023, or choose the Ubuntu image:
+
+  - `node22`: `vercel/sandbox/node:al-22` (Amazon Linux) or `vercel/sandbox/node:22` (Ubuntu).
+  - `node24`: `vercel/sandbox/node:al-24` (Amazon Linux) or `vercel/sandbox/node:24` (Ubuntu).
+  - `node26`: `vercel/sandbox/node:al-26` (Amazon Linux) or `vercel/sandbox/node:26` (Ubuntu).
+  - `python3.13`: `vercel/sandbox/python:al-3.13.1` (Amazon Linux) or `vercel/sandbox/python:3.14` (Ubuntu, upgrades Python to 3.14).
+
+  On the CLI, replace `--runtime <runtime>` with `--image <image>` using the same mapping. `sandbox ls` now shows an `IMAGE` column instead of `IMAGE/RUNTIME`, and `sandbox sessions list` no longer shows a `RUNTIME` column.
+
+  The `al-` tags support `linux/amd64` only. They run as `vercel-sandbox` and use `dnf` for system packages. Ubuntu images run as `ubuntu` and use `apt-get`. See the [images documentation](https://vercel.com/docs/sandbox/concepts/images) for the full catalog and custom images.
+
+### Minor Changes
+
+- Add an optional `getAuthHeaders` option to authenticate API requests with custom headers instead of `Authorization: Bearer <token>`, such as a DPoP proof (RFC 9449). It's called for every request, retries included, with the request's method and URL, and an optional `onResponse` receives each response's headers. A request rejected with `use_dpop_nonce` is sent once more with new headers. `createApp` in `sandbox` accepts it too and uses it when no `--token` or `VERCEL_AUTH_TOKEN` is given. `withAuthHeaders` is exported to apply a provider to a `fetch` function. ([#405](https://github.com/vercel/sandbox/pull/405))
+
+### Patch Changes
+
+- Updated dependencies [[`167463512cf80b578e15d2249ec0c8aabb8242de`](https://github.com/vercel/sandbox/commit/167463512cf80b578e15d2249ec0c8aabb8242de), [`0ae2eb6fc7eb7ccf703243f64f3bcadb87d9cf9f`](https://github.com/vercel/sandbox/commit/0ae2eb6fc7eb7ccf703243f64f3bcadb87d9cf9f), [`77bb22eb1df4397c7a128081f610f3f6bedc2aa7`](https://github.com/vercel/sandbox/commit/77bb22eb1df4397c7a128081f610f3f6bedc2aa7), [`72d0910f9481dc70c3831fc4fe73c8e5f329b3b2`](https://github.com/vercel/sandbox/commit/72d0910f9481dc70c3831fc4fe73c8e5f329b3b2)]:
+  - @vercel/sandbox@5.0.0
+
 ## 4.13.0
 
 ### Minor Changes
