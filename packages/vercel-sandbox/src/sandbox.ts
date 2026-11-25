@@ -1785,7 +1785,7 @@ export class Sandbox implements ExecutionContext {
    * @param opts - Optional abort signal.
    */
   async update(
-    params: {
+    params: WithPrivate<{
       persistent?: boolean;
       resources?: { vcpus?: number };
       timeout?: number;
@@ -1810,7 +1810,7 @@ export class Sandbox implements ExecutionContext {
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
       mounts?: SandboxMounts;
-    },
+    }>,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
     "use step";
@@ -1868,6 +1868,7 @@ export class Sandbox implements ExecutionContext {
       failoverRegions: params.failoverRegions,
       mounts: toAPIMounts(params.mounts),
       signal: opts?.signal,
+      ...getPrivateParams(params),
     });
     this.sandbox = response.json.sandbox;
     if (params.ports !== undefined && response.json.routes) {

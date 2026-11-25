@@ -164,6 +164,27 @@ describe("update expiryNotificationLeadTime", () => {
   });
 });
 
+describe("update private params", () => {
+  it("forwards them to the API", async () => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ __processes: "preserve" });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ __processes: "preserve" }),
+    );
+  });
+});
+
 describe("update networkId", () => {
   it.each([
     ["sets", "network_123"],

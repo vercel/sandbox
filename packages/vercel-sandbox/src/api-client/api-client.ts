@@ -1229,29 +1229,32 @@ export class APIClient extends BaseClient {
     );
   }
 
-  async updateSandbox(params: {
-    name: string;
-    projectId: string;
-    persistent?: boolean;
-    resources?: { vcpus?: number; memory?: number };
-    timeout?: number;
-    networkPolicy?: NetworkPolicy;
-    networkId?: string | null;
-    tags?: Record<string, string>;
-    ports?: number[];
-    snapshotExpiration?: number;
-    expiryNotificationLeadTime?: number;
-    keepLastSnapshots?: {
-      count: number;
-      expiration?: number;
-      deleteEvicted?: boolean;
-    } | null;
-    currentSnapshotId?: string;
-    region?: SandboxRegion;
-    failoverRegions?: SandboxRegion[];
-    mounts?: SandboxMetaData["mounts"];
-    signal?: AbortSignal;
-  }) {
+  async updateSandbox(
+    params: WithPrivate<{
+      name: string;
+      projectId: string;
+      persistent?: boolean;
+      resources?: { vcpus?: number; memory?: number };
+      timeout?: number;
+      networkPolicy?: NetworkPolicy;
+      networkId?: string | null;
+      tags?: Record<string, string>;
+      ports?: number[];
+      snapshotExpiration?: number;
+      expiryNotificationLeadTime?: number;
+      keepLastSnapshots?: {
+        count: number;
+        expiration?: number;
+        deleteEvicted?: boolean;
+      } | null;
+      currentSnapshotId?: string;
+      region?: SandboxRegion;
+      failoverRegions?: SandboxRegion[];
+      mounts?: SandboxMetaData["mounts"];
+      signal?: AbortSignal;
+    }>,
+  ) {
+    const privateParams = getPrivateParams(params);
     return parseOrThrow(
       UpdateSandboxResponse,
       await this.request(`/v2/sandboxes/${encodeURIComponent(params.name)}`, {
@@ -1276,6 +1279,7 @@ export class APIClient extends BaseClient {
           region: params.region,
           failoverRegions: params.failoverRegions,
           mounts: params.mounts,
+          ...privateParams,
         }),
         signal: params.signal,
       }),
