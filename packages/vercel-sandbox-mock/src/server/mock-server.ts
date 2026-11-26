@@ -68,7 +68,7 @@ interface CreateBody {
   resources?: { vcpus?: number };
   runtime?: string;
   image?: string;
-  persistent?: boolean;
+  persistent?: boolean | "processes";
   networkPolicy?: unknown;
   networkId?: string;
   env?: Record<string, string>;
@@ -310,7 +310,8 @@ export class MockServer {
 
     const record: SandboxRecord = {
       name,
-      persistent: body.persistent ?? false,
+      persistent:
+        body.persistent === undefined ? false : body.persistent !== false,
       region,
       failoverRegions: body.failoverRegions,
       vcpus: body.resources?.vcpus ?? 2,
@@ -383,7 +384,10 @@ export class MockServer {
     // Copy the source's config; any body field overrides the copied value.
     const record: SandboxRecord = {
       name,
-      persistent: body.persistent ?? source.persistent,
+      persistent:
+        body.persistent === undefined
+          ? source.persistent
+          : body.persistent !== false,
       region,
       failoverRegions,
       vcpus: body.resources?.vcpus ?? source.vcpus,
@@ -507,7 +511,9 @@ export class MockServer {
     if (body.failoverRegions !== undefined)
       record.failoverRegions = body.failoverRegions;
 
-    if (body.persistent !== undefined) record.persistent = body.persistent;
+    if (body.persistent !== undefined) {
+      record.persistent = body.persistent !== false;
+    }
     if (body.resources?.vcpus !== undefined) {
       record.vcpus = body.resources.vcpus;
       session.vcpus = body.resources.vcpus;

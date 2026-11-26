@@ -150,7 +150,7 @@ export interface BaseCreateSandboxParams {
   /**
    * Enable or disable automatic restore of the filesystem between sessions.
    */
-  persistent?: boolean;
+  persistent?: boolean | "processes";
   /**
    * Vercel managed credentials injected into the sandbox network policy.
    *
@@ -1786,7 +1786,7 @@ export class Sandbox implements ExecutionContext {
    */
   async update(
     params: WithPrivate<{
-      persistent?: boolean;
+      persistent?: boolean | "processes";
       resources?: { vcpus?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;

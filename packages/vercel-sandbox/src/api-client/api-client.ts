@@ -305,7 +305,7 @@ export class APIClient extends BaseClient {
         | { type: "snapshot"; snapshotId: string };
       timeout?: number;
       resources?: { vcpus: number };
-      persistent?: boolean;
+      persistent?: boolean | "processes";
       image?: string;
       networkPolicy?: NetworkPolicy;
       networkId?: string;
@@ -367,7 +367,7 @@ export class APIClient extends BaseClient {
       ports?: number[];
       timeout?: number;
       resources?: { vcpus: number };
-      persistent?: boolean;
+      persistent?: boolean | "processes";
       image?: string;
       networkPolicy?: NetworkPolicy;
       networkId?: string;
@@ -1233,7 +1233,7 @@ export class APIClient extends BaseClient {
     params: WithPrivate<{
       name: string;
       projectId: string;
-      persistent?: boolean;
+      persistent?: boolean | "processes";
       resources?: { vcpus?: number; memory?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
