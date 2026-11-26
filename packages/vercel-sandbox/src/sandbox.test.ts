@@ -198,10 +198,10 @@ describe("update private params", () => {
       projectId: "test-project",
     });
 
-    await sandbox.update({ __processes: "preserve" });
+    await sandbox.update({ __interactive: true });
 
     expect(updateSandboxMock).toHaveBeenCalledWith(
-      expect.objectContaining({ __processes: "preserve" }),
+      expect.objectContaining({ __interactive: true }),
     );
   });
 });

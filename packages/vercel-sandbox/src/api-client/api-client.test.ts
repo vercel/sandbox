@@ -1675,11 +1675,11 @@ describe("APIClient", () => {
       await client.updateSandbox({
         name: "my-sandbox",
         projectId: "proj_123",
-        __processes: "preserve",
+        __interactive: true,
       });
 
       const [, opts] = mockFetch.mock.calls[0];
-      expect(JSON.parse(opts.body)).toHaveProperty("__processes", "preserve");
+      expect(JSON.parse(opts.body)).toHaveProperty("__interactive", true);
     });
 
     it("forwards region and failoverRegions in the request body", async () => {
