@@ -322,9 +322,48 @@ describe("FileSystem", () => {
       await fs.rename("/old.txt", "/new.txt");
       expect(sandbox.runCommand).toHaveBeenCalledWith(
         "mv",
-        ["/old.txt", "/new.txt"],
+        ["-T", "/old.txt", "/new.txt"],
         expect.any(Object),
       );
+    });
+
+    it("throws ENOTEMPTY when the destination is a non-empty directory", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult(
+          "",
+          1,
+          "mv: cannot overwrite '/dest': Directory not empty",
+        ),
+      );
+      await expect(fs.rename("/src", "/dest")).rejects.toMatchObject({
+        code: "ENOTEMPTY",
+      });
+    });
+
+    it("throws ENOTEMPTY when mv reports File exists for a non-empty directory", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult(
+          "",
+          1,
+          "mv: cannot move '/src' to '/dest': File exists",
+        ),
+      );
+      await expect(fs.rename("/src", "/dest")).rejects.toMatchObject({
+        code: "ENOTEMPTY",
+      });
+    });
+
+    it("throws EISDIR when replacing a directory with a file", async () => {
+      sandbox.runCommand.mockResolvedValue(
+        mockCommandResult(
+          "",
+          1,
+          "mv: cannot overwrite directory '/dest' with non-directory",
+        ),
+      );
+      await expect(fs.rename("/file.txt", "/dest")).rejects.toMatchObject({
+        code: "EISDIR",
+      });
     });
   });
 

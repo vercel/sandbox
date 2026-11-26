@@ -105,6 +105,41 @@ describe("tryFsCommand", () => {
     expect((await tryFsCommand(fs, "/", "realpath", ["/nope"]))?.exitCode).toBe(1);
   });
 
+  describe("mv -T", () => {
+    test("replaces an empty directory instead of moving into it", async () => {
+      const fs = await makeFs();
+      await fs.mkdir("/dir/target");
+      const result = await tryFsCommand(fs, "/", "mv", ["-T", "/dir/sub", "/dir/target"]);
+      expect(result?.exitCode).toBe(0);
+      expect(await fs.exists("/dir/sub")).toBe(false);
+      expect(await fs.readdir("/dir/target")).toEqual([]);
+    });
+
+    test("renames and overwrites files", async () => {
+      const fs = await makeFs();
+      await fs.writeFile("/dir/other.txt", "xyz");
+      await tryFsCommand(fs, "/", "mv", ["-T", "/dir/other.txt", "/dir/file.txt"]);
+      expect(await fs.readFile("/dir/file.txt", "utf8")).toBe("xyz");
+      await tryFsCommand(fs, "/", "mv", ["-T", "/dir/file.txt", "/dir/new.txt"]);
+      expect(await fs.readFile("/dir/new.txt", "utf8")).toBe("xyz");
+    });
+
+    test("fails like GNU mv when the destination cannot be replaced", async () => {
+      const fs = await makeFs();
+      await fs.writeFile("/dir/sub/f", "x");
+      await fs.mkdir("/dir/empty");
+      const notEmpty = await tryFsCommand(fs, "/", "mv", ["-T", "/dir/empty", "/dir/sub"]);
+      expect(notEmpty?.stderr).toContain("Directory not empty");
+      const fileOverDir = await tryFsCommand(fs, "/", "mv", ["-T", "/dir/file.txt", "/dir/empty"]);
+      expect(fileOverDir?.stderr).toContain("with non-directory");
+      const dirOverFile = await tryFsCommand(fs, "/", "mv", ["-T", "/dir/empty", "/dir/file.txt"]);
+      expect(dirOverFile?.stderr).toContain("with directory");
+      const missing = await tryFsCommand(fs, "/", "mv", ["-T", "/nope", "/dir/x"]);
+      expect(missing?.stderr).toContain("No such file or directory");
+      expect(await fs.readFile("/dir/sub/f", "utf8")).toBe("x");
+    });
+  });
+
   test("test -e reports existence via exit code", async () => {
     const fs = await makeFs();
     expect((await tryFsCommand(fs, "/", "test", ["-e", "/dir/file.txt"]))?.exitCode).toBe(0);
