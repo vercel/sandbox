@@ -19,15 +19,15 @@ variable "UBUNTU_IMAGE" {
 }
 
 variable "UBUNTU_SNAPSHOT" {
-  default = "20261123T060000Z"
+  default = "20261127T060000Z"
 }
 
 variable "ARCH_IMAGE" {
-  default = "archlinux:base-20261108.0.623074@sha256:d4594bb2300cba11f41c2f27923eb56f63d9988909c402f9c95517d1e362c899"
+  default = "archlinux:base-20261122.0.629543@sha256:375a401bb3c6376b37f40b6dfa25067db37ec78d0b7af67ae6315f43a0184a9d"
 }
 
 variable "AMAZONLINUX_IMAGE" {
-  default = "amazonlinux:2023.12.20261117.0@sha256:9cf762f5099b606bcd851391317af7cd75b11363c4816ebcb5e91292dd5736a7"
+  default = "amazonlinux:2023.12.20261120.0@sha256:edd3297df7d444ab9a7896b763d5305d4bab57d2fb3943e831c1713b97d32d9d"
 }
 
 variable "BUN_IMAGE" {
@@ -83,7 +83,7 @@ variable "WHEEL_VERSION" {
 }
 
 variable "PACKAGING_VERSION" {
-  default = "26.3"
+  default = "26.4"
 }
 
 variable "AL_GIT_VERSION" {
@@ -91,15 +91,15 @@ variable "AL_GIT_VERSION" {
 }
 
 variable "GH_VERSION" {
-  default = "2.105.0"
+  default = "2.106.0"
 }
 
 variable "CLAUDE_CODE_VERSION" {
-  default = "2.1.330"
+  default = "2.1.332"
 }
 
 variable "CODEX_VERSION" {
-  default = "0.171.0"
+  default = "0.172.0"
 }
 
 variable "OPENCODE_VERSION" {
@@ -107,11 +107,11 @@ variable "OPENCODE_VERSION" {
 }
 
 variable "PI_VERSION" {
-  default = "1.6.0"
+  default = "1.6.1"
 }
 
 variable "FX_VERSION" {
-  default = "0.0.17"
+  default = "0.0.18"
 }
 
 variable "YAY_BIN_COMMIT" {
