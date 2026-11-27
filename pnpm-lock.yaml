@@ -19,7 +19,7 @@ importers:
     dependencies:
       workflow:
         specifier: 4.2.0-beta.73
-        version: 4.2.0-beta.73(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)
+        version: 4.2.0-beta.73(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)
     devDependencies:
       '@changesets/cli':
         specifier: 2.29.4
@@ -38,7 +38,7 @@ importers:
         version: 3.5.3
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.15.3)(@types/node@24.10.1)(typescript@5.8.3)
+        version: 10.9.2(@swc/core@1.15.3(@swc/helpers@0.5.23))(@types/node@24.10.1)(typescript@5.8.3)
       turbo:
         specifier: 2.8.10
         version: 2.8.10
@@ -242,8 +242,8 @@ importers:
         specifier: ^7.0.164
         version: 7.0.164(zod@4.6.7)
       next:
-        specifier: 16.2.11
-        version: 16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: 16.4.5
+        version: 16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -252,7 +252,7 @@ importers:
         version: 19.2.3(react@19.2.3)
       workflow:
         specifier: 5.6.0
-        version: 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)(ws@8.23.0)
+        version: 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)(ws@8.23.0)
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -532,8 +532,8 @@ packages:
     resolution: {integrity: sha512-TNrx7eq6nKNOO62HWPqoBqPLXEkW6nLZQGwjL6lq1jZtigWYbK1NbCnT7mKDzbLMHZfuOECUt3n6CzxjUW9HWQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/core@3.981.1':
-    resolution: {integrity: sha512-sERtJaZjzvBdFMm2uei4k0WwPNUJtIrMBH9h0AEw7G0KkhIbnN3e5ZcwGjbVKClR+rrJCmyL1jhtXkseE7DU4A==}
+  '@aws-sdk/core@3.981.2':
+    resolution: {integrity: sha512-N3XKZdfa+Dcm7Kl8NJnaaHLx860Ts3QYHOraj/wuKOYHqqCApQBIKwzSxrpwZdwrqfbPt7BvJdYVhVMPpsRoGA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-web-identity@3.972.13':
@@ -564,8 +564,8 @@ packages:
     resolution: {integrity: sha512-L7Qzoj/qQU1cL5GnYLQP5LbI+wlLCLoINvcykR3htKcQ4tzrPf2DOs72x933BM7oArYj1SKrkb2lGlsJHIic3g==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/nested-clients@3.998.4':
-    resolution: {integrity: sha512-8Vzg3e9ia6eHQStnoSn17asRNWHrf/ozgQslLMGOdM5JifyV+AAk1+lgVXcQMmrzgRhR9phRUEFxAOg/cBh7MQ==}
+  '@aws-sdk/nested-clients@3.998.5':
+    resolution: {integrity: sha512-9w5mkwVLOuGqlJkPR1uhod6ZP+TOtaxrKtvK2pY9G/+FEx0e8wYRLIDeg30dYQjFDx27jHGSzEA+OaMqxeyTPg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/region-config-resolver@3.972.10':
@@ -1270,22 +1270,10 @@ packages:
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
     engines: {node: '>=18'}
 
-  '@img/sharp-darwin-arm64@0.34.5':
-    resolution: {integrity: sha512-imtQ3WMJXbMY4fxb/Ndp6HBTNVtWCUI0WdobyheGf5+ad6xX8VIDO8u2xE4qc/fr08CKG/7dDseFtn6M6g/r3w==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [arm64]
-    os: [darwin]
-
   '@img/sharp-darwin-arm64@0.35.5':
     resolution: {integrity: sha512-QRUlFQ0WxvdWyqqG/WtI3iupfD5rBzmCHXSdPsY91sAtVtTo7Q4cb6zOccZ3gqEqkr0f1As1ehLqmEpDsRf+lg==}
     engines: {node: '>=20.9.0'}
     cpu: [arm64]
-    os: [darwin]
-
-  '@img/sharp-darwin-x64@0.34.5':
-    resolution: {integrity: sha512-YNEFAF/4KQ/PeW0N+r+aVVsoIY0/qxxikF2SWdp+NRkmMB7y9LBZAVqQ4yhGCm/H3H270OSykqmQMKLBhBJDEw==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [x64]
     os: [darwin]
 
   '@img/sharp-darwin-x64@0.35.5':
@@ -1299,19 +1287,9 @@ packages:
     engines: {node: '>=20.9.0'}
     os: [freebsd]
 
-  '@img/sharp-libvips-darwin-arm64@1.2.4':
-    resolution: {integrity: sha512-zqjjo7RatFfFoP0MkQ51jfuFZBnVE2pRiaydKJ1G/rHZvnsrHAOcQALIi9sA5co5xenQdTugCvtb1cuf78Vf4g==}
-    cpu: [arm64]
-    os: [darwin]
-
   '@img/sharp-libvips-darwin-arm64@1.3.4':
     resolution: {integrity: sha512-5R89nBYiRdUlSWJxPhO+GVtaXzXSxKnRu/xqMn3KTA3L9EB9Oy/P+Nn2f2vlhPuUdy/Zusb2DarbyTpGCfEDuw==}
     cpu: [arm64]
-    os: [darwin]
-
-  '@img/sharp-libvips-darwin-x64@1.2.4':
-    resolution: {integrity: sha512-1IOd5xfVhlGwX+zXv2N93k0yMONvUlANylbJw1eTah8K/Jtpi15KC+WSiaX/nBmbm2HxRM1gZ0nSdjSsrZbGKg==}
-    cpu: [x64]
     os: [darwin]
 
   '@img/sharp-libvips-darwin-x64@1.3.4':
@@ -1319,21 +1297,9 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@img/sharp-libvips-linux-arm64@1.2.4':
-    resolution: {integrity: sha512-excjX8DfsIcJ10x1Kzr4RcWe1edC9PquDRRPx3YVCvQv+U5p7Yin2s32ftzikXojb1PIFc/9Mt28/y+iRklkrw==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
   '@img/sharp-libvips-linux-arm64@1.3.4':
     resolution: {integrity: sha512-Y3dgX/6lE2QhQb+Gxy0WZxfg9MEm/JBjamZpS2IklP7xIQoKN4hzAm7KcMVGtaVDt3neE9OKBC7vAfonA/Lr1A==}
     cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@img/sharp-libvips-linux-arm@1.2.4':
-    resolution: {integrity: sha512-bFI7xcKFELdiNCVov8e44Ia4u2byA+l3XtsAj+Q8tfCwO6BQ8iDojYdvoPMqsKDkuoOo+X6HZA0s0q11ANMQ8A==}
-    cpu: [arm]
     os: [linux]
     libc: [glibc]
 
@@ -1343,21 +1309,9 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@img/sharp-libvips-linux-ppc64@1.2.4':
-    resolution: {integrity: sha512-FMuvGijLDYG6lW+b/UvyilUWu5Ayu+3r2d1S8notiGCIyYU/76eig1UfMmkZ7vwgOrzKzlQbFSuQfgm7GYUPpA==}
-    cpu: [ppc64]
-    os: [linux]
-    libc: [glibc]
-
   '@img/sharp-libvips-linux-ppc64@1.3.4':
     resolution: {integrity: sha512-Le6boB8Tai0Nis+gIxIpKx68UDVVIqdR8Tin5Yf1z2LJJQLDJvCDRqRu+jC2qCoD+eIomonmOwB4smBRxfVpYQ==}
     cpu: [ppc64]
-    os: [linux]
-    libc: [glibc]
-
-  '@img/sharp-libvips-linux-riscv64@1.2.4':
-    resolution: {integrity: sha512-oVDbcR4zUC0ce82teubSm+x6ETixtKZBh/qbREIOcI3cULzDyb18Sr/Wcyx7NRQeQzOiHTNbZFF1UwPS2scyGA==}
-    cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
@@ -1367,21 +1321,9 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@img/sharp-libvips-linux-s390x@1.2.4':
-    resolution: {integrity: sha512-qmp9VrzgPgMoGZyPvrQHqk02uyjA0/QrTO26Tqk6l4ZV0MPWIW6LTkqOIov+J1yEu7MbFQaDpwdwJKhbJvuRxQ==}
-    cpu: [s390x]
-    os: [linux]
-    libc: [glibc]
-
   '@img/sharp-libvips-linux-s390x@1.3.4':
     resolution: {integrity: sha512-ra/mB6MikESDUO7Yg+Mi95bFBb9GsObURuhnOv3OqknjGe9sZrG8tCe9q0xSIGrtLgvgw0gKnFWcK4blSgQOuQ==}
     cpu: [s390x]
-    os: [linux]
-    libc: [glibc]
-
-  '@img/sharp-libvips-linux-x64@1.2.4':
-    resolution: {integrity: sha512-tJxiiLsmHc9Ax1bz3oaOYBURTXGIRDODBqhveVHonrHJ9/+k89qbLl0bcJns+e4t4rvaNBxaEZsFtSfAdquPrw==}
-    cpu: [x64]
     os: [linux]
     libc: [glibc]
 
@@ -1391,21 +1333,9 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@img/sharp-libvips-linuxmusl-arm64@1.2.4':
-    resolution: {integrity: sha512-FVQHuwx1IIuNow9QAbYUzJ+En8KcVm9Lk5+uGUQJHaZmMECZmOlix9HnH7n1TRkXMS0pGxIJokIVB9SuqZGGXw==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
   '@img/sharp-libvips-linuxmusl-arm64@1.3.4':
     resolution: {integrity: sha512-hvulFwtjUcagsis6BBxHwGFwWoNZjgYmULGVrZcyfNbjA8hKILbRxGg15/7w5HDyXHXUos/j6baAWqnCyQ2DWA==}
     cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@img/sharp-libvips-linuxmusl-x64@1.2.4':
-    resolution: {integrity: sha512-+LpyBk7L44ZIXwz/VYfglaX/okxezESc6UxDSoyo2Ks6Jxc4Y7sGjpgU9s4PMgqgjj1gZCylTieNamqA1MF7Dg==}
-    cpu: [x64]
     os: [linux]
     libc: [musl]
 
@@ -1415,24 +1345,10 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@img/sharp-linux-arm64@0.34.5':
-    resolution: {integrity: sha512-bKQzaJRY/bkPOXyKx5EVup7qkaojECG6NLYswgktOZjaXecSAeCWiZwwiFf3/Y+O1HrauiE3FVsGxFg8c24rZg==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
   '@img/sharp-linux-arm64@0.35.5':
     resolution: {integrity: sha512-LYVx5JTsOM2CBzmxreh+nl64/3H6Xb09iSLknqH47z2T2DFFxDeFLP5y4dJwe6H7uGQlHPyEEtIqyo3DYsRwdQ==}
     engines: {node: '>=20.9.0'}
     cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@img/sharp-linux-arm@0.34.5':
-    resolution: {integrity: sha512-9dLqsvwtg1uuXBGZKsxem9595+ujv0sJ6Vi8wcTANSFpwV/GONat5eCkzQo/1O6zRIkh0m/8+5BjrRr7jDUSZw==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [arm]
     os: [linux]
     libc: [glibc]
 
@@ -1443,24 +1359,10 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@img/sharp-linux-ppc64@0.34.5':
-    resolution: {integrity: sha512-7zznwNaqW6YtsfrGGDA6BRkISKAAE1Jo0QdpNYXNMHu2+0dTrPflTLNkpc8l7MUP5M16ZJcUvysVWWrMefZquA==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [ppc64]
-    os: [linux]
-    libc: [glibc]
-
   '@img/sharp-linux-ppc64@0.35.5':
     resolution: {integrity: sha512-QVxAAq8evVRI9ia2vqgwrmWucn5Dfv+JdWzj75pD8omHLPSP7f8p20O8jxzjCcuCEQEOtYOZUmX1hkiZ0kdevA==}
     engines: {node: '>=20.9.0'}
     cpu: [ppc64]
-    os: [linux]
-    libc: [glibc]
-
-  '@img/sharp-linux-riscv64@0.34.5':
-    resolution: {integrity: sha512-51gJuLPTKa7piYPaVs8GmByo7/U7/7TZOq+cnXJIHZKavIRHAP77e3N2HEl3dgiqdD/w0yUfiJnII77PuDDFdw==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
@@ -1471,24 +1373,10 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@img/sharp-linux-s390x@0.34.5':
-    resolution: {integrity: sha512-nQtCk0PdKfho3eC5MrbQoigJ2gd1CgddUMkabUj+rBevs8tZ2cULOx46E7oyX+04WGfABgIwmMC0VqieTiR4jg==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [s390x]
-    os: [linux]
-    libc: [glibc]
-
   '@img/sharp-linux-s390x@0.35.5':
     resolution: {integrity: sha512-UZasTOFiYzotTsGOCu42BfUzP6Tu6Do/947iRm1RsLKvlllxwGcn4RN27LibGWceix4Y+Pmw3jsnTcCQIgWjqA==}
     engines: {node: '>=20.9.0'}
     cpu: [s390x]
-    os: [linux]
-    libc: [glibc]
-
-  '@img/sharp-linux-x64@0.34.5':
-    resolution: {integrity: sha512-MEzd8HPKxVxVenwAa+JRPwEC7QFjoPWuS5NZnBt6B3pu7EG2Ge0id1oLHZpPJdn3OQK+BQDiw9zStiHBTJQQQQ==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [x64]
     os: [linux]
     libc: [glibc]
 
@@ -1499,24 +1387,10 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@img/sharp-linuxmusl-arm64@0.34.5':
-    resolution: {integrity: sha512-fprJR6GtRsMt6Kyfq44IsChVZeGN97gTD331weR1ex1c1rypDEABN6Tm2xa1wE6lYb5DdEnk03NZPqA7Id21yg==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
   '@img/sharp-linuxmusl-arm64@0.35.5':
     resolution: {integrity: sha512-9HbMclmI1zlNkFRs3z9/eBtDjfD0sGlrX1z6b1qwmiFY5ElDLh4BC0LPBdVp7z1DXFiKlIcznf+ZlsuZzLxQqg==}
     engines: {node: '>=20.9.0'}
     cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@img/sharp-linuxmusl-x64@0.34.5':
-    resolution: {integrity: sha512-Jg8wNT1MUzIvhBFxViqrEhWDGzqymo3sV7z7ZsaWbZNDLXRJZoRGrjulp60YYtV4wfY8VIKcWidjojlLcWrd8Q==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [x64]
     os: [linux]
     libc: [musl]
 
@@ -1527,11 +1401,6 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@img/sharp-wasm32@0.34.5':
-    resolution: {integrity: sha512-OdWTEiVkY2PHwqkbBI8frFxQQFekHaSSkUIJkwzclWZe64O1X4UlUjqqqLaPbUpMOQk6FBu/HtlGXNblIs0huw==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [wasm32]
-
   '@img/sharp-wasm32@0.35.5':
     resolution: {integrity: sha512-Ptsga1su4tQx+LLF1ECS9U6nz5kmrXKo6XVbtR48Ke3ZRxxgaWBu7IDtEe1quo8hiupwm6WFqxVlXaSf7IINGQ==}
     engines: {node: '>=20.9.0'}
@@ -1541,34 +1410,16 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [wasm32]
 
-  '@img/sharp-win32-arm64@0.34.5':
-    resolution: {integrity: sha512-WQ3AgWCWYSb2yt+IG8mnC6Jdk9Whs7O0gxphblsLvdhSpSTtmu69ZG1Gkb6NuvxsNACwiPV6cNSZNzt0KPsw7g==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [arm64]
-    os: [win32]
-
   '@img/sharp-win32-arm64@0.35.5':
     resolution: {integrity: sha512-X4t7g+7ZA5DKblCBEXGjUqqemj4vczING/5viFwAL8h4N3qYeyjwdCvRLHi4EdOUI+2Z7UFlp1VM+p/AuEtm6Q==}
     engines: {node: '>=20.9.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@img/sharp-win32-ia32@0.34.5':
-    resolution: {integrity: sha512-FV9m/7NmeCmSHDD5j4+4pNI8Cp3aW+JvLoXcTUo0IqyjSfAZJ8dIUmijx1qaJsIiU+Hosw6xM5KijAWRJCSgNg==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [ia32]
-    os: [win32]
-
   '@img/sharp-win32-ia32@0.35.5':
     resolution: {integrity: sha512-5Zm82LoBc43nhwNybZlG7Y1KO//Zhsn306fQl29ZOuStHLGTo3BWL83q3cznX0poxSAMuYL1On/BHBxkBeKr6A==}
     engines: {node: ^20.9.0}
     cpu: [ia32]
-    os: [win32]
-
-  '@img/sharp-win32-x64@0.34.5':
-    resolution: {integrity: sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-    cpu: [x64]
     os: [win32]
 
   '@img/sharp-win32-x64@0.35.5':
@@ -1782,8 +1633,8 @@ packages:
   '@next/env@15.5.29':
     resolution: {integrity: sha512-9SrTiTsgORa+KfhlXXAGC1eSs847E+d2MQTPUX+n7R5XA8g/B6ZitfL6GoYHNMLwG3Hzs1wjDH0/ME5WrGMqBQ==}
 
-  '@next/env@16.2.11':
-    resolution: {integrity: sha512-0do5A3BJ2gxWr0ZCMcD6BhW+e595jyxdTl3rXTS6lOtD8ektMiW6CO+EPwt1Eca1DBnm90r/7GdiKWBKxH++DA==}
+  '@next/env@16.4.5':
+    resolution: {integrity: sha512-JwSPwpdkZL5VMl2jA/q+JI8MZdweAL3xmw5/tb9y/TLtmS0YXZnmYDzSihwk8xTj1OL+WM53gTqaj96yuLp6Xw==}
 
   '@next/swc-darwin-arm64@15.5.29':
     resolution: {integrity: sha512-vozRDuM23T0faRR0O3oN1eRqjEqUue4Eljhkb9f7urQgzmyzve7j3atzTv3Z1AnjQ9IeVY0X3aS1/an56TOiTg==}
@@ -1791,8 +1642,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@next/swc-darwin-arm64@16.2.11':
-    resolution: {integrity: sha512-wryL4pjKmDwGv2ox6+GZDFxvmtSRLqApBR8kL1j4+vhB7Z5vJC/zAnXpiR9Xkfzl0AS8WLMnsuGV/UKI67/rrw==}
+  '@next/swc-darwin-arm64@16.4.5':
+    resolution: {integrity: sha512-W5TniBzWKASbNNwHZ/S/f1MxQUXU/LdjklVMWA0Ujbfl7SZnUzFls45hO0i/sF7Bx1jJBWp7WWmoQajXtX/O8A==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
@@ -1803,8 +1654,8 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@next/swc-darwin-x64@16.2.11':
-    resolution: {integrity: sha512-aZl2j4f/fLyjQvOhv0Oe9UaMAQHolYpKhctsoYzplSumKJKPUmgjcf6545aBtysLTcu994TREd0+pSgNE4ohmg==}
+  '@next/swc-darwin-x64@16.4.5':
+    resolution: {integrity: sha512-uWq4qkHapBDS1oFltWS4YxTb9pLHAtLNcpbuK6SmRsebLYZqpBML/j/C0op+50JYGTpZgVL/DWNt/6oWlamrrw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
@@ -1816,8 +1667,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@next/swc-linux-arm64-gnu@16.2.11':
-    resolution: {integrity: sha512-5jEriyEnH/LWFy27L2ZG0XaLlyEJIjhsImEsiS9P563PKEVp2BVups/xfOucIrsvVntp11oNcZwjHvaDPYVB5g==}
+  '@next/swc-linux-arm64-gnu@16.4.5':
+    resolution: {integrity: sha512-FdRcyOx5u5P51mlAqLB9EXdd8jZO5fsdHtk4BAQSkqOywCsbTNN/rmw+jO7pnmjNdAtu2AG46NzbCL2FPDrrgw==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
@@ -1830,8 +1681,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@next/swc-linux-arm64-musl@16.2.11':
-    resolution: {integrity: sha512-eIjcpx2fnnFSSkZDbTxy74KnokUXDjfoLClpWelfgHLf621aTqswhwXQ7GkD5K5rplrS6LZ/Bj+mVuvzluBOEg==}
+  '@next/swc-linux-arm64-musl@16.4.5':
+    resolution: {integrity: sha512-cyvmmgtRXR8aGVT86wi9Py53IlfyCx7P2fZxuAXAoTummDnhKtUyjrMeXfapqp4qgD+gT5RqyGD/VfA16jEK7Q==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
@@ -1844,8 +1695,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@next/swc-linux-x64-gnu@16.2.11':
-    resolution: {integrity: sha512-8WgzpaWMs46qJT9kiV47cje86L0x/Mu9t8/Gwj+pnbgW3rETVfCnaScPjlYUwNScpOozdcIMHWmAvuZJUonR2w==}
+  '@next/swc-linux-x64-gnu@16.4.5':
+    resolution: {integrity: sha512-hPc+Fl+N22DAvqZHq559NmamXboOX5Lu8I5Wl0DezfrhTk1Zz21NQeYoZDmNI/NjTcrdsVxM72Fzn2lI+Q+vAw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
@@ -1858,8 +1709,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@next/swc-linux-x64-musl@16.2.11':
-    resolution: {integrity: sha512-I3UgPds7G4ZYnTb/H+5GBGuUT2DhAk6j0mL6A4s63RjFs74wB2hOWP0vaxsK+3NJraExt3eYEPQ/UtT0x/64Nw==}
+  '@next/swc-linux-x64-musl@16.4.5':
+    resolution: {integrity: sha512-gbACYE8IP/jlprNTpiWXHb8N9CofOzpnEwH2SrIz1dUbiJf1FbDssDupCAPeP1Taxe8mgG20sGZamJI7KFOdZw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
@@ -1871,8 +1722,8 @@ packages:
     cpu: [arm64]
     os: [win32]
 
-  '@next/swc-win32-arm64-msvc@16.2.11':
-    resolution: {integrity: sha512-n89CjtcThnjrwgJMAiI5xbqwLY51zvwC9tSlArmVndAJLYVl9T9UAdlkXTmZvE++idoXe8KdglQlhNRdUp1c6g==}
+  '@next/swc-win32-arm64-msvc@16.4.5':
+    resolution: {integrity: sha512-+8gj++ZMo8H20Xh2ijjNqyFk5LPLw0AC4Fs4Tq/G94rjjQXhOjN4jgSWsWKPFsyY26hfIeemJIwKtMxOsp5GBA==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [win32]
@@ -1883,8 +1734,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@next/swc-win32-x64-msvc@16.2.11':
-    resolution: {integrity: sha512-md8CLNggS1Dx9pUgApzps5uAf+N8GN9xywzmNx9vHAWo94HtBwCCqkSnhIrdfQe83Dhz8Lfo/20Nb1Zxal092w==}
+  '@next/swc-win32-x64-msvc@16.4.5':
+    resolution: {integrity: sha512-qNZj66pYXnaWLiF9R9GUbfBdrCv7kC6TaZfIwB2KH5WPc/8pEM3nVOj8hpQhWJU8S94rlH5MPDcX15+RrgUhiw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
@@ -2621,6 +2472,9 @@ packages:
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
+  '@swc/helpers@0.5.23':
+    resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
+
   '@swc/types@0.1.25':
     resolution: {integrity: sha512-iAoY/qRhNH8a/hBvm3zKj9qQ4oc2+3w1unPJa2XvTK3XjeLXtzcCingVPw/9e5mn1+0yPqxcBGp9Jf0pkfMb1g==}
 
@@ -3344,6 +3198,14 @@ packages:
   b4a@1.6.7:
     resolution: {integrity: sha512-OnAYlL5b7LEkALw87fUVafQw5rVR9RjwGd4KUwNQ6DrrNmaVaUCgLipfVlzrPQ4tWOR9P0IXGNOx50jYCCdSJg==}
 
+  b4a@1.9.0:
+    resolution: {integrity: sha512-dpfcF9fDNR6++cthXR67iyhgqWy9CBouAvIWhIntzBG6cvK/cnIPiZQjBwi/ZqjjBEDGfoNDtmB0kTjroOJ3pQ==}
+    peerDependencies:
+      react-native-b4a: '*'
+    peerDependenciesMeta:
+      react-native-b4a:
+        optional: true
+
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
 
@@ -3354,14 +3216,55 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
+  bare-buffer@3.7.3:
+    resolution: {integrity: sha512-77owW16RX6YgdOzddHtM0oGz8wsd0/F9k/0coz6TPmjUHnr/9FwWODVMNKwyYWM/a/ESdTum855nfQxnsKUygA==}
+    engines: {bare: '>=1.20.0'}
+
   bare-events@2.6.1:
     resolution: {integrity: sha512-AuTJkq9XmE6Vk0FJVNq5QxETrSA/vKHarWVBG5l/JbdCL1prJemiyJqUS0jrlXO0MftuPq4m3YVYhoNc5+aE/g==}
+
+  bare-events@2.9.2:
+    resolution: {integrity: sha512-AIPKioV7/Y/8KfZ3AAhjPJxLLbY49S64Ym5DakZlUg75qQiTgUq9hEJoEwa4eUezPUlXRy/i5NpsKvo9jgKmoA==}
+    peerDependencies:
+      bare-abort-controller: '*'
+    peerDependenciesMeta:
+      bare-abort-controller:
+        optional: true
+
+  bare-fs@4.8.7:
+    resolution: {integrity: sha512-bNBjq+x9Wezp3risJs7TaPH3jjVnyFmmSSxfpES8tp9xjvL4t6Bk9v2nC+xm5lfxJeDzChK7NBryK+JciM/pfQ==}
+    engines: {bare: '>=1.28.0'}
+    peerDependencies:
+      bare-buffer: '*'
+    peerDependenciesMeta:
+      bare-buffer:
+        optional: true
+
+  bare-path@3.1.3:
+    resolution: {integrity: sha512-8r+FVU/o4zcFmpCDqbqAYhHHbtXPP+cyZKo7DRGRWc7OLlNs4TMaSQEpXL/sIdzyEG0M7RHw4B7xYMGrTc+qrg==}
+
+  bare-stream@2.13.4:
+    resolution: {integrity: sha512-PcrQ8lVLbiJscNm1Kez+Yp4Gy4AHGcN1lzwjvf5NybWen7VvEgUfyfnXYJ2zNqWnzOfCb1Abq6lH8ti0syQszA==}
+    peerDependencies:
+      bare-abort-controller: '*'
+      bare-buffer: '*'
+      bare-events: '*'
+    peerDependenciesMeta:
+      bare-abort-controller:
+        optional: true
+      bare-buffer:
+        optional: true
+      bare-events:
+        optional: true
+
+  bare-url@2.5.8:
+    resolution: {integrity: sha512-G5KTe5Bj6z5pqIxcn3lWlIFIv0rkXbccx0T0Xuf7t4RapfSWvFlcVbrwYXxFZ00PC4lp57OCIk6uXP/r3GbpDw==}
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.11.39:
-    resolution: {integrity: sha512-Q9buOYhr2ggrEZpImICecZTJHCCd8yXkRUokFlUEQ8uiD6oP82F4W4jWnhOHZYV+wlvrC51V7Wy0ULyWjil5Wg==}
+  baseline-browser-mapping@2.11.40:
+    resolution: {integrity: sha512-WJhaQ3kW5+5BpOduI64ewvykhCyK/IHHG5jCIzivmW2nkYPRowUjs0DbBXY4CAr1LLrN7QEzZGL9727aXH9sJA==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -3486,6 +3389,9 @@ packages:
 
   caniuse-lite@1.0.30001826:
     resolution: {integrity: sha512-wTB+9tIbLro/BCXwLuNV1meHE4L9dS6dArMDwgYfNBPMYScqClHyGunhkCSDtHhe/69Xl0sHlKgBVZ+fNsYtWA==}
+
+  caniuse-lite@1.0.30001828:
+    resolution: {integrity: sha512-7MWeT+3DlrpuDybTWHl4Zb1Z80Z1fLLnOXuBjDXebzDVcqnEWUlV8JcbASg8B8BhcW8QT2UiR1KAtzYFIZHZYA==}
 
   cbor-extract@2.2.2:
     resolution: {integrity: sha512-hlSxxI9XO2yQfe9g6msd3g4xCfDqK5T5P0fRMLuaLHhxn4ViPrm+a+MUfhrvH2W962RGxcBwEGzLQyjbDG1gng==}
@@ -4014,6 +3920,9 @@ packages:
 
   eventemitter3@5.0.1:
     resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
+
+  events-universal@1.0.1:
+    resolution: {integrity: sha512-LUd5euvbMLpwOF8m6ivPCbhQeSiYVNb8Vs0fQ8QjXo0JTkEHpz8pxdQf0gStltaPpw0Cca8b39KxvK9cfKRiAw==}
 
   eventsource-parser@3.1.1:
     resolution: {integrity: sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ==}
@@ -5167,8 +5076,8 @@ packages:
       sass:
         optional: true
 
-  next@16.2.11:
-    resolution: {integrity: sha512-B339zaqbyK8cmxhoAvLrcwoabwCP1wz21zSzfqxqXAemTu2BXnH7tQnfcglKv1vnMUIDBc+Hth7XODQriTZiRQ==}
+  next@16.4.5:
+    resolution: {integrity: sha512-rmdfsWosjTUO+6R0S3KokoIk6Kj0sWDRTe86tZHdqaWH/oXq/udX3/4xb+YQi7aWbyEFoglDU54kaifLCdXbBw==}
     engines: {node: '>=20.9.0'}
     hasBin: true
     peerDependencies:
@@ -5480,6 +5389,10 @@ packages:
 
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
+    engines: {node: ^10 || ^12 || >=14}
+
+  postcss@8.5.23:
+    resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.33:
@@ -5825,10 +5738,6 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  sharp@0.34.5:
-    resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
-
   sharp@0.35.5:
     resolution: {integrity: sha512-Ywn4OnzGukp7CDMrp08RQ50YKmuwG47brZgIVPTvBaaAfQlRlygrRqSrxdCiL9M+LlzLBiJ68IR1QqvzHyjC7g==}
     engines: {node: '>=20.9.0'}
@@ -5980,6 +5889,9 @@ packages:
 
   streamx@2.22.1:
     resolution: {integrity: sha512-znKXEBxfatz2GBNK02kRnCXjV+AA4kjZIUxeWSr3UGirZMJfTE9uiwKHobnbgxWyL/JWro8tTq+vOqAK1/qbSA==}
+
+  streamx@2.28.1:
+    resolution: {integrity: sha512-zEzXb0s5Cds7tqMH6rhZ05lcJydCWiQPEwiNngVqzsxCc962vLY4Uw+mW7od8kDH258k2Uz/JrOkdIAAhSh9VA==}
 
   string-argv@0.3.2:
     resolution: {integrity: sha512-aqD2Q0144Z+/RqG52NeHEkZauTAUWJO8c6yTftGJKO3Tja5tUgIfmIl6kExvhtxSDP7fXB6DvzkfMpCd/F3G+Q==}
@@ -6141,10 +6053,16 @@ packages:
   tar-stream@3.1.7:
     resolution: {integrity: sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ==}
 
+  tar-stream@3.3.0:
+    resolution: {integrity: sha512-rQZZfW2Q4YDCFJyP8KFDG+gfMzcOHaMYq0gb9jzH2gsK0P5qXVpu+UoKE1qaZcs3/R6QVkJr2228nlZoM1V5PA==}
+
   tar@7.4.3:
     resolution: {integrity: sha512-5S7Va8hKfV7W5U6g3aYxXmlPoZVAwUMy9AOKyF2fVuZa2UD3qZjg578OrLRt8PcNN1PleVaL/5/yYATNL0ICUw==}
     engines: {node: '>=18'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+  teex@1.0.1:
+    resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
 
   term-size@2.2.1:
     resolution: {integrity: sha512-wK0Ri4fOGjv/XPy8SBHZChl8CM7uMc5VML7SqiQ0zG7+J5Vr+RMQDoHa2CNT6KHUnTGIXH34UDMkPzAUyapBZg==}
@@ -6156,6 +6074,9 @@ packages:
 
   text-decoder@1.2.3:
     resolution: {integrity: sha512-3/o9z3X0X0fTupwsYvR03pJ/DjWuqqrfwBgTQzdWDiQSm9KitAyz/9WqsT2JQW7KV2m+bC2ol/zqpW37NHxLaA==}
+
+  text-decoder@1.2.7:
+    resolution: {integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==}
 
   throttleit@2.1.0:
     resolution: {integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==}
@@ -6817,23 +6738,23 @@ snapshots:
       '@aws-sdk/types': 3.973.6
       '@aws-sdk/util-locate-window': 3.965.5
       '@smithy/util-utf8': 2.3.0
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
       '@aws-sdk/types': 3.973.6
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-crypto/supports-web-crypto@5.2.0':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-crypto/util@5.2.0':
     dependencies:
       '@aws-sdk/types': 3.973.6
       '@smithy/util-utf8': 2.3.0
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/core@3.973.25':
     dependencies:
@@ -6849,9 +6770,9 @@ snapshots:
       '@smithy/util-base64': 4.3.2
       '@smithy/util-middleware': 4.2.12
       '@smithy/util-utf8': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
-  '@aws-sdk/core@3.981.1':
+  '@aws-sdk/core@3.981.2':
     dependencies:
       '@aws-sdk/types': 3.975.1
       '@aws-sdk/xml-builder': 3.972.43
@@ -6877,8 +6798,8 @@ snapshots:
 
   '@aws-sdk/credential-provider-web-identity@3.972.49':
     dependencies:
-      '@aws-sdk/core': 3.981.1
-      '@aws-sdk/nested-clients': 3.998.4
+      '@aws-sdk/core': 3.981.2
+      '@aws-sdk/nested-clients': 3.998.5
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
       '@smithy/types': 4.20.0
@@ -6890,13 +6811,13 @@ snapshots:
       '@aws-sdk/types': 3.973.6
       '@smithy/protocol-http': 5.3.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/middleware-logger@3.972.8':
     dependencies:
       '@aws-sdk/types': 3.973.6
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/middleware-recursion-detection@3.972.9':
     dependencies:
@@ -6904,7 +6825,7 @@ snapshots:
       '@aws/lambda-invoke-store': 0.2.4
       '@smithy/protocol-http': 5.3.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/middleware-user-agent@3.972.26':
     dependencies:
@@ -6915,7 +6836,7 @@ snapshots:
       '@smithy/protocol-http': 5.3.12
       '@smithy/types': 4.13.1
       '@smithy/util-retry': 4.2.12
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/nested-clients@3.996.16':
     dependencies:
@@ -6956,13 +6877,13 @@ snapshots:
       '@smithy/util-middleware': 4.2.12
       '@smithy/util-retry': 4.2.12
       '@smithy/util-utf8': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
     transitivePeerDependencies:
       - aws-crt
 
-  '@aws-sdk/nested-clients@3.998.4':
+  '@aws-sdk/nested-clients@3.998.5':
     dependencies:
-      '@aws-sdk/core': 3.981.1
+      '@aws-sdk/core': 3.981.2
       '@aws-sdk/signature-v4-multi-region': 3.996.52
       '@aws-sdk/types': 3.975.1
       '@smithy/core': 3.41.1
@@ -6978,7 +6899,7 @@ snapshots:
       '@smithy/config-resolver': 4.4.13
       '@smithy/node-config-provider': 4.3.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/signature-v4-multi-region@3.996.52':
     dependencies:
@@ -6991,7 +6912,7 @@ snapshots:
   '@aws-sdk/types@3.973.6':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/types@3.975.1':
     dependencies:
@@ -7005,18 +6926,18 @@ snapshots:
       '@smithy/types': 4.13.1
       '@smithy/url-parser': 4.2.12
       '@smithy/util-endpoints': 3.3.3
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/util-locate-window@3.965.5':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/util-user-agent-browser@3.972.8':
     dependencies:
       '@aws-sdk/types': 3.973.6
       '@smithy/types': 4.13.1
       bowser: 2.14.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/util-user-agent-node@3.973.12':
     dependencies:
@@ -7025,13 +6946,13 @@ snapshots:
       '@smithy/node-config-provider': 4.3.12
       '@smithy/types': 4.13.1
       '@smithy/util-config-provider': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/xml-builder@3.972.16':
     dependencies:
       '@smithy/types': 4.13.1
       fast-xml-parser: 5.5.8
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@aws-sdk/xml-builder@3.972.43':
     dependencies:
@@ -7534,19 +7455,9 @@ snapshots:
   '@img/colour@1.1.0':
     optional: true
 
-  '@img/sharp-darwin-arm64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-darwin-arm64': 1.2.4
-    optional: true
-
   '@img/sharp-darwin-arm64@0.35.5':
     optionalDependencies:
       '@img/sharp-libvips-darwin-arm64': 1.3.4
-    optional: true
-
-  '@img/sharp-darwin-x64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-darwin-x64': 1.2.4
     optional: true
 
   '@img/sharp-darwin-x64@0.35.5':
@@ -7559,69 +7470,34 @@ snapshots:
       '@img/sharp-wasm32': 0.35.5
     optional: true
 
-  '@img/sharp-libvips-darwin-arm64@1.2.4':
-    optional: true
-
   '@img/sharp-libvips-darwin-arm64@1.3.4':
-    optional: true
-
-  '@img/sharp-libvips-darwin-x64@1.2.4':
     optional: true
 
   '@img/sharp-libvips-darwin-x64@1.3.4':
     optional: true
 
-  '@img/sharp-libvips-linux-arm64@1.2.4':
-    optional: true
-
   '@img/sharp-libvips-linux-arm64@1.3.4':
-    optional: true
-
-  '@img/sharp-libvips-linux-arm@1.2.4':
     optional: true
 
   '@img/sharp-libvips-linux-arm@1.3.4':
     optional: true
 
-  '@img/sharp-libvips-linux-ppc64@1.2.4':
-    optional: true
-
   '@img/sharp-libvips-linux-ppc64@1.3.4':
-    optional: true
-
-  '@img/sharp-libvips-linux-riscv64@1.2.4':
     optional: true
 
   '@img/sharp-libvips-linux-riscv64@1.3.4':
     optional: true
 
-  '@img/sharp-libvips-linux-s390x@1.2.4':
-    optional: true
-
   '@img/sharp-libvips-linux-s390x@1.3.4':
-    optional: true
-
-  '@img/sharp-libvips-linux-x64@1.2.4':
     optional: true
 
   '@img/sharp-libvips-linux-x64@1.3.4':
     optional: true
 
-  '@img/sharp-libvips-linuxmusl-arm64@1.2.4':
-    optional: true
-
   '@img/sharp-libvips-linuxmusl-arm64@1.3.4':
     optional: true
 
-  '@img/sharp-libvips-linuxmusl-x64@1.2.4':
-    optional: true
-
   '@img/sharp-libvips-linuxmusl-x64@1.3.4':
-    optional: true
-
-  '@img/sharp-linux-arm64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linux-arm64': 1.2.4
     optional: true
 
   '@img/sharp-linux-arm64@0.35.5':
@@ -7629,19 +7505,9 @@ snapshots:
       '@img/sharp-libvips-linux-arm64': 1.3.4
     optional: true
 
-  '@img/sharp-linux-arm@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linux-arm': 1.2.4
-    optional: true
-
   '@img/sharp-linux-arm@0.35.5':
     optionalDependencies:
       '@img/sharp-libvips-linux-arm': 1.3.4
-    optional: true
-
-  '@img/sharp-linux-ppc64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linux-ppc64': 1.2.4
     optional: true
 
   '@img/sharp-linux-ppc64@0.35.5':
@@ -7649,19 +7515,9 @@ snapshots:
       '@img/sharp-libvips-linux-ppc64': 1.3.4
     optional: true
 
-  '@img/sharp-linux-riscv64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linux-riscv64': 1.2.4
-    optional: true
-
   '@img/sharp-linux-riscv64@0.35.5':
     optionalDependencies:
       '@img/sharp-libvips-linux-riscv64': 1.3.4
-    optional: true
-
-  '@img/sharp-linux-s390x@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linux-s390x': 1.2.4
     optional: true
 
   '@img/sharp-linux-s390x@0.35.5':
@@ -7669,19 +7525,9 @@ snapshots:
       '@img/sharp-libvips-linux-s390x': 1.3.4
     optional: true
 
-  '@img/sharp-linux-x64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linux-x64': 1.2.4
-    optional: true
-
   '@img/sharp-linux-x64@0.35.5':
     optionalDependencies:
       '@img/sharp-libvips-linux-x64': 1.3.4
-    optional: true
-
-  '@img/sharp-linuxmusl-arm64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linuxmusl-arm64': 1.2.4
     optional: true
 
   '@img/sharp-linuxmusl-arm64@0.35.5':
@@ -7689,19 +7535,9 @@ snapshots:
       '@img/sharp-libvips-linuxmusl-arm64': 1.3.4
     optional: true
 
-  '@img/sharp-linuxmusl-x64@0.34.5':
-    optionalDependencies:
-      '@img/sharp-libvips-linuxmusl-x64': 1.2.4
-    optional: true
-
   '@img/sharp-linuxmusl-x64@0.35.5':
     optionalDependencies:
       '@img/sharp-libvips-linuxmusl-x64': 1.3.4
-    optional: true
-
-  '@img/sharp-wasm32@0.34.5':
-    dependencies:
-      '@emnapi/runtime': 1.11.3
     optional: true
 
   '@img/sharp-wasm32@0.35.5':
@@ -7714,19 +7550,10 @@ snapshots:
       '@img/sharp-wasm32': 0.35.5
     optional: true
 
-  '@img/sharp-win32-arm64@0.34.5':
-    optional: true
-
   '@img/sharp-win32-arm64@0.35.5':
     optional: true
 
-  '@img/sharp-win32-ia32@0.34.5':
-    optional: true
-
   '@img/sharp-win32-ia32@0.35.5':
-    optional: true
-
-  '@img/sharp-win32-x64@0.34.5':
     optional: true
 
   '@img/sharp-win32-x64@0.35.5':
@@ -7909,54 +7736,54 @@ snapshots:
 
   '@next/env@15.5.29': {}
 
-  '@next/env@16.2.11': {}
+  '@next/env@16.4.5': {}
 
   '@next/swc-darwin-arm64@15.5.29':
     optional: true
 
-  '@next/swc-darwin-arm64@16.2.11':
+  '@next/swc-darwin-arm64@16.4.5':
     optional: true
 
   '@next/swc-darwin-x64@15.5.29':
     optional: true
 
-  '@next/swc-darwin-x64@16.2.11':
+  '@next/swc-darwin-x64@16.4.5':
     optional: true
 
   '@next/swc-linux-arm64-gnu@15.5.29':
     optional: true
 
-  '@next/swc-linux-arm64-gnu@16.2.11':
+  '@next/swc-linux-arm64-gnu@16.4.5':
     optional: true
 
   '@next/swc-linux-arm64-musl@15.5.29':
     optional: true
 
-  '@next/swc-linux-arm64-musl@16.2.11':
+  '@next/swc-linux-arm64-musl@16.4.5':
     optional: true
 
   '@next/swc-linux-x64-gnu@15.5.29':
     optional: true
 
-  '@next/swc-linux-x64-gnu@16.2.11':
+  '@next/swc-linux-x64-gnu@16.4.5':
     optional: true
 
   '@next/swc-linux-x64-musl@15.5.29':
     optional: true
 
-  '@next/swc-linux-x64-musl@16.2.11':
+  '@next/swc-linux-x64-musl@16.4.5':
     optional: true
 
   '@next/swc-win32-arm64-msvc@15.5.29':
     optional: true
 
-  '@next/swc-win32-arm64-msvc@16.2.11':
+  '@next/swc-win32-arm64-msvc@16.4.5':
     optional: true
 
   '@next/swc-win32-x64-msvc@15.5.29':
     optional: true
 
-  '@next/swc-win32-x64-msvc@16.2.11':
+  '@next/swc-win32-x64-msvc@16.4.5':
     optional: true
 
   '@nodable/entities@2.2.0': {}
@@ -8316,7 +8143,7 @@ snapshots:
   '@smithy/abort-controller@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/config-resolver@4.4.13':
     dependencies:
@@ -8325,7 +8152,7 @@ snapshots:
       '@smithy/util-config-provider': 4.2.2
       '@smithy/util-endpoints': 3.3.3
       '@smithy/util-middleware': 4.2.12
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/core@3.23.12':
     dependencies:
@@ -8338,7 +8165,7 @@ snapshots:
       '@smithy/util-stream': 4.5.20
       '@smithy/util-utf8': 4.2.2
       '@smithy/uuid': 1.1.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/core@3.41.1':
     dependencies:
@@ -8352,7 +8179,7 @@ snapshots:
       '@smithy/property-provider': 4.2.12
       '@smithy/types': 4.13.1
       '@smithy/url-parser': 4.2.12
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/fetch-http-handler@5.3.15':
     dependencies:
@@ -8360,7 +8187,7 @@ snapshots:
       '@smithy/querystring-builder': 4.2.12
       '@smithy/types': 4.13.1
       '@smithy/util-base64': 4.3.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/fetch-http-handler@5.8.1':
     dependencies:
@@ -8374,26 +8201,26 @@ snapshots:
       '@smithy/types': 4.13.1
       '@smithy/util-buffer-from': 4.2.2
       '@smithy/util-utf8': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/invalid-dependency@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/is-array-buffer@2.2.0':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/is-array-buffer@4.2.2':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/middleware-content-length@4.2.12':
     dependencies:
       '@smithy/protocol-http': 5.3.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/middleware-endpoint@4.4.27':
     dependencies:
@@ -8404,7 +8231,7 @@ snapshots:
       '@smithy/types': 4.13.1
       '@smithy/url-parser': 4.2.12
       '@smithy/util-middleware': 4.2.12
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/middleware-retry@4.4.44':
     dependencies:
@@ -8416,26 +8243,26 @@ snapshots:
       '@smithy/util-middleware': 4.2.12
       '@smithy/util-retry': 4.2.12
       '@smithy/uuid': 1.1.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/middleware-serde@4.2.15':
     dependencies:
       '@smithy/core': 3.23.12
       '@smithy/protocol-http': 5.3.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/middleware-stack@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/node-config-provider@4.3.12':
     dependencies:
       '@smithy/property-provider': 4.2.12
       '@smithy/shared-ini-file-loader': 4.4.7
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/node-http-handler@4.14.2':
     dependencies:
@@ -8450,28 +8277,28 @@ snapshots:
       '@smithy/protocol-http': 5.3.12
       '@smithy/querystring-builder': 4.2.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/property-provider@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/protocol-http@5.3.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/querystring-builder@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
       '@smithy/util-uri-escape': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/querystring-parser@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/service-error-classification@4.2.12':
     dependencies:
@@ -8480,7 +8307,7 @@ snapshots:
   '@smithy/shared-ini-file-loader@4.4.7':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/signature-v4@5.3.12':
     dependencies:
@@ -8491,7 +8318,7 @@ snapshots:
       '@smithy/util-middleware': 4.2.12
       '@smithy/util-uri-escape': 4.2.2
       '@smithy/util-utf8': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/signature-v4@5.7.5':
     dependencies:
@@ -8508,11 +8335,11 @@ snapshots:
       '@smithy/protocol-http': 5.3.12
       '@smithy/types': 4.13.1
       '@smithy/util-stream': 4.5.20
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/types@4.13.1':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/types@4.20.0':
     dependencies:
@@ -8523,42 +8350,42 @@ snapshots:
     dependencies:
       '@smithy/querystring-parser': 4.2.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-base64@4.3.2':
     dependencies:
       '@smithy/util-buffer-from': 4.2.2
       '@smithy/util-utf8': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-body-length-browser@4.2.2':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-body-length-node@4.2.3':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-buffer-from@2.2.0':
     dependencies:
       '@smithy/is-array-buffer': 2.2.0
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-buffer-from@4.2.2':
     dependencies:
       '@smithy/is-array-buffer': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-config-provider@4.2.2':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-defaults-mode-browser@4.3.43':
     dependencies:
       '@smithy/property-provider': 4.2.12
       '@smithy/smithy-client': 4.12.7
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-defaults-mode-node@4.2.47':
     dependencies:
@@ -8568,28 +8395,28 @@ snapshots:
       '@smithy/property-provider': 4.2.12
       '@smithy/smithy-client': 4.12.7
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-endpoints@3.3.3':
     dependencies:
       '@smithy/node-config-provider': 4.3.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-hex-encoding@4.2.2':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-middleware@4.2.12':
     dependencies:
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-retry@4.2.12':
     dependencies:
       '@smithy/service-error-classification': 4.2.12
       '@smithy/types': 4.13.1
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-stream@4.5.20':
     dependencies:
@@ -8600,25 +8427,25 @@ snapshots:
       '@smithy/util-buffer-from': 4.2.2
       '@smithy/util-hex-encoding': 4.2.2
       '@smithy/util-utf8': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-uri-escape@4.2.2':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-utf8@2.3.0':
     dependencies:
       '@smithy/util-buffer-from': 2.2.0
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/util-utf8@4.2.2':
     dependencies:
       '@smithy/util-buffer-from': 4.2.2
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@smithy/uuid@1.1.2':
     dependencies:
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@standard-schema/spec@1.0.0': {}
 
@@ -8635,11 +8462,11 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0)':
+  '@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0)':
     dependencies:
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
       '@swc/counter': 0.1.3
-      '@xhmikosr/bin-wrapper': 13.2.0
+      '@xhmikosr/bin-wrapper': 13.2.0(bare-buffer@3.7.3)
       commander: 8.3.0
       minimatch: 9.0.9
       piscina: 4.9.4
@@ -8650,6 +8477,9 @@ snapshots:
     optionalDependencies:
       chokidar: 5.0.0
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
   '@swc/core-darwin-arm64@1.15.3':
@@ -8682,7 +8512,7 @@ snapshots:
   '@swc/core-win32-x64-msvc@1.15.3':
     optional: true
 
-  '@swc/core@1.15.3':
+  '@swc/core@1.15.3(@swc/helpers@0.5.23)':
     dependencies:
       '@swc/counter': 0.1.3
       '@swc/types': 0.1.25
@@ -8697,10 +8527,15 @@ snapshots:
       '@swc/core-win32-arm64-msvc': 1.15.3
       '@swc/core-win32-ia32-msvc': 1.15.3
       '@swc/core-win32-x64-msvc': 1.15.3
+      '@swc/helpers': 0.5.23
 
   '@swc/counter@0.1.3': {}
 
   '@swc/helpers@0.5.15':
+    dependencies:
+      tslib: 2.9.1
+
+  '@swc/helpers@0.5.23':
     dependencies:
       tslib: 2.9.1
 
@@ -9041,13 +8876,13 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@workflow/astro@4.0.0-beta.47(@opentelemetry/api@1.9.0)':
+  '@workflow/astro@4.0.0-beta.47(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
-      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
-      '@workflow/vite': 4.0.0-beta.23(@opentelemetry/api@1.9.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
+      '@workflow/vite': 4.0.0-beta.23(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       exsolve: 1.0.8
       pathe: 2.0.3
     transitivePeerDependencies:
@@ -9056,11 +8891,11 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/astro@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)':
+  '@workflow/astro@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/vite': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/vite': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
       - '@opentelemetry/api'
@@ -9069,12 +8904,12 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/builders@4.0.1-beta.64(@opentelemetry/api@1.9.0)':
+  '@workflow/builders@4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
       '@workflow/core': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
       '@workflow/errors': 4.1.0-beta.19
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
       '@workflow/utils': 4.1.0-beta.13
       builtin-modules: 5.0.0
       chalk: 5.6.2
@@ -9089,12 +8924,12 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/builders@5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)':
+  '@workflow/builders@5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
       '@workflow/core': 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
       '@workflow/errors': 5.1.2
-      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3)
+      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
       '@workflow/utils': 5.1.0
       acorn: 8.19.0
       builtin-modules: 5.5.0
@@ -9112,16 +8947,16 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/cli@4.2.0-beta.73(@opentelemetry/api@1.9.0)':
+  '@workflow/cli@4.2.0-beta.73(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
       '@oclif/core': 4.8.1
       '@oclif/plugin-help': 6.2.37
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
       '@vercel/cli-auth': 0.0.1
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       '@workflow/core': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
       '@workflow/errors': 4.1.0-beta.19
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
       '@workflow/utils': 4.1.0-beta.13
       '@workflow/web': 4.1.0-beta.45
       '@workflow/world': 4.1.0-beta.14(zod@4.3.6)
@@ -9150,12 +8985,12 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/cli@5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(typescript@5.8.3)(ws@8.23.0)':
+  '@workflow/cli@5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(typescript@5.8.3)(ws@8.23.0)':
     dependencies:
       '@oclif/core': 4.11.4
       '@oclif/plugin-help': 6.2.37
       '@vercel/cli-auth': 0.0.1
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
       '@workflow/core': 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
       '@workflow/errors': 5.1.2
       '@workflow/utils': 5.1.0
@@ -9247,14 +9082,14 @@ snapshots:
       '@workflow/world': 5.2.1
       ms: 2.1.3
 
-  '@workflow/nest@0.0.0-beta.22(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)':
+  '@workflow/nest@0.0.0-beta.22(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)':
     dependencies:
       '@nestjs/common': 11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7)
       '@nestjs/core': 11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7)
-      '@swc/cli': 0.8.0(@swc/core@1.15.3)(chokidar@5.0.0)
-      '@swc/core': 1.15.3
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
+      '@swc/cli': 0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
       pathe: 2.0.3
     transitivePeerDependencies:
       - '@opentelemetry/api'
@@ -9262,18 +9097,18 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/nest@5.1.8(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(ws@8.23.0)':
+  '@workflow/nest@5.1.8(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
       '@workflow/utils': 5.1.0
       esbuild: 0.28.2
       pathe: 2.0.3
     optionalDependencies:
       '@nestjs/common': 11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7)
       '@nestjs/core': 11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7)
-      '@swc/cli': 0.8.0(@swc/core@1.15.3)(chokidar@5.0.0)
-      '@swc/core': 1.15.3
+      '@swc/cli': 0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
       - '@opentelemetry/api'
@@ -9282,33 +9117,33 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/next@4.0.1-beta.69(@opentelemetry/api@1.9.0)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
+  '@workflow/next@4.0.1-beta.69(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       '@workflow/core': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
       semver: 7.7.4
       watchpack: 2.5.1
     optionalDependencies:
-      next: 16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.4.5(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - '@swc/helpers'
       - aws-crt
       - supports-color
 
-  '@workflow/next@5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(ws@8.23.0)':
+  '@workflow/next@5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(ws@8.23.0)':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
       '@workflow/core': 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3)
+      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
       ignore: 7.0.14
       semver: 7.8.6
       watchpack: 2.6.4
     optionalDependencies:
-      next: 16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
       - '@opentelemetry/api'
@@ -9317,14 +9152,14 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/nitro@4.0.1-beta.68(@opentelemetry/api@1.9.0)':
+  '@workflow/nitro@4.0.1-beta.68(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       '@workflow/core': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
-      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
-      '@workflow/vite': 4.0.0-beta.23(@opentelemetry/api@1.9.0)
+      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
+      '@workflow/vite': 4.0.0-beta.23(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       exsolve: 1.0.8
       pathe: 2.0.3
     transitivePeerDependencies:
@@ -9333,12 +9168,12 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/nitro@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)':
+  '@workflow/nitro@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
       '@workflow/core': 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/vite': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/vite': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
       '@workflow/web': 5.1.1(@opentelemetry/api@1.9.0)
       pathe: 2.0.3
     transitivePeerDependencies:
@@ -9349,10 +9184,10 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/nuxt@4.0.1-beta.57(@opentelemetry/api@1.9.0)':
+  '@workflow/nuxt@4.0.1-beta.57(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
       '@nuxt/kit': 4.4.2
-      '@workflow/nitro': 4.0.1-beta.68(@opentelemetry/api@1.9.0)
+      '@workflow/nitro': 4.0.1-beta.68(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - '@swc/helpers'
@@ -9360,10 +9195,10 @@ snapshots:
       - magicast
       - supports-color
 
-  '@workflow/nuxt@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(ws@8.23.0)':
+  '@workflow/nuxt@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(ws@8.23.0)':
     dependencies:
       '@nuxt/kit': 4.6.4(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)
-      '@workflow/nitro': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/nitro': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
       - '@nuxt/schema'
@@ -9382,11 +9217,11 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/rollup@4.0.0-beta.30(@opentelemetry/api@1.9.0)':
+  '@workflow/rollup@4.0.0-beta.30(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
       exsolve: 1.0.7
     transitivePeerDependencies:
       - '@opentelemetry/api'
@@ -9394,11 +9229,11 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/rollup@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)':
+  '@workflow/rollup@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/swc-plugin': 5.0.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
       exsolve: 1.2.0
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
@@ -9414,13 +9249,13 @@ snapshots:
 
   '@workflow/serde@5.0.0': {}
 
-  '@workflow/sveltekit@4.0.0-beta.62(@opentelemetry/api@1.9.0)':
+  '@workflow/sveltekit@4.0.0-beta.62(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
-      '@swc/core': 1.15.3
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
-      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)
-      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3)
-      '@workflow/vite': 4.0.0-beta.23(@opentelemetry/api@1.9.0)
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/swc-plugin': 4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))
+      '@workflow/vite': 4.0.0-beta.23(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       exsolve: 1.0.8
       fs-extra: 11.3.4
       pathe: 2.0.3
@@ -9430,12 +9265,12 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@workflow/sveltekit@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)':
+  '@workflow/sveltekit@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
       '@sveltejs/load-config': 0.2.3
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/vite': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/vite': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
       fs-extra: 11.4.1
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
@@ -9445,13 +9280,13 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@workflow/swc-plugin@4.1.0-beta.21(@swc/core@1.15.3)':
+  '@workflow/swc-plugin@4.1.0-beta.21(@swc/core@1.15.3(@swc/helpers@0.5.23))':
     dependencies:
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
 
-  '@workflow/swc-plugin@5.0.1(@swc/core@1.15.3)':
+  '@workflow/swc-plugin@5.0.1(@swc/core@1.15.3(@swc/helpers@0.5.23))':
     dependencies:
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
 
   '@workflow/typescript-plugin@4.0.1-beta.5(typescript@5.8.3)':
     dependencies:
@@ -9469,18 +9304,18 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  '@workflow/vite@4.0.0-beta.23(@opentelemetry/api@1.9.0)':
+  '@workflow/vite@4.0.0-beta.23(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)':
     dependencies:
-      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)
+      '@workflow/builders': 4.0.1-beta.64(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - '@swc/helpers'
       - aws-crt
       - supports-color
 
-  '@workflow/vite@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)':
+  '@workflow/vite@5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)':
     dependencies:
-      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/builders': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
       - '@opentelemetry/api'
@@ -9580,39 +9415,51 @@ snapshots:
       execa: 5.1.1
       isexe: 2.0.0
 
-  '@xhmikosr/bin-wrapper@13.2.0':
+  '@xhmikosr/bin-wrapper@13.2.0(bare-buffer@3.7.3)':
     dependencies:
       '@xhmikosr/bin-check': 7.1.0
-      '@xhmikosr/downloader': 15.2.0
+      '@xhmikosr/downloader': 15.2.0(bare-buffer@3.7.3)
       '@xhmikosr/os-filter-obj': 3.0.0
       bin-version-check: 5.1.0
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
-  '@xhmikosr/decompress-tar@8.1.0':
+  '@xhmikosr/decompress-tar@8.1.0(bare-buffer@3.7.3)':
     dependencies:
       file-type: 20.5.0
       is-stream: 2.0.1
-      tar-stream: 3.1.7
+      tar-stream: 3.3.0(bare-buffer@3.7.3)
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
-  '@xhmikosr/decompress-tarbz2@8.1.0':
+  '@xhmikosr/decompress-tarbz2@8.1.0(bare-buffer@3.7.3)':
     dependencies:
-      '@xhmikosr/decompress-tar': 8.1.0
+      '@xhmikosr/decompress-tar': 8.1.0(bare-buffer@3.7.3)
       file-type: 20.5.0
       is-stream: 2.0.1
       seek-bzip: 2.0.0
       unbzip2-stream: 1.4.3
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
-  '@xhmikosr/decompress-targz@8.1.0':
+  '@xhmikosr/decompress-targz@8.1.0(bare-buffer@3.7.3)':
     dependencies:
-      '@xhmikosr/decompress-tar': 8.1.0
+      '@xhmikosr/decompress-tar': 8.1.0(bare-buffer@3.7.3)
       file-type: 20.5.0
       is-stream: 2.0.1
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
   '@xhmikosr/decompress-unzip@7.1.0':
@@ -9623,21 +9470,24 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@xhmikosr/decompress@10.2.2':
+  '@xhmikosr/decompress@10.2.2(bare-buffer@3.7.3)':
     dependencies:
-      '@xhmikosr/decompress-tar': 8.1.0
-      '@xhmikosr/decompress-tarbz2': 8.1.0
-      '@xhmikosr/decompress-targz': 8.1.0
+      '@xhmikosr/decompress-tar': 8.1.0(bare-buffer@3.7.3)
+      '@xhmikosr/decompress-tarbz2': 8.1.0(bare-buffer@3.7.3)
+      '@xhmikosr/decompress-targz': 8.1.0(bare-buffer@3.7.3)
       '@xhmikosr/decompress-unzip': 7.1.0
       graceful-fs: 4.2.12
       strip-dirs: 3.0.0
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
-  '@xhmikosr/downloader@15.2.0':
+  '@xhmikosr/downloader@15.2.0(bare-buffer@3.7.3)':
     dependencies:
       '@xhmikosr/archive-type': 7.1.0
-      '@xhmikosr/decompress': 10.2.2
+      '@xhmikosr/decompress': 10.2.2(bare-buffer@3.7.3)
       content-disposition: 0.5.4
       defaults: 2.0.2
       ext-name: 5.0.0
@@ -9646,6 +9496,9 @@ snapshots:
       get-stream: 6.0.1
       got: 13.0.0
     transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
       - supports-color
 
   '@xhmikosr/os-filter-obj@3.0.0':
@@ -9760,18 +9613,55 @@ snapshots:
 
   b4a@1.6.7: {}
 
+  b4a@1.9.0: {}
+
   bail@2.0.2: {}
 
   balanced-match@1.0.2: {}
 
   balanced-match@4.0.4: {}
 
+  bare-buffer@3.7.3: {}
+
   bare-events@2.6.1:
     optional: true
 
+  bare-events@2.9.2: {}
+
+  bare-fs@4.8.7(bare-buffer@3.7.3):
+    dependencies:
+      bare-events: 2.9.2
+      bare-path: 3.1.3
+      bare-stream: 2.13.4(bare-buffer@3.7.3)(bare-events@2.9.2)
+      bare-url: 2.5.8
+      fast-fifo: 1.3.2
+    optionalDependencies:
+      bare-buffer: 3.7.3
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
+
+  bare-path@3.1.3: {}
+
+  bare-stream@2.13.4(bare-buffer@3.7.3)(bare-events@2.9.2):
+    dependencies:
+      b4a: 1.9.0
+      streamx: 2.28.1
+      teex: 1.0.1
+    optionalDependencies:
+      bare-buffer: 3.7.3
+      bare-events: 2.9.2
+    transitivePeerDependencies:
+      - react-native-b4a
+
+  bare-url@2.5.8:
+    dependencies:
+      bare-buffer: 3.7.3
+      bare-path: 3.1.3
+
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.11.39: {}
+  baseline-browser-mapping@2.11.40: {}
 
   better-path-resolve@1.0.0:
     dependencies:
@@ -9926,6 +9816,8 @@ snapshots:
   camelcase@8.0.0: {}
 
   caniuse-lite@1.0.30001826: {}
+
+  caniuse-lite@1.0.30001828: {}
 
   cbor-extract@2.2.2:
     dependencies:
@@ -10441,6 +10333,12 @@ snapshots:
   etag@1.8.1: {}
 
   eventemitter3@5.0.1: {}
+
+  events-universal@1.0.1:
+    dependencies:
+      bare-events: 2.9.2
+    transitivePeerDependencies:
+      - bare-abort-controller
 
   eventsource-parser@3.1.1: {}
 
@@ -11866,30 +11764,58 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
 
-  next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
-      '@next/env': 16.2.11
-      '@swc/helpers': 0.5.15
-      baseline-browser-mapping: 2.11.39
-      caniuse-lite: 1.0.30001826
-      postcss: 8.4.31
+      '@next/env': 16.4.5
+      '@swc/helpers': 0.5.23
+      baseline-browser-mapping: 2.11.40
+      caniuse-lite: 1.0.30001828
+      postcss: 8.5.23
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       styled-jsx: 5.1.6(react@19.2.3)
     optionalDependencies:
-      '@next/swc-darwin-arm64': 16.2.11
-      '@next/swc-darwin-x64': 16.2.11
-      '@next/swc-linux-arm64-gnu': 16.2.11
-      '@next/swc-linux-arm64-musl': 16.2.11
-      '@next/swc-linux-x64-gnu': 16.2.11
-      '@next/swc-linux-x64-musl': 16.2.11
-      '@next/swc-win32-arm64-msvc': 16.2.11
-      '@next/swc-win32-x64-msvc': 16.2.11
+      '@next/swc-darwin-arm64': 16.4.5
+      '@next/swc-darwin-x64': 16.4.5
+      '@next/swc-linux-arm64-gnu': 16.4.5
+      '@next/swc-linux-arm64-musl': 16.4.5
+      '@next/swc-linux-x64-gnu': 16.4.5
+      '@next/swc-linux-x64-musl': 16.4.5
+      '@next/swc-win32-arm64-msvc': 16.4.5
+      '@next/swc-win32-x64-msvc': 16.4.5
       '@opentelemetry/api': 1.9.0
-      sharp: 0.34.5
+      sharp: 0.35.5(@types/node@20.19.11)
     transitivePeerDependencies:
       - '@babel/core'
+      - '@types/node'
       - babel-plugin-macros
+
+  next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@next/env': 16.4.5
+      '@swc/helpers': 0.5.23
+      baseline-browser-mapping: 2.11.40
+      caniuse-lite: 1.0.30001828
+      postcss: 8.5.23
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      styled-jsx: 5.1.6(react@19.2.3)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 16.4.5
+      '@next/swc-darwin-x64': 16.4.5
+      '@next/swc-linux-arm64-gnu': 16.4.5
+      '@next/swc-linux-arm64-musl': 16.4.5
+      '@next/swc-linux-x64-gnu': 16.4.5
+      '@next/swc-linux-x64-musl': 16.4.5
+      '@next/swc-win32-arm64-msvc': 16.4.5
+      '@next/swc-win32-x64-msvc': 16.4.5
+      '@opentelemetry/api': 1.9.0
+      sharp: 0.35.5(@types/node@24.10.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@types/node'
+      - babel-plugin-macros
+    optional: true
 
   nice-try@1.0.5: {}
 
@@ -12157,6 +12083,12 @@ snapshots:
       semver-compare: 1.0.0
 
   postcss@8.4.31:
+    dependencies:
+      nanoid: 3.3.20
+      picocolors: 1.1.1
+      source-map-js: 1.2.4
+
+  postcss@8.5.23:
     dependencies:
       nanoid: 3.3.20
       picocolors: 1.1.1
@@ -12579,38 +12511,6 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  sharp@0.34.5:
-    dependencies:
-      '@img/colour': 1.1.0
-      detect-libc: 2.1.2
-      semver: 7.8.6
-    optionalDependencies:
-      '@img/sharp-darwin-arm64': 0.34.5
-      '@img/sharp-darwin-x64': 0.34.5
-      '@img/sharp-libvips-darwin-arm64': 1.2.4
-      '@img/sharp-libvips-darwin-x64': 1.2.4
-      '@img/sharp-libvips-linux-arm': 1.2.4
-      '@img/sharp-libvips-linux-arm64': 1.2.4
-      '@img/sharp-libvips-linux-ppc64': 1.2.4
-      '@img/sharp-libvips-linux-riscv64': 1.2.4
-      '@img/sharp-libvips-linux-s390x': 1.2.4
-      '@img/sharp-libvips-linux-x64': 1.2.4
-      '@img/sharp-libvips-linuxmusl-arm64': 1.2.4
-      '@img/sharp-libvips-linuxmusl-x64': 1.2.4
-      '@img/sharp-linux-arm': 0.34.5
-      '@img/sharp-linux-arm64': 0.34.5
-      '@img/sharp-linux-ppc64': 0.34.5
-      '@img/sharp-linux-riscv64': 0.34.5
-      '@img/sharp-linux-s390x': 0.34.5
-      '@img/sharp-linux-x64': 0.34.5
-      '@img/sharp-linuxmusl-arm64': 0.34.5
-      '@img/sharp-linuxmusl-x64': 0.34.5
-      '@img/sharp-wasm32': 0.34.5
-      '@img/sharp-win32-arm64': 0.34.5
-      '@img/sharp-win32-ia32': 0.34.5
-      '@img/sharp-win32-x64': 0.34.5
-    optional: true
-
   sharp@0.35.5(@types/node@20.19.11):
     dependencies:
       '@img/colour': 1.1.0
@@ -12643,6 +12543,40 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 20.19.11
+    optional: true
+
+  sharp@0.35.5(@types/node@24.10.1):
+    dependencies:
+      '@img/colour': 1.1.0
+      detect-libc: 2.1.2
+      semver: 7.8.6
+    optionalDependencies:
+      '@img/sharp-darwin-arm64': 0.35.5
+      '@img/sharp-darwin-x64': 0.35.5
+      '@img/sharp-freebsd-wasm32': 0.35.5
+      '@img/sharp-libvips-darwin-arm64': 1.3.4
+      '@img/sharp-libvips-darwin-x64': 1.3.4
+      '@img/sharp-libvips-linux-arm': 1.3.4
+      '@img/sharp-libvips-linux-arm64': 1.3.4
+      '@img/sharp-libvips-linux-ppc64': 1.3.4
+      '@img/sharp-libvips-linux-riscv64': 1.3.4
+      '@img/sharp-libvips-linux-s390x': 1.3.4
+      '@img/sharp-libvips-linux-x64': 1.3.4
+      '@img/sharp-libvips-linuxmusl-arm64': 1.3.4
+      '@img/sharp-libvips-linuxmusl-x64': 1.3.4
+      '@img/sharp-linux-arm': 0.35.5
+      '@img/sharp-linux-arm64': 0.35.5
+      '@img/sharp-linux-ppc64': 0.35.5
+      '@img/sharp-linux-riscv64': 0.35.5
+      '@img/sharp-linux-s390x': 0.35.5
+      '@img/sharp-linux-x64': 0.35.5
+      '@img/sharp-linuxmusl-arm64': 0.35.5
+      '@img/sharp-linuxmusl-x64': 0.35.5
+      '@img/sharp-webcontainers-wasm32': 0.35.5
+      '@img/sharp-win32-arm64': 0.35.5
+      '@img/sharp-win32-ia32': 0.35.5
+      '@img/sharp-win32-x64': 0.35.5
+      '@types/node': 24.10.1
     optional: true
 
   shebang-command@1.2.0:
@@ -12778,6 +12712,15 @@ snapshots:
       text-decoder: 1.2.3
     optionalDependencies:
       bare-events: 2.6.1
+
+  streamx@2.28.1:
+    dependencies:
+      events-universal: 1.0.1
+      fast-fifo: 1.3.2
+      text-decoder: 1.2.7
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
 
   string-argv@0.3.2: {}
 
@@ -12944,6 +12887,17 @@ snapshots:
       fast-fifo: 1.3.2
       streamx: 2.22.1
 
+  tar-stream@3.3.0(bare-buffer@3.7.3):
+    dependencies:
+      b4a: 1.9.0
+      bare-fs: 4.8.7(bare-buffer@3.7.3)
+      fast-fifo: 1.3.2
+      streamx: 2.28.1
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
+
   tar@7.4.3:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
@@ -12952,6 +12906,13 @@ snapshots:
       minizlib: 3.0.2
       mkdirp: 3.0.1
       yallist: 5.0.0
+
+  teex@1.0.1:
+    dependencies:
+      streamx: 2.28.1
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
 
   term-size@2.2.1: {}
 
@@ -12963,6 +12924,12 @@ snapshots:
   text-decoder@1.2.3:
     dependencies:
       b4a: 1.6.7
+
+  text-decoder@1.2.7:
+    dependencies:
+      b4a: 1.9.0
+    transitivePeerDependencies:
+      - react-native-b4a
 
   throttleit@2.1.0: {}
 
@@ -13022,7 +12989,7 @@ snapshots:
 
   trough@2.2.0: {}
 
-  ts-node@10.9.2(@swc/core@1.15.3)(@types/node@24.10.1)(typescript@5.8.3):
+  ts-node@10.9.2(@swc/core@1.15.3(@swc/helpers@0.5.23))(@types/node@24.10.1)(typescript@5.8.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
@@ -13040,7 +13007,7 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
     optionalDependencies:
-      '@swc/core': 1.15.3
+      '@swc/core': 1.15.3(@swc/helpers@0.5.23)
 
   tsdown@0.16.6(typescript@5.8.3):
     dependencies:
@@ -13422,18 +13389,18 @@ snapshots:
 
   wordwrap@1.0.0: {}
 
-  workflow@4.2.0-beta.73(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3):
+  workflow@4.2.0-beta.73(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3):
     dependencies:
-      '@workflow/astro': 4.0.0-beta.47(@opentelemetry/api@1.9.0)
-      '@workflow/cli': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
+      '@workflow/astro': 4.0.0-beta.47(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/cli': 4.2.0-beta.73(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       '@workflow/core': 4.2.0-beta.73(@opentelemetry/api@1.9.0)
       '@workflow/errors': 4.1.0-beta.19
-      '@workflow/nest': 0.0.0-beta.22(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)
-      '@workflow/next': 4.0.1-beta.69(@opentelemetry/api@1.9.0)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
-      '@workflow/nitro': 4.0.1-beta.68(@opentelemetry/api@1.9.0)
-      '@workflow/nuxt': 4.0.1-beta.57(@opentelemetry/api@1.9.0)
-      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)
-      '@workflow/sveltekit': 4.0.0-beta.62(@opentelemetry/api@1.9.0)
+      '@workflow/nest': 0.0.0-beta.22(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)
+      '@workflow/next': 4.0.1-beta.69(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+      '@workflow/nitro': 4.0.1-beta.68(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/nuxt': 4.0.1-beta.57(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/rollup': 4.0.0-beta.30(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
+      '@workflow/sveltekit': 4.0.0-beta.62(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)
       '@workflow/typescript-plugin': 4.0.1-beta.5(typescript@5.8.3)
       '@workflow/utils': 4.1.0-beta.13
       ms: 2.1.3
@@ -13451,18 +13418,18 @@ snapshots:
       - supports-color
       - typescript
 
-  workflow@5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)(ws@8.23.0):
+  workflow@5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.8.3)(ws@8.23.0):
     dependencies:
-      '@workflow/astro': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/cli': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(typescript@5.8.3)(ws@8.23.0)
+      '@workflow/astro': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/cli': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(typescript@5.8.3)(ws@8.23.0)
       '@workflow/core': 5.6.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
       '@workflow/errors': 5.1.2
-      '@workflow/nest': 5.1.8(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(ws@8.23.0)
-      '@workflow/next': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(next@16.2.11(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(ws@8.23.0)
-      '@workflow/nitro': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/nuxt': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(ws@8.23.0)
-      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
-      '@workflow/sveltekit': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(ws@8.23.0)
+      '@workflow/nest': 5.1.8(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.23))(bare-buffer@3.7.3)(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/next': 5.1.1(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(next@16.4.5(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(ws@8.23.0)
+      '@workflow/nitro': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/nuxt': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(confbox@0.2.4)(dotenv@17.4.2)(jiti@2.6.1)(magic-string@0.30.21)(mlly@1.8.2)(ws@8.23.0)
+      '@workflow/rollup': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
+      '@workflow/sveltekit': 5.0.10(@aws-sdk/credential-provider-web-identity@3.972.49)(@opentelemetry/api@1.9.0)(@swc/helpers@0.5.23)(ws@8.23.0)
       '@workflow/typescript-plugin': 5.0.0(typescript@5.8.3)
       '@workflow/utils': 5.1.0
       ms: 2.1.3
