@@ -1665,6 +1665,23 @@ describe("APIClient", () => {
       expect(body.keepLastSnapshots).toBeNull();
     });
 
+    it("forwards private params in the request body", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await client.updateSandbox({
+        name: "my-sandbox",
+        projectId: "proj_123",
+        __interactive: true,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      expect(JSON.parse(opts.body)).toHaveProperty("__interactive", true);
+    });
+
     it("forwards region and failoverRegions in the request body", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ sandbox: makeSandboxMetadata() }), {

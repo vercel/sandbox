@@ -164,6 +164,48 @@ describe("update expiryNotificationLeadTime", () => {
   });
 });
 
+describe("update persistent", () => {
+  it("forwards the processes value to the API", async () => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ persistent: "processes" });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ persistent: "processes" }),
+    );
+  });
+});
+
+describe("update private params", () => {
+  it("forwards them to the API", async () => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ __interactive: true });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ __interactive: true }),
+    );
+  });
+});
+
 describe("update networkId", () => {
   it.each([
     ["sets", "network_123"],

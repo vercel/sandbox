@@ -150,7 +150,7 @@ export interface BaseCreateSandboxParams {
   /**
    * Enable or disable automatic restore of the filesystem between sessions.
    */
-  persistent?: boolean;
+  persistent?: boolean | "processes";
   /**
    * Vercel managed credentials injected into the sandbox network policy.
    *
@@ -1785,8 +1785,8 @@ export class Sandbox implements ExecutionContext {
    * @param opts - Optional abort signal.
    */
   async update(
-    params: {
-      persistent?: boolean;
+    params: WithPrivate<{
+      persistent?: boolean | "processes";
       resources?: { vcpus?: number };
       timeout?: number;
       networkPolicy?: NetworkPolicy;
@@ -1810,7 +1810,7 @@ export class Sandbox implements ExecutionContext {
       region?: SandboxRegion;
       failoverRegions?: SandboxRegion[];
       mounts?: SandboxMounts;
-    },
+    }>,
     opts?: { signal?: AbortSignal },
   ): Promise<void> {
     "use step";
@@ -1868,6 +1868,7 @@ export class Sandbox implements ExecutionContext {
       failoverRegions: params.failoverRegions,
       mounts: toAPIMounts(params.mounts),
       signal: opts?.signal,
+      ...getPrivateParams(params),
     });
     this.sandbox = response.json.sandbox;
     if (params.ports !== undefined && response.json.routes) {
