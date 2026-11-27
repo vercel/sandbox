@@ -2,6 +2,7 @@ import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { isatty } from "node:tty";
 import ms from "ms";
+import { architecture } from "../args/architecture";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
@@ -43,6 +44,7 @@ export const args = {
       "A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1).",
     type: cmd.optional(cmd.string),
   }),
+  architecture,
   timeout,
   vcpus,
   ports: publishPorts,
@@ -122,6 +124,7 @@ export const create = cmd.command({
       ports,
       scope,
       image,
+      architecture,
       timeout,
       vcpus,
       silent,
@@ -157,6 +160,10 @@ export const create = cmd.command({
         );
       }
     }
+    if (architecture !== undefined && snapshot !== undefined) {
+      throw new Error("--architecture cannot be used with --snapshot.");
+    }
+
     // Look up the latest published CLI version while the creation request is
     // in flight, so stale installs learn they're behind at no latency cost.
     const versionCheck = silent ? undefined : startLatestVersionCheck();
@@ -171,7 +178,9 @@ export const create = cmd.command({
 
     const selectedImage = agent ? "vercel/sandbox/universal" : image;
     const imageOptions =
-      selectedImage !== undefined ? { image: selectedImage } : {};
+      selectedImage !== undefined
+        ? { image: selectedImage, architecture }
+        : { architecture };
 
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;

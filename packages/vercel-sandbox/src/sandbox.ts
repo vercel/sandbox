@@ -14,7 +14,11 @@ import type {
   WithFetchOptions,
 } from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
-import type { ManagedImage, SandboxRegion } from "./constants.js";
+import type {
+  ManagedImage,
+  SandboxArchitecture,
+  SandboxRegion,
+} from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
 import type { Drive } from "@vercel/drives";
@@ -252,6 +256,12 @@ export type SandboxImageParams = {
    * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
    */
   image?: SandboxImage;
+  /**
+   * The CPU architecture of the sandbox.
+   *
+   * @example "arm64"
+   */
+  architecture?: SandboxArchitecture;
 };
 
 export type CreateSandboxParams =
@@ -260,6 +270,7 @@ export type CreateSandboxParams =
       source: { type: "snapshot"; snapshotId: string };
       // A snapshot already defines its base environment.
       image?: never;
+      architecture?: never;
     });
 
 /**
@@ -511,6 +522,13 @@ export class Sandbox implements ExecutionContext {
    */
   public get image(): string | undefined {
     return this.sandbox.image;
+  }
+
+  /**
+   * The CPU architecture the sandbox runs on, `amd64` or `arm64`.
+   */
+  public get architecture(): string | undefined {
+    return this.sandbox.architecture;
   }
 
   /**
@@ -818,6 +836,7 @@ export class Sandbox implements ExecutionContext {
       timeout: params?.timeout,
       resources: params?.resources,
       image: params?.image,
+      architecture: params?.architecture,
       networkPolicy: params?.networkPolicy,
       networkId: params?.networkId,
       env: params?.env,

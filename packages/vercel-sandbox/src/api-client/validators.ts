@@ -337,6 +337,7 @@ export const Sandbox = z.object({
   vcpus: z.number().optional(),
   memory: z.number().optional(),
   image: z.string().optional(),
+  architecture: z.string().optional(),
   timeout: z.number().optional(),
   networkPolicy: NetworkPolicyResponseValidator.optional(),
   totalEgressBytes: z.number().optional(),
