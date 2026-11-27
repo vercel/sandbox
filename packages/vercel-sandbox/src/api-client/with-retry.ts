@@ -8,9 +8,24 @@ export interface RequestOptions {
 }
 
 /**
- * Wraps a fetch function with retry logic. The retry logic will retry
- * on network errors, 429 responses and 5xx responses. The retry logic
- * will not retry on 4xx responses.
+ * HTTP methods that are safe to retry on network errors and arbitrary 5xx
+ * responses. Unsafe methods (POST/PUT/PATCH/DELETE) may have already started
+ * side-effecting work, so they are only retried on 429 and 503.
+ */
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function isUnsafeMethod(method?: string): boolean {
+  return !SAFE_METHODS.has((method ?? "GET").toUpperCase());
+}
+
+/**
+ * Wraps a fetch function with retry logic.
+ *
+ * Safe methods (GET/HEAD/OPTIONS) retry on network errors, 429 responses, and
+ * 5xx responses. Unsafe methods (POST/PUT/PATCH/DELETE) only retry on 429 and
+ * 503, where the server has not accepted the request. They do not retry on
+ * network errors or other 5xx responses, which can mean the server already
+ * started the work (for example `runCommand` starting a process).
  *
  * @param rawFetch The fetch function to wrap.
  * @returns The wrapped fetch function.
@@ -44,6 +59,8 @@ export function withRetry<T extends RequestInit>(
       };
     }
 
+    const unsafe = isUnsafeMethod(opts.method);
+
     try {
       return (await retry(async (bail, attempt) => {
         try {
@@ -71,10 +88,13 @@ export function withRetry<T extends RequestInit>(
           }
 
           /**
-           * If the response is a a retryable error, we throw in
-           * order to retry.
+           * Unsafe methods only retry 503 among 5xx statuses. Other 5xx can
+           * mean the server already accepted and started the request.
            */
           if (response.status >= 500 && response.status < 600) {
+            if (unsafe && response.status !== 503) {
+              return response;
+            }
             throw new APIError(response);
           }
 
@@ -94,6 +114,14 @@ export function withRetry<T extends RequestInit>(
            */
           if (opts.signal?.aborted) {
             return bail(opts.signal.reason || new Error("Request aborted"));
+          }
+
+          /**
+           * Network errors after an unsafe method are ambiguous: the server
+           * may already have started the work. Do not retry.
+           */
+          if (unsafe && !(error instanceof APIError)) {
+            return bail(error);
           }
 
           throw error;
