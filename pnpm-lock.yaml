@@ -329,8 +329,8 @@ importers:
         specifier: 0.2.4
         version: 0.2.4
       '@vercel/detect-agent':
-        specifier: 1.2.5
-        version: 1.2.5
+        specifier: 1.2.7
+        version: 1.2.7
       '@vercel/oidc':
         specifier: ^4.0.0
         version: 4.0.0
@@ -374,8 +374,8 @@ importers:
   packages/vercel-sandbox:
     dependencies:
       '@vercel/detect-agent':
-        specifier: 1.2.5
-        version: 1.2.5
+        specifier: 1.2.7
+        version: 1.2.7
       '@vercel/drives':
         specifier: 1.0.0
         version: 1.0.0
@@ -2704,10 +2704,6 @@ packages:
   '@vercel/cli-exec@1.0.1':
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
-
-  '@vercel/detect-agent@1.2.5':
-    resolution: {integrity: sha512-0krENrjuitlW8s6TJu0MlqCevyCU7K7JK63jZAf7xZ6n17tx+vUEwzHT3sTxawtwZxaW21hu+oFUpoOrm49FsQ==}
-    engines: {node: '>=14'}
 
   '@vercel/detect-agent@1.2.7':
     resolution: {integrity: sha512-5tWaC9V+u4SHcSMKBz9FQb3Dhl/1A2lQ6QqHovu8uQeb8dTyjEevpJMANm/uQEn/usYB63fpdjWYjkJ8/bGtjA==}
@@ -8722,8 +8718,6 @@ snapshots:
   '@vercel/cli-exec@1.0.1':
     dependencies:
       execa: 5.1.1
-
-  '@vercel/detect-agent@1.2.5': {}
 
   '@vercel/detect-agent@1.2.7': {}
 
