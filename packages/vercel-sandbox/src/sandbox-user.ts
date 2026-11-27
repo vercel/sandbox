@@ -109,10 +109,27 @@ export class SandboxUser implements ExecutionContext {
 
   /**
    * Resolve a path relative to this user's home directory.
-   * Absolute paths are returned as-is.
+   * Absolute paths are returned as-is. Relative paths must stay inside the
+   * home directory: `..` segments that climb out of it are rejected.
    */
   private resolvePath(path: string): string {
-    return path.startsWith("/") ? path : `${this.homeDir}/${path}`;
+    if (path.startsWith("/")) return path;
+    // Normalized by hand: workflow functions cannot import `path`.
+    const segments: string[] = [];
+    for (const segment of path.split("/")) {
+      if (segment === "" || segment === ".") continue;
+      if (segment === "..") {
+        if (segments.length === 0) {
+          throw new Error(
+            `Relative path "${path}" resolves outside the home directory ${this.homeDir}`,
+          );
+        }
+        segments.pop();
+      } else {
+        segments.push(segment);
+      }
+    }
+    return [this.homeDir, ...segments].join("/");
   }
 
   /**
@@ -322,9 +339,12 @@ export class SandboxUser implements ExecutionContext {
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ): Promise<Buffer | null> {
-    const path = file.path.startsWith("/")
-      ? file.path
-      : `${file.cwd ?? this.homeDir}/${file.path}`;
+    // An explicit `cwd` is trusted like an absolute path; without it, the
+    // relative path must stay inside the home directory.
+    const path =
+      file.path.startsWith("/") || file.cwd === undefined
+        ? this.resolvePath(file.path)
+        : `${file.cwd}/${file.path}`;
     const result = await this.runCommand({
       cmd: "base64",
       args: [path],
