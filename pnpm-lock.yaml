@@ -82,8 +82,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.511.0
-        version: 0.511.0(react@19.1.1)
+        specifier: ^1.79.0
+        version: 1.79.0(@types/react@19.1.12)(react@19.1.1)
       next:
         specifier: 15.5.29
         version: 15.5.29(@opentelemetry/api@1.9.0)(@types/node@20.19.11)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -4824,10 +4824,14 @@ packages:
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
-  lucide-react@0.511.0:
-    resolution: {integrity: sha512-VK5a2ydJ7xm8GvBeKLS9mu1pVK6ucef9780JVUjw6bAjJL/QXnd4Y0p7SPeOUMC27YhzNCZvm5d/QX0Tp3rc0w==}
+  lucide-react@1.79.0:
+    resolution: {integrity: sha512-MDHKxzUobPRyQgt4hHO1z+pUQJKYMvenh8qw+ndWQE0Wg+Hbjli/ZrkZXBGmRBrMvvqDRjkmQj0Z5RbeL/ogNw==}
     peerDependencies:
+      '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   lunr@2.3.9:
     resolution: {integrity: sha512-zTU3DaZaF3Rt9rhN3uBMGQD3dD2/vFQqnvZCDv4dl5iOzq2IZQqTxu90r4E5J+nP70J3ilqVCrbho2eWaeW8Ow==}
@@ -11351,9 +11355,11 @@ snapshots:
 
   lru-cache@10.4.3: {}
 
-  lucide-react@0.511.0(react@19.1.1):
+  lucide-react@1.79.0(@types/react@19.1.12)(react@19.1.1):
     dependencies:
       react: 19.1.1
+    optionalDependencies:
+      '@types/react': 19.1.12
 
   lunr@2.3.9: {}
 
