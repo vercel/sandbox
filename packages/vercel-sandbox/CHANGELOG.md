@@ -1,5 +1,11 @@
 # @vercel/sandbox
 
+## 5.0.1
+
+### Patch Changes
+
+- Update `@vercel/detect-agent` to 1.2.7. ([#475](https://github.com/vercel/sandbox/pull/475))
+
 ## 5.0.0
 
 ### Major Changes
