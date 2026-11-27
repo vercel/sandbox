@@ -3,6 +3,7 @@ import { APIError } from "./api-error.js";
 import { z, ZodType } from "zod";
 import { array } from "../utils/array.js";
 import { withRetry, type RequestOptions } from "./with-retry.js";
+import { withAuthHeaders, type AuthHeadersProvider } from "./auth-headers.js";
 import { Agent, Dispatcher1Wrapper, fetch as undiciFetch } from "undici";
 
 export interface RequestParams extends RequestInit {
@@ -25,6 +26,7 @@ const LEGACY_COMPATIBLE_AGENT = new Dispatcher1Wrapper(DEFAULT_AGENT);
  */
 export class BaseClient {
   protected token?: string;
+  private hasAuthHeaders: boolean;
   private fetch: ReturnType<typeof withRetry<RequestInit>>;
   private debug: boolean;
   private baseUrl: string;
@@ -35,9 +37,16 @@ export class BaseClient {
     baseUrl: string;
     token?: string;
     fetch?: typeof globalThis.fetch;
+    /** Builds each request's auth headers, instead of `Bearer` with `token`. */
+    getAuthHeaders?: AuthHeadersProvider;
   }) {
+    const fetch = params.fetch ?? (undiciFetch as typeof globalThis.fetch);
+    this.hasAuthHeaders = Boolean(params.getAuthHeaders);
+    // Below `withRetry`, so each attempt gets new headers.
     this.fetch = withRetry(
-      params.fetch ?? (undiciFetch as typeof globalThis.fetch),
+      params.getAuthHeaders
+        ? withAuthHeaders(fetch, params.getAuthHeaders)
+        : fetch,
     );
     this.baseUrl = params.baseUrl;
     this.debug = params.debug ?? process.env.DEBUG_FETCH === "true";
@@ -60,9 +69,10 @@ export class BaseClient {
       ...opts,
       body: opts?.body,
       method: opts?.method || "GET",
-      headers: this.token
-        ? { Authorization: `Bearer ${this.token}`, ...opts?.headers }
-        : opts?.headers,
+      headers:
+        this.token && !this.hasAuthHeaders
+          ? { Authorization: `Bearer ${this.token}`, ...opts?.headers }
+          : opts?.headers,
       // @ts-expect-error Node.js' and undici's Agent have different types
       dispatcher: this.agent,
       signal: opts?.signal,

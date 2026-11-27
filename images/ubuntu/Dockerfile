@@ -1,11 +1,14 @@
-FROM ubuntu:26.04
+ARG UBUNTU_IMAGE
+FROM ${UBUNTU_IMAGE}
 
 ENV LANG=C.UTF-8
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends ca-certificates sudo && \
+ARG UBUNTU_SNAPSHOT
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 -o Acquire::https::Verify-Peer=false && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 -o Acquire::https::Verify-Peer=false ca-certificates && \
+    apt-get upgrade -y --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 && \
+    apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" -o Acquire::Retries=10 sudo && \
     rm -rf /var/lib/apt/lists/*
 
 RUN printf '%s\n' \

@@ -1,5 +1,69 @@
 # sandbox
 
+## 5.0.0
+
+### Major Changes
+
+- Remove the deprecated `runtime` option from the SDK and the `--runtime` flag from the CLI. Sandboxes are now always created from an image. Sandboxes that set neither `image` nor `source` keep using `vercel/sandbox/universal`. ([#508](https://github.com/vercel/sandbox/pull/508))
+
+  Replace `runtime` with `image`. Choose an `al-` tag to keep Amazon Linux 2023, or choose the Ubuntu image:
+
+  - `node22`: `vercel/sandbox/node:al-22` (Amazon Linux) or `vercel/sandbox/node:22` (Ubuntu).
+  - `node24`: `vercel/sandbox/node:al-24` (Amazon Linux) or `vercel/sandbox/node:24` (Ubuntu).
+  - `node26`: `vercel/sandbox/node:al-26` (Amazon Linux) or `vercel/sandbox/node:26` (Ubuntu).
+  - `python3.13`: `vercel/sandbox/python:al-3.13.1` (Amazon Linux) or `vercel/sandbox/python:3.14` (Ubuntu, upgrades Python to 3.14).
+
+  On the CLI, replace `--runtime <runtime>` with `--image <image>` using the same mapping. `sandbox ls` now shows an `IMAGE` column instead of `IMAGE/RUNTIME`, and `sandbox sessions list` no longer shows a `RUNTIME` column.
+
+  The `al-` tags support `linux/amd64` only. They run as `vercel-sandbox` and use `dnf` for system packages. Ubuntu images run as `ubuntu` and use `apt-get`. See the [images documentation](https://vercel.com/docs/sandbox/concepts/images) for the full catalog and custom images.
+
+### Minor Changes
+
+- Add an optional `getAuthHeaders` option to authenticate API requests with custom headers instead of `Authorization: Bearer <token>`, such as a DPoP proof (RFC 9449). It's called for every request, retries included, with the request's method and URL, and an optional `onResponse` receives each response's headers. A request rejected with `use_dpop_nonce` is sent once more with new headers. `createApp` in `sandbox` accepts it too and uses it when no `--token` or `VERCEL_AUTH_TOKEN` is given. `withAuthHeaders` is exported to apply a provider to a `fetch` function. ([#405](https://github.com/vercel/sandbox/pull/405))
+
+### Patch Changes
+
+- Updated dependencies [[`167463512cf80b578e15d2249ec0c8aabb8242de`](https://github.com/vercel/sandbox/commit/167463512cf80b578e15d2249ec0c8aabb8242de), [`0ae2eb6fc7eb7ccf703243f64f3bcadb87d9cf9f`](https://github.com/vercel/sandbox/commit/0ae2eb6fc7eb7ccf703243f64f3bcadb87d9cf9f), [`77bb22eb1df4397c7a128081f610f3f6bedc2aa7`](https://github.com/vercel/sandbox/commit/77bb22eb1df4397c7a128081f610f3f6bedc2aa7), [`72d0910f9481dc70c3831fc4fe73c8e5f329b3b2`](https://github.com/vercel/sandbox/commit/72d0910f9481dc70c3831fc4fe73c8e5f329b3b2)]:
+  - @vercel/sandbox@5.0.0
+
+## 4.13.0
+
+### Minor Changes
+
+- Deprecate `sandbox drives` in favor of `vercel drives` ([#497](https://github.com/vercel/sandbox/pull/497))
+
+### Patch Changes
+
+- Updated dependencies [[`52fcb6b3436ca3adf932eb1c515d62913c112978`](https://github.com/vercel/sandbox/commit/52fcb6b3436ca3adf932eb1c515d62913c112978)]:
+  - @vercel/sandbox@4.1.0
+
+## 4.12.0
+
+### Minor Changes
+
+- Add detached command execution and CLI commands to inspect logs, wait for completion, and stop a running command. ([#391](https://github.com/vercel/sandbox/pull/391))
+
+- Add `sandbox read <name> <path>` (alias `cat`) and `sandbox write <name> <path>` to read a sandbox file to stdout and write stdin to a sandbox file, and `sandbox copy --recursive` to copy whole directories in either direction. Failed copies now exit with a non-zero code. ([#380](https://github.com/vercel/sandbox/pull/380))
+
+- Add `sandbox exec --stdin` to pipe local input into a foreground command. Also add detached stdin writes, selected command output, domain lookup, and Linux users and groups. ([#392](https://github.com/vercel/sandbox/pull/392))
+
+- Add `sandbox create fx` to open fx in the universal image with its default permissions. Print commands to continue the conversation with `fx -c` or stop the sandbox after exiting. ([#413](https://github.com/vercel/sandbox/pull/413))
+
+- Add `credentials: { npm: true }` to `Sandbox.create` and `--credentials=npm` to `create`, `run`, and `sh`, so a sandbox can install your team's private npm packages with Vercel managed credentials injected into the sandbox network policy. `--credentials` takes a comma-separated list, so later credential types share the same flag. ([#453](https://github.com/vercel/sandbox/pull/453))
+
+- Add `--network-policy-file <FILE>` (use `-` for stdin) to `create`, `run`, `sh`, `fork`, and `config network-policy`. It takes the whole network policy as JSON in the SDK's `NetworkPolicy` shape, so the CLI can express any rule the SDK can, such as a request header limited to `GET` and `HEAD`. The SDK exports `parseNetworkPolicy`, which validates untrusted input with the same rules as `Sandbox.create`, rejects unknown keys, and never includes values in its errors. `@vercel/sandbox-mock` re-exports both. ([#417](https://github.com/vercel/sandbox/pull/417))
+
+### Patch Changes
+
+- Use the login shell of the user for interactive sessions when `SHELL` is not set. Before, images without `SHELL` started `sh`, and on Debian-based images `sh` has no line editing. ([#438](https://github.com/vercel/sandbox/pull/438))
+
+- Telemetry now records real team and project ids when `--scope` or `--project` is given as a slug, keeps the slugs out of the id fields, and records the caller's user id. ([#441](https://github.com/vercel/sandbox/pull/441))
+
+- Update `zod` to v4.6.7. ([#450](https://github.com/vercel/sandbox/pull/450))
+
+- Updated dependencies [[`32c74ee8f049ded8e3260d9c3015a500a2fb0f95`](https://github.com/vercel/sandbox/commit/32c74ee8f049ded8e3260d9c3015a500a2fb0f95), [`0ab5f9d177f5e5ec107e0373f9ae234bb8ecb23b`](https://github.com/vercel/sandbox/commit/0ab5f9d177f5e5ec107e0373f9ae234bb8ecb23b), [`201070d07f19faa89acb9a82015331a3b38db57a`](https://github.com/vercel/sandbox/commit/201070d07f19faa89acb9a82015331a3b38db57a), [`5ebd5ed396f6f61f1e99cc560db2751d174672f4`](https://github.com/vercel/sandbox/commit/5ebd5ed396f6f61f1e99cc560db2751d174672f4), [`3b6e77aba56553da9677cbefcaaf340f3bb6ebe9`](https://github.com/vercel/sandbox/commit/3b6e77aba56553da9677cbefcaaf340f3bb6ebe9), [`584633045bdeda5ea013e8af8e0be3bb935e1d20`](https://github.com/vercel/sandbox/commit/584633045bdeda5ea013e8af8e0be3bb935e1d20)]:
+  - @vercel/sandbox@4.0.0
+
 ## 4.11.1
 
 ### Patch Changes

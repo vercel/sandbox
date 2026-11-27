@@ -4,16 +4,8 @@ import {
   hydrateStepReturnValue,
 } from "@workflow/core/serialization";
 import { WORKFLOW_DESERIALIZE, WORKFLOW_SERIALIZE } from "@workflow/serde";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetch as undiciFetch } from "undici";
-import type { DriveMetadata } from "./api-client";
-import { APIClient } from "./api-client";
-import { Drive, type SerializedDrive } from "./drive";
-
-vi.mock("undici", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("undici")>()),
-  fetch: vi.fn(),
-}));
+import { describe, expect, it } from "vitest";
+import { Drive, type DriveMetadata, type SerializedDrive } from "./index.js";
 
 describe("Drive serialization", () => {
   const mockDriveMetadata: DriveMetadata = {
@@ -31,13 +23,7 @@ describe("Drive serialization", () => {
   const createMockDrive = (
     metadata: DriveMetadata = mockDriveMetadata,
   ): Drive => {
-    const client = new APIClient({
-      teamId: "team_test",
-      token: "test_token",
-    });
-
     return new Drive({
-      client,
       drive: metadata,
       projectId: "proj_test",
     });
@@ -50,12 +36,6 @@ describe("Drive serialization", () => {
   const deserializeDrive = (data: SerializedDrive): Drive => {
     return Drive[WORKFLOW_DESERIALIZE](data);
   };
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-    vi.mocked(undiciFetch).mockReset();
-  });
 
   describe("WORKFLOW_SERIALIZE", () => {
     it("serializes drive metadata", () => {
@@ -81,53 +61,6 @@ describe("Drive serialization", () => {
   });
 
   describe("WORKFLOW_DESERIALIZE", () => {
-    it("forks a deserialized drive with new credentials and its saved project", async () => {
-      vi.resetModules();
-      const { Drive: FreshDrive } = await import("./drive");
-      const credentials = await import("./utils/get-credentials");
-      vi.spyOn(credentials, "getCredentials").mockResolvedValue({
-        token: "fresh-token",
-        teamId: "team_test",
-        projectId: "proj_other",
-      });
-      const mockFetch = vi.fn<typeof fetch>(
-        async () =>
-          new Response(
-            JSON.stringify({
-              drive: {
-                ...mockDriveMetadata,
-                id: "drive_fork",
-                name: "workspace-fork",
-                parentDriveId: "drive_test123",
-                rootDriveId: "drive_test123",
-              },
-            }),
-            { status: 201, headers: { "content-type": "application/json" } },
-          ),
-      );
-      vi.mocked(undiciFetch).mockImplementation(
-        mockFetch as typeof undiciFetch,
-      );
-      const drive = FreshDrive[WORKFLOW_DESERIALIZE]({
-        drive: mockDriveMetadata,
-        projectId: "proj_test",
-      });
-
-      const forkedDrive = await drive.fork({ name: "workspace-fork" });
-
-      expect(forkedDrive.name).toBe("workspace-fork");
-      expect(forkedDrive.parentDriveId).toBe("drive_test123");
-      expect(forkedDrive.rootDriveId).toBe("drive_test123");
-      expect(forkedDrive.projectId).toBe("proj_test");
-      const [url, init] = mockFetch.mock.calls[0];
-      expect(new URL(String(url)).searchParams.get("projectId")).toBe(
-        "proj_test",
-      );
-      expect(new Headers(init?.headers).get("authorization")).toBe(
-        "Bearer fresh-token",
-      );
-    });
-
     it("preserves fork lineage through serialization", () => {
       const drive = createMockDrive({
         ...mockDriveMetadata,
@@ -178,31 +111,6 @@ describe("Drive serialization", () => {
       });
 
       expect(result.region).toBe("iad1");
-    });
-
-    it("does not require global credentials just to deserialize and read metadata", async () => {
-      vi.resetModules();
-      const { Drive: FreshDrive } = await import("./drive");
-
-      const deserialized = FreshDrive[WORKFLOW_DESERIALIZE]({
-        drive: mockDriveMetadata,
-        projectId: "proj_test",
-      }) as Drive;
-
-      expect(deserialized.name).toBe("workspace");
-      expect(deserialized.maxSize).toBe(1073741824);
-    });
-
-    it("deserialized instance has no client until ensureClient() is called", async () => {
-      vi.resetModules();
-      const { Drive: FreshDrive } = await import("./drive");
-
-      const deserialized = FreshDrive[WORKFLOW_DESERIALIZE]({
-        drive: mockDriveMetadata,
-        projectId: "proj_test",
-      }) as Drive;
-
-      expect((deserialized as any)._client).toBeNull();
     });
   });
 

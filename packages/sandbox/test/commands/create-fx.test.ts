@@ -114,11 +114,11 @@ describe("create fx", () => {
     },
   );
 
-  test.each(["--runtime=node24", "--image=custom", "--snapshot=snap_123"])(
+  test.each(["--image=custom", "--snapshot=snap_123"])(
     "rejects conflicting %s before allocating a sandbox",
     async (flag) => {
       await expect(createWith(["fx", flag])).rejects.toThrow(
-        "cannot be combined with --runtime, --image, or --snapshot",
+        "cannot be combined with --image or --snapshot",
       );
       expect(mockCreate).not.toHaveBeenCalled();
     },

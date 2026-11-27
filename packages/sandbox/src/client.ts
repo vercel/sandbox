@@ -1,5 +1,12 @@
-import { Sandbox, APIError, Snapshot, Drive } from "@vercel/sandbox";
+import {
+  Sandbox,
+  APIError,
+  Snapshot,
+  Drive,
+  withAuthHeaders,
+} from "@vercel/sandbox";
 import { version } from "./pkg";
+import { authHeadersFor } from "./auth-headers";
 import { withFreshAuthRetry } from "./util/fresh-auth-retry";
 import { formatApiError } from "./util/format-error";
 import { telemetry } from "./telemetry";
@@ -15,28 +22,28 @@ export const sandboxClient: Pick<
   get: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.get({ fetch: fetchWithUserAgent, resume: false, ...params });
+      const sandbox = await Sandbox.get({ ...requestOptions(params), resume: false, ...params });
       trackSession(sandbox, "attached");
       return sandbox;
     }),
   create: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.create({ fetch: fetchWithUserAgent, ...params });
+      const sandbox = await Sandbox.create({ ...requestOptions(params), ...params });
       trackSession(sandbox, "created");
       return sandbox;
     }),
   fork: (params) =>
     withErrorHandling(async () => {
       updateScope(params);
-      const sandbox = await Sandbox.fork({ fetch: fetchWithUserAgent, ...params });
+      const sandbox = await Sandbox.fork({ ...requestOptions(params), ...params });
       trackSession(sandbox, "created");
       return sandbox;
     }),
   list: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Sandbox.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+      return Sandbox.list({ ...requestOptions(params), ...params } as typeof params);
     }),
 };
 
@@ -47,17 +54,17 @@ export const snapshotClient: Pick<
   list: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Snapshot.list({ fetch: fetchWithUserAgent, ...params });
+      return Snapshot.list({ ...requestOptions(params), ...params });
     }),
   get: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Snapshot.get({ ...params });
+      return Snapshot.get({ ...authOptions(params), ...params });
     }),
   tree: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Snapshot.tree({ fetch: fetchWithUserAgent, ...params });
+      return Snapshot.tree({ ...requestOptions(params), ...params });
     }),
 };
 
@@ -68,17 +75,20 @@ export const driveClient: Pick<typeof Drive, "get" | "getOrCreate" | "list"> & {
   get: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Drive.get({ fetch: fetchWithUserAgent, ...params });
+      return Drive.get({ ...driveRequestOptions(params), ...params });
     }),
   getOrCreate: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Drive.getOrCreate({ fetch: fetchWithUserAgent, ...params });
+      return Drive.getOrCreate({ ...driveRequestOptions(params), ...params });
     }),
   list: (params) =>
     withErrorHandling(() => {
       updateScope(params);
-      return Drive.list({ fetch: fetchWithUserAgent, ...params } as typeof params);
+      return Drive.list({
+        ...driveRequestOptions(params),
+        ...params,
+      } as typeof params);
     }),
   delete: (drive) => withErrorHandling(() => drive.delete()),
   fork: (drive, params) => withErrorHandling(() => drive.fork(params)),
@@ -98,6 +108,26 @@ function updateScope(params: unknown): void {
   const token = scopeField(params, "token");
   telemetry.resolveScopeIds(token);
   telemetry.resolveUserId(token);
+}
+
+/** Authenticate with `createApp`'s `getAuthHeaders` when there's no token. */
+function authOptions(params: unknown) {
+  const getAuthHeaders = authHeadersFor(scopeField(params, "token"));
+  return getAuthHeaders ? { getAuthHeaders } : {};
+}
+
+function requestOptions(params: unknown) {
+  return { fetch: fetchWithUserAgent, ...authOptions(params) };
+}
+
+/** `Drive` has no `getAuthHeaders` option, so the provider wraps its `fetch`. */
+function driveRequestOptions(params: unknown) {
+  const getAuthHeaders = authHeadersFor(scopeField(params, "token"));
+  return {
+    fetch: getAuthHeaders
+      ? withAuthHeaders(fetchWithUserAgent, getAuthHeaders)
+      : fetchWithUserAgent,
+  };
 }
 
 function trackSession(sandbox: Sandbox, origin: "created" | "attached"): void {

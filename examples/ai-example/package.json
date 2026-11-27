@@ -19,8 +19,8 @@
     "ai": "7.0.164",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.511.0",
-    "next": "15.3.6",
+    "lucide-react": "^1.79.0",
+    "next": "15.5.29",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.56.4",
@@ -33,7 +33,7 @@
     "remark-stringify": "^11.0.0",
     "tailwind-merge": "^3.3.0",
     "unified": "^11.0.5",
-    "unist-util-visit": "^5.0.0",
+    "unist-util-visit": "^5.2.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

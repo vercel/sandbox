@@ -5,8 +5,9 @@ packages:
 
 catalog:
   tsdown: 0.16.6
-  vitest: 3.2.1
+  vitest: 4.1.11
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
+  - "@vercel/drives"
   - undici

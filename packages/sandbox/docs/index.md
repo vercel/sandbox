@@ -1,7 +1,7 @@
 ## `sandbox --help`
 
 ```
-sandbox 4.11.1
+sandbox 5.0.0
 
 ▲ sandbox [options] <command>
 
@@ -12,7 +12,7 @@ Commands:
     ls | list                                  List all sandboxes for the specified account and project.
     create         [agent]                     Create a sandbox in the specified account and project.
     sh                                         Create a sandbox and start an interactive shell
-    fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
+    fork           <source>                    Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its image when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
     config                                     View and update sandbox configuration
     cp | copy      <src> <dst>                 Copy files between your local filesystem and a remote sandbox
     cat | read     <name> <path>               Print a file from a sandbox to stdout.
@@ -30,7 +30,7 @@ Commands:
     snapshot       <name>                      Take a snapshot of the filesystem of a sandbox
     snapshots                                  Manage sandbox snapshots
     sessions                                   Manage sandbox sessions
-    drives                                     Manage sandbox drives
+    drives                                     Manage sandbox drives (deprecated, use the `vercel drives` CLI)
     telemetry                                  Manage telemetry collection status
     login                                      Log in to the Sandbox CLI
     logout                                     Log out of the Sandbox CLI
@@ -104,7 +104,6 @@ Create and run a command in a sandbox
 Options:
 
     --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
     --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -116,6 +115,7 @@ Options:
     --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -184,7 +184,6 @@ Create a sandbox in the specified account and project.
 Options:
 
     --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
     --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -196,6 +195,7 @@ Options:
     --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -256,6 +256,10 @@ Examples:
 – Create and connect to a sandbox without a network access
 
   $ sandbox run --network-policy=none --connect
+
+– Create a sandbox that can install your team's private npm packages
+
+  $ sandbox create --credentials=npm
 ```
 
 ## `sandbox sh`
@@ -270,7 +274,6 @@ Create a sandbox and start an interactive shell
 Options:
 
     --name <str>                                       A user-chosen name for the sandbox. It must be unique per project. [optional]
-    --runtime <runtime>                                Deprecated. Use --image instead. [optional]
     --image <str>                                      A Vercel Container Registry (VCR) image name and optional tag or sha to start the sandbox from (e.g. my-repo, my-repo:v1). [optional]
     --timeout <num UNIT>                               The maximum duration a sandbox can run for. Example: 5m, 30m [default: 5 minutes]
     --vcpus <COUNT>                                    Number of vCPUs to allocate (each vCPU includes 2048 MB of memory) [optional]
@@ -282,6 +285,7 @@ Options:
     --region <REGION>                                  Region to create the sandbox in (defaults to iad1; any Vercel region is supported, e.g. sfo1, fra1, hnd1, syd1) [optional]
     --failover-regions <REGION,...|none>               Comma-separated regions the sandbox can fail over to (e.g. --failover-regions sfo1,fra1). Must not include the sandbox region. Pass "none" for no failover regions, overriding the project default. [optional]
     --network-id <NETWORK_ID>                          Secure Compute network ID from your team's Settings > Networking (requires an Enterprise plan) [optional]
+    --credentials <PROVIDER,...>                       Comma-separated Vercel managed credentials to inject into the sandbox network policy. [optional]
     --snapshot-expiration <DURATION|none>              Default snapshot expiration. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
     --keep-last-snapshots <COUNT>                      Keep only the N most recent snapshots of this sandbox (1-10). [optional]
     --keep-last-snapshots-for <DURATION|none>          Expiration applied to kept snapshots. Use "none" or 0 for no expiration. Example: 7d, 30d [optional]
@@ -333,7 +337,7 @@ fork
 
 ▲ sandbox fork [options]
 
-Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its runtime when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
+Fork an existing sandbox into a new one. The fork starts from the source's latest snapshot (or a fresh copy of its image when it has none) and copies its config (cpu, timeout, network policy, tags, env vars, etc.); any flag passed here overrides the copied value. Changes made in a running source since its last snapshot are not included: run `sandbox snapshot --stop <source>` first to fork the current filesystem.
 
 Arguments:
 

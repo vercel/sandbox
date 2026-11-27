@@ -2,7 +2,6 @@ import { commandMetadata } from "../command-metadata";
 import * as cmd from "cmd-ts";
 import { isatty } from "node:tty";
 import ms from "ms";
-import { runtime } from "../args/runtime";
 import { timeout } from "../args/timeout";
 import { vcpus } from "../args/vcpus";
 import chalk from "chalk";
@@ -22,6 +21,7 @@ import { mounts } from "../args/drive";
 import { startLatestVersionCheck } from "../util/check-latest-version";
 import { region, failoverRegions } from "../args/region";
 import { networkId } from "../args/network-id";
+import { credentials } from "../args/credentials";
 import { defaultShell } from "../interactive-shell/default-shell";
 import { agentNames, agents } from "./agents";
 
@@ -37,7 +37,6 @@ export const args = {
     description:
       "Disable automatic restore of the filesystem between sessions.",
   }),
-  runtime,
   image: cmd.option({
     long: "image",
     description:
@@ -79,6 +78,7 @@ export const args = {
   region,
   failoverRegions,
   networkId,
+  credentials,
   ...snapshotRetentionArgs,
   ...networkPolicyArgs,
   scope,
@@ -108,6 +108,11 @@ export const create = cmd.command({
       description: "Create and connect to a sandbox without a network access",
       command: `sandbox run --network-policy=none --connect`,
     },
+    {
+      description:
+        "Create a sandbox that can install your team's private npm packages",
+      command: `sandbox create --credentials=npm`,
+    },
   ],
   async handler(input) {
     const {
@@ -116,7 +121,6 @@ export const create = cmd.command({
       nonPersistent,
       ports,
       scope,
-      runtime,
       image,
       timeout,
       vcpus,
@@ -129,6 +133,7 @@ export const create = cmd.command({
       region,
       failoverRegions,
       networkId,
+      credentials,
       snapshotExpiration,
       keepLastSnapshots,
       keepLastSnapshotsFor,
@@ -141,13 +146,9 @@ export const create = cmd.command({
     };
     const launcher = agent ? agents[agent] : undefined;
     if (agent) {
-      if (
-        runtime !== undefined ||
-        image !== undefined ||
-        snapshot !== undefined
-      ) {
+      if (image !== undefined || snapshot !== undefined) {
         throw new Error(
-          `sandbox create ${agent} cannot be combined with --runtime, --image, or --snapshot.`,
+          `sandbox create ${agent} cannot be combined with --image or --snapshot.`,
         );
       }
       if (!isatty(0) || !isatty(1)) {
@@ -156,10 +157,6 @@ export const create = cmd.command({
         );
       }
     }
-    if (runtime !== undefined && image !== undefined) {
-      throw new Error("--runtime and --image cannot be used together.");
-    }
-
     // Look up the latest published CLI version while the creation request is
     // in flight, so stale installs learn they're behind at no latency cost.
     const versionCheck = silent ? undefined : startLatestVersionCheck();
@@ -173,17 +170,16 @@ export const create = cmd.command({
     });
 
     const selectedImage = agent ? "vercel/sandbox/universal" : image;
-    const runtimeOptions =
-      selectedImage !== undefined
-        ? { image: selectedImage }
-        : runtime !== undefined
-          ? { runtime }
-          : {};
+    const imageOptions =
+      selectedImage !== undefined ? { image: selectedImage } : {};
 
     const persistent = !nonPersistent;
     const resources = vcpus ? { vcpus } : undefined;
     const tagsObj = Object.keys(tags).length > 0 ? tags : undefined;
     const mountsObj = Object.keys(mounts).length > 0 ? mounts : undefined;
+    const credentialsObj = credentials?.includes("npm")
+      ? { npm: true as const }
+      : undefined;
     const spinner = silent ? undefined : ora("Creating sandbox...").start();
     const sandbox = snapshot
       ? await sandboxClient.create({
@@ -207,6 +203,7 @@ export const create = cmd.command({
             ? ms(snapshotExpiration)
             : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
+          credentials: credentialsObj,
           __interactive: true,
         })
       : await sandboxClient.create({
@@ -215,7 +212,7 @@ export const create = cmd.command({
           projectId: scope.project,
           token: scope.token,
           ports,
-          ...runtimeOptions,
+          ...imageOptions,
           timeout: ms(timeout),
           resources,
           networkPolicy,
@@ -230,6 +227,7 @@ export const create = cmd.command({
             ? ms(snapshotExpiration)
             : undefined,
           keepLastSnapshots: keepLastSnapshotsPayload,
+          credentials: credentialsObj,
           __interactive: true,
         });
     spinner?.stop();

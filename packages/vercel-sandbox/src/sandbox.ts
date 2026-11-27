@@ -14,10 +14,10 @@ import type {
   WithFetchOptions,
 } from "./api-client/api-client.js";
 import { DEFAULT_SANDBOX_REGION } from "./constants.js";
-import type { ManagedImage, RUNTIMES, SandboxRegion } from "./constants.js";
+import type { ManagedImage, SandboxRegion } from "./constants.js";
 import { Session, type RunCommandParams } from "./session.js";
 import type { Command, CommandFinished } from "./command.js";
-import type { Drive } from "./drive.js";
+import type { Drive } from "@vercel/drives";
 import type { Snapshot } from "./snapshot.js";
 import type { SandboxSnapshot } from "./utils/sandbox-snapshot.js";
 import type {
@@ -152,11 +152,25 @@ export interface BaseCreateSandboxParams {
    */
   persistent?: boolean;
   /**
+   * Vercel managed credentials injected into the sandbox network policy.
+   *
+   * @example
+   * await Sandbox.create({ credentials: { npm: true } });
+   */
+  credentials?: SandboxCredentials;
+  /**
    * Default snapshot expiration in milliseconds.
    * When set, snapshots created for this sandbox will expire after this duration.
    * Use `0` for no expiration.
    */
   snapshotExpiration?: number;
+  /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent, starting with the session
+   * this call starts. Between 1 minute and 1 hour; the API defaults to
+   * 1 minute.
+   */
+  expiryNotificationLeadTime?: number;
   /**
    * Retention policy that keeps only the N most recent snapshots of this
    * sandbox. Older snapshots are evicted when a new one is created.
@@ -184,6 +198,16 @@ export interface BaseCreateSandboxParams {
   onResume?: (sandbox: Sandbox) => Promise<void>;
 }
 
+/**
+ * Vercel managed credentials injected into the sandbox network policy.
+ */
+export interface SandboxCredentials {
+  /**
+   * Let the sandbox install your team's private npm packages.
+   */
+  npm?: true;
+}
+
 export type SandboxMountMode = "read-write" | "snapshot";
 export type SandboxMounts = Record<
   string,
@@ -209,44 +233,32 @@ function toAPIMounts(mounts?: SandboxMounts): SandboxMetaData["mounts"] {
 export type SandboxImage = `vercel/sandbox/${ManagedImage}` | (string & {});
 
 /**
- * Sandbox environment selection options.
+ * Sandbox image selection options.
  * @inline
  */
-export type RuntimeOrImage =
-  | {
-      /**
-       * A legacy Vercel-managed runtime.
-       *
-       * @deprecated Use `image` instead.
-       */
-      runtime?: RUNTIMES | (string & {});
-      image?: never;
-    }
-  | {
-      runtime?: never;
-      /**
-       * A Vercel Container Registry (VCR) image to start the sandbox from,
-       * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
-       * optional tag or digest, or a fully-qualified VCR URL. A bare
-       * repository name resolves to the `latest` tag. If omitted, the sandbox
-       * uses `vercel/sandbox/universal:latest`.
-       *
-       * @example "vercel/sandbox/universal" // Vercel managed image, latest tag
-       * @example "my-repo" // latest tag
-       * @example "my-repo:v1" // specific tag
-       * @example "my-repo@sha256:..." // specific digest
-       * @example "other-team/other-project/repo:v1" // Shared image from another team
-       * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
-       */
-      image?: SandboxImage;
-    };
+export type SandboxImageParams = {
+  /**
+   * A Vercel Container Registry (VCR) image to start the sandbox from,
+   * scoped to the sandbox's project or a shared image from any project. Accepts a repository name, an
+   * optional tag or digest, or a fully-qualified VCR URL. A bare
+   * repository name resolves to the `latest` tag. If omitted, the sandbox
+   * uses `vercel/sandbox/universal:latest`.
+   *
+   * @example "vercel/sandbox/universal" // Vercel managed image, latest tag
+   * @example "my-repo" // latest tag
+   * @example "my-repo:v1" // specific tag
+   * @example "my-repo@sha256:..." // specific digest
+   * @example "other-team/other-project/repo:v1" // Shared image from another team
+   * @example "vcr.vercel.com/my-team/my-project/repo:v1" // fully-qualified
+   */
+  image?: SandboxImage;
+};
 
 export type CreateSandboxParams =
-  | (BaseCreateSandboxParams & RuntimeOrImage)
+  | (BaseCreateSandboxParams & SandboxImageParams)
   | (Omit<BaseCreateSandboxParams, "source"> & {
       source: { type: "snapshot"; snapshotId: string };
       // A snapshot already defines its base environment.
-      runtime?: never;
       image?: never;
     });
 
@@ -272,6 +284,13 @@ export type ForkSandboxParams = Omit<BaseCreateSandboxParams, "source"> & {
    * the image copied from the source.
    */
   image?: SandboxImage;
+  /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent, starting with the fork's first
+   * session. Between 1 minute and 1 hour. When omitted, the fork keeps the
+   * source sandbox's lead time.
+   */
+  expiryNotificationLeadTime?: number;
 };
 
 /** @inline */
@@ -487,15 +506,6 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
-   * Legacy runtime identifier, when the sandbox was created with `runtime`.
-   *
-   * @deprecated Use {@link Sandbox.image} for image-backed sandboxes.
-   */
-  public get runtime(): string | undefined {
-    return this.sandbox.runtime;
-  }
-
-  /**
    * Digest-pinned reference of the container image the sandbox was created
    * from, when it was created from an image (`"{repository}@{manifestDigest}"`).
    */
@@ -642,6 +652,14 @@ export class Sandbox implements ExecutionContext {
   }
 
   /**
+   * How long before a session times out, in milliseconds, the
+   * `sandbox.session.expiring` webhook is sent.
+   */
+  public get expiryNotificationLeadTime(): number | undefined {
+    return this.sandbox.expiryNotificationLeadTime;
+  }
+
+  /**
    * The snapshot retention policy (`keep-last-snapshots`) currently configured
    * on this sandbox, if any.
    */
@@ -700,6 +718,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params?.fetch,
+      getAuthHeaders: params?.getAuthHeaders,
     });
     const fetchPage = async (cursor?: string) => {
       const response = await client.listSandboxes<Tags>({
@@ -783,15 +802,12 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox & AsyncDisposable> {
     "use step";
-    if (params?.runtime !== undefined && params.image !== undefined) {
-      throw new TypeError("`runtime` and `image` cannot be used together.");
-    }
-
     const credentials = await getCredentials(params);
     const client = new APIClient({
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params?.fetch,
+      getAuthHeaders: params?.getAuthHeaders,
     });
 
     const privateParams = getPrivateParams(params);
@@ -801,7 +817,6 @@ export class Sandbox implements ExecutionContext {
       ports: params?.ports ?? [],
       timeout: params?.timeout,
       resources: params?.resources,
-      runtime: params?.runtime,
       image: params?.image,
       networkPolicy: params?.networkPolicy,
       networkId: params?.networkId,
@@ -809,12 +824,14 @@ export class Sandbox implements ExecutionContext {
       tags: params?.tags,
       mounts: toAPIMounts(params?.mounts),
       snapshotExpiration: params?.snapshotExpiration,
+      expiryNotificationLeadTime: params?.expiryNotificationLeadTime,
       keepLastSnapshots: params?.keepLastSnapshots,
       region: params?.region,
       failoverRegions: params?.failoverRegions,
       signal: params?.signal,
       name: params?.name,
       persistent: params?.persistent,
+      credentials: params?.credentials,
       ...privateParams,
     });
 
@@ -864,6 +881,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const privateParams = getPrivateParams(params);
@@ -881,6 +899,7 @@ export class Sandbox implements ExecutionContext {
       mounts: toAPIMounts(params.mounts),
       tags: params.tags,
       snapshotExpiration: params.snapshotExpiration,
+      expiryNotificationLeadTime: params.expiryNotificationLeadTime,
       keepLastSnapshots: params.keepLastSnapshots,
       region: params.region,
       failoverRegions: params.failoverRegions,
@@ -915,6 +934,7 @@ export class Sandbox implements ExecutionContext {
       teamId: credentials.teamId,
       token: credentials.token,
       fetch: params.fetch,
+      getAuthHeaders: params.getAuthHeaders,
     });
 
     const privateParams = getPrivateParams(params);
@@ -980,10 +1000,6 @@ export class Sandbox implements ExecutionContext {
       WithFetchOptions,
   ): Promise<Sandbox> {
     "use step";
-    if (params?.runtime !== undefined && params.image !== undefined) {
-      throw new TypeError("`runtime` and `image` cannot be used together.");
-    }
-
     // No name → always create, fire onCreate.
     if (!params?.name) {
       const sandbox = await Sandbox.create(params);
@@ -1015,6 +1031,7 @@ export class Sandbox implements ExecutionContext {
           teamId: credentials.teamId,
           token: credentials.token,
           fetch: params.fetch,
+          getAuthHeaders: params.getAuthHeaders,
         });
         const privateParams = getPrivateParams(params);
         try {
@@ -1778,6 +1795,12 @@ export class Sandbox implements ExecutionContext {
       tags?: Record<string, string>;
       ports?: number[];
       snapshotExpiration?: number;
+      /**
+       * How long before a session times out, in milliseconds, the
+       * `sandbox.session.expiring` webhook is sent. Takes effect from the next
+       * session.
+       */
+      expiryNotificationLeadTime?: number;
       keepLastSnapshots?: {
         count: number;
         expiration?: number;
@@ -1838,6 +1861,7 @@ export class Sandbox implements ExecutionContext {
       tags: params.tags,
       ports: params.ports,
       snapshotExpiration: params.snapshotExpiration,
+      expiryNotificationLeadTime: params.expiryNotificationLeadTime,
       keepLastSnapshots: params.keepLastSnapshots,
       currentSnapshotId: params.currentSnapshotId,
       region: params.region,

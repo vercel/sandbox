@@ -3,7 +3,7 @@ import { PassThrough } from "stream";
 import { consumeReadable } from "./utils/consume-readable.js";
 import { Sandbox, type SandboxMounts } from "./sandbox.js";
 import { Sandbox as SandboxSchema } from "./api-client/validators.js";
-import { Drive } from "./drive.js";
+import { Drive } from "@vercel/drives";
 import { Snapshot } from "./snapshot.js";
 import { APIError } from "./api-client/api-error.js";
 import type {
@@ -114,11 +114,6 @@ describe("source getters", () => {
     );
   });
 
-  it("exposes a legacy runtime when present", () => {
-    const sandbox = makeSandbox({ image: undefined, runtime: "node24" });
-    expect(sandbox.runtime).toBe("node24");
-  });
-
   it("reports the regions the API omits as the defaults", () => {
     const sandbox = makeSandbox({
       region: undefined,
@@ -140,6 +135,32 @@ describe("source getters", () => {
   it("exposes the Secure Compute network ID", () => {
     const sandbox = makeSandbox({ networkId: "network_123" });
     expect(sandbox.networkId).toBe("network_123");
+  });
+
+  it("exposes the expiry notification lead time", () => {
+    const sandbox = makeSandbox({ expiryNotificationLeadTime: 300_000 });
+    expect(sandbox.expiryNotificationLeadTime).toBe(300_000);
+  });
+});
+
+describe("update expiryNotificationLeadTime", () => {
+  it("forwards the lead time to the API", async () => {
+    const updateSandboxMock = vi.fn(async () => ({
+      json: { sandbox: makeSandboxMetadata() },
+    }));
+    const sandbox = new Sandbox({
+      client: { updateSandbox: updateSandboxMock } as unknown as APIClient,
+      routes: [],
+      sandbox: makeSandboxMetadata(),
+      session: {} as any,
+      projectId: "test-project",
+    });
+
+    await sandbox.update({ expiryNotificationLeadTime: 300_000 });
+
+    expect(updateSandboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({ expiryNotificationLeadTime: 300_000 }),
+    );
   });
 });
 
@@ -765,22 +786,6 @@ describe("Sandbox.getOrCreate", () => {
       headers: { "content-type": "application/json" },
     });
 
-  it("rejects runtime and image before looking up a named sandbox", async () => {
-    const mockFetch = vi.fn<typeof fetch>();
-
-    await expect(
-      Sandbox.getOrCreate({
-        ...CREDENTIALS,
-        name: "my-sandbox",
-        runtime: "node24",
-        image: "vercel/sandbox/node:24",
-        fetch: mockFetch as unknown as typeof fetch,
-      } as any),
-    ).rejects.toThrow("`runtime` and `image` cannot be used together.");
-
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
   it("propagates non-404 errors from Sandbox.get without attempting create", async () => {
     // 403 is non-retryable (<500 and !=429), so it surfaces immediately.
     const mockFetch = vi.fn<typeof fetch>(async () =>
@@ -1079,41 +1084,6 @@ describe("Sandbox.create environment selection", () => {
     expect(init?.method).toBe("POST");
     const body = JSON.parse(String(init?.body));
     expect(body.image).toBe("my-repo:latest");
-  });
-
-  it("uses the v2 endpoint when runtime is provided", async () => {
-    const mockFetch = vi.fn<typeof fetch>(async () =>
-      jsonResponse(400, { error: { code: "bad_request", message: "stop" } }),
-    );
-
-    await expect(
-      Sandbox.create({
-        ...CREDENTIALS,
-        runtime: "node24",
-        fetch: mockFetch as unknown as typeof fetch,
-      }),
-    ).rejects.toBeInstanceOf(APIError);
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toContain("/v2/sandboxes");
-    const body = JSON.parse(String(init?.body));
-    expect(body.runtime).toBe("node24");
-  });
-
-  it("rejects runtime and image together before making a request", async () => {
-    const mockFetch = vi.fn<typeof fetch>();
-
-    await expect(
-      Sandbox.create({
-        ...CREDENTIALS,
-        runtime: "node24",
-        image: "vercel/sandbox/node:24",
-        fetch: mockFetch as unknown as typeof fetch,
-      } as any),
-    ).rejects.toThrow("`runtime` and `image` cannot be used together.");
-
-    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
