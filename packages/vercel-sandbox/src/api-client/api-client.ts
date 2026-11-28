@@ -50,12 +50,14 @@ import { StringDecoder } from "node:string_decoder";
 
 const STDIN_MAX_RETRIES = 5;
 const STDIN_MAX_STALLED_TIMEOUTS = 2;
+/** How long a waited command waits out rate limiting in total before failing. */
+const COMMAND_RATE_LIMIT_MAX_WAIT_MS = 20_000;
 
-function stdinBackoff(attempt: number) {
+function retryBackoff(attempt: number) {
   return 400 * 2 ** attempt;
 }
 
-function waitBeforeStdinRetry(ms: number, signal?: AbortSignal) {
+function waitBeforeRetry(ms: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason);
     const onAbort = () => {
@@ -471,9 +473,8 @@ export class APIClient extends BaseClient {
     | Parsed<z.infer<typeof CommandResponse>>
   > {
     if (params.wait) {
-      const response = await this.request(
-        `/v2/sandboxes/sessions/${params.sessionId}/cmd`,
-        {
+      const send = () =>
+        this.request(`/v2/sandboxes/sessions/${params.sessionId}/cmd`, {
           method: "POST",
           body: JSON.stringify({
             command: params.command,
@@ -488,8 +489,21 @@ export class APIClient extends BaseClient {
           }),
           signal: params.signal,
           retry: { retries: 0 },
-        },
-      );
+        });
+
+      // A rate limited command was not started, so unlike after a network
+      // error or a 5xx, it is safe to send again. The backoff floor also ends
+      // the loop when there is no Retry-After.
+      let response = await send();
+      for (let attempt = 0, waited = 0; response.status === 429; attempt++) {
+        const retryAfterMs = Number(response.headers.get("Retry-After")) * 1000;
+        const wait = Math.max(retryAfterMs || 0, retryBackoff(attempt));
+        if (waited + wait > COMMAND_RATE_LIMIT_MAX_WAIT_MS) break;
+        waited += wait;
+        await response.body?.cancel();
+        await waitBeforeRetry(wait, params.signal);
+        response = await send();
+      }
 
       if (!response.ok) {
         await parseOrThrow(z.any(), response);
@@ -959,7 +973,7 @@ export class APIClient extends BaseClient {
           throw error;
         }
         maybeApplied = true;
-        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
+        await waitBeforeRetry(retryBackoff(attempt), params.abortSignal);
         continue;
       }
 
@@ -980,8 +994,8 @@ export class APIClient extends BaseClient {
         const retryAfter = Number(response.headers.get("Retry-After"));
         if (!(retryAfter > 20)) {
           await response.body?.cancel();
-          await waitBeforeStdinRetry(
-            retryAfter > 0 ? retryAfter * 1000 : stdinBackoff(attempt),
+          await waitBeforeRetry(
+            retryAfter > 0 ? retryAfter * 1000 : retryBackoff(attempt),
             params.abortSignal,
           );
           continue;
@@ -991,7 +1005,7 @@ export class APIClient extends BaseClient {
       if (resendable && canRetry && (status === 502 || status === 503)) {
         maybeApplied = true;
         await response.body?.cancel();
-        await waitBeforeStdinRetry(stdinBackoff(attempt), params.abortSignal);
+        await waitBeforeRetry(retryBackoff(attempt), params.abortSignal);
         continue;
       }
 

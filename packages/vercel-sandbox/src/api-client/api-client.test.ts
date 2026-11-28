@@ -898,6 +898,91 @@ describe("APIClient", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
+    describe("when the command is rate limited", () => {
+      const rateLimited = (retryAfter: string) =>
+        new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
+          status: 429,
+          headers: {
+            "content-type": "application/json",
+            "Retry-After": retryAfter,
+          },
+        });
+
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => vi.useRealTimers());
+
+      it("sends it again after Retry-After", async () => {
+        const sent: number[] = [];
+        mockFetch.mockImplementation(async () => {
+          sent.push(Date.now());
+          return sent.length === 1
+            ? rateLimited("3")
+            : response([{ command }, { command: finished }]);
+        });
+
+        const run = client.runCommand(params);
+        await vi.runAllTimersAsync();
+        const result = await run;
+
+        await expect(result.finished).resolves.toEqual(finished);
+        expect(sent.map((time) => time - sent[0])).toEqual([0, 3000]);
+      });
+
+      it.each([
+        ["10", [0, 10000, 20000]],
+        ["1", [0, 1000, 2000, 3600, 6800, 13200]],
+        ["0", [0, 400, 1200, 2800, 6000, 12400]],
+      ])(
+        "with Retry-After %s, waits at least the backoff and gives up after 20 seconds in total",
+        async (retryAfter, offsets) => {
+          const sent: number[] = [];
+          mockFetch.mockImplementation(async () => {
+            sent.push(Date.now());
+            return rateLimited(retryAfter);
+          });
+
+          const run = expect(client.runCommand(params)).rejects.toMatchObject({
+            response: { status: 429 },
+          });
+          await vi.runAllTimersAsync();
+          await run;
+
+          expect(sent.map((time) => time - sent[0])).toEqual(offsets);
+        },
+      );
+
+      it("does not send it again after a server error", async () => {
+        mockFetch
+          .mockResolvedValueOnce(rateLimited("1"))
+          .mockResolvedValueOnce(
+            new Response("Service Unavailable", { status: 503 }),
+          );
+
+        const run = expect(client.runCommand(params)).rejects.toMatchObject({
+          response: { status: 503 },
+        });
+        await vi.runAllTimersAsync();
+        await run;
+
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+      });
+
+      it("stops waiting when the signal aborts", async () => {
+        mockFetch.mockResolvedValue(rateLimited("10"));
+        const controller = new AbortController();
+        const reason = new Error("stopped");
+
+        const run = expect(
+          client.runCommand({ ...params, signal: controller.signal }),
+        ).rejects.toBe(reason);
+        await vi.advanceTimersByTimeAsync(5000);
+        controller.abort(reason);
+        await run;
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it("preserves the original wait response after reading its body", async () => {
       const text = JSON.stringify({ command: finished });
       const original = new Response(text);
